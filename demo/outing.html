@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#1f4d3a" />
+  <title>Normal outing · Begum Sultan Jahan Hall</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Source+Serif+4:opsz,ital,wght@8..60,0,500;8..60,0,600;8..60,1,500;8..60,1,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="flow-page">
+  <header class="role-banner" data-role="resident">
+    <a class="banner-home" href="index.html">Workflows</a>
+    <span data-role-banner>You are the resident</span>
+  </header>
+  <div class="demo-shell">
+    <aside class="step-list">
+      <a class="step-back" href="index.html">All workflows</a>
+      <h1>Normal outing</h1>
+      <ol>
+        <li data-for="home" data-go="home">Resident home</li>
+        <li data-for="plan" data-go="plan">Plan outing</li>
+        <li data-for="qr" data-go="qr">Hall pass</li>
+        <li data-for="to-gate,scan" data-go="to-gate">Gate staff</li>
+        <li data-for="exit" data-go="exit">Exit recorded</li>
+      </ol>
+    </aside>
+
+    <div class="phone-stage">
+      <div class="phone-slot" data-phone-slot>
+        <div class="device" data-phone data-role="resident">
+          <div class="device-shell"><div class="device-screen has-tabs">
+            <div class="island"></div>
+            <div class="os-bar"><span data-os-time>5:58</span><span class="os-icons"><svg width="18" height="12"><use href="#i-signal"/></svg><svg width="16" height="12"><use href="#i-wifi"/></svg><svg width="25" height="12"><use href="#i-battery"/></svg></span></div>
+
+            <section class="is-on" data-screen="home" data-role="resident" data-time="5:58">
+              <div class="app">
+                <div class="top">
+                  <div class="brand"><span class="hall">Begum Sultan Jahan Hall</span><span class="product">Home</span></div>
+                  <span class="badge inside"><span class="dot"></span>Inside</span>
+                </div>
+                <div class="hello">
+                  <div class="greet">Good evening</div>
+                  <h3>Aisha Khan</h3>
+                  <div class="meta"><b>B-204</b> · Block B · B.A. LL.B. (Hons.)</div>
+                </div>
+                <div class="card identity">
+                  <div class="avatar">AK</div>
+                  <div class="who">
+                    <div class="name">You are inside the hall</div>
+                    <div class="sub">Last return · yesterday 8:46 PM</div>
+                  </div>
+                </div>
+                <div class="history">
+                  <p class="section-label">History</p>
+                  <div class="hist-row">
+                    <div><b>Returned</b><span>Maulana Azad Library</span></div>
+                    <time>Yesterday 8:46 PM</time>
+                  </div>
+                  <div class="hist-row">
+                    <div><b>Went out</b><span>Maulana Azad Library</span></div>
+                    <time>Yesterday 6:05 PM</time>
+                  </div>
+                  <div class="hist-row">
+                    <div><b>Returned</b><span>Shamshad Market</span></div>
+                    <time>Fri 11 Sep 7:12 PM</time>
+                  </div>
+                </div>
+                <p class="emer-link">Emergency</p>
+              </div>
+              <nav class="tabbar">
+                <button type="button" class="tab on" data-go="home"><svg width="22" height="22"><use href="#i-home"/></svg>Home</button>
+                <button type="button" class="tab tap-hint" data-go="plan"><svg width="22" height="22"><use href="#i-door"/></svg>Outing</button>
+                <button type="button" class="tab"><svg width="22" height="22"><use href="#i-shield"/></svg>Permission</button>
+                <button type="button" class="tab" data-go="qr"><svg width="22" height="22"><use href="#i-qr"/></svg>Hall pass</button>
+              </nav>
+            </section>
+
+            <section data-screen="plan" data-role="resident" data-time="5:59">
+              <div class="app">
+                <div class="top">
+                  <button type="button" class="back" data-go="home"><svg width="22" height="22"><use href="#i-chev"/></svg> Home</button>
+                  <div class="nav-title">Plan outing</div>
+                  <div style="width:46px"></div>
+                </div>
+                <p class="section-label">Destination</p>
+                <div class="chips">
+                  <span class="chip on">Maulana Azad Library</span>
+                  <span class="chip">Shamshad Market</span>
+                  <span class="chip">J.N. Medical College</span>
+                  <span class="chip">Women’s College</span>
+                  <span class="chip">Other</span>
+                </div>
+                <div class="field">
+                  <label>Expected return</label>
+                  <div class="value mono">7:00 PM</div>
+                  <div class="hint">Grace period ends 7:30 PM · parents notified if still outside</div>
+                </div>
+                <div class="hint-row">Use the permanent QR at the main gate. The scan will record EXIT. No new code is generated.</div>
+                <div class="spacer"></div>
+                <button type="button" class="btn block tap-hint" data-go="qr">Confirm outing</button>
+              </div>
+              <nav class="tabbar">
+                <button type="button" class="tab" data-go="home"><svg width="22" height="22"><use href="#i-home"/></svg>Home</button>
+                <button type="button" class="tab on" data-go="plan"><svg width="22" height="22"><use href="#i-door"/></svg>Outing</button>
+                <button type="button" class="tab"><svg width="22" height="22"><use href="#i-shield"/></svg>Permission</button>
+                <button type="button" class="tab" data-go="qr"><svg width="22" height="22"><use href="#i-qr"/></svg>Hall pass</button>
+              </nav>
+            </section>
+
+            <section data-screen="qr" data-role="resident" data-time="6:11">
+              <div class="app tight">
+                <div class="top">
+                  <button type="button" class="back" data-go="plan"><svg width="22" height="22"><use href="#i-chev"/></svg></button>
+                  <div class="nav-title">Hall pass</div>
+                  <span class="badge live"><span class="dot"></span>Live</span>
+                </div>
+                <button type="button" class="qr-go tap-hint" data-go="to-gate" aria-label="Show hall pass at the gate">
+                  <div class="qr-pass">
+                    <div class="qr-ring"><div class="qr-inner"><img src="qr-aisha.svg" alt="Permanent resident QR for Aisha Khan, B-204" /></div></div>
+                    <div class="qr-caption">
+                      <b>Aisha Khan</b>
+                      <span>B-204 · Permanent resident QR</span>
+                    </div>
+                  </div>
+                </button>
+                <div class="hint-row">Show this at the gate. The same code is used to go out and to come back.</div>
+              </div>
+              <nav class="tabbar">
+                <button type="button" class="tab" data-go="home"><svg width="22" height="22"><use href="#i-home"/></svg>Home</button>
+                <button type="button" class="tab" data-go="plan"><svg width="22" height="22"><use href="#i-door"/></svg>Outing</button>
+                <button type="button" class="tab"><svg width="22" height="22"><use href="#i-shield"/></svg>Permission</button>
+                <button type="button" class="tab on" data-go="qr"><svg width="22" height="22"><use href="#i-qr"/></svg>Hall pass</button>
+              </nav>
+            </section>
+
+            <section data-screen="scan" data-role="gate" data-time="6:12">
+              <div class="app gate-app" style="padding-bottom:92px;">
+                <p class="gate-kicker">Align the hall pass</p>
+                <button type="button" class="scanner tap-hint" data-go="exit" aria-label="Scan hall pass">
+                  <div class="scan-frame">
+                    <div class="corners"><i></i><i></i><i></i><i></i></div>
+                    <div class="scan-line"></div>
+                    <img class="ghost-qr" src="qr-aisha.svg" alt="Resident QR in the scanner" />
+                  </div>
+                </button>
+              </div>
+              <nav class="tabbar gate tabs-3">
+                <button type="button" class="tab"><svg width="22" height="22"><use href="#i-home"/></svg>Home</button>
+                <button type="button" class="tab on" data-go="scan"><svg width="22" height="22"><use href="#i-scan"/></svg>Scan</button>
+                <button type="button" class="tab"><svg width="22" height="22"><use href="#i-list"/></svg>Activity</button>
+              </nav>
+            </section>
+
+            <section data-screen="exit" data-role="gate" data-time="6:12">
+              <div class="app gate-app">
+                <button type="button" class="gate-flash tap-hint" data-go="end">
+                  <div class="seal"><svg width="36" height="36"><use href="#i-door"/></svg></div>
+                  <h3>Exit recorded</h3>
+                  <div class="who-lg">Aisha Khan</div>
+                  <div class="room">B-204</div>
+                  <div class="when">6:12 PM</div>
+                  <p>The resident is now outside. Ready for the next resident.</p>
+                </button>
+              </div>
+              <nav class="tabbar gate tabs-3">
+                <button type="button" class="tab"><svg width="22" height="22"><use href="#i-home"/></svg>Home</button>
+                <button type="button" class="tab on" data-go="scan"><svg width="22" height="22"><use href="#i-scan"/></svg>Scan</button>
+                <button type="button" class="tab"><svg width="22" height="22"><use href="#i-list"/></svg>Activity</button>
+              </nav>
+            </section>
+
+            <div class="home-pill"></div>
+          </div></div>
+        </div>
+      </div>
+
+      <section class="handoff" data-screen="to-gate" data-role="gate">
+        <p class="handoff-kicker">Now</p>
+        <h2>You are gate staff</h2>
+        <p>The resident is at the main gate with a hall pass.</p>
+        <button type="button" class="btn block tap-hint" data-go="scan">Continue</button>
+      </section>
+
+      <section class="end-card" data-screen="end" data-role="done">
+        <p class="end-kicker">Begum Sultan Jahan Hall</p>
+        <h2>That is this workflow.</h2>
+        <p>This was a normal outing. No special permission. The same hall pass is used to come back.</p>
+        <button type="button" class="btn ghost block" data-go="home">Try this again</button>
+        <nav class="end-links">
+          <a href="outing.html">Normal outing</a>
+          <a href="return.html">A resident comes back</a>
+          <a href="permission.html">Special permission</a>
+          <a href="gate.html">Gate staff</a>
+          <a href="warden.html">Warden register</a>
+          <a href="index.html">All workflows</a>
+        </nav>
+      </section>
+    </div>
+  </div>
+  <script src="flow.js"></script>
+</body>
+</html>
