@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#1f4d3a" />
+  <title>Guest stay · Begum Sultan Jahan Hall</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Source+Serif+4:opsz,ital,wght@8..60,0,500;8..60,0,600;8..60,1,500;8..60,1,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="flow-page">
+  <header class="role-banner" data-role="resident">
+    <a class="banner-home" href="index.html">Workflows</a>
+    <span data-role-banner>You are the resident</span>
+  </header>
+  <div class="demo-shell">
+    <aside class="step-list">
+      <a class="step-back" href="index.html">All workflows</a>
+      <h1>Guest stay</h1>
+      <ol>
+        <li data-for="home,type,form" data-go="home">Apply for a guest</li>
+        <li data-for="to-warden,review" data-go="to-warden">Warden approves</li>
+        <li data-for="to-gate,guests,arrived" data-go="to-gate">Gate records arrival</li>
+        <li data-for="to-register,register,overstay" data-go="to-register">Guests in hall</li>
+        <li data-for="to-out,guests-out,departed" data-go="to-out">Gate records departure</li>
+      </ol>
+    </aside>
+
+    <div class="phone-stage">
+      <div class="phone-slot" data-phone-slot>
+        <div class="device" data-phone data-role="resident">
+          <div class="device-shell"><div class="device-screen has-tabs">
+            <div class="island"></div>
+            <div class="os-bar"><span data-os-time>4:10</span><span class="os-icons"><svg width="18" height="12"><use href="#i-signal"/></svg><svg width="16" height="12"><use href="#i-wifi"/></svg><svg width="25" height="12"><use href="#i-battery"/></svg></span></div>
+
+            <section class="is-on" data-screen="home" data-role="resident" data-time="4:10">
+              <div class="app">
+                <div class="top">
+                  <div class="brand"><span class="hall">Begum Sultan Jahan Hall</span><span class="product">Home</span></div>
+                  <span class="badge inside"><span class="dot"></span>Inside</span>
+                </div>
+                <div class="hello">
+                  <div class="greet">Good afternoon</div>
+                  <h3>Aisha Khan</h3>
+                  <div class="meta"><b>B-204</b> · Block B</div>
+                </div>
+                <div class="card identity">
+                  <div class="avatar">AK</div>
+                  <div class="who">
+                    <div class="name">You are inside the hall</div>
+                    <div class="sub">Last return · yesterday 8:46 PM</div>
+                  </div>
+                </div>
+                <div class="history">
+                  <p class="section-label">History</p>
+                  <div class="hist-row">
+                    <div><b>Returned</b><span>Maulana Azad Library</span></div>
+                    <time>Yesterday 8:46 PM</time>
+                  </div>
+                  <div class="hist-row">
+                    <div><b>Went out</b><span>Maulana Azad Library</span></div>
+                    <time>Yesterday 6:05 PM</time>
+                  </div>
+                </div>
+                <p class="emer-link">Emergency</p>
+              </div>
+              <nav class="tabbar">
+                <button type="button" class="tab on" data-go="home"><svg width="22" height="22"><use href="#i-home"/></svg>Home</button>
+                <button type="button" class="tab"><svg width="22" height="22"><use href="#i-door"/></svg>Outing</button>
+                <button type="button" class="tab tap-hint" data-go="type"><svg width="22" height="22"><use href="#i-shield"/></svg>Permission</button>
+                <button type="button" class="tab"><svg width="22" height="22"><use href="#i-qr"/></svg>Hall pass</button>
+              </nav>
+            </section>
+
+            <section data-screen="type" data-role="resident" data-time="4:11">
+              <div class="app">
+                <div class="top">
+                  <button type="button" class="back" data-go="home"><svg width="22" height="22"><use href="#i-chev"/></svg> Home</button>
+                  <div class="nav-title">Permission type</div>
+                  <div style="width:46px"></div>
+                </div>
+                <p class="tiny">Choose the official hall category. The form changes with the type.</p>
+                <div class="choice">
+                  <svg width="22" height="22" style="color:var(--forest);flex:0 0 auto;margin-top:2px;"><use href="#i-moon"/></svg>
+                  <div>
+                    <h4>Local Outing / Late-Night Permission</h4>
+                    <p>Remain in Aligarh after ordinary hours.</p>
+                  </div>
+                </div>
+                <div class="choice">
+                  <svg width="22" height="22" style="color:var(--forest);flex:0 0 auto;margin-top:2px;"><use href="#i-home"/></svg>
+                  <div>
+                    <h4>Home Visit / Home Going</h4>
+                    <p>Leave the hall for home, with a return date.</p>
+                  </div>
+                </div>
+                <button type="button" class="choice on tap-hint" data-go="form">
+                  <svg width="22" height="22" style="color:var(--forest);flex:0 0 auto;margin-top:2px;"><use href="#i-users"/></svg>
+                  <div>
+                    <h4>Guest stay</h4>
+                    <p>A girl stays in the hall on payment, up to 7 days. Permission at least a day before.</p>
+                  </div>
+                </button>
+                <div class="spacer"></div>
+                <button type="button" class="btn block" data-go="form">Continue</button>
+              </div>
+              <nav class="tabbar">
+                <button type="button" class="tab" data-go="home"><svg width="22" height="22"><use href="#i-home"/></svg>Home</button>
+                <button type="button" class="tab"><svg width="22" height="22"><use href="#i-door"/></svg>Outing</button>
+                <button type="button" class="tab on" data-go="type"><svg width="22" height="22"><use href="#i-shield"/></svg>Permission</button>
+                <button type="button" class="tab"><svg width="22" height="22"><use href="#i-qr"/></svg>Hall pass</button>
+              </nav>
+            </section>
+
+            <section data-screen="form" data-role="resident" data-time="4:12">
+              <div class="app tight">
+                <div class="top">
+                  <button type="button" class="back" data-go="type"><svg width="22" height="22"><use href="#i-chev"/></svg></button>
+                  <div class="nav-title">Guest stay</div>
+                  <div style="width:22px"></div>
+                </div>
+                <div class="field"><label>Guest name</label><div class="value">Zara Ahmed</div></div>
+                <div class="field"><label>Relation</label><div class="value" style="font-size:15px;">Cousin</div></div>
+                <div class="split">
+                  <div class="field"><label>Start date</label><div class="value" style="font-size:15px;">Fri 18 Sep</div></div>
+                  <div class="field"><label>End date</label><div class="value" style="font-size:15px;">Mon 21 Sep</div></div>
+                </div>
+                <div class="hint-row">4 days · within 7-day limit. Permission must be taken at least a day before coming. Today cannot be the start date.</div>
+                <div class="field"><label>Reason</label><div class="value" style="font-weight:500;font-size:14.5px;line-height:1.3;">Family wedding in Aligarh. Staying with Aisha, B-204.</div></div>
+                <div class="spacer"></div>
+                <button type="button" class="btn block tap-hint" data-go="to-warden">Submit to warden</button>
+              </div>
+              <nav class="tabbar">
+                <button type="button" class="tab" data-go="home"><svg width="22" height="22"><use href="#i-home"/></svg>Home</button>
+                <button type="button" class="tab"><svg width="22" height="22"><use href="#i-door"/></svg>Outing</button>
+                <button type="button" class="tab on" data-go="type"><svg width="22" height="22"><use href="#i-shield"/></svg>Permission</button>
+                <button type="button" class="tab"><svg width="22" height="22"><use href="#i-qr"/></svg>Hall pass</button>
+              </nav>
+            </section>
+
+            <section data-screen="review" data-role="warden" data-time="4:28">
+              <div class="app tight">
+                <div class="top">
+                  <div class="nav-title">Review</div>
+                </div>
+                <div class="card identity">
+                  <div class="avatar">ZA</div>
+                  <div class="who">
+                    <div class="name">Zara Ahmed</div>
+                    <div class="sub">Guest of Aisha Khan</div>
+                  </div>
+                  <span class="badge pending"><span class="dot"></span>Pending</span>
+                </div>
+                <p class="section-label">Guest stay</p>
+                <div class="card quiet">
+                  <dl class="kv">
+                    <dt>Host</dt><dd>Aisha Khan · B-204</dd>
+                    <dt>Relation</dt><dd>Cousin</dd>
+                    <dt>Start</dt><dd>Fri 18 Sep 2026</dd>
+                    <dt>End</dt><dd>Mon 21 Sep 2026</dd>
+                    <dt>Days</dt><dd>4 · within 7</dd>
+                    <dt>Payment</dt><dd>Paid at hall office</dd>
+                    <dt>Reason</dt><dd style="max-width:180px;">Family wedding in Aligarh</dd>
+                  </dl>
+                </div>
+                <div class="spacer"></div>
+                <div class="actions-row">
+                  <button type="button" class="btn reject" data-go="end">Reject</button>
+                  <button type="button" class="btn approve tap-hint" data-go="to-gate">Approve</button>
+                </div>
+              </div>
+              <nav class="tabbar">
+                <button type="button" class="tab"><svg width="22" height="22"><use href="#i-home"/></svg>Home</button>
+                <button type="button" class="tab"><svg width="22" height="22"><use href="#i-alert"/></svg>Late</button>
+                <button type="button" class="tab on" data-go="review"><svg width="22" height="22"><use href="#i-shield"/></svg>Pending</button>
+                <button type="button" class="tab"><svg width="22" height="22"><use href="#i-users"/></svg>Guests</button>
+              </nav>
+            </section>
+
+            <section data-screen="guests" data-role="gate" data-time="3:40">
+              <div class="app gate-app">
+                <div class="top">
+                  <div class="brand"><span class="hall">Gate staff · Imran Qureshi</span><span class="product">Guests today</span></div>
+                </div>
+                <p class="gate-kicker">Expected · Fri 18 Sep</p>
+                <button type="button" class="gate-guest tap-hint" data-go="arrived">
+                  <div>
+                    <div class="nm">Zara Ahmed</div>
+                    <div class="rm">Guest of Aisha Khan · B-204 · 18–21 Sep · Paid</div>
+                  </div>
+                  <span class="btn gold block">Record arrival</span>
+                </button>
+                <p class="gate-kicker" style="margin-top:4px;">Already in hall</p>
+                <div class="gate-guest">
+                  <div>
+                    <div class="nm">Fatima Noor</div>
+                    <div class="rm">Guest of Sana Fatima · B-087 · leaves 19 Sep</div>
+                  </div>
+                </div>
+              </div>
+              <nav class="tabbar gate tabs-3">
+                <button type="button" class="tab"><svg width="22" height="22"><use href="#i-home"/></svg>Home</button>
+                <button type="button" class="tab on" data-go="guests"><svg width="22" height="22"><use href="#i-users"/></svg>Guests</button>
+                <button type="button" class="tab"><svg width="22" height="22"><use href="#i-list"/></svg>Activity</button>
+              </nav>
+            </section>
+
+            <section data-screen="arrived" data-role="gate" data-time="3:41">
+              <div class="app gate-app">
+                <button type="button" class="gate-flash tap-hint" data-go="to-register">
+                  <div class="seal"><svg width="36" height="36"><use href="#i-users"/></svg></div>
+                  <h3>Guest arrival recorded</h3>
+                  <div class="who-lg">Zara Ahmed</div>
+                  <div class="room">Host Aisha Khan · B-204</div>
+                  <div class="when">3:41 PM</div>
+                  <p>The guest is now in the hall. Guests in hall is 6. Ready for the next person.</p>
+                </button>
+              </div>
+              <nav class="tabbar gate tabs-3">
+                <button type="button" class="tab"><svg width="22" height="22"><use href="#i-home"/></svg>Home</button>
+                <button type="button" class="tab on" data-go="guests"><svg width="22" height="22"><use href="#i-users"/></svg>Guests</button>
+                <button type="button" class="tab"><svg width="22" height="22"><use href="#i-list"/></svg>Activity</button>
+              </nav>
+            </section>
+
+            <section data-screen="register" data-role="warden" data-time="7:42">
+              <div class="app tight">
+                <div class="top">
+                  <div class="brand"><span class="hall">Dr. Nausheen Rizvi · Warden</span><span class="product">Hall register</span></div>
+                </div>
+                <div class="metrics">
+                  <div class="metric in-m"><div class="l">Currently inside</div><div class="n">186</div></div>
+                  <div class="metric out-m"><div class="l">Currently outside</div><div class="n">22</div></div>
+                  <button type="button" class="metric guest-m wide tap-hint" data-go="overstay">
+                    <div class="l">Guests in hall<div class="hint">Extra plates for dining</div></div>
+                    <div class="n">6</div>
+                  </button>
+                  <div class="metric late-m"><div class="l">Should have left</div><div class="n">1</div></div>
+                  <div class="metric pend-m"><div class="l">Pending guest stays</div><div class="n">2</div></div>
+                </div>
+                <div class="chips">
+                  <span class="chip">All</span>
+                  <span class="chip on">Guests</span>
+                  <button type="button" class="chip" data-go="overstay">Overstay</button>
+                </div>
+                <div class="list">
+                  <div class="row-item">
+                    <div class="avatar sm">ZA</div>
+                    <div class="grow"><div class="nm">Zara Ahmed</div><div class="rm">Host Aisha · B-204</div></div>
+                    <div class="right"><span class="badge guest"><span class="dot"></span>In hall</span><div class="exp">Leaves Mon 21 Sep</div></div>
+                  </div>
+                  <button type="button" class="row-item tap-hint" data-go="overstay">
+                    <div class="avatar sm warn">HY</div>
+                    <div class="grow"><div class="nm">Hina Yusuf</div><div class="rm">Host Iqra · A-044</div></div>
+                    <div class="right"><span class="badge late"><span class="dot"></span>Should have left</span><div class="exp">End was 17 Sep</div></div>
+                  </button>
+                </div>
+              </div>
+              <nav class="tabbar">
+                <button type="button" class="tab on" data-go="register"><svg width="22" height="22"><use href="#i-home"/></svg>Home</button>
+                <button type="button" class="tab" data-go="overstay"><svg width="22" height="22"><use href="#i-alert"/></svg>Late</button>
+                <button type="button" class="tab"><svg width="22" height="22"><use href="#i-shield"/></svg>Pending</button>
+                <button type="button" class="tab" data-go="overstay"><svg width="22" height="22"><use href="#i-users"/></svg>Guests</button>
+              </nav>
+            </section>
+
+            <section data-screen="overstay" data-role="warden" data-time="7:43">
+              <div class="app">
+                <div class="top">
+                  <button type="button" class="back" data-go="register"><svg width="22" height="22"><use href="#i-chev"/></svg> Register</button>
+                  <div class="nav-title">Should have left</div>
+                  <div style="width:54px"></div>
+                </div>
+                <div class="card quiet" style="background:var(--late-bg);border-color:#e8d2c4;">
+                  <div class="l" style="font-size:12px;color:var(--late);font-weight:640;">End date has passed. No departure recorded.</div>
+                  <div style="font-family:var(--serif);font-size:36px;letter-spacing:-0.04em;">1</div>
+                  <div class="tiny">The hall has to be sure this guest has left. Dining still counts her until gate records out.</div>
+                </div>
+                <div class="list">
+                  <div class="row-item">
+                    <div class="avatar sm warn">HY</div>
+                    <div class="grow"><div class="nm">Hina Yusuf</div><div class="rm">Host Iqra Naseem · A-044</div></div>
+                    <div class="right"><span class="badge late"><span class="dot"></span>Should have left</span><div class="exp">End was 17 Sep</div></div>
+                  </div>
+                </div>
+                <div class="spacer"></div>
+                <button type="button" class="btn block tap-hint" data-go="to-out">Continue</button>
+              </div>
+              <nav class="tabbar">
+                <button type="button" class="tab" data-go="register"><svg width="22" height="22"><use href="#i-home"/></svg>Home</button>
+                <button type="button" class="tab on" data-go="overstay"><svg width="22" height="22"><use href="#i-alert"/></svg>Late</button>
+                <button type="button" class="tab"><svg width="22" height="22"><use href="#i-shield"/></svg>Pending</button>
+                <button type="button" class="tab" data-go="register"><svg width="22" height="22"><use href="#i-users"/></svg>Guests</button>
+              </nav>
+            </section>
+
+            <section data-screen="guests-out" data-role="gate" data-time="10:12">
+              <div class="app gate-app">
+                <div class="top">
+                  <div class="brand"><span class="hall">Gate staff · Imran Qureshi</span><span class="product">Guests today</span></div>
+                </div>
+                <p class="gate-kicker">In hall · Mon 21 Sep</p>
+                <button type="button" class="gate-guest tap-hint" data-go="departed">
+                  <div>
+                    <div class="nm">Zara Ahmed</div>
+                    <div class="rm">Guest of Aisha Khan · B-204 · last day today · Paid</div>
+                  </div>
+                  <span class="btn gold block">Record departure</span>
+                </button>
+              </div>
+              <nav class="tabbar gate tabs-3">
+                <button type="button" class="tab"><svg width="22" height="22"><use href="#i-home"/></svg>Home</button>
+                <button type="button" class="tab on" data-go="guests-out"><svg width="22" height="22"><use href="#i-users"/></svg>Guests</button>
+                <button type="button" class="tab"><svg width="22" height="22"><use href="#i-list"/></svg>Activity</button>
+              </nav>
+            </section>
+
+            <section data-screen="departed" data-role="gate" data-time="10:12">
+              <div class="app gate-app">
+                <button type="button" class="gate-flash tap-hint" data-go="end">
+                  <div class="seal"><svg width="36" height="36"><use href="#i-check"/></svg></div>
+                  <h3>Guest departure recorded</h3>
+                  <div class="who-lg">Zara Ahmed</div>
+                  <div class="room">Host Aisha Khan · B-204</div>
+                  <div class="when">10:12 AM</div>
+                  <p>The stay is closed. Guests in hall is 5. Dining uses the new number.</p>
+                </button>
+              </div>
+              <nav class="tabbar gate tabs-3">
+                <button type="button" class="tab"><svg width="22" height="22"><use href="#i-home"/></svg>Home</button>
+                <button type="button" class="tab on" data-go="guests-out"><svg width="22" height="22"><use href="#i-users"/></svg>Guests</button>
+                <button type="button" class="tab"><svg width="22" height="22"><use href="#i-list"/></svg>Activity</button>
+              </nav>
+            </section>
+
+            <div class="home-pill"></div>
+          </div></div>
+        </div>
+      </div>
+
+      <section class="handoff" data-screen="to-warden" data-role="warden">
+        <p class="handoff-kicker">Now</p>
+        <h2>You are the warden</h2>
+        <p>A guest stay request from Aisha Khan is waiting. Payment is marked at the hall office.</p>
+        <button type="button" class="btn block tap-hint" data-go="review">Continue</button>
+      </section>
+
+      <section class="handoff" data-screen="to-gate" data-role="gate">
+        <p class="handoff-kicker">Now</p>
+        <h2>You are gate staff</h2>
+        <p>It is Friday 18 Sep. Zara Ahmed is expected. Guests do not have a hall pass. Record her arrival from the list.</p>
+        <button type="button" class="btn block tap-hint" data-go="guests">Continue</button>
+      </section>
+
+      <section class="handoff" data-screen="to-register" data-role="warden">
+        <p class="handoff-kicker">Now</p>
+        <h2>You are the warden</h2>
+        <p>Guests in hall is on the same register as inside and outside. That number is what dining needs.</p>
+        <button type="button" class="btn block tap-hint" data-go="register">Continue</button>
+      </section>
+
+      <section class="handoff" data-screen="to-out" data-role="gate">
+        <p class="handoff-kicker">Now</p>
+        <h2>You are gate staff</h2>
+        <p>It is Monday 21 Sep, Zara’s last day. Record her departure so the hall knows she has left.</p>
+        <button type="button" class="btn block tap-hint" data-go="guests-out">Continue</button>
+      </section>
+
+      <section class="end-card" data-screen="end" data-role="done">
+        <p class="end-kicker">Begum Sultan Jahan Hall</p>
+        <h2>That is this workflow.</h2>
+        <p>A resident applies at least a day before, with start and end dates, up to 7 days. The gate records in and out. Guests in hall is on the warden register for dining.</p>
+        <button type="button" class="btn ghost block" data-go="home">Try this again</button>
+        <nav class="end-links">
+          <a href="outing.html">Normal outing</a>
+          <a href="return.html">A resident comes back</a>
+          <a href="permission.html">Special permission</a>
+          <a href="gate.html">Gate staff</a>
+          <a href="warden.html">Warden register</a>
+          <a href="guest.html">Guest stay</a>
+          <a href="index.html">All workflows</a>
+        </nav>
+      </section>
+    </div>
+  </div>
+  <script src="flow.js"></script>
+</body>
+</html>

@@ -2,4 +2,21 @@
 node_modules/
 .vercel
 *.tmp.png
-.grok/
+
+# Local Grok state stays untracked. Project skills are part of the repo.
+.grok/*
+!.grok/skills/
+!.grok/skills/**
+
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.env
+backend/.env
+backend/data/*.db
+backend/data/*.db-wal
+backend/data/*.db-shm

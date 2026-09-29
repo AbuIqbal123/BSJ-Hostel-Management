@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#16382b" />
+  <title>Warden register · Begum Sultan Jahan Hall</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Source+Serif+4:opsz,ital,wght@8..60,0,500;8..60,0,600;8..60,1,500;8..60,1,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="flow-page">
+  <header class="role-banner" data-role="warden">
+    <a class="banner-home" href="index.html">Workflows</a>
+    <span data-role-banner>You are the warden</span>
+  </header>
+  <div class="demo-shell">
+    <aside class="step-list">
+      <a class="step-back" href="index.html">All workflows</a>
+      <h1>Warden register</h1>
+      <ol>
+        <li data-for="register" data-go="register">Hall register</li>
+        <li data-for="late" data-go="late">Late list</li>
+        <li data-for="record" data-go="record">Resident record</li>
+        <li data-for="pending" data-go="pending">Pending permissions</li>
+      </ol>
+    </aside>
+
+    <div class="phone-stage">
+      <div class="phone-slot" data-phone-slot>
+        <div class="device" data-phone data-role="warden">
+          <div class="device-shell"><div class="device-screen has-tabs">
+            <div class="island"></div>
+            <div class="os-bar"><span data-os-time>7:42</span><span class="os-icons"><svg width="18" height="12"><use href="#i-signal"/></svg><svg width="16" height="12"><use href="#i-wifi"/></svg><svg width="25" height="12"><use href="#i-battery"/></svg></span></div>
+
+            <section class="is-on" data-screen="register" data-role="warden" data-time="7:42">
+              <div class="app tight">
+                <div class="top">
+                  <div class="brand"><span class="hall">Dr. Nausheen Rizvi · Warden</span><span class="product">Hall register</span></div>
+                </div>
+                <div class="metrics">
+                  <div class="metric in-m"><div class="l">Currently inside</div><div class="n">186</div></div>
+                  <div class="metric out-m"><div class="l">Currently outside</div><div class="n">22</div></div>
+                  <button type="button" class="metric late-m tap-hint" data-go="late"><div class="l">Late return / not yet returned</div><div class="n">3</div></button>
+                  <button type="button" class="metric pend-m" data-go="pending"><div class="l">Pending special permissions</div><div class="n">4</div></button>
+                </div>
+                <div class="search"><svg width="16" height="16"><use href="#i-search"/></svg> Search name or room</div>
+                <div class="chips">
+                  <span class="chip on">All</span>
+                  <span class="chip">Outside</span>
+                  <button type="button" class="chip" data-go="late">Late</button>
+                  <button type="button" class="chip" data-go="pending">Pending</button>
+                </div>
+                <div class="list">
+                  <button type="button" class="row-item" data-go="record">
+                    <div class="avatar sm">AK</div>
+                    <div class="grow"><div class="nm">Aisha Khan</div><div class="rm">B-204</div></div>
+                    <div class="right"><span class="badge outside"><span class="dot"></span>Outside</span><div class="exp">Expected 7:00 PM</div></div>
+                  </button>
+                  <div class="row-item">
+                    <div class="avatar sm">ZS</div>
+                    <div class="grow"><div class="nm">Zoya Siddiqui</div><div class="rm">A-118</div></div>
+                    <div class="right"><span class="badge late"><span class="dot"></span>Not returned</span><div class="exp">Expected 6:30 PM</div></div>
+                  </div>
+                  <div class="row-item">
+                    <div class="avatar sm">MA</div>
+                    <div class="grow"><div class="nm">Maryam Ansari</div><div class="rm">C-012</div></div>
+                    <div class="right"><span class="badge inside"><span class="dot"></span>Inside</span><div class="exp">Returned 8:04 PM</div></div>
+                  </div>
+                </div>
+              </div>
+              <nav class="tabbar">
+                <button type="button" class="tab on" data-go="register"><svg width="22" height="22"><use href="#i-home"/></svg>Home</button>
+                <button type="button" class="tab" data-go="late"><svg width="22" height="22"><use href="#i-alert"/></svg>Late</button>
+                <button type="button" class="tab" data-go="pending"><svg width="22" height="22"><use href="#i-shield"/></svg>Pending</button>
+                <button type="button" class="tab" data-go="record"><svg width="22" height="22"><use href="#i-user"/></svg>People</button>
+              </nav>
+            </section>
+
+            <section data-screen="late" data-role="warden" data-time="7:42">
+              <div class="app">
+                <div class="top">
+                  <button type="button" class="back" data-go="register"><svg width="22" height="22"><use href="#i-chev"/></svg> Register</button>
+                  <div class="nav-title">Late</div>
+                  <div style="width:54px"></div>
+                </div>
+                <div class="card quiet" style="background:var(--late-bg);border-color:#e8d2c4;">
+                  <div class="l" style="font-size:12px;color:var(--late);font-weight:640;">Late return / not yet returned</div>
+                  <div style="font-family:var(--serif);font-size:36px;letter-spacing:-0.04em;">3</div>
+                  <div class="tiny">Grace has ended. Parent SMS has been sent where a number is on file.</div>
+                </div>
+                <div class="list">
+                  <button type="button" class="row-item tap-hint" data-go="record">
+                    <div class="avatar sm warn">AK</div>
+                    <div class="grow"><div class="nm">Aisha Khan</div><div class="rm">B-204 · Library</div></div>
+                    <div class="right"><span class="badge late"><span class="dot"></span>Not returned</span><div class="exp">Expected 7:00 PM</div></div>
+                  </button>
+                  <div class="row-item">
+                    <div class="avatar sm warn">ZS</div>
+                    <div class="grow"><div class="nm">Zoya Siddiqui</div><div class="rm">A-118 · Shamshad Market</div></div>
+                    <div class="right"><span class="badge late"><span class="dot"></span>Not returned</span><div class="exp">Expected 6:30 PM</div></div>
+                  </div>
+                  <div class="row-item">
+                    <div class="avatar sm warn">HR</div>
+                    <div class="grow"><div class="nm">Hafsa Rahman</div><div class="rm">D-331 · JNMC</div></div>
+                    <div class="right"><span class="badge late"><span class="dot"></span>Not returned</span><div class="exp">Expected 6:45 PM</div></div>
+                  </div>
+                </div>
+              </div>
+              <nav class="tabbar">
+                <button type="button" class="tab" data-go="register"><svg width="22" height="22"><use href="#i-home"/></svg>Home</button>
+                <button type="button" class="tab on" data-go="late"><svg width="22" height="22"><use href="#i-alert"/></svg>Late</button>
+                <button type="button" class="tab" data-go="pending"><svg width="22" height="22"><use href="#i-shield"/></svg>Pending</button>
+                <button type="button" class="tab" data-go="record"><svg width="22" height="22"><use href="#i-user"/></svg>People</button>
+              </nav>
+            </section>
+
+            <section data-screen="record" data-role="warden" data-time="7:43">
+              <div class="app tight">
+                <div class="top">
+                  <button type="button" class="back" data-go="late"><svg width="22" height="22"><use href="#i-chev"/></svg> Late</button>
+                  <div class="nav-title">Aisha Khan</div>
+                  <div style="width:40px"></div>
+                </div>
+                <div class="card identity">
+                  <div class="avatar warn">AK</div>
+                  <div class="who">
+                    <div class="name">Aisha Khan</div>
+                    <div class="sub">B-204 · Enrol. 24-GLLB-118</div>
+                  </div>
+                </div>
+                <span class="badge late"><span class="dot"></span>Late return / not yet returned</span>
+                <div class="card quiet">
+                  <dl class="kv">
+                    <dt>Destination</dt><dd>Maulana Azad Library</dd>
+                    <dt>Exit</dt><dd class="mono">6:12 PM</dd>
+                    <dt>Expected return</dt><dd class="mono">7:00 PM</dd>
+                    <dt>Grace ended</dt><dd class="mono">7:30 PM</dd>
+                    <dt>Actual return</dt><dd>Not yet returned</dd>
+                    <dt>Permission</dt><dd>Ordinary outing</dd>
+                    <dt>Parent</dt><dd>Mrs. S. Khan · SMS sent</dd>
+                  </dl>
+                </div>
+                <div class="hint-row">No special permission on file for this outing. Duty gate has the resident as outside since 6:12 PM.</div>
+                <div class="spacer"></div>
+                <button type="button" class="btn block tap-hint" data-go="pending">Pending permissions</button>
+              </div>
+              <nav class="tabbar">
+                <button type="button" class="tab" data-go="register"><svg width="22" height="22"><use href="#i-home"/></svg>Home</button>
+                <button type="button" class="tab" data-go="late"><svg width="22" height="22"><use href="#i-alert"/></svg>Late</button>
+                <button type="button" class="tab" data-go="pending"><svg width="22" height="22"><use href="#i-shield"/></svg>Pending</button>
+                <button type="button" class="tab on" data-go="record"><svg width="22" height="22"><use href="#i-user"/></svg>People</button>
+              </nav>
+            </section>
+
+            <section data-screen="pending" data-role="warden" data-time="4:40">
+              <div class="app tight">
+                <div class="top">
+                  <button type="button" class="back" data-go="register"><svg width="22" height="22"><use href="#i-chev"/></svg> Register</button>
+                  <div class="nav-title">Pending</div>
+                  <div style="width:48px"></div>
+                </div>
+                <div class="card" style="padding:12px;">
+                  <div class="identity">
+                    <div class="avatar sm">AK</div>
+                    <div class="who grow">
+                      <div class="name">Aisha Khan · B-204</div>
+                      <div class="sub">Late-night · Women’s College</div>
+                    </div>
+                  </div>
+                  <p class="tiny" style="margin:8px 0 10px;">Sat 13 Sep · exit 6:30 PM · return 9:30 PM · seminar ends 9:00 PM</p>
+                  <div class="actions-row">
+                    <button type="button" class="btn reject" data-go="end">Reject</button>
+                    <button type="button" class="btn approve tap-hint" data-go="end">Approve</button>
+                  </div>
+                </div>
+                <div class="card" style="padding:12px;">
+                  <div class="identity">
+                    <div class="avatar sm">SF</div>
+                    <div class="who grow">
+                      <div class="name">Sana Fatima · B-087</div>
+                      <div class="sub">Home going · Lucknow</div>
+                    </div>
+                  </div>
+                  <p class="tiny" style="margin:8px 0 10px;">Dep. Fri 19 Sep 8:00 AM · ret. Sun 21 Sep 7:00 PM</p>
+                  <div class="actions-row">
+                    <button type="button" class="btn reject" data-go="end">Reject</button>
+                    <button type="button" class="btn approve" data-go="end">Approve</button>
+                  </div>
+                </div>
+                <div class="card quiet" style="padding:12px;">
+                  <div class="identity">
+                    <div class="avatar sm">IN</div>
+                    <div class="who grow">
+                      <div class="name">Iqra Naseem · A-044</div>
+                      <div class="sub">Late-night · Shamshad Market</div>
+                    </div>
+                  </div>
+                  <p class="tiny" style="margin:8px 0 0;">Tonight · exit 7:00 PM · return 9:00 PM</p>
+                </div>
+              </div>
+              <nav class="tabbar">
+                <button type="button" class="tab" data-go="register"><svg width="22" height="22"><use href="#i-home"/></svg>Home</button>
+                <button type="button" class="tab" data-go="late"><svg width="22" height="22"><use href="#i-alert"/></svg>Late</button>
+                <button type="button" class="tab on" data-go="pending"><svg width="22" height="22"><use href="#i-shield"/></svg>Pending</button>
+                <button type="button" class="tab" data-go="record"><svg width="22" height="22"><use href="#i-user"/></svg>People</button>
+              </nav>
+            </section>
+
+            <div class="home-pill"></div>
+          </div></div>
+        </div>
+      </div>
+
+      <section class="end-card" data-screen="end" data-role="done">
+        <p class="end-kicker">Begum Sultan Jahan Hall</p>
+        <h2>That is this workflow.</h2>
+        <p>Four counts first. Then the people those counts refer to. Approve or reject on the card.</p>
+        <button type="button" class="btn ghost block" data-go="register">Try this again</button>
+        <nav class="end-links">
+          <a href="outing.html">Normal outing</a>
+          <a href="return.html">A resident comes back</a>
+          <a href="permission.html">Special permission</a>
+          <a href="gate.html">Gate staff</a>
+          <a href="warden.html">Warden register</a>
+          <a href="guest.html">Guest stay</a>
+          <a href="index.html">All workflows</a>
+        </nav>
+      </section>
+    </div>
+  </div>
+  <script src="flow.js"></script>
+</body>
+</html>

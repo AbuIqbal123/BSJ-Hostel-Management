@@ -1,0 +1,3282 @@
+openapi: 3.1.0
+info:
+  title: Begum Sultan Jahan Hall API
+  version: 0.1.0
+  description: |
+    HTTP contract for the hostel movement system. Schema version of the database
+    is tracked separately in `docs/database.md`.
+
+    This version is the contract. Business routes are specified here and are not
+    implemented yet. `GET /health` is the only route that responds. Other paths
+    return 404 until they are built. Swagger on this server is the review
+    surface for purpose, payload, and response.
+
+    JSON names are snake_case. Instants are UTC `YYYY-MM-DDTHH:MM:SSZ`. Calendar
+    dates are hall-local `YYYY-MM-DD` in Asia/Kolkata. The caller sends an
+    access token as `Authorization: Bearer`, except on `GET /health`,
+    `POST /api/v1/auth/login`, and `POST /api/v1/auth/refresh`.
+
+    Access tokens last 15 minutes. Refresh tokens last 30 days. Passwords are
+    at least 10 characters. Accounts are issued by the hall office. A resident
+    username is the enrolment number.
+
+    Stored state and lifecycles live in `docs/database.md`. This file does not
+    repeat the column list. The reading copy of this contract is `docs/api.md`.
+  license:
+    name: Proprietary
+    identifier: LicenseRef-proprietary
+
+servers:
+  - url: http://127.0.0.1:8000
+    description: Local development
+  - url: https://api-dev.domain.com
+    description: Development environment, mock SMS only
+  - url: https://api.domain.com
+    description: Production
+
+tags:
+  - name: Operations
+    description: Process health. No hall data.
+  - name: Auth
+    description: Hall-issued accounts. No public registration and no parent login.
+  - name: Resident
+    description: The resident phone. Ordinary outings, permissions, guest applications, and the hall pass.
+  - name: Gate
+    description: Scan the permanent hall pass, and record guest arrival and departure. Guests have no hall pass.
+  - name: Register
+    description: Warden and provost view of the hall. Inside, outside, late, pending decisions, and guests.
+  - name: Hall office
+    description: Provost only. Residents, staff, rooms, destinations, settings, export, SMS log, and audit.
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      tags: [Operations]
+      operationId: health
+      summary: Process health
+      description: Reports that the API process is up. It does not check the database.
+      security: []
+      responses:
+        "200":
+          description: The process is up.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+              example:
+                status: ok
+
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      operationId: login
+      summary: Sign in
+      description: |
+        Caller: anyone with a hall-issued account. Suspended accounts are refused.
+        A resident uses the enrolment number as the username.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+            example:
+              username: 24-GLLB-118
+              password: 
+      responses:
+        "200":
+          description: New access token and refresh token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+
+  /api/v1/auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refresh
+      summary: Exchange a refresh token
+      description: |
+        Issues a new access token and a new refresh token. The presented refresh
+        token is revoked. A revoked, expired, or unknown token is refused.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "200":
+          description: Rotated tokens.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logout
+      summary: Sign out
+      description: Revokes the caller's refresh tokens.
+      responses:
+        "204":
+          description: Refresh tokens revoked.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/auth/me:
+    get:
+      tags: [Auth]
+      operationId: current_user
+      summary: Current account
+      description: The signed-in user, including the resident or staff profile summary.
+      responses:
+        "200":
+          description: Current account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUser"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/auth/change-password:
+    post:
+      tags: [Auth]
+      operationId: change_password
+      summary: Change own password
+      description: Checks the current password, stores a new hash, and revokes refresh tokens.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+      responses:
+        "204":
+          description: Password changed.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+
+  /api/v1/me/home:
+    get:
+      tags: [Resident]
+      operationId: resident_home
+      summary: Resident home
+      description: |
+        Caller: resident. Presence, room, the open outing if there is one, the
+        permission the resident is waiting on or cleared to use, and the last
+        ten exit and return lines.
+      responses:
+        "200":
+          description: Home screen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResidentHome"
+              example:
+                resident:
+                  full_name: Aisha Khan
+                  room_label: B-204
+                  block_name: Block B
+                  course: B.A. LL.B. (Hons.)
+                  presence: inside
+                current_outing: null
+                active_permission: null
+                recent_history:
+                  - event: returned
+                    destination_label: Maulana Azad Library
+                    occurred_at: "2026-09-12T15:16:00Z"
+                    outing_id: 00000000-0000-4000-8000-000000000001
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/me/hall-pass:
+    get:
+      tags: [Resident]
+      operationId: resident_hall_pass
+      summary: Permanent hall pass
+      description: |
+        Caller: resident. Returns the payload the phone encodes as a QR image.
+        The same payload is used to leave and to come back. It changes only when
+        the provost reissues it.
+      responses:
+        "200":
+          description: Hall pass payload.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HallPass"
+              example:
+                qr_payload: bsj:v1:example-token
+                full_name: Aisha Khan
+                room_label: B-204
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/me/history:
+    get:
+      tags: [Resident]
+      operationId: resident_history
+      summary: Own exit and return history
+      description: "Caller: resident. Newest first. Each outing contributes an exit line and, once returned, a return line."
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: History page.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HistoryPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/destinations:
+    get:
+      tags: [Resident]
+      operationId: list_destinations
+      summary: Ordinary outing destinations
+      description: Active catalog, in sort order. Any signed-in user may read it. The hall office edits it.
+      responses:
+        "200":
+          description: Active destinations.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DestinationList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/me/outings:
+    post:
+      tags: [Resident]
+      operationId: plan_outing
+      summary: Plan an ordinary outing
+      description: |
+        Caller: resident, and only while inside with no open outing.
+
+        Sets destination and expected return. Does not record the exit. The gate
+        scan does that. Grace is the hall's `grace_minutes` added to the expected
+        return, and is returned on the outing so the phone can show when parents
+        would be notified.
+
+        Refused when the expected return is not in the future, is later than
+        `ordinary_outing_max_hours`, or is after `ordinary_hours_end` on that
+        hall-local day when that setting is set. That last case asks for a
+        late-night permission instead. When the chosen destination is the Other
+        row, `destination_text` is required.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlanOutingRequest"
+            example:
+              destination_id: 00000000-0000-4000-8000-000000000010
+              expected_return_at: "2026-09-13T13:30:00Z"
+      responses:
+        "201":
+          description: Outing planned. The resident is still inside.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Outing"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: |
+            `already_outside`, `open_outing_exists`, or `permission_required`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+
+  /api/v1/me/outings/current:
+    get:
+      tags: [Resident]
+      operationId: current_outing
+      summary: Open outing
+      description: "Caller: resident. The planned or outside outing, or null."
+      responses:
+        "200":
+          description: Open outing, if any.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentOuting"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/me/outings/current/cancel:
+    post:
+      tags: [Resident]
+      operationId: cancel_outing
+      summary: Cancel a planned outing
+      description: |
+        Caller: resident. Allowed only while the outing is `planned`. An exit
+        that has already been scanned is closed by a return scan, not by cancel.
+      responses:
+        "200":
+          description: Outing cancelled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Outing"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: No planned outing, or the resident is already outside.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/me/permissions:
+    get:
+      tags: [Resident]
+      operationId: list_own_permissions
+      summary: Own special permissions
+      description: "Caller: resident. Newest first. Includes late-night and home going."
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/PermissionStatus"
+      responses:
+        "200":
+          description: Permission page.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PermissionPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [Resident]
+      operationId: submit_permission
+      summary: Request late-night or home going
+      description: |
+        Caller: resident. The warden decides later. Submitting does not let the
+        resident leave. The hall pass can be used for this permission only after
+        it is approved and the gate scans it inside the use window.
+
+        `expected_return_at` must be after `departure_at`. Home going requires
+        `place_label`, `address`, and `reason`. Late-night requires `place_label`
+        and `reason`, and may include `destination_detail`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PermissionCreate"
+            examples:
+              late_night:
+                value:
+                  type: late_night
+                  place_label: Women's College
+                  destination_detail: Seminar Hall
+                  reason: Faculty seminar ends at 9:00 PM. Requesting late return to hall.
+                  departure_at: "2026-09-13T13:00:00Z"
+                  expected_return_at: "2026-09-13T16:00:00Z"
+              home_going:
+                value:
+                  type: home_going
+                  place_label: Lucknow
+                  address: 14, Civil Lines, Lucknow, U.P. 226001
+                  reason: Family visit. Eid with parents.
+                  departure_at: "2026-09-19T02:30:00Z"
+                  expected_return_at: "2026-09-21T13:30:00Z"
+      responses:
+        "201":
+          description: Permission is pending.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Permission"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+
+  /api/v1/me/permissions/{permission_id}:
+    get:
+      tags: [Resident]
+      operationId: get_own_permission
+      summary: Own permission
+      description: "Caller: resident. Refuses another resident's permission."
+      parameters:
+        - $ref: "#/components/parameters/PermissionId"
+      responses:
+        "200":
+          description: Permission.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Permission"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/me/permissions/{permission_id}/cancel:
+    post:
+      tags: [Resident]
+      operationId: cancel_permission
+      summary: Cancel own permission
+      description: |
+        Caller: resident. Allowed while `pending` or `approved`. Not allowed
+        once the gate has recorded an exit against it.
+      parameters:
+        - $ref: "#/components/parameters/PermissionId"
+      responses:
+        "200":
+          description: Permission cancelled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Permission"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: The permission can no longer be cancelled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/me/guest-stays:
+    get:
+      tags: [Resident]
+      operationId: list_own_guest_stays
+      summary: Own guest applications
+      description: "Caller: resident. Stays this resident is hosting. Newest first."
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Guest stay page.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuestStayPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [Resident]
+      operationId: submit_guest_stay
+      summary: Apply for a guest stay
+      description: |
+        Caller: resident. Start date must be at least `guest_min_lead_days`
+        after today in Asia/Kolkata (by default, tomorrow or later). Inclusive
+        days from start through end must be within `guest_max_inclusive_days`
+        (by default, 7). Friday 18 September through Monday 21 September is 4 days.
+        Payment is not taken here.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GuestStayCreate"
+            example:
+              guest_name: Zara Ahmed
+              relation: Cousin
+              start_date: "2026-09-18"
+              end_date: "2026-09-21"
+              reason: Family wedding in Aligarh. Staying with Aisha, B-204.
+      responses:
+        "201":
+          description: Guest stay is pending. Payment is unpaid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuestStay"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+
+  /api/v1/me/guest-stays/{guest_stay_id}:
+    get:
+      tags: [Resident]
+      operationId: get_own_guest_stay
+      summary: Own guest stay
+      description: "Caller: resident, and only for a stay they host."
+      parameters:
+        - $ref: "#/components/parameters/GuestStayId"
+      responses:
+        "200":
+          description: Guest stay.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuestStay"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/me/guest-stays/{guest_stay_id}/cancel:
+    post:
+      tags: [Resident]
+      operationId: cancel_guest_stay
+      summary: Cancel own guest application
+      description: "Caller: resident. Allowed while `pending` or `approved`, and only before arrival is recorded."
+      parameters:
+        - $ref: "#/components/parameters/GuestStayId"
+      responses:
+        "200":
+          description: Guest stay cancelled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuestStay"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: The guest has already arrived, or the stay is decided in a terminal way.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/gate/scans:
+    post:
+      tags: [Gate]
+      operationId: scan_hall_pass
+      summary: Scan a hall pass
+      description: |
+        Caller: gate, warden, or provost.
+
+        Send the raw QR text. Both `bsj:v1:{token}` and the bare token are accepted.
+
+        While the resident is inside, a scan records an exit. A planned ordinary
+        outing is used when one exists. Otherwise an approved permission inside
+        its use window is opened as an outing and marked in use. If neither
+        exists, the scan is refused and the resident plans the outing, or waits
+        for approval, and shows the pass again.
+
+        While the resident is outside, a scan records the return. Nothing else
+        is filled in.
+
+        A second scan inside `scan_duplicate_window_seconds` of the previous
+        exit or return for that resident is refused, so one presentation at the
+        gate cannot undo itself. The refusal for a fresh exit uses the gate
+        copy: the resident is already outside and should present the same pass
+        on return.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScanRequest"
+            example:
+              qr_payload: bsj:v1:example-token
+      responses:
+        "200":
+          description: Exit recorded, or return recorded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanResult"
+              examples:
+                exit:
+                  value:
+                    outcome: exit_recorded
+                    full_name: Aisha Khan
+                    room_label: B-204
+                    recorded_at: "2026-09-13T12:42:00Z"
+                    message: The resident is now outside.
+                return:
+                  value:
+                    outcome: return_recorded
+                    full_name: Aisha Khan
+                    room_label: B-204
+                    recorded_at: "2026-09-13T13:24:00Z"
+                    message: On time. Status is now inside.
+                    on_time: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: Hall pass not recognised. Code `unknown_hall_pass`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: |
+            `duplicate_scan`, `no_outing_planned`, `permission_not_yet_valid`,
+            `open_outing_exists`, or `resident_suspended`. The body includes
+            the resident name and room when the pass is known, so the gate
+            screen can say what to do.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: duplicate_scan
+                  message: This resident is already recorded as outside (exit 8:14 PM). Ask the resident to present the same hall pass on return. The register already has an exit.
+                  details:
+                    full_name: Aisha Khan
+                    room_label: B-204
+                    presence: outside
+
+  /api/v1/gate/activity:
+    get:
+      tags: [Gate]
+      operationId: gate_activity
+      summary: Recent gate activity
+      description: |
+        Caller: gate, warden, or provost. Newest first. Lines are resident exits,
+        resident returns, guest arrivals, and guest departures.
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Activity page.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GateActivityPage"
+              example:
+                total: 3
+                limit: 50
+                offset: 0
+                items:
+                  - kind: exit
+                    occurred_at: "2026-09-13T14:39:00Z"
+                    title: Zoya Siddiqui
+                    subtitle: A-118
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/gate/guests:
+    get:
+      tags: [Gate]
+      operationId: gate_guests
+      summary: Guests for the gate
+      description: |
+        Caller: gate, warden, or provost. `expected` is approved, paid, not yet
+        arrived, and the hall date is inside the stay. `in_hall` includes guests
+        who should already have left, because departure is still recorded here.
+      parameters:
+        - name: bucket
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [expected, in_hall]
+      responses:
+        "200":
+          description: Guest cards for the gate.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GateGuestList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/gate/guests/{guest_stay_id}/arrival:
+    post:
+      tags: [Gate]
+      operationId: record_guest_arrival
+      summary: Record guest arrival
+      description: |
+        Caller: gate, warden, or provost. The stay must be approved, paid, not
+        yet arrived, and today's hall date must fall within the stay. Guests are
+        not scanned.
+      parameters:
+        - $ref: "#/components/parameters/GuestStayId"
+      responses:
+        "200":
+          description: Arrival recorded. The response includes the new dining count.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuestMovementResult"
+              example:
+                guest_name: Zara Ahmed
+                host_name: Aisha Khan
+                host_room_label: B-204
+                recorded_at: "2026-09-18T10:11:00Z"
+                message: The guest is now in the hall.
+                guests_in_hall_count: 6
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: "`guest_not_expected` or `payment_required`."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/gate/guests/{guest_stay_id}/departure:
+    post:
+      tags: [Gate]
+      operationId: record_guest_departure
+      summary: Record guest departure
+      description: |
+        Caller: gate, warden, or provost. The guest must currently be in the hall.
+        Closes the stay. The dining count drops, including when the end date has
+        already passed.
+      parameters:
+        - $ref: "#/components/parameters/GuestStayId"
+      responses:
+        "200":
+          description: Departure recorded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuestMovementResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: The guest is not in the hall. Code `guest_not_in_hall`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/register/summary:
+    get:
+      tags: [Register]
+      operationId: register_summary
+      summary: Hall register counts
+      description: |
+        Caller: warden or provost. Hall-wide counts for the register home.
+        Inside, outside, late, and pending permissions are the resident register.
+        Guest counts are included on the same payload so the guest register does
+        not need a second summary.
+      responses:
+        "200":
+          description: Counts.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterSummary"
+              example:
+                inside_count: 186
+                outside_count: 22
+                late_count: 3
+                pending_permission_count: 4
+                guests_in_hall_count: 6
+                guests_should_have_left_count: 1
+                pending_guest_stay_count: 2
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/register/residents:
+    get:
+      tags: [Register]
+      operationId: list_register
+      summary: Resident register
+      description: |
+        Caller: warden or provost. Search matches full name or room label.
+        `state=late` is outside and past grace. Results are ordered by name.
+      parameters:
+        - name: q
+          in: query
+          required: false
+          description: Name or room.
+          schema:
+            type: string
+            maxLength: 80
+        - name: state
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/RegisterState"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Register page.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/register/residents/{resident_id}:
+    get:
+      tags: [Register]
+      operationId: register_resident
+      summary: Resident record
+      description: |
+        Caller: warden or provost. The open or latest outing, whether it is an
+        ordinary outing or a permission, and the parent SMS state.
+      parameters:
+        - $ref: "#/components/parameters/ResidentId"
+      responses:
+        "200":
+          description: Resident record.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResidentRecord"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/register/late:
+    get:
+      tags: [Register]
+      operationId: late_list
+      summary: Late list
+      description: |
+        Caller: warden or provost. Residents still outside after grace.
+        Parent SMS has been sent where a number is on file.
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Late page.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/permissions:
+    get:
+      tags: [Register]
+      operationId: list_permissions
+      summary: Permission queue
+      description: "Caller: warden or provost. Defaults to `pending`. Newest first."
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/PermissionStatus"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Permission page.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PermissionPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/permissions/{permission_id}:
+    get:
+      tags: [Register]
+      operationId: get_permission
+      summary: Permission for review
+      description: "Caller: warden or provost."
+      parameters:
+        - $ref: "#/components/parameters/PermissionId"
+      responses:
+        "200":
+          description: Permission, including the resident's name and room.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PermissionReview"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/permissions/{permission_id}/decision:
+    post:
+      tags: [Register]
+      operationId: decide_permission
+      summary: Approve or reject a permission
+      description: |
+        Caller: warden or provost. Only a `pending` permission can be decided.
+        Approval does not create an outing and does not by itself let a scan
+        succeed before the use window. Rejection leaves ordinary outings available.
+      parameters:
+        - $ref: "#/components/parameters/PermissionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DecisionRequest"
+            example:
+              decision: approved
+              note: ""
+      responses:
+        "200":
+          description: Decision stored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PermissionReview"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Not pending. Code `not_pending`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/guest-stays:
+    get:
+      tags: [Register]
+      operationId: list_guest_stays
+      summary: Guest stays
+      description: |
+        Caller: warden or provost. Filter by derived bucket. `in_hall` here is
+        the dining set and includes guests who should have left. Use
+        `should_have_left` for that subset.
+      parameters:
+        - name: bucket
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/GuestBucket"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Guest stay page.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuestStayPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/guest-stays/{guest_stay_id}:
+    get:
+      tags: [Register]
+      operationId: get_guest_stay
+      summary: Guest stay for review
+      description: "Caller: warden or provost."
+      parameters:
+        - $ref: "#/components/parameters/GuestStayId"
+      responses:
+        "200":
+          description: Guest stay, including the host.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuestStay"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/guest-stays/{guest_stay_id}/decision:
+    post:
+      tags: [Register]
+      operationId: decide_guest_stay
+      summary: Approve or reject a guest stay
+      description: |
+        Caller: warden or provost. Only while `pending`. Approval does not mark
+        payment and does not record arrival.
+      parameters:
+        - $ref: "#/components/parameters/GuestStayId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DecisionRequest"
+      responses:
+        "200":
+          description: Decision stored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuestStay"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Not pending. Code `not_pending`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/guest-stays/{guest_stay_id}/payment:
+    post:
+      tags: [Register]
+      operationId: mark_guest_payment
+      summary: Mark guest payment
+      description: |
+        Caller: warden or provost. Records that the hall office has or has not
+        taken payment. Allowed before arrival, whether the stay is pending or
+        approved. The app does not collect money.
+      parameters:
+        - $ref: "#/components/parameters/GuestStayId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentRequest"
+            example:
+              payment_status: paid
+      responses:
+        "200":
+          description: Payment status stored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuestStay"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: The guest has already arrived or the stay is closed. Code `payment_locked`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/admin/residents:
+    get:
+      tags: [Hall office]
+      operationId: admin_list_residents
+      summary: List resident accounts
+      description: "Caller: provost. Includes suspended residents. Does not include hall-pass tokens."
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 80
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Resident account page.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResidentAccountPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [Hall office]
+      operationId: admin_create_resident
+      summary: Create a resident
+      description: |
+        Caller: provost. Username is the enrolment number. The response includes
+        the hall pass payload once, so the office can place it on the resident's
+        phone. Later reads of the account do not return the token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResidentCreate"
+      responses:
+        "201":
+          description: Resident created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResidentCreated"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Enrolment number already in use. Code `duplicate_username`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+
+  /api/v1/admin/residents/{resident_id}:
+    get:
+      tags: [Hall office]
+      operationId: admin_get_resident
+      summary: Resident account
+      description: "Caller: provost. No hall-pass token."
+      parameters:
+        - $ref: "#/components/parameters/ResidentId"
+      responses:
+        "200":
+          description: Resident account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResidentAccount"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Hall office]
+      operationId: admin_update_resident
+      summary: Update a resident
+      description: |
+        Caller: provost. Send only the fields that change. `parent_phone` and
+        `course` may be set to null to clear them. Changing `enrolment_number`
+        changes the username. `status` suspends or reinstates the account and
+        revokes refresh tokens on suspension.
+      parameters:
+        - $ref: "#/components/parameters/ResidentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResidentUpdate"
+      responses:
+        "200":
+          description: Updated account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResidentAccount"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Enrolment number already in use. Code `duplicate_username`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/admin/residents/{resident_id}/hall-pass/reissue:
+    post:
+      tags: [Hall office]
+      operationId: reissue_hall_pass
+      summary: Reissue a hall pass
+      description: |
+        Caller: provost. Replaces the token immediately. The previous QR stops
+        working. The new payload is returned once.
+      parameters:
+        - $ref: "#/components/parameters/ResidentId"
+      responses:
+        "200":
+          description: New hall pass.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HallPass"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/admin/staff:
+    get:
+      tags: [Hall office]
+      operationId: admin_list_staff
+      summary: List staff accounts
+      description: "Caller: provost. Gate, warden, and provost accounts."
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Staff page.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [Hall office]
+      operationId: admin_create_staff
+      summary: Create a staff account
+      description: "Caller: provost. Role is gate, warden, or provost."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StaffCreate"
+            example:
+              full_name: Imran Qureshi
+              username: imran.qureshi
+              role: gate
+              job_title: Gate staff
+              posting: Main gate
+              temporary_password: 
+      responses:
+        "201":
+          description: Staff account created. The password is not returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffAccount"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Username already in use. Code `duplicate_username`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+
+  /api/v1/admin/staff/{user_id}:
+    patch:
+      tags: [Hall office]
+      operationId: admin_update_staff
+      summary: Update a staff account
+      description: |
+        Caller: provost. Role cannot be changed on this route, and a staff
+        account cannot become a resident. Suspension revokes refresh tokens.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StaffUpdate"
+      responses:
+        "200":
+          description: Updated staff account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffAccount"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/admin/users/{user_id}/password:
+    post:
+      tags: [Hall office]
+      operationId: reset_password
+      summary: Reset a password
+      description: |
+        Caller: provost. Sets a temporary password and revokes that user's
+        refresh tokens. Works for residents and staff.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordResetRequest"
+      responses:
+        "204":
+          description: Password reset.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+
+  /api/v1/admin/blocks:
+    get:
+      tags: [Hall office]
+      operationId: list_blocks
+      summary: List blocks
+      description: "Caller: provost. Includes inactive blocks."
+      responses:
+        "200":
+          description: Blocks.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Block"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [Hall office]
+      operationId: create_block
+      summary: Create a block
+      description: "Caller: provost. `code` is the short label used in room names, such as B."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BlockCreate"
+      responses:
+        "201":
+          description: Block created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Block"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Code already in use. Code `duplicate_block`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/admin/blocks/{block_id}:
+    patch:
+      tags: [Hall office]
+      operationId: update_block
+      summary: Update a block
+      description: "Caller: provost. Deactivate with `is_active` false. Rooms in the block remain."
+      parameters:
+        - $ref: "#/components/parameters/BlockId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BlockUpdate"
+      responses:
+        "200":
+          description: Block updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Block"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/admin/rooms:
+    get:
+      tags: [Hall office]
+      operationId: list_rooms
+      summary: List rooms
+      description: "Caller: provost."
+      parameters:
+        - name: block_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Rooms.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Room"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [Hall office]
+      operationId: create_room
+      summary: Create a room
+      description: |
+        Caller: provost. `label` is stored as `{block code}-{number}`. The number
+        is text, so `087` stays `087`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoomCreate"
+            example:
+              block_id: 00000000-0000-4000-8000-0000000000b1
+              number: "204"
+      responses:
+        "201":
+          description: Room created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Room"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: That number is already used in the block. Code `duplicate_room`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/admin/rooms/{room_id}:
+    patch:
+      tags: [Hall office]
+      operationId: update_room
+      summary: Update a room
+      description: "Caller: provost. A room with residents assigned to it can be deactivated only after they are moved."
+      parameters:
+        - $ref: "#/components/parameters/RoomId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoomUpdate"
+      responses:
+        "200":
+          description: Room updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Room"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Residents are still assigned. Code `room_in_use`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/admin/destinations:
+    get:
+      tags: [Hall office]
+      operationId: admin_list_destinations
+      summary: List destinations
+      description: "Caller: provost. Includes inactive rows. The resident catalog route returns active rows only."
+      responses:
+        "200":
+          description: Destinations.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DestinationList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [Hall office]
+      operationId: create_destination
+      summary: Create a destination
+      description: |
+        Caller: provost. Only one active destination may have `is_other` true.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DestinationCreate"
+      responses:
+        "201":
+          description: Destination created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Destination"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: "`duplicate_destination` or `other_exists`."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/admin/destinations/{destination_id}:
+    patch:
+      tags: [Hall office]
+      operationId: update_destination
+      summary: Update a destination
+      description: "Caller: provost. Deactivating a destination does not change labels already stored on outings."
+      parameters:
+        - $ref: "#/components/parameters/DestinationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DestinationUpdate"
+      responses:
+        "200":
+          description: Destination updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Destination"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Another active Other row exists. Code `other_exists`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/admin/settings:
+    get:
+      tags: [Hall office]
+      operationId: get_settings
+      summary: Hall settings
+      description: "Caller: provost. Includes the open decisions the hall has not confirmed yet."
+      responses:
+        "200":
+          description: Settings.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HallSettings"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    patch:
+      tags: [Hall office]
+      operationId: update_settings
+      summary: Update hall settings
+      description: |
+        Caller: provost. Send only the fields that change. `ordinary_hours_end`
+        may be null until the hall sets a clock time. Changing grace does not
+        rewrite outings that already have a `grace_ends_at`. SMS templates keep
+        the placeholders listed on `HallSettings`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HallSettingsUpdate"
+      responses:
+        "200":
+          description: Settings saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HallSettings"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+
+  /api/v1/admin/register/export:
+    get:
+      tags: [Hall office]
+      operationId: export_register
+      summary: Export the register
+      description: |
+        Caller: provost. One CSV file. UTF-8, comma separated, header row required.
+        Resident rows and guest rows share one header. Cells that do not apply
+        to the row are empty.
+
+        Header, in this order:
+
+        `record_type,full_name,enrolment_number,room_label,course,presence,state,destination_label,exited_at,expected_return_at,grace_ends_at,returned_at,outing_kind,parent_name,parent_phone,guest_name,relation,host_name,host_room_label,start_date,end_date,payment_status,guest_bucket,arrived_at,departed_at`
+
+        `record_type` is `resident` or `guest`. Instants are UTC. This export
+        contains parent phone numbers and is not a warden route.
+      responses:
+        "200":
+          description: CSV file.
+          content:
+            text/csv:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/admin/sms:
+    get:
+      tags: [Hall office]
+      operationId: list_sms
+      summary: SMS log
+      description: "Caller: provost. Newest first. Includes skipped sends where no parent number was on file."
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: SMS page.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SmsPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/admin/audit:
+    get:
+      tags: [Hall office]
+      operationId: list_audit
+      summary: Audit log
+      description: "Caller: provost. Newest first. Detail never contains a password, a refresh token, or a hall-pass token."
+      parameters:
+        - name: entity_type
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: entity_id
+          in: query
+          required: false
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Audit page.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 500
+        default: 50
+    Offset:
+      name: offset
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    ResidentId:
+      name: resident_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    UserId:
+      name: user_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PermissionId:
+      name: permission_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    GuestStayId:
+      name: guest_stay_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    BlockId:
+      name: block_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    RoomId:
+      name: room_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    DestinationId:
+      name: destination_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    Unauthorized:
+      description: The access token is missing or expired, or the username and password were refused.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: unauthenticated
+              message: Sign in again.
+    Forbidden:
+      description: The signed-in role cannot call this operation.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: forbidden
+              message: This account cannot do that.
+    NotFound:
+      description: No record with that id is visible to the caller.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: not_found
+              message: That record was not found.
+    Unprocessable:
+      description: The JSON is the wrong shape, or a field fails a constraint that does not depend on existing rows.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: validation_error
+              message: Expected return must be after departure.
+              details:
+                field: expected_return_at
+
+  schemas:
+    Health:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          $ref: "#/components/schemas/Error"
+
+    Error:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: |
+            Stable machine code. Known codes: `unauthenticated`, `forbidden`,
+            `not_found`, `validation_error`, `duplicate_username`,
+            `duplicate_block`, `duplicate_room`, `duplicate_destination`,
+            `room_in_use`, `other_exists`, `already_outside`, `open_outing_exists`,
+            `permission_required`, `no_outing_planned`, `permission_not_yet_valid`,
+            `duplicate_scan`, `resident_suspended`, `unknown_hall_pass`,
+            `not_pending`, `guest_not_expected`, `guest_not_in_hall`,
+            `payment_required`, `payment_locked`.
+        message:
+          type: string
+          description: Sentence the phone can show. Not a stack trace.
+        details:
+          type: object
+          additionalProperties: true
+
+    ListMeta:
+      type: object
+      required: [total, limit, offset]
+      properties:
+        total:
+          type: integer
+          minimum: 0
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 80
+        password:
+          type: string
+          minLength: 1
+          maxLength: 200
+
+    RefreshRequest:
+      type: object
+      additionalProperties: false
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+
+    ChangePasswordRequest:
+      type: object
+      additionalProperties: false
+      required: [current_password, new_password]
+      properties:
+        current_password:
+          type: string
+          minLength: 1
+          maxLength: 200
+        new_password:
+          type: string
+          minLength: 10
+          maxLength: 200
+
+    PasswordResetRequest:
+      type: object
+      additionalProperties: false
+      required: [temporary_password]
+      properties:
+        temporary_password:
+          type: string
+          minLength: 10
+          maxLength: 200
+
+    TokenResponse:
+      type: object
+      additionalProperties: false
+      required: [access_token, token_type, expires_in, refresh_token, user]
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          enum: [bearer]
+        expires_in:
+          type: integer
+          description: Access token lifetime in seconds.
+          example: 900
+        refresh_token:
+          type: string
+        user:
+          $ref: "#/components/schemas/UserSummary"
+
+    UserSummary:
+      type: object
+      additionalProperties: false
+      required: [id, role, full_name, username, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        role:
+          $ref: "#/components/schemas/Role"
+        full_name:
+          type: string
+        username:
+          type: string
+        status:
+          $ref: "#/components/schemas/AccountStatus"
+
+    Role:
+      type: string
+      enum: [resident, gate, warden, provost]
+
+    StaffRole:
+      type: string
+      enum: [gate, warden, provost]
+
+    AccountStatus:
+      type: string
+      enum: [active, suspended]
+
+    CurrentUser:
+      type: object
+      additionalProperties: false
+      required: [id, role, full_name, username, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        role:
+          $ref: "#/components/schemas/Role"
+        full_name:
+          type: string
+        username:
+          type: string
+        status:
+          $ref: "#/components/schemas/AccountStatus"
+        resident:
+          oneOf:
+            - $ref: "#/components/schemas/ResidentSummary"
+            - type: "null"
+        staff:
+          oneOf:
+            - $ref: "#/components/schemas/StaffSummary"
+            - type: "null"
+
+    ResidentSummary:
+      type: object
+      additionalProperties: false
+      required: [enrolment_number, room_label, presence]
+      properties:
+        enrolment_number:
+          type: string
+        course:
+          oneOf:
+            - type: string
+            - type: "null"
+        room_label:
+          type: string
+          example: B-204
+        block_name:
+          type: string
+          example: Block B
+        presence:
+          $ref: "#/components/schemas/Presence"
+
+    StaffSummary:
+      type: object
+      additionalProperties: false
+      required: [job_title]
+      properties:
+        job_title:
+          type: string
+        posting:
+          oneOf:
+            - type: string
+            - type: "null"
+
+    Presence:
+      type: string
+      enum: [inside, outside]
+
+    RegisterState:
+      type: string
+      enum: [inside, outside, late]
+
+    ResidentHome:
+      type: object
+      additionalProperties: false
+      required: [resident, current_outing, active_permission, recent_history]
+      properties:
+        resident:
+          $ref: "#/components/schemas/ResidentSummary"
+        current_outing:
+          oneOf:
+            - $ref: "#/components/schemas/Outing"
+            - type: "null"
+        active_permission:
+          oneOf:
+            - $ref: "#/components/schemas/Permission"
+            - type: "null"
+          description: The newest permission in `pending`, `approved`, or `in_use`, if any.
+        recent_history:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/HistoryEvent"
+
+    HallPass:
+      type: object
+      additionalProperties: false
+      required: [qr_payload, full_name, room_label]
+      properties:
+        qr_payload:
+          type: string
+          description: Text encoded in the QR image. Prefix `bsj:v1:`.
+          example: bsj:v1:example-token
+        full_name:
+          type: string
+        room_label:
+          type: string
+
+    HistoryEvent:
+      type: object
+      additionalProperties: false
+      required: [event, destination_label, occurred_at, outing_id]
+      properties:
+        event:
+          type: string
+          enum: [exited, returned]
+        destination_label:
+          type: string
+        occurred_at:
+          type: string
+          format: date-time
+        outing_id:
+          type: string
+          format: uuid
+
+    HistoryPage:
+      allOf:
+        - $ref: "#/components/schemas/ListMeta"
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/HistoryEvent"
+
+    Destination:
+      type: object
+      additionalProperties: false
+      required: [id, name, sort_order, is_other, is_active]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        sort_order:
+          type: integer
+        is_other:
+          type: boolean
+        is_active:
+          type: boolean
+
+    DestinationList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Destination"
+
+    DestinationCreate:
+      type: object
+      additionalProperties: false
+      required: [name, sort_order]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        sort_order:
+          type: integer
+        is_other:
+          type: boolean
+          default: false
+
+    DestinationUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        sort_order:
+          type: integer
+        is_other:
+          type: boolean
+        is_active:
+          type: boolean
+
+    PlanOutingRequest:
+      type: object
+      additionalProperties: false
+      required: [destination_id, expected_return_at]
+      properties:
+        destination_id:
+          type: string
+          format: uuid
+        destination_text:
+          type: string
+          minLength: 1
+          maxLength: 120
+          description: Required when the destination is the Other row. Ignored otherwise.
+        expected_return_at:
+          type: string
+          format: date-time
+
+    OutingKind:
+      type: string
+      enum: [ordinary, late_night, home_going]
+
+    OutingStatus:
+      type: string
+      enum: [planned, outside, returned, cancelled]
+
+    Outing:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - kind
+        - status
+        - destination_label
+        - expected_return_at
+        - grace_ends_at
+        - is_late
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        permission_id:
+          oneOf:
+            - type: string
+              format: uuid
+            - type: "null"
+        kind:
+          $ref: "#/components/schemas/OutingKind"
+        status:
+          $ref: "#/components/schemas/OutingStatus"
+        destination_label:
+          type: string
+        expected_return_at:
+          type: string
+          format: date-time
+        grace_ends_at:
+          type: string
+          format: date-time
+        exited_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: "null"
+        returned_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: "null"
+        is_late:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    CurrentOuting:
+      type: object
+      additionalProperties: false
+      required: [outing]
+      properties:
+        outing:
+          oneOf:
+            - $ref: "#/components/schemas/Outing"
+            - type: "null"
+
+    PermissionType:
+      type: string
+      enum: [late_night, home_going]
+
+    PermissionStatus:
+      type: string
+      enum: [pending, approved, rejected, cancelled, in_use, completed, expired]
+
+    PermissionCreate:
+      oneOf:
+        - $ref: "#/components/schemas/LateNightCreate"
+        - $ref: "#/components/schemas/HomeGoingCreate"
+      discriminator:
+        propertyName: type
+        mapping:
+          late_night: "#/components/schemas/LateNightCreate"
+          home_going: "#/components/schemas/HomeGoingCreate"
+
+    LateNightCreate:
+      type: object
+      additionalProperties: false
+      required: [type, place_label, reason, departure_at, expected_return_at]
+      properties:
+        type:
+          type: string
+          const: late_night
+        place_label:
+          type: string
+          minLength: 1
+          maxLength: 120
+        destination_detail:
+          type: string
+          minLength: 1
+          maxLength: 120
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+        departure_at:
+          type: string
+          format: date-time
+        expected_return_at:
+          type: string
+          format: date-time
+
+    HomeGoingCreate:
+      type: object
+      additionalProperties: false
+      required: [type, place_label, address, reason, departure_at, expected_return_at]
+      properties:
+        type:
+          type: string
+          const: home_going
+        place_label:
+          type: string
+          minLength: 1
+          maxLength: 120
+          description: Short place on the warden card, such as Lucknow.
+        address:
+          type: string
+          minLength: 1
+          maxLength: 300
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+        departure_at:
+          type: string
+          format: date-time
+        expected_return_at:
+          type: string
+          format: date-time
+
+    Permission:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - type
+        - status
+        - place_label
+        - reason
+        - departure_at
+        - expected_return_at
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          $ref: "#/components/schemas/PermissionType"
+        status:
+          $ref: "#/components/schemas/PermissionStatus"
+        place_label:
+          type: string
+        destination_detail:
+          oneOf:
+            - type: string
+            - type: "null"
+        address:
+          oneOf:
+            - type: string
+            - type: "null"
+        reason:
+          type: string
+        departure_at:
+          type: string
+          format: date-time
+        expected_return_at:
+          type: string
+          format: date-time
+        decision_note:
+          oneOf:
+            - type: string
+            - type: "null"
+        decided_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: "null"
+        created_at:
+          type: string
+          format: date-time
+
+    PermissionReview:
+      allOf:
+        - $ref: "#/components/schemas/Permission"
+        - type: object
+          required: [resident_id, resident_name, room_label]
+          properties:
+            resident_id:
+              type: string
+              format: uuid
+            resident_name:
+              type: string
+            room_label:
+              type: string
+            decided_by_name:
+              oneOf:
+                - type: string
+                - type: "null"
+
+    PermissionPage:
+      allOf:
+        - $ref: "#/components/schemas/ListMeta"
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/PermissionReview"
+
+    DecisionRequest:
+      type: object
+      additionalProperties: false
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [approved, rejected]
+        note:
+          type: string
+          maxLength: 500
+
+    GuestBucket:
+      type: string
+      enum: [pending, upcoming, expected, in_hall, should_have_left, departed, rejected, cancelled]
+
+    GuestStayCreate:
+      type: object
+      additionalProperties: false
+      required: [guest_name, relation, start_date, end_date, reason]
+      properties:
+        guest_name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        relation:
+          type: string
+          minLength: 1
+          maxLength: 80
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+
+    GuestStay:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - host_resident_id
+        - host_name
+        - host_room_label
+        - guest_name
+        - relation
+        - start_date
+        - end_date
+        - inclusive_days
+        - reason
+        - status
+        - payment_status
+        - bucket
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        host_resident_id:
+          type: string
+          format: uuid
+        host_name:
+          type: string
+        host_room_label:
+          type: string
+        guest_name:
+          type: string
+        relation:
+          type: string
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        inclusive_days:
+          type: integer
+        reason:
+          type: string
+        status:
+          type: string
+          enum: [pending, approved, rejected, cancelled, departed]
+        payment_status:
+          type: string
+          enum: [unpaid, paid]
+        bucket:
+          $ref: "#/components/schemas/GuestBucket"
+        decision_note:
+          oneOf:
+            - type: string
+            - type: "null"
+        arrived_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: "null"
+        departed_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: "null"
+        created_at:
+          type: string
+          format: date-time
+
+    GuestStayPage:
+      allOf:
+        - $ref: "#/components/schemas/ListMeta"
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/GuestStay"
+
+    PaymentRequest:
+      type: object
+      additionalProperties: false
+      required: [payment_status]
+      properties:
+        payment_status:
+          type: string
+          enum: [paid, unpaid]
+
+    ScanRequest:
+      type: object
+      additionalProperties: false
+      required: [qr_payload]
+      properties:
+        qr_payload:
+          type: string
+          minLength: 1
+          maxLength: 300
+          description: Raw QR text, either `bsj:v1:{token}` or the token alone.
+
+    ScanResult:
+      type: object
+      additionalProperties: false
+      required: [outcome, full_name, room_label, recorded_at, message, outing]
+      properties:
+        outcome:
+          type: string
+          enum: [exit_recorded, return_recorded]
+        full_name:
+          type: string
+        room_label:
+          type: string
+        recorded_at:
+          type: string
+          format: date-time
+        message:
+          type: string
+        on_time:
+          oneOf:
+            - type: boolean
+            - type: "null"
+          description: Present on a return. True when the return is at or before grace.
+        outing:
+          $ref: "#/components/schemas/Outing"
+
+    GateActivityItem:
+      type: object
+      additionalProperties: false
+      required: [kind, occurred_at, title, subtitle]
+      properties:
+        kind:
+          type: string
+          enum: [exit, return, guest_arrival, guest_departure]
+        occurred_at:
+          type: string
+          format: date-time
+        title:
+          type: string
+          description: Resident or guest name.
+        subtitle:
+          type: string
+          description: Room label, or host and room for a guest.
+
+    GateActivityPage:
+      allOf:
+        - $ref: "#/components/schemas/ListMeta"
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/GateActivityItem"
+
+    GateGuestCard:
+      type: object
+      additionalProperties: false
+      required: [id, guest_name, host_name, host_room_label, start_date, end_date, payment_status, bucket]
+      properties:
+        id:
+          type: string
+          format: uuid
+        guest_name:
+          type: string
+        host_name:
+          type: string
+        host_room_label:
+          type: string
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        payment_status:
+          type: string
+          enum: [paid, unpaid]
+        bucket:
+          $ref: "#/components/schemas/GuestBucket"
+
+    GateGuestList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/GateGuestCard"
+
+    GuestMovementResult:
+      type: object
+      additionalProperties: false
+      required: [guest_name, host_name, host_room_label, recorded_at, message, guests_in_hall_count]
+      properties:
+        guest_name:
+          type: string
+        host_name:
+          type: string
+        host_room_label:
+          type: string
+        recorded_at:
+          type: string
+          format: date-time
+        message:
+          type: string
+        guests_in_hall_count:
+          type: integer
+          minimum: 0
+
+    RegisterSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - inside_count
+        - outside_count
+        - late_count
+        - pending_permission_count
+        - guests_in_hall_count
+        - guests_should_have_left_count
+        - pending_guest_stay_count
+      properties:
+        inside_count:
+          type: integer
+        outside_count:
+          type: integer
+        late_count:
+          type: integer
+        pending_permission_count:
+          type: integer
+        guests_in_hall_count:
+          type: integer
+        guests_should_have_left_count:
+          type: integer
+        pending_guest_stay_count:
+          type: integer
+
+    RegisterRow:
+      type: object
+      additionalProperties: false
+      required: [id, full_name, room_label, presence, state]
+      properties:
+        id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+        room_label:
+          type: string
+        presence:
+          $ref: "#/components/schemas/Presence"
+        state:
+          $ref: "#/components/schemas/RegisterState"
+        destination_label:
+          oneOf:
+            - type: string
+            - type: "null"
+        expected_return_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: "null"
+        returned_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: "null"
+
+    RegisterPage:
+      allOf:
+        - $ref: "#/components/schemas/ListMeta"
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/RegisterRow"
+
+    ParentNotice:
+      type: string
+      enum: [not_due, sent, skipped_no_phone, failed]
+
+    ResidentRecord:
+      type: object
+      additionalProperties: false
+      required: [id, full_name, enrolment_number, room_label, presence, state, parent_name, parent_notice]
+      properties:
+        id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+        enrolment_number:
+          type: string
+        course:
+          oneOf:
+            - type: string
+            - type: "null"
+        room_label:
+          type: string
+        presence:
+          $ref: "#/components/schemas/Presence"
+        state:
+          $ref: "#/components/schemas/RegisterState"
+        outing:
+          oneOf:
+            - $ref: "#/components/schemas/Outing"
+            - type: "null"
+        parent_name:
+          oneOf:
+            - type: string
+            - type: "null"
+        parent_notice:
+          $ref: "#/components/schemas/ParentNotice"
+
+    ResidentAccount:
+      type: object
+      additionalProperties: false
+      required: [id, full_name, enrolment_number, room_id, room_label, status, presence]
+      properties:
+        id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+        enrolment_number:
+          type: string
+        course:
+          oneOf:
+            - type: string
+            - type: "null"
+        room_id:
+          type: string
+          format: uuid
+        room_label:
+          type: string
+        parent_name:
+          oneOf:
+            - type: string
+            - type: "null"
+        parent_phone:
+          oneOf:
+            - type: string
+            - type: "null"
+        status:
+          $ref: "#/components/schemas/AccountStatus"
+        presence:
+          $ref: "#/components/schemas/Presence"
+
+    ResidentAccountPage:
+      allOf:
+        - $ref: "#/components/schemas/ListMeta"
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/ResidentAccount"
+
+    ResidentCreate:
+      type: object
+      additionalProperties: false
+      required: [full_name, enrolment_number, room_id, temporary_password]
+      properties:
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        enrolment_number:
+          type: string
+          minLength: 1
+          maxLength: 40
+        course:
+          type: string
+          maxLength: 120
+        room_id:
+          type: string
+          format: uuid
+        parent_name:
+          type: string
+          maxLength: 120
+        parent_phone:
+          type: string
+          description: E.164, for example +919876543210.
+          pattern: "^\\+[1-9][0-9]{7,14}$"
+        temporary_password:
+          type: string
+          minLength: 10
+          maxLength: 200
+
+    ResidentCreated:
+      type: object
+      additionalProperties: false
+      required: [account, hall_pass]
+      properties:
+        account:
+          $ref: "#/components/schemas/ResidentAccount"
+        hall_pass:
+          $ref: "#/components/schemas/HallPass"
+
+    ResidentUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        enrolment_number:
+          type: string
+          minLength: 1
+          maxLength: 40
+        course:
+          oneOf:
+            - type: string
+              maxLength: 120
+            - type: "null"
+        room_id:
+          type: string
+          format: uuid
+        parent_name:
+          oneOf:
+            - type: string
+              maxLength: 120
+            - type: "null"
+        parent_phone:
+          oneOf:
+            - type: string
+              pattern: "^\\+[1-9][0-9]{7,14}$"
+            - type: "null"
+        status:
+          $ref: "#/components/schemas/AccountStatus"
+
+    StaffAccount:
+      type: object
+      additionalProperties: false
+      required: [id, full_name, username, role, job_title, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+        username:
+          type: string
+        role:
+          $ref: "#/components/schemas/StaffRole"
+        job_title:
+          type: string
+        posting:
+          oneOf:
+            - type: string
+            - type: "null"
+        status:
+          $ref: "#/components/schemas/AccountStatus"
+
+    StaffPage:
+      allOf:
+        - $ref: "#/components/schemas/ListMeta"
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/StaffAccount"
+
+    StaffCreate:
+      type: object
+      additionalProperties: false
+      required: [full_name, username, role, job_title, temporary_password]
+      properties:
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        username:
+          type: string
+          minLength: 1
+          maxLength: 80
+        role:
+          $ref: "#/components/schemas/StaffRole"
+        job_title:
+          type: string
+          minLength: 1
+          maxLength: 80
+        posting:
+          type: string
+          maxLength: 80
+        temporary_password:
+          type: string
+          minLength: 10
+          maxLength: 200
+
+    StaffUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        job_title:
+          type: string
+          minLength: 1
+          maxLength: 80
+        posting:
+          oneOf:
+            - type: string
+              maxLength: 80
+            - type: "null"
+        status:
+          $ref: "#/components/schemas/AccountStatus"
+
+    Block:
+      type: object
+      additionalProperties: false
+      required: [id, code, name, is_active]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        is_active:
+          type: boolean
+
+    BlockCreate:
+      type: object
+      additionalProperties: false
+      required: [code, name]
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 8
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+
+    BlockUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        is_active:
+          type: boolean
+
+    Room:
+      type: object
+      additionalProperties: false
+      required: [id, block_id, number, label, is_active]
+      properties:
+        id:
+          type: string
+          format: uuid
+        block_id:
+          type: string
+          format: uuid
+        number:
+          type: string
+        label:
+          type: string
+          example: B-204
+        is_active:
+          type: boolean
+
+    RoomCreate:
+      type: object
+      additionalProperties: false
+      required: [block_id, number]
+      properties:
+        block_id:
+          type: string
+          format: uuid
+        number:
+          type: string
+          minLength: 1
+          maxLength: 12
+
+    RoomUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        number:
+          type: string
+          minLength: 1
+          maxLength: 12
+        is_active:
+          type: boolean
+
+    HallSettings:
+      type: object
+      additionalProperties: false
+      required:
+        - hall_name
+        - university_name
+        - timezone
+        - grace_minutes
+        - ordinary_outing_max_hours
+        - permission_early_minutes
+        - guest_max_inclusive_days
+        - guest_min_lead_days
+        - scan_duplicate_window_seconds
+        - late_sms_template
+        - return_sms_template
+      properties:
+        hall_name:
+          type: string
+        university_name:
+          type: string
+        timezone:
+          type: string
+          example: Asia/Kolkata
+        grace_minutes:
+          type: integer
+        ordinary_hours_end:
+          oneOf:
+            - type: string
+              pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+            - type: "null"
+          description: Hall-local HH:MM. Null until the hall sets ordinary closing time.
+        ordinary_outing_max_hours:
+          type: integer
+        permission_early_minutes:
+          type: integer
+        guest_max_inclusive_days:
+          type: integer
+        guest_min_lead_days:
+          type: integer
+        scan_duplicate_window_seconds:
+          type: integer
+        late_sms_template:
+          type: string
+          description: "Placeholders: {resident_name}, {room}, {expected_return_local}, {hall_name}."
+        return_sms_template:
+          type: string
+          description: "Placeholders: {resident_name}, {room}, {returned_at_local}, {hall_name}."
+
+    HallSettingsUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        hall_name:
+          type: string
+          minLength: 1
+          maxLength: 160
+        university_name:
+          type: string
+          minLength: 1
+          maxLength: 160
+        grace_minutes:
+          type: integer
+          minimum: 0
+          maximum: 180
+        ordinary_hours_end:
+          oneOf:
+            - type: string
+              pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+            - type: "null"
+        ordinary_outing_max_hours:
+          type: integer
+          minimum: 1
+          maximum: 72
+        permission_early_minutes:
+          type: integer
+          minimum: 0
+          maximum: 180
+        guest_max_inclusive_days:
+          type: integer
+          minimum: 1
+          maximum: 30
+        guest_min_lead_days:
+          type: integer
+          minimum: 0
+          maximum: 14
+        scan_duplicate_window_seconds:
+          type: integer
+          minimum: 0
+          maximum: 600
+        late_sms_template:
+          type: string
+          minLength: 1
+        return_sms_template:
+          type: string
+          minLength: 1
+
+    SmsMessage:
+      type: object
+      additionalProperties: false
+      required: [id, outing_id, resident_id, kind, status, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        outing_id:
+          type: string
+          format: uuid
+        resident_id:
+          type: string
+          format: uuid
+        resident_name:
+          type: string
+        kind:
+          type: string
+          enum: [late_notice, return_notice]
+        recipient_phone:
+          oneOf:
+            - type: string
+            - type: "null"
+        body:
+          oneOf:
+            - type: string
+            - type: "null"
+        driver:
+          oneOf:
+            - type: string
+              enum: [mock, dlt]
+            - type: "null"
+        status:
+          type: string
+          enum: [sent, failed, skipped]
+        created_at:
+          type: string
+          format: date-time
+
+    SmsPage:
+      allOf:
+        - $ref: "#/components/schemas/ListMeta"
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/SmsMessage"
+
+    AuditEvent:
+      type: object
+      additionalProperties: false
+      required: [id, occurred_at, action, entity_type, entity_id, summary]
+      properties:
+        id:
+          type: string
+          format: uuid
+        occurred_at:
+          type: string
+          format: date-time
+        actor_user_id:
+          oneOf:
+            - type: string
+              format: uuid
+            - type: "null"
+        actor_name:
+          oneOf:
+            - type: string
+            - type: "null"
+        action:
+          type: string
+        entity_type:
+          type: string
+        entity_id:
+          type: string
+        summary:
+          type: string
+
+    AuditPage:
+      allOf:
+        - $ref: "#/components/schemas/ListMeta"
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/AuditEvent"
