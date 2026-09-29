@@ -169,7 +169,8 @@ Hall-issued accounts. No public registration and no parent login.
 **Who.** anyone with a hall-issued account. No token.
 
 Caller: anyone with a hall-issued account. Suspended accounts are refused.
-A resident uses the enrolment number as the username.
+A resident uses the enrolment number as the username. The sample body
+leaves the password field out of this repository. The field is required.
 
 **Request.** Required.
 
@@ -184,8 +185,7 @@ Body: [LoginRequest](#schema-loginrequest).
 
 ```json
 {
-  "username": "24-GLLB-118",
-  "password": ""
+  "username": "24-GLLB-118"
 }
 ```
 
@@ -2660,7 +2660,7 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** provost. Bearer access token.
 
-Caller: provost. Role is gate, warden, or provost.
+Caller: provost. Role is gate, warden, or provost. The sample body leaves the temporary password out of this repository. The field is required.
 
 **Request.** Required.
 
@@ -2683,8 +2683,7 @@ Body: [StaffCreate](#schema-staffcreate).
   "username": "imran.qureshi",
   "role": "gate",
   "job_title": "Gate staff",
-  "posting": "Main gate",
-  "temporary_password": ""
+  "posting": "Main gate"
 }
 ```
 

@@ -76,7 +76,8 @@ paths:
       summary: Sign in
       description: |
         Caller: anyone with a hall-issued account. Suspended accounts are refused.
-        A resident uses the enrolment number as the username.
+        A resident uses the enrolment number as the username. The sample body
+        leaves the password field out of this repository. The field is required.
       security: []
       requestBody:
         required: true
@@ -86,7 +87,6 @@ paths:
               $ref: "#/components/schemas/LoginRequest"
             example:
               username: 24-GLLB-118
-              password: 
       responses:
         "200":
           description: New access token and refresh token.
@@ -1298,7 +1298,7 @@ paths:
       tags: [Hall office]
       operationId: admin_create_staff
       summary: Create a staff account
-      description: "Caller: provost. Role is gate, warden, or provost."
+      description: "Caller: provost. Role is gate, warden, or provost. The sample body leaves the temporary password out of this repository. The field is required."
       requestBody:
         required: true
         content:
@@ -1311,7 +1311,6 @@ paths:
               role: gate
               job_title: Gate staff
               posting: Main gate
-              temporary_password: 
       responses:
         "201":
           description: Staff account created. The password is not returned.
