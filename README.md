@@ -56,7 +56,7 @@ On startup the service creates the hall in `backend/data/hostel.db` when that fi
 
 From `backend/`, add the local sign-in accounts with `.venv/bin/python -m app.dev_seed`. This runs only when `ENVIRONMENT` is `development`. A second run leaves an account that is already there, including a password that was changed. The command prints the password of each account it adds. Room B-204 is created for the sample resident because the published hall page does not list door numbers.
 
-From `backend/`, run the checks with `.venv/bin/pytest`. Sign-in is `app/shared/auth/tests/test_session.py`. Startup is `tests/test_hall_created.py`. The local accounts are `tests/test_dev_seed.py`. Resident home is `app/residents/home/tests/test_home.py`. The destination list is `app/residents/outings/tests/test_destinations.py`. Ordinary outings are `app/residents/outings/tests/test_plan.py`, `test_current.py`, and `test_cancel.py`.
+From `backend/`, run the checks with `.venv/bin/pytest`. A push to `dev`, and a pull request, runs the same checks on GitHub. Sign-in is `app/shared/auth/tests/test_session.py`. Startup is `tests/test_hall_created.py`. The local accounts are `tests/test_dev_seed.py`. Resident home is `app/residents/home/tests/test_home.py`. The destination list is `app/residents/outings/tests/test_destinations.py`. Ordinary outings are `app/residents/outings/tests/test_plan.py`, `test_current.py`, and `test_cancel.py`.
 
 ## What is deliberately not here
 
