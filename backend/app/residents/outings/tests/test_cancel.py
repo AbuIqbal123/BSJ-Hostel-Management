@@ -12,6 +12,12 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from app.dev_seed import (
+    GATE_PHRASE,
+    RESIDENT_PHRASE,
+)
+
+
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "cancel-outing.json"
 BLOCK_B = "d032aad6-a203-5ea0-ba9a-3a9257edbfc8"
 LIBRARY = "fc2da7c5-8d65-5680-8034-d8acb69745eb"
@@ -70,8 +76,8 @@ def issue_people(path: Path) -> None:
             (ROOM_ID, BLOCK_B),
         )
         people = (
-            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", ""),
-            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", ""),
+            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", GATE_PHRASE),
+            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", RESIDENT_PHRASE),
         )
         for user_id, role, username, full_name, password in people:
             connection.execute(
@@ -179,9 +185,9 @@ def test_cancel_outing(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
             "unauthenticated",
             "Sign in again.",
         )
-        gate = sign_in(client, "gate.fatima", "")
+        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
         assert_error(cancel(client, gate, MISSING), 403, "forbidden", "This account cannot do that.")
-        resident = sign_in(client, "24-GLLB-118", "")
+        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
         assert_error(cancel(client, resident, MISSING), 404, "not_found", "That record was not found.")
 
         insert_stale_plan(database_path)

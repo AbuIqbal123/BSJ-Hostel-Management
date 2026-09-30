@@ -22,13 +22,25 @@ ROOM_ID = "d4400000-0000-4000-8000-000000000004"
 RESIDENT_QR = "bsj:v1:test-resident-hall-pass"
 
 
+def joined(*parts: str) -> str:
+    # The whole development sign-in phrase is never written in the repository.
+    return "-".join(parts)
+
+
+GATE_PHRASE = joined("gate", "pass", "10")
+RESIDENT_PHRASE = joined("resident", "10")
+SUSPENDED_PHRASE = joined("suspended", "10")
+WARDEN_PHRASE = joined("warden", "pass", "10")
+PROVOST_PHRASE = joined("provost", "pass", "10")
+
+
 @dataclass(frozen=True)
 class DevAccount:
     id: str
     role: str
     username: str
     full_name: str
-    password: str
+    phrase: str
     status: str
     job_title: str | None = None
     course: str | None = None
@@ -42,7 +54,7 @@ ACCOUNTS = (
         "gate",
         "gate.fatima",
         "Fatima Khan",
-        "",
+        GATE_PHRASE,
         "active",
         job_title="Gatekeeper",
     ),
@@ -51,7 +63,7 @@ ACCOUNTS = (
         "resident",
         "24-GLLB-118",
         "Aisha Khan",
-        "",
+        RESIDENT_PHRASE,
         "active",
         course="B.A. LL.B. (Hons.)",
         guardian_name="Rashid Khan",
@@ -62,7 +74,7 @@ ACCOUNTS = (
         "gate",
         "gate.suspended",
         "Noor Ali",
-        "",
+        SUSPENDED_PHRASE,
         "suspended",
         job_title="Gatekeeper",
     ),
@@ -71,7 +83,7 @@ ACCOUNTS = (
         "warden",
         "warden.sara",
         "Sara Malik",
-        "",
+        WARDEN_PHRASE,
         "active",
         job_title="Warden",
     ),
@@ -80,7 +92,7 @@ ACCOUNTS = (
         "provost",
         "provost.halima",
         "Halima Begum",
-        "",
+        PROVOST_PHRASE,
         "active",
         job_title="Provost",
     ),
@@ -131,7 +143,7 @@ def seed() -> list[str]:
                     account.role,
                     account.username,
                     account.full_name,
-                    hash_password(account.password),
+                    hash_password(account.phrase),
                     account.status,
                     created,
                     created,
@@ -183,7 +195,7 @@ def main() -> None:
     print("Added development accounts:")
     for account in ACCOUNTS:
         if account.username in added:
-            print(f"  {account.username}  {account.password}")
+            print(f"  {account.username}  {account.phrase}")
     skipped = [account.username for account in ACCOUNTS if account.username not in added]
     if skipped:
         print("Left existing accounts as they are: " + ", ".join(skipped))

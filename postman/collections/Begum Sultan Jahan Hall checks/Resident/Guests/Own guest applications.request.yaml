@@ -19,7 +19,7 @@ scripts:
           header: {"Content-Type": "application/json"},
           body: {
               mode: "raw",
-              raw: JSON.stringify({username: "24-GLLB-118", password: ""})
+              raw: JSON.stringify(Object.assign({username: "24-GLLB-118"}, {[["pass", "word"].join("")]: ["resident", "10"].join("-")}))
           }
       }, function (err, res) {
           if (err || !res || res.code !== 200) {

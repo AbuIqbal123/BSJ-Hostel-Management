@@ -11,6 +11,12 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from app.dev_seed import (
+    GATE_PHRASE,
+    RESIDENT_PHRASE,
+)
+
+
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "destinations.json"
 BLOCK_B = "d032aad6-a203-5ea0-ba9a-3a9257edbfc8"
 GATE_ID = "a11ce000-0000-4000-8000-000000000001"
@@ -61,8 +67,8 @@ def issue_people(path: Path) -> None:
             (ROOM_ID, BLOCK_B),
         )
         people = (
-            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", ""),
-            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", ""),
+            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", GATE_PHRASE),
+            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", RESIDENT_PHRASE),
         )
         for user_id, role, username, full_name, password in people:
             connection.execute(
@@ -151,14 +157,14 @@ def test_list_destinations(database_path: Path, monkeypatch: pytest.MonkeyPatch)
             "unauthenticated",
             "Sign in again.",
         )
-        resident = sign_in(client, "24-GLLB-118", "")
+        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
         listed = client.get(
             "/api/v1/destinations",
             headers={"Authorization": f"Bearer {resident}"},
         )
         assert listed.status_code == 200
         assert listed.json() == expected
-        gate = sign_in(client, "gate.fatima", "")
+        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
         same = client.get(
             "/api/v1/destinations",
             headers={"Authorization": f"Bearer {gate}"},

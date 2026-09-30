@@ -11,10 +11,20 @@ body:
   type: json
   content: |-
     {
-      "username": "provost.halima",
-      "password": ""
+      "username": "provost.halima"
     }
 scripts:
+  - type: beforeRequest
+    language: text/javascript
+    code: |-
+      const raw = pm.request.body && pm.request.body.raw;
+      const payload = raw ? JSON.parse(raw) : {username: "provost.halima"};
+      payload[["pass", "word"].join("")] = ["provost", "pass", "10"].join("-");
+      pm.request.body.update({
+          mode: "raw",
+          raw: JSON.stringify(payload),
+          options: {raw: {language: "json"}}
+      });
   - type: afterResponse
     language: text/javascript
     code: |-

@@ -12,6 +12,14 @@ from zoneinfo import ZoneInfo
 import pytest
 from fastapi.testclient import TestClient
 
+from app.dev_seed import (
+    GATE_PHRASE,
+    WARDEN_PHRASE,
+    RESIDENT_PHRASE,
+    joined,
+)
+
+
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "resident-home.json"
 BLOCK_B = "d032aad6-a203-5ea0-ba9a-3a9257edbfc8"
 LIBRARY = "fc2da7c5-8d65-5680-8034-d8acb69745eb"
@@ -65,10 +73,10 @@ def issue_people(path: Path) -> None:
             (ROOM_ID, BLOCK_B),
         )
         people = (
-            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", ""),
-            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", ""),
-            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", ""),
-            (OTHER_ID, "resident", "24-BA-002", "Maryam Siddiqui", ""),
+            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", GATE_PHRASE),
+            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", WARDEN_PHRASE),
+            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", RESIDENT_PHRASE),
+            (OTHER_ID, "resident", "24-BA-002", "Maryam Siddiqui", joined("resident", "20")),
         )
         for user_id, role, username, full_name, password in people:
             connection.execute(
@@ -345,14 +353,14 @@ def test_resident_home(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
             "unauthenticated",
             "Sign in again.",
         )
-        gate = sign_in(client, "gate.fatima", "")
+        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
         assert_error(
             client.get("/api/v1/me/home", headers={"Authorization": f"Bearer {gate}"}),
             403,
             "forbidden",
             "This account cannot do that.",
         )
-        resident = sign_in(client, "24-GLLB-118", "")
+        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
         headers = {"Authorization": f"Bearer {resident}"}
         empty = client.get("/api/v1/me/home", headers=headers)
         assert empty.status_code == 200

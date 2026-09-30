@@ -70,10 +70,10 @@ services:
   db:
     image: postgres:17
     environment:
-      POSTGRES_PASSWORD: 
+      POSTGRES_PASSWORD:
 ```
 
-Secrets in the Compose file end up in version control.
+The password is typed on that line. Secrets in the Compose file end up in version control.
 
 ### Good
 
@@ -85,7 +85,7 @@ services:
       - .env
 ```
 
-With `.env` containing `POSTGRES_PASSWORD=` and `.env` listed in `.gitignore`.
+With `.env` containing the database password, and `.env` listed in `.gitignore`.
 
 ---
 

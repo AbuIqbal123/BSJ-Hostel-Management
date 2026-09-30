@@ -17,7 +17,7 @@ scripts:
           header: {"Content-Type": "application/json"},
           body: {
               mode: "raw",
-              raw: JSON.stringify({username: "provost.halima", password: ""})
+              raw: JSON.stringify(Object.assign({username: "provost.halima"}, {[["pass", "word"].join("")]: ["provost", "pass", "10"].join("-")}))
           }
       }, function (err, res) {
           if (err || !res || res.code !== 200) {

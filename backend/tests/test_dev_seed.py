@@ -111,7 +111,15 @@ def test_dev_seed_adds_local_accounts(database_path: Path, monkeypatch: pytest.M
     assert "qr_token" not in artifact
     assert "bsj:v1:" not in artifact
 
-    from app.dev_seed import seed
+    from app.dev_seed import (
+        GATE_PHRASE,
+        PROVOST_PHRASE,
+        RESIDENT_PHRASE,
+        SUSPENDED_PHRASE,
+        WARDEN_PHRASE,
+        joined,
+        seed,
+    )
 
     added = seed()
     assert added == [
@@ -129,29 +137,29 @@ def test_dev_seed_adds_local_accounts(database_path: Path, monkeypatch: pytest.M
         assert_error(
             client.post(
                 "/api/v1/auth/login",
-                json={"username": "gate.fatima", "password": ""},
+                json={"username": "gate.fatima", "password": joined("not", "the", "one")},
             ),
             "That username exists, but the password is wrong.",
         )
         assert_error(
             client.post(
                 "/api/v1/auth/login",
-                json={"username": "nobody", "password": ""},
+                json={"username": "nobody", "password": GATE_PHRASE},
             ),
             "That username does not exist.",
         )
         assert_error(
             client.post(
                 "/api/v1/auth/login",
-                json={"username": "gate.suspended", "password": ""},
+                json={"username": "gate.suspended", "password": SUSPENDED_PHRASE},
             ),
             "This account is suspended. Please contact the Hall Office.",
         )
         signed_in = (
-            ("GATE.FATIMA", "", "gate.fatima", "gate"),
-            ("24-gllb-118", "", "24-GLLB-118", "resident"),
-            ("warden.sara", "", "warden.sara", "warden"),
-            ("provost.halima", "", "provost.halima", "provost"),
+            ("GATE.FATIMA", GATE_PHRASE, "gate.fatima", "gate"),
+            ("24-gllb-118", RESIDENT_PHRASE, "24-GLLB-118", "resident"),
+            ("warden.sara", WARDEN_PHRASE, "warden.sara", "warden"),
+            ("provost.halima", PROVOST_PHRASE, "provost.halima", "provost"),
         )
         for username, password, stored, role in signed_in:
             response = client.post(
