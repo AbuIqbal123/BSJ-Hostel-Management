@@ -1,0 +1,5 @@
+$kind: collection
+name: Outings
+order: 3000
+description: |-
+  Ordinary outings. The destination and the expected return are set before the exit scan.

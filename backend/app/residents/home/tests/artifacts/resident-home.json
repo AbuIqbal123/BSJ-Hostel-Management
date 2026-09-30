@@ -1,0 +1,114 @@
+{
+  "empty": {
+    "resident": {
+      "enrolment_number": "24-GLLB-118",
+      "course": "B.A. LL.B. (Hons.)",
+      "room_label": "B-204",
+      "block_name": "Block-B",
+      "presence": "inside"
+    },
+    "current_outing": null,
+    "active_permission": null,
+    "recent_history": []
+  },
+  "outside": {
+    "resident": {
+      "enrolment_number": "24-GLLB-118",
+      "course": "B.A. LL.B. (Hons.)",
+      "room_label": "B-204",
+      "block_name": "Block-B",
+      "presence": "outside"
+    },
+    "current_outing": {
+      "id": "e7700000-0000-4000-8000-000000000011",
+      "permission_id": null,
+      "type": "ordinary",
+      "status": "outside",
+      "place": "Maulana Azad Library",
+      "expected_return_at": "2026-09-30T12:00:00Z",
+      "grace_ends_at": "2026-09-30T12:30:00Z",
+      "exited_at": "2026-09-30T08:00:00Z",
+      "exit_recorded_by_name": "Fatima Khan",
+      "returned_at": null,
+      "return_recorded_by_name": null,
+      "is_late": true,
+      "created_at": "2026-09-30T07:00:00Z"
+    },
+    "active_permission": {
+      "id": "f8800000-0000-4000-8000-000000000021",
+      "type": "late_night",
+      "status": "pending",
+      "short_place": "Women's College",
+      "destination_detail": "Seminar Hall",
+      "address": null,
+      "reason": "A seminar after ordinary hours.",
+      "departure_at": "2026-09-30T14:00:00Z",
+      "expected_return_at": "2026-09-30T16:00:00Z",
+      "decision_note": null,
+      "decided_at": null,
+      "created_at": "2026-09-30T07:30:00Z"
+    },
+    "recent_history": [
+      {
+        "event": "exited",
+        "place": "Maulana Azad Library",
+        "occurred_at": "2026-09-30T08:00:00Z",
+        "outing_id": "e7700000-0000-4000-8000-000000000011"
+      },
+      {
+        "event": "returned",
+        "place": "Maulana Azad Library",
+        "occurred_at": "2026-09-29T16:00:00Z",
+        "outing_id": "e7700000-0000-4000-8000-000000000005"
+      },
+      {
+        "event": "exited",
+        "place": "Maulana Azad Library",
+        "occurred_at": "2026-09-29T15:00:00Z",
+        "outing_id": "e7700000-0000-4000-8000-000000000005"
+      },
+      {
+        "event": "returned",
+        "place": "City bookshop",
+        "occurred_at": "2026-09-29T14:00:00Z",
+        "outing_id": "e7700000-0000-4000-8000-000000000004"
+      },
+      {
+        "event": "exited",
+        "place": "City bookshop",
+        "occurred_at": "2026-09-29T13:00:00Z",
+        "outing_id": "e7700000-0000-4000-8000-000000000004"
+      },
+      {
+        "event": "returned",
+        "place": "J.N. Medical College",
+        "occurred_at": "2026-09-29T12:00:00Z",
+        "outing_id": "e7700000-0000-4000-8000-000000000003"
+      },
+      {
+        "event": "exited",
+        "place": "J.N. Medical College",
+        "occurred_at": "2026-09-29T11:00:00Z",
+        "outing_id": "e7700000-0000-4000-8000-000000000003"
+      },
+      {
+        "event": "returned",
+        "place": "Women's College",
+        "occurred_at": "2026-09-29T10:00:00Z",
+        "outing_id": "e7700000-0000-4000-8000-000000000002"
+      },
+      {
+        "event": "exited",
+        "place": "Women's College",
+        "occurred_at": "2026-09-29T09:00:00Z",
+        "outing_id": "e7700000-0000-4000-8000-000000000002"
+      },
+      {
+        "event": "returned",
+        "place": "Shamshad Market",
+        "occurred_at": "2026-09-29T08:00:00Z",
+        "outing_id": "e7700000-0000-4000-8000-000000000001"
+      }
+    ]
+  }
+}

@@ -1,0 +1,28 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/api/v1/destinations'
+order: 1000
+description: |-
+  Active catalog. Named places are alphabetical, ignoring capitals. The free-text choice, Other, is always last. Any signed-in user may read it. The provost edits it. A retired destination stays on file and is left off this list.
+scripts:
+  - type: beforeRequest
+    language: text/javascript
+    code: |-
+      pm.sendRequest({
+          url: pm.collectionVariables.get("baseUrl") + "/api/v1/auth/login",
+          method: "POST",
+          header: {"Content-Type": "application/json"},
+          body: {
+              mode: "raw",
+              raw: JSON.stringify({username: "24-GLLB-118", password: ""})
+          }
+      }, function (err, res) {
+          if (err || !res || res.code !== 200) {
+              throw new Error("Could not sign in as Aisha Khan.");
+          }
+          const signedIn = res.json();
+          pm.request.headers.upsert({
+              key: "Authorization",
+              value: "Bearer " + signedIn.access_token
+          });
+      });

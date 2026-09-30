@@ -1,0 +1,210 @@
+"""Outing rows shared by the resident's home screen and her outing requests."""
+
+from __future__ import annotations
+
+import sqlite3
+import uuid
+from datetime import datetime
+from typing import Literal
+from zoneinfo import ZoneInfo
+
+from pydantic import BaseModel, ConfigDict
+
+from app.shared import clock
+
+
+class OutingBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str
+    permission_id: str | None
+    type: Literal["ordinary", "late_night", "home_going"]
+    status: Literal["planned", "outside", "returned", "cancelled"]
+    place: str
+    expected_return_at: str
+    grace_ends_at: str
+    exited_at: str | None
+    exit_recorded_by_name: str | None
+    returned_at: str | None
+    return_recorded_by_name: str | None
+    is_late: bool
+    created_at: str
+
+
+def is_late(status: str, grace_ends_at: str) -> bool:
+    if status != "outside":
+        return False
+    return clock.format_instant(clock.utc_now()) > grace_ends_at
+
+
+def outing_from_row(row: sqlite3.Row) -> OutingBody:
+    return OutingBody(
+        id=row["id"],
+        permission_id=row["permission_id"],
+        type=row["type"],
+        status=row["status"],
+        place=row["place"],
+        expected_return_at=row["expected_return_at"],
+        grace_ends_at=row["grace_ends_at"],
+        exited_at=row["exited_at"],
+        exit_recorded_by_name=row["exit_recorded_by_name"],
+        returned_at=row["returned_at"],
+        return_recorded_by_name=row["return_recorded_by_name"],
+        is_late=is_late(row["status"], row["grace_ends_at"]),
+        created_at=row["created_at"],
+    )
+
+
+_OUTING_SELECT = """
+SELECT
+  outings.id,
+  outings.permission_id,
+  outings.type,
+  outings.status,
+  outings.place,
+  outings.expected_return_at,
+  outings.grace_ends_at,
+  outings.exited_at,
+  outings.returned_at,
+  outings.created_at,
+  exit_staff.full_name AS exit_recorded_by_name,
+  return_staff.full_name AS return_recorded_by_name
+FROM outings
+LEFT JOIN users AS exit_staff ON exit_staff.id = outings.exit_recorded_by
+LEFT JOIN users AS return_staff ON return_staff.id = outings.return_recorded_by
+"""
+
+
+def hall_day(moment: datetime, timezone_name: str) -> str:
+    return moment.astimezone(ZoneInfo(timezone_name)).date().isoformat()
+
+
+def _timezone(connection: sqlite3.Connection) -> str:
+    row = connection.execute("SELECT timezone FROM hall_settings WHERE id = 'hall'").fetchone()
+    return row["timezone"]
+
+
+def return_is_taken(connection: sqlite3.Connection, resident_id: str, expected_return_at: str) -> bool:
+    row = connection.execute(
+        """
+        SELECT 1 FROM outings
+        WHERE resident_id = ?
+          AND expected_return_at = ?
+          AND status IN ('planned', 'outside')
+        """,
+        (resident_id, expected_return_at),
+    ).fetchone()
+    return row is not None
+
+
+def load_current_outing(
+    connection: sqlite3.Connection, resident_id: str, moment: datetime
+) -> OutingBody | None:
+    """The outing she is outside on, or the soonest plan for today."""
+    today = hall_day(moment, _timezone(connection))
+    row = connection.execute(
+        _OUTING_SELECT
+        + """
+        WHERE outings.resident_id = ?
+          AND (
+            outings.status = 'outside'
+            OR (outings.status = 'planned' AND outings.hall_date = ?)
+          )
+        ORDER BY CASE outings.status WHEN 'outside' THEN 0 ELSE 1 END,
+                 outings.expected_return_at,
+                 outings.id
+        LIMIT 1
+        """,
+        (resident_id, today),
+    ).fetchone()
+    if row is None:
+        return None
+    return outing_from_row(row)
+
+
+def load_upcoming(connection: sqlite3.Connection, resident_id: str) -> list[OutingBody]:
+    rows = connection.execute(
+        _OUTING_SELECT
+        + """
+        WHERE outings.resident_id = ? AND outings.status IN ('planned', 'outside')
+        ORDER BY outings.expected_return_at, outings.id
+        """,
+        (resident_id,),
+    ).fetchall()
+    return [outing_from_row(row) for row in rows]
+
+
+def load_outing(connection: sqlite3.Connection, outing_id: str) -> OutingBody:
+    row = connection.execute(
+        _OUTING_SELECT + "WHERE outings.id = ?",
+        (outing_id,),
+    ).fetchone()
+    if row is None:
+        raise LookupError(outing_id)
+    return outing_from_row(row)
+
+
+def record_outing(
+    connection: sqlite3.Connection,
+    when: str,
+    actor_user_id: str | None,
+    action: str,
+    outing_id: str,
+    summary: str,
+) -> None:
+    connection.execute(
+        """
+        INSERT INTO audit_log (
+          id, occurred_at, actor_user_id, action, entity_type, entity_id, summary, detail
+        ) VALUES (?, ?, ?, ?, 'outing', ?, ?, NULL)
+        """,
+        (str(uuid.uuid4()), when, actor_user_id, action, outing_id, summary),
+    )
+
+
+def expire_passed_plans(connection: sqlite3.Connection, resident_id: str, now_text: str) -> None:
+    rows = connection.execute(
+        """
+        UPDATE outings
+        SET status = 'cancelled', cancelled_at = ?, updated_at = ?
+        WHERE resident_id = ? AND status = 'planned' AND expected_return_at < ?
+        RETURNING id, place
+        """,
+        (now_text, now_text, resident_id, now_text),
+    ).fetchall()
+    for row in rows:
+        record_outing(
+            connection,
+            now_text,
+            None,
+            "outing.cancelled",
+            row["id"],
+            f"A planned outing to {row['place']} was cancelled because the expected return passed.",
+        )
+
+
+def hours_refusal(moment: datetime, settings: sqlite3.Row) -> str | None:
+    """None when the instant is inside that hall date's ordinary hours.
+
+    The start is not included. The end is included. A later return needs a
+    permission. An earlier return is outside ordinary hours.
+    """
+    local = moment.astimezone(ZoneInfo(settings["timezone"]))
+    month_day = local.strftime("%m-%d")
+    summer_start = settings["summer_season_start"]
+    winter_start = settings["winter_season_start"]
+    if summer_start < winter_start:
+        is_summer = summer_start <= month_day < winter_start
+    else:
+        is_summer = month_day >= summer_start or month_day < winter_start
+    if is_summer:
+        start = settings["summer_hours_start"]
+        end = settings["summer_hours_end"]
+    else:
+        start = settings["winter_hours_start"]
+        end = settings["winter_hours_end"]
+    clock_time = local.strftime("%H:%M:%S")
+    if clock_time <= f"{start}:00":
+        return "outside_ordinary_hours"
+    if clock_time > f"{end}:00":
+        return "permission_required"
+    return None

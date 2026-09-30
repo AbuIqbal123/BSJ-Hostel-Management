@@ -13,9 +13,15 @@ from pathlib import Path
 
 import yaml
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel
 
-from app.config import get_settings
+from app.shared.config import get_settings
+from app.shared.errors import ApiError, api_error_handler, validation_error_handler
+from app.shared.migrate import migrate
+from app.shared.auth.routes import router as auth_router
+from app.residents.home.routes import router as home_router
+from app.residents.outings.routes import router as outings_router
 
 SPEC_PATH = Path(__file__).resolve().parent.parent / "openapi.yaml"
 DOCUMENTATION_PATHS = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
@@ -55,10 +61,16 @@ def ensure_routes_documented(app: FastAPI, spec: dict) -> None:
 async def lifespan(app: FastAPI):
     get_settings()
     ensure_routes_documented(app, load_spec())
+    migrate()
     yield
 
 
 app = FastAPI(lifespan=lifespan, docs_url="/docs", redoc_url="/redoc")
+app.include_router(auth_router)
+app.include_router(home_router)
+app.include_router(outings_router)
+app.add_exception_handler(ApiError, api_error_handler)
+app.add_exception_handler(RequestValidationError, validation_error_handler)
 
 
 @app.get("/health", response_model=Health)

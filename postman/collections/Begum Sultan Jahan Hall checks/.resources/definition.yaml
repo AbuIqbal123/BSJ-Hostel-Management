@@ -1,0 +1,27 @@
+$kind: collection
+name: 'Begum Sultan Jahan Hall checks'
+description: |-
+  Press Send. Each request signs itself in.
+
+  Resident is Aisha Khan, enrolment 24-GLLB-118. Staff is Halima Begum, the provost. Halima can open the gate, the register, and the hall office.
+
+  Health, Sign in, Current account, the refresh token, the password check, and Sign out respond. Every other request is specified and returns 404 until that route is built.
+variables:
+  - key: baseUrl
+    value: 'http://127.0.0.1:8000'
+  - key: residentId
+    value: b22de000-0000-4000-8000-000000000002
+  - key: userId
+    value: a11ce000-0000-4000-8000-000000000001
+  - key: blockId
+    value: d032aad6-a203-5ea0-ba9a-3a9257edbfc8
+  - key: roomId
+    value: d4400000-0000-4000-8000-000000000004
+  - key: destinationId
+    value: fc2da7c5-8d65-5680-8034-d8acb69745eb
+  - key: outingId
+    value: ''
+  - key: permissionId
+    value: 00000000-0000-4000-8000-0000000000a1
+  - key: guestStayId
+    value: 00000000-0000-4000-8000-0000000000a2

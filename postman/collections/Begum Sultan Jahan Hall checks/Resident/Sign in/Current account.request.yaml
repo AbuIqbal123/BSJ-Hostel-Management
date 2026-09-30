@@ -1,0 +1,45 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/api/v1/auth/me'
+order: 200
+description: |-
+  Signs in as Aisha Khan and then returns her account. The response includes room B-204 and that she is inside.
+scripts:
+  - type: beforeRequest
+    language: text/javascript
+    code: |-
+      pm.sendRequest({
+          url: pm.collectionVariables.get("baseUrl") + "/api/v1/auth/login",
+          method: "POST",
+          header: {"Content-Type": "application/json"},
+          body: {
+              mode: "raw",
+              raw: JSON.stringify({username: "24-GLLB-118", password: ""})
+          }
+      }, function (err, res) {
+          if (err || !res || res.code !== 200) {
+              throw new Error("Could not sign in as Aisha Khan.");
+          }
+          const signedIn = res.json();
+          pm.request.headers.upsert({
+              key: "Authorization",
+              value: "Bearer " + signedIn.access_token
+          });
+      });
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      const body = pm.response.json();
+      pm.test("Aisha Khan is the current account", function () {
+          pm.response.to.have.status(200);
+          pm.expect(body.username).to.eql("24-GLLB-118");
+          pm.expect(body.role).to.eql("resident");
+          pm.expect(body.full_name).to.eql("Aisha Khan");
+          pm.expect(body.status).to.eql("active");
+          pm.expect(body.resident.enrolment_number).to.eql("24-GLLB-118");
+          pm.expect(body.resident.room_label).to.eql("B-204");
+          pm.expect(body.resident.block_name).to.eql("Block-B");
+          pm.expect(body.resident.presence).to.eql("inside");
+          pm.expect(body.resident.course).to.eql("B.A. LL.B. (Hons.)");
+          pm.expect(body.staff).to.eql(null);
+      });

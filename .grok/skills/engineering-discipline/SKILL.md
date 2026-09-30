@@ -20,4 +20,6 @@ Read and follow **Engineering rules** in `AGENTS.md` before writing code, tests,
 
 The test entry format is at the top of `docs/tests.md`.
 
+Red, green, refactor in small slices. One slice is one named behavior. A migration happens only when stored records change. Tests live in the business folder they protect.
+
 Schema and HTTP contract edits also follow `.grok/skills/contract-maintenance/SKILL.md`.

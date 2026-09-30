@@ -1,0 +1,306 @@
+{
+  "user_version": 3,
+  "tables": [
+    "audit_log",
+    "blocks",
+    "destinations",
+    "guardian_messages",
+    "guest_stays",
+    "hall_settings",
+    "outings",
+    "permissions",
+    "residents",
+    "rooms",
+    "sessions",
+    "staff",
+    "users"
+  ],
+  "columns": {
+    "audit_log": [
+      "id",
+      "occurred_at",
+      "actor_user_id",
+      "action",
+      "entity_type",
+      "entity_id",
+      "summary",
+      "detail"
+    ],
+    "blocks": [
+      "id",
+      "code",
+      "name",
+      "floors",
+      "room_count",
+      "beds_per_room",
+      "is_active"
+    ],
+    "destinations": [
+      "id",
+      "name",
+      "is_other",
+      "is_active"
+    ],
+    "guest_stays": [
+      "id",
+      "host_resident_id",
+      "guest_name",
+      "relation",
+      "start_date",
+      "end_date",
+      "reason",
+      "status",
+      "payment_status",
+      "payment_marked_by",
+      "payment_marked_at",
+      "decided_by",
+      "decided_at",
+      "decision_note",
+      "arrived_at",
+      "arrived_recorded_by",
+      "departed_at",
+      "departed_recorded_by",
+      "created_at",
+      "updated_at"
+    ],
+    "guardian_messages": [
+      "id",
+      "outing_id",
+      "resident_id",
+      "notice_type",
+      "recipient_phone",
+      "body",
+      "driver",
+      "status",
+      "provider_reference",
+      "error",
+      "created_at"
+    ],
+    "hall_settings": [
+      "id",
+      "hall_name",
+      "university_name",
+      "timezone",
+      "grace_minutes",
+      "summer_hours_start",
+      "summer_hours_end",
+      "winter_hours_start",
+      "winter_hours_end",
+      "summer_season_start",
+      "winter_season_start",
+      "permission_early_minutes",
+      "guest_max_inclusive_days",
+      "guest_min_lead_days",
+      "scan_duplicate_window_seconds",
+      "late_sms_template",
+      "return_sms_template",
+      "updated_at"
+    ],
+    "outings": [
+      "id",
+      "resident_id",
+      "permission_id",
+      "type",
+      "status",
+      "destination_id",
+      "place",
+      "expected_return_at",
+      "grace_ends_at",
+      "exited_at",
+      "exit_recorded_by",
+      "returned_at",
+      "return_recorded_by",
+      "created_at",
+      "updated_at",
+      "cancelled_at",
+      "hall_date"
+    ],
+    "permissions": [
+      "id",
+      "resident_id",
+      "type",
+      "status",
+      "short_place",
+      "destination_detail",
+      "address",
+      "reason",
+      "departure_at",
+      "expected_return_at",
+      "decided_by",
+      "decided_at",
+      "decision_note",
+      "created_at",
+      "updated_at"
+    ],
+    "residents": [
+      "user_id",
+      "enrolment_number",
+      "course",
+      "room_id",
+      "guardian_name",
+      "guardian_phone",
+      "qr_token",
+      "presence",
+      "created_at",
+      "updated_at"
+    ],
+    "rooms": [
+      "id",
+      "block_id",
+      "number",
+      "label",
+      "bed_count",
+      "is_active"
+    ],
+    "sessions": [
+      "id",
+      "user_id",
+      "token_hash",
+      "expires_at",
+      "revoked_at",
+      "created_at"
+    ],
+    "staff": [
+      "user_id",
+      "job_title"
+    ],
+    "users": [
+      "id",
+      "role",
+      "username",
+      "full_name",
+      "password_hash",
+      "status",
+      "created_at",
+      "updated_at",
+      "last_login_at"
+    ]
+  },
+  "indexes": [
+    "blocks_code",
+    "destinations_name",
+    "destinations_one_active_other",
+    "guardian_messages_one_per_type",
+    "outings_one_outside",
+    "outings_one_return",
+    "residents_enrolment_number",
+    "residents_qr_token",
+    "rooms_block_number",
+    "rooms_label",
+    "sessions_token_hash",
+    "users_username"
+  ],
+  "hall_settings": [
+    {
+      "id": "hall",
+      "hall_name": "Begum Sultan Jahan Hall",
+      "university_name": "Aligarh Muslim University",
+      "timezone": "Asia/Kolkata",
+      "grace_minutes": 30,
+      "summer_hours_start": "06:30",
+      "summer_hours_end": "18:30",
+      "winter_hours_start": "06:30",
+      "winter_hours_end": "17:30",
+      "summer_season_start": "04-01",
+      "winter_season_start": "10-01",
+      "permission_early_minutes": 30,
+      "guest_max_inclusive_days": 7,
+      "guest_min_lead_days": 1,
+      "scan_duplicate_window_seconds": 45,
+      "late_sms_template": "{resident_name} ({room}) was expected to return by {expected_return_local} and has not yet returned. Please contact the Hall Office if you need to speak to the duty warden.",
+      "return_sms_template": "{resident_name} ({room}) has returned to {hall_name} at {returned_at_local}. Thank you.",
+      "updated_at": "2026-09-30T00:00:00Z"
+    }
+  ],
+  "blocks": [
+    {
+      "id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "code": "A",
+      "name": "Block-A",
+      "floors": 4,
+      "room_count": 50,
+      "beds_per_room": 2,
+      "is_active": true
+    },
+    {
+      "id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "code": "B",
+      "name": "Block-B",
+      "floors": 4,
+      "room_count": 58,
+      "beds_per_room": 2,
+      "is_active": true
+    },
+    {
+      "id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "code": "C",
+      "name": "Block-C",
+      "floors": 4,
+      "room_count": 42,
+      "beds_per_room": 2,
+      "is_active": true
+    },
+    {
+      "id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "code": "D",
+      "name": "Block-D",
+      "floors": 4,
+      "room_count": 40,
+      "beds_per_room": 2,
+      "is_active": true
+    },
+    {
+      "id": "916c689d-598e-55b4-b3dc-fcf7120ca3b1",
+      "code": "Utility",
+      "name": "Utility",
+      "floors": null,
+      "room_count": 16,
+      "beds_per_room": 2,
+      "is_active": true
+    }
+  ],
+  "destinations": [
+    {
+      "id": "1285f918-cd9c-5ef8-9c04-58a69285211c",
+      "name": "J.N. Medical College",
+      "is_other": false,
+      "is_active": true
+    },
+    {
+      "id": "fc2da7c5-8d65-5680-8034-d8acb69745eb",
+      "name": "Maulana Azad Library",
+      "is_other": false,
+      "is_active": true
+    },
+    {
+      "id": "f2008ef3-a1df-5ff0-b936-3466d0914781",
+      "name": "Other",
+      "is_other": true,
+      "is_active": true
+    },
+    {
+      "id": "924e5c75-e9b6-57a9-bb04-720028253526",
+      "name": "Shamshad Market",
+      "is_other": false,
+      "is_active": true
+    },
+    {
+      "id": "df29c4b7-63c5-525d-a9ec-798a980c64c8",
+      "name": "Women's College",
+      "is_other": false,
+      "is_active": true
+    }
+  ],
+  "rooms": [],
+  "empty_tables": {
+    "audit_log": 0,
+    "guest_stays": 0,
+    "guardian_messages": 0,
+    "outings": 0,
+    "permissions": 0,
+    "residents": 0,
+    "sessions": 0,
+    "staff": 0,
+    "users": 0
+  }
+}

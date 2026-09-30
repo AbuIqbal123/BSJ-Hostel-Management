@@ -1,0 +1,31 @@
+$kind: http-request
+method: POST
+url: '{{baseUrl}}/api/v1/auth/login'
+order: 100
+description: |-
+  Signs in as Halima Begum, the provost. Press Send. The response is her access token, her refresh token, and her account. She can open the gate, the register, and the hall office.
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "username": "provost.halima",
+      "password": ""
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      const body = pm.response.json();
+      pm.test("Halima Begum is signed in", function () {
+          pm.response.to.have.status(200);
+          pm.expect(body.token_type).to.eql("bearer");
+          pm.expect(body.expires_in).to.eql(900);
+          pm.expect(body.access_token).to.be.a("string").and.not.empty;
+          pm.expect(body.refresh_token).to.be.a("string").and.not.empty;
+          pm.expect(body.user.username).to.eql("provost.halima");
+          pm.expect(body.user.role).to.eql("provost");
+          pm.expect(body.user.full_name).to.eql("Halima Begum");
+      });

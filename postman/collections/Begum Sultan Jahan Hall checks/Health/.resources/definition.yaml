@@ -1,0 +1,5 @@
+$kind: collection
+name: Health
+order: 1000
+description: |-
+  The process is up. This call does not read the hall.

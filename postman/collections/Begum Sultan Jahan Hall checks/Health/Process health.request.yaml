@@ -1,0 +1,14 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/health'
+order: 1000
+description: |-
+  Reports that the API process is up. It does not check the database.
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("process is up", function () {
+          pm.response.to.have.status(200);
+          pm.expect(pm.response.json().status).to.eql("ok");
+      });

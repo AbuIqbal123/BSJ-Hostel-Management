@@ -1,0 +1,49 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/api/v1/auth/me'
+order: 200
+description: |-
+  Signs in as Halima Begum and then returns her account. The response names her as the provost.
+scripts:
+  - type: beforeRequest
+    language: text/javascript
+    code: |-
+      pm.sendRequest({
+          url: pm.collectionVariables.get("baseUrl") + "/api/v1/auth/login",
+          method: "POST",
+          header: {"Content-Type": "application/json"},
+          body: {
+              mode: "raw",
+              raw: JSON.stringify({username: "provost.halima", password: ""})
+          }
+      }, function (err, res) {
+          if (err || !res || res.code !== 200) {
+              throw new Error("Could not sign in as Halima Begum.");
+          }
+          const signedIn = res.json();
+          pm.request.headers.upsert({
+              key: "Authorization",
+              value: "Bearer " + signedIn.access_token
+          });
+          const target = String(pm.request.url);
+          if (target.indexOf("/api/v1/auth/refresh") !== -1) {
+              pm.request.body.update({
+                  mode: "raw",
+                  raw: JSON.stringify({refresh_token: signedIn.refresh_token}),
+                  options: {raw: {language: "json"}}
+              });
+          }
+      });
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      const body = pm.response.json();
+      pm.test("Halima Begum is the current account", function () {
+          pm.response.to.have.status(200);
+          pm.expect(body.username).to.eql("provost.halima");
+          pm.expect(body.role).to.eql("provost");
+          pm.expect(body.full_name).to.eql("Halima Begum");
+          pm.expect(body.status).to.eql("active");
+          pm.expect(body.staff.job_title).to.eql("Provost");
+          pm.expect(body.resident).to.eql(null);
+      });

@@ -1,0 +1,95 @@
+{
+  "rooms": [
+    {
+      "id": "d4400000-0000-4000-8000-000000000004",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "204",
+      "label": "B-204",
+      "bed_count": 2,
+      "is_active": true
+    }
+  ],
+  "users": [
+    {
+      "id": "b22de000-0000-4000-8000-000000000002",
+      "role": "resident",
+      "username": "24-GLLB-118",
+      "full_name": "Aisha Khan",
+      "status": "active",
+      "created_at": "2026-09-30T00:00:00Z",
+      "updated_at": "2026-09-30T00:00:00Z",
+      "last_login_at": null
+    },
+    {
+      "id": "a11ce000-0000-4000-8000-000000000001",
+      "role": "gate",
+      "username": "gate.fatima",
+      "full_name": "Fatima Khan",
+      "status": "active",
+      "created_at": "2026-09-30T00:00:00Z",
+      "updated_at": "2026-09-30T00:00:00Z",
+      "last_login_at": null
+    },
+    {
+      "id": "c33ef000-0000-4000-8000-000000000003",
+      "role": "gate",
+      "username": "gate.suspended",
+      "full_name": "Noor Ali",
+      "status": "suspended",
+      "created_at": "2026-09-30T00:00:00Z",
+      "updated_at": "2026-09-30T00:00:00Z",
+      "last_login_at": null
+    },
+    {
+      "id": "f66ab000-0000-4000-8000-000000000006",
+      "role": "provost",
+      "username": "provost.halima",
+      "full_name": "Halima Begum",
+      "status": "active",
+      "created_at": "2026-09-30T00:00:00Z",
+      "updated_at": "2026-09-30T00:00:00Z",
+      "last_login_at": null
+    },
+    {
+      "id": "e55fa000-0000-4000-8000-000000000005",
+      "role": "warden",
+      "username": "warden.sara",
+      "full_name": "Sara Malik",
+      "status": "active",
+      "created_at": "2026-09-30T00:00:00Z",
+      "updated_at": "2026-09-30T00:00:00Z",
+      "last_login_at": null
+    }
+  ],
+  "staff": [
+    {
+      "user_id": "a11ce000-0000-4000-8000-000000000001",
+      "job_title": "Gatekeeper"
+    },
+    {
+      "user_id": "c33ef000-0000-4000-8000-000000000003",
+      "job_title": "Gatekeeper"
+    },
+    {
+      "user_id": "e55fa000-0000-4000-8000-000000000005",
+      "job_title": "Warden"
+    },
+    {
+      "user_id": "f66ab000-0000-4000-8000-000000000006",
+      "job_title": "Provost"
+    }
+  ],
+  "residents": [
+    {
+      "user_id": "b22de000-0000-4000-8000-000000000002",
+      "enrolment_number": "24-GLLB-118",
+      "course": "B.A. LL.B. (Hons.)",
+      "room_id": "d4400000-0000-4000-8000-000000000004",
+      "guardian_name": "Rashid Khan",
+      "guardian_phone": "+919876543210",
+      "presence": "inside",
+      "created_at": "2026-09-30T00:00:00Z",
+      "updated_at": "2026-09-30T00:00:00Z"
+    }
+  ]
+}

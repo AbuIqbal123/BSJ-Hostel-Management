@@ -1,0 +1,5 @@
+$kind: collection
+name: Staff accounts
+order: 2000
+description: |-
+  Gate, warden, and provost accounts, and a password reset.

@@ -1,0 +1,45 @@
+$kind: http-request
+method: POST
+url: '{{baseUrl}}/api/v1/gate/scans'
+order: 1000
+description: |-
+  Caller: gate, warden, or provost. Send the raw QR text. Both `bsj:v1:{token}` and the bare token are accepted. While the resident is inside, a scan records an exit. A planned ordinary outing is used when one exists, and only when the current time is inside ordinary hours on that plan's hall date. The scan records the exit time and the staff member. Otherwise an approved permission inside its use window is opened as an outing and marked in use. If neither exists, the scan is refused. An ordinary exit needs a destination and an expected return saved before the resident reaches the gate. While the resident is outside, a scan records the return. Nothing else is filled in. A second scan inside `scan_duplicate_window_seconds` of the previous exit or return for that resident is refused, so one presentation at the gate cannot undo itself. The refusal for a fresh exit uses the gate copy: the resident is already outside and should present the same pass on return. qr_payload is Aisha Khan's development hall pass. Returns 404 until this route is built.
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "qr_payload": "bsj:v1:test-resident-hall-pass"
+    }
+scripts:
+  - type: beforeRequest
+    language: text/javascript
+    code: |-
+      pm.sendRequest({
+          url: pm.collectionVariables.get("baseUrl") + "/api/v1/auth/login",
+          method: "POST",
+          header: {"Content-Type": "application/json"},
+          body: {
+              mode: "raw",
+              raw: JSON.stringify({username: "provost.halima", password: ""})
+          }
+      }, function (err, res) {
+          if (err || !res || res.code !== 200) {
+              throw new Error("Could not sign in as Halima Begum.");
+          }
+          const signedIn = res.json();
+          pm.request.headers.upsert({
+              key: "Authorization",
+              value: "Bearer " + signedIn.access_token
+          });
+          const target = String(pm.request.url);
+          if (target.indexOf("/api/v1/auth/refresh") !== -1) {
+              pm.request.body.update({
+                  mode: "raw",
+                  raw: JSON.stringify({refresh_token: signedIn.refresh_token}),
+                  options: {raw: {language: "json"}}
+              });
+          }
+      });

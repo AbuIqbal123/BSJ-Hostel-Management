@@ -3,7 +3,7 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-BACKEND_ROOT = Path(__file__).resolve().parent.parent
+BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
@@ -34,9 +34,17 @@ class Settings(BaseSettings):
                 "Refusing to start so this process cannot send parent SMS."
             )
 
+    def reject_missing_secret(self) -> None:
+        if not self.app_secret_key.strip():
+            raise RuntimeError(
+                "APP_SECRET_KEY is empty. Set it in the untracked backend/.env. "
+                "Refusing to start."
+            )
+
 
 @lru_cache
 def get_settings() -> Settings:
     settings = Settings()
     settings.reject_unsafe_sms()
+    settings.reject_missing_secret()
     return settings

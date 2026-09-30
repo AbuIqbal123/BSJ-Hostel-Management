@@ -8,8 +8,7 @@ Before changing API behavior, the database, or the shape of the system, follow `
 |---|---|
 | Product behavior already shown | `reference/proposal/`, `reference/demo/`, `reference/prototype/` |
 | System as it stands | `docs/system-architecture.md` |
-| Later hosting plan | `docs/architecture.md` |
-| Tables, states, SMS, audit | `docs/database.md` |
+| What the hall keeps | `docs/database.md` |
 | HTTP contract, for reading | `docs/api.md` |
 | HTTP contract served at `/docs` | `backend/openapi.yaml` |
 | Test specifications | `docs/tests.md` |
@@ -26,8 +25,9 @@ Behavior is specified before it is implemented.
 - Stored data lives in `docs/database.md`.
 - The shape of the system lives in `docs/system-architecture.md`.
 - A test's specification lives in `docs/tests.md`.
+- Technical detail lives in the code. There is no separate technical specification.
 
-Do not implement a behavior those documents do not already describe. Update the owning document in the same change as the code, and bump that document's version when its contract changes.
+Do not implement a behavior those documents do not already describe. Update the owning document in the same change as the code. While this work is on dev, leave the API version and the database document version as they are. Do not add a database revision row for a dev change. Those version numbers start when the work moves to production.
 
 ### Documents that stay current
 
@@ -43,14 +43,32 @@ A new endpoint or column updates the database document and the API document. Upd
 
 ### Test-driven development
 
-Write the failing test and its `docs/tests.md` entry before the implementation. The test describes the specified behavior. Then write the code that makes that test pass.
+Red, green, refactor stays. Write a failing check for one behavior, run it, see it fail because that behavior is missing, then write the code that makes it pass.
+
+One slice is one behavior a person can name, such as a wrong password being refused, or sign-out revoking the refresh token. Do not write every test for a feature before any of the code. Do not start a slice with a migration. A migration is only for a change to stored records, and the check that needs those records comes first.
+
+Prefer an end-to-end check that calls the API and then reads what was stored. Keep the check narrow enough that a failure names the behavior. When the check is about what the hall keeps, save a repeatable artifact and compare against it.
+
+Do not add a test after the code that only restates the code. A regression check is written first, so it fails on the bug, then the fix makes it pass.
+
+### Where code and tests live
+
+Group the service by business area.
+
+| Area | Code | Tests |
+|---|---|---|
+| Sign-in | `backend/app/shared/auth/` | `backend/app/shared/auth/tests/` |
+| Resident phone | `backend/app/residents/` with `home`, `outings`, `permissions`, `guests`, `hall_pass` | Beside that area, in its `tests/` folder |
+| Gate, register, and hall office | `backend/app/staff/` with `gate`, `register`, `office` | Beside that area, in its `tests/` folder |
+| Startup of the whole hall | `backend/app/shared/migrate.py` and `backend/app/shared/migrations/` | `backend/tests/` |
+
+`backend/app/main.py` only starts the process. Sign-in, the clock, errors, settings, and the database connection stay in `backend/app/shared/`, because every area uses them. A new route goes in the area that owns the behavior.
 
 ### How tests are written
 
-- Never write unit tests after you write code.
-- Highly prefer E2E tests as the sole testing mechanism. Use them to verify complex features work. At the end of E2E tests, produce a verifiable and repeatable artifact.
-- If you must test a system in isolation, first write down all the ways it could fail, then write the code.
+- Prefer an end-to-end check. Use an isolated check only for a failure the end-to-end path cannot show. Write those failures in `docs/tests.md` before that isolated check.
+- An end-to-end check that records what the hall keeps leaves an artifact. A later run compares against that file.
 
 ### Test documentation
 
-Every test is documented in `docs/tests.md` with the same kind of detail as an API operation in Swagger: purpose, the action and payload, the expected response, and the artifact. Use the entry format at the top of that file. Update that entry in the same change as the test.
+Every test has an entry in `docs/tests.md`, updated in the same change as the test. The entry names the test file, the purpose, the actor, and the artifact. Use the format at the top of that file. The entry does not copy every payload when the test file already states them.

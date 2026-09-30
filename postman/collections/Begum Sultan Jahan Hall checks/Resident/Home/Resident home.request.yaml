@@ -1,0 +1,28 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/api/v1/me/home'
+order: 1000
+description: |-
+  Caller: resident. Presence, room, the open outing if there is one, the permission the resident is waiting on or cleared to use, and the last ten exit and return lines. A planned outing whose expected return has passed is cancelled by this read, with no staff member, before the screen is built. A gate, warden, or provost account is refused.
+scripts:
+  - type: beforeRequest
+    language: text/javascript
+    code: |-
+      pm.sendRequest({
+          url: pm.collectionVariables.get("baseUrl") + "/api/v1/auth/login",
+          method: "POST",
+          header: {"Content-Type": "application/json"},
+          body: {
+              mode: "raw",
+              raw: JSON.stringify({username: "24-GLLB-118", password: ""})
+          }
+      }, function (err, res) {
+          if (err || !res || res.code !== 200) {
+              throw new Error("Could not sign in as Aisha Khan.");
+          }
+          const signedIn = res.json();
+          pm.request.headers.upsert({
+              key: "Authorization",
+              value: "Bearer " + signedIn.access_token
+          });
+      });

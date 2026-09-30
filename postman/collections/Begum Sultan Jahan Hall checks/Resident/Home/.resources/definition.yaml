@@ -1,0 +1,5 @@
+$kind: collection
+name: Home
+order: 1000
+description: |-
+  What the resident sees on opening the phone, and her own history.

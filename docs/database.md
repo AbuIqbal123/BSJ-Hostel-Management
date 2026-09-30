@@ -1,28 +1,28 @@
-# Begum Sultan Jahan Hall — data model
+# Begum Sultan Jahan Hall — what the hall keeps
 
-Schema version: **0.1.0**
+Version: **0.3.4**
 
-Status: contract. These tables are not created yet. The first migration, when the API is implemented, must match this document.
+Status: agreed. The service creates these records when it starts. They match this document.
 
-This file owns tables, columns, constraints, stored states, and the rules that decide how a row changes. The same behavior over HTTP is [`api.md`](api.md). The picture of what is running is [`system-architecture.md`](system-architecture.md). Technology choices for later hosting stay in [`architecture.md`](architecture.md).
+This document is the source of truth for what is stored and how a record is allowed to change. It is written for the hall. The software follows it. What a person sends and receives is in [`api.md`](api.md). The picture of what is running is [`system-architecture.md`](system-architecture.md).
 
 ## Contents
 
-- [Sources](#sources)
-- [Confirmed behavior](#confirmed-behavior)
-- [Open decisions](#open-decisions)
-- [Conventions](#conventions)
-- [How the records relate](#how-the-records-relate)
+- [Where this comes from](#where-this-comes-from)
+- [What the hall already decided](#what-the-hall-already-decided)
+- [Still for the hall to decide](#still-for-the-hall-to-decide)
+- [How a value is kept and how it is shown](#how-a-value-is-kept-and-how-it-is-shown)
+- [How the records connect](#how-the-records-connect)
 - [Hall settings](#hall-settings)
 - [Places](#places)
-  - [blocks](#blocks)
-  - [rooms](#rooms)
-  - [destinations](#destinations)
+  - [Blocks](#blocks)
+  - [Rooms](#rooms)
+  - [Destinations](#destinations)
 - [Accounts](#accounts)
-  - [users](#users)
-  - [resident_profiles](#resident_profiles)
-  - [staff_profiles](#staff_profiles)
-  - [refresh_tokens](#refresh_tokens)
+  - [People](#people)
+  - [Residents](#residents)
+  - [Staff](#staff)
+  - [Signed-in session](#signed-in-session)
 - [Permissions](#permissions)
   - [Permission lifecycle](#permission-lifecycle)
 - [Outings](#outings)
@@ -32,797 +32,571 @@ This file owns tables, columns, constraints, stored states, and the rules that d
   - [Late](#late)
 - [Guest stays](#guest-stays)
   - [Guest lifecycle](#guest-lifecycle)
-  - [Derived guest buckets](#derived-guest-buckets)
-- [SMS](#sms)
-- [Audit](#audit)
+  - [Guest lists](#guest-lists)
+- [Messages to the parent or guardian](#messages-to-the-parent-or-guardian)
+- [Audit log](#audit-log)
 - [Who can do what](#who-can-do-what)
-- [Register counts](#register-counts)
-- [SMS and audit are the history](#sms-and-audit-are-the-history)
-- [What this version does not store](#what-this-version-does-not-store)
-- [DDL](#ddl)
+- [What the register counts](#what-the-register-counts)
+- [History that is not its own list](#history-that-is-not-its-own-list)
+- [What this version does not keep](#what-this-version-does-not-keep)
 - [Revisions](#revisions)
 
-## Sources
+## Where this comes from
 
-Confirmed behavior comes from the hall proposal and the workflows in `reference/demo/` and `reference/prototype/`. Where those sources do not decide a detail the system still needs, the detail is listed under Open decisions and stored as a hall setting rather than hard-coded.
+The rules in this document are the contract. The room inventory is taken from the hall's own page, [Begum Sultan Jahan Hall](https://www.amu.ac.in/halls/begum-sultan-jahan-hall), read on 30 September 2026. Ordinary hours are taken from the hall's SOP 06, Outing, Late-Night Permission, Home going and Emergency Protocol, and from SOP 07, Maintenance of Register at the Gate. Both were read from the hall's SOP page on the same date. The dates when summer hours become winter hours are taken from the seasonal split published by [AMU University Health Services](https://www.amu.ac.in/miscellaneous/universiy-health-services/out-patient-department): 1 April through 30 September, and 1 October through 31 March. Where those sources do not decide a detail the system still needs, the detail is listed under Still for the hall to decide and stored as a hall setting.
 
-## Confirmed behavior
+## What the hall already decided
 
-- The hall is Begum Sultan Jahan Hall, Aligarh Muslim University. About 400 residents and about 10 staff: residents, wardens, gate staff, and the provost.
-- A resident has one permanent hall pass. The QR is not regenerated for each outing. The same code records exit and return.
-- An ordinary outing has a destination and an expected return. The resident sets both before leaving. No warden approval. The gate scan records the exit.
-- Grace is 30 minutes after the expected return. The demo uses 7:00 PM expected and 7:30 PM grace.
-- A parent SMS is sent only when grace ends and the resident is still outside, and only when a parent number is on file. A second SMS is sent when that resident returns. An on-time return sends nothing.
-- Late-night permission is for staying in Aligarh after ordinary hours. The warden must approve it before the resident leaves. Fields: destination, reason, outing date, exit time, expected return.
-- Home going is leave for home. Fields: home address, reason, departure date and time, return date and time.
-- The warden approves or rejects. A rejection does not block an ordinary outing inside ordinary hours.
+- The hall is Begum Sultan Jahan Hall, Aligarh Muslim University. The hall page lists 206 double rooms and 412 beds. For session 2025–26 the same page lists 506 resident students and 434 non-resident students. That roll is not a room count. This system keeps the provost, wardens, and gate staff.
+- A resident has one permanent hall pass. It is not replaced for each outing. The same code records leaving and coming back. The provost can issue a new code from the resident's record. The steps are under Residents.
+- An ordinary outing is a same-day outing inside ordinary hours. The resident sets the destination and the expected return in the app before going to the gate. The gate scan does not ask for either. If either is missing, the scan does not let her out. An ordinary outing needs no warden approval. The scan records the exit, the time, and which staff member scanned.
+- Ordinary hours are a window with a start and an end. Summer is 1 April through 30 September, 6:30 AM to 6:30 PM. Winter is 1 October through 31 March, 6:30 AM to 5:30 PM. On 30 September the summer window is in force. On 1 October the winter window is in force. The clock times and the two start dates are under Hall settings.
+- Grace is 30 minutes after the expected return. An expected return of 7:00 PM means grace ends at 7:30 PM.
+- A message to the parent or guardian is sent when grace ends and the resident is still outside. A second message is sent when that resident returns. An on-time return sends nothing. Every resident has a guardian phone, so the number is always on file.
+- Late-night permission is for staying in Aligarh after ordinary hours. A warden or the provost must approve it before the resident leaves. The hall records the place, the reason, the departure, and the expected return.
+- Home going is leave for home. The hall records the home address, the reason, the departure, and the return. A warden or the provost must approve it before the resident leaves.
+- A rejection does not block an ordinary outing inside ordinary hours.
 - Gate staff scan the hall pass. A second immediate scan must not undo the movement. The gate screen for that case says the resident is already outside and should present the same pass on return.
-- The warden register shows who is inside, outside, or late, and the pending permissions. Search is by name or room. A resident record shows destination, exit, expected return, grace, actual return, whether the outing is ordinary, and whether the parent SMS was sent.
+- The register shows who is inside, outside, or late, and the permissions still waiting. It shows those counts for the whole hall and again for each block. Search is by name or room. A resident record shows the place, the exit, the expected return, grace, the actual return, the outing type, and whether the guardian was told.
 - The provost sees the whole hall and can export the register.
-- A guest stay is applied for by the host resident at least one day before the start date, for at most 7 inclusive days. Friday 18 September through Monday 21 September is 4 days. Payment is marked at the hall office, not collected in the app. Guests have no hall pass. Gate staff record arrival and departure from a list. Guests in hall is a dining count and stays on the count until departure is recorded, including when the end date has passed.
-- Emergency alerts are not in this version. The proposal says to skip them if the hall does not want them in the first release. An alert must not approve leave or change outing status if it is added later.
-- Parents do not use the app. SMS is the only parent channel.
-- Clocks in the product are India time.
+- A guest stay is applied for by the host resident at least one day before the start date, for at most 7 days counting the first and last day. 18 September 2026 through 21 September 2026 is 4 days. Payment is marked at the hall office, not collected in the app. Guests have no hall pass. Gate staff record arrival and departure from a list. A guest stays on the dining count until departure is recorded, including when the end date has passed.
+- Emergency alerts are not in this version. An alert must not approve leave or change whether a resident is outside.
+- Parents and guardians do not use the app. A text message is the only channel to them.
+- Every time a person sees is India time, on a 12-hour clock. Every date a person sees is the day, the month name, and the year.
 
-## Open decisions
+## Still for the hall to decide
 
-These are stored as settings so the hall can set them without a schema change. Defaults are proposals, not hall rules.
+These are stored as settings so the hall can set them later without reshaping the records.
 
-| Setting | Default | Why it is open |
+| What the hall sets | Until the hall decides | Why it is open |
 |---|---|---|
-| `ordinary_hours_end` | null | The proposal says late-night permission is for time after ordinary hours. It never states the clock time. While this is null, an ordinary outing may be planned at any time within the ordinary-outing bound below, and late-night remains an explicit request. |
-| `scan_duplicate_window_seconds` | 45 | The gate demo rejects an immediate second scan. A later scan of a resident who is outside records the return. The window is the gap between those two behaviors. |
-| `permission_early_minutes` | 30 | How early a resident may scan out against an approved permission, before its departure time. |
-| `ordinary_outing_max_hours` | 18 | How far ahead an ordinary expected return may be. Longer leave is a home-going or late-night permission. |
+| How long a second scan is ignored | 45 seconds | A second scan in this gap must not undo the movement. A later scan of a resident who is outside records the return. |
+| How early a permission may be used | 30 minutes before the stated departure | How early a resident may scan out on an approved permission. |
 
-Sign-in is also unspecified in the proposal. The contract uses hall-issued accounts: a username and a password. A resident's username is their enrolment number. There is no public self-registration and no parent login.
+Sign-in is a hall-issued username and password. A resident's username is her enrolment number. There is no public sign-up and no parent or guardian login.
 
-A warden's posting (for example Block B) is a label on the staff profile. The demo register is hall-wide, so a posting does not filter the data that warden can see.
+## How a value is kept and how it is shown
 
-## Conventions
+Each field below names what is kept, whether it is required, and where the value comes from. "Required" means the record is not valid without it. Some fields become required at a later step. They are empty only because that step has not happened yet.
 
-- Primary keys are lowercase UUID strings generated by the application.
-- Instants are TEXT in UTC, format `YYYY-MM-DDTHH:MM:SSZ`. The API may accept an offset and must store and return this form. The hall calendar is `Asia/Kolkata`.
-- Calendar dates are TEXT `YYYY-MM-DD` in the hall calendar. Guest start and end dates are dates, not instants.
-- A time of day setting is TEXT `HH:MM` on a 24-hour clock, hall local.
-- Booleans are INTEGER `0` or `1`.
-- Enumerations are TEXT with a CHECK constraint.
-- Foreign keys are enforced on every connection (`PRAGMA foreign_keys=ON`).
-- Write statements use parameters. Identifiers are never interpolated from a request.
-- Movements, permissions, guest stays, SMS rows, and audit rows are not deleted. They change status. Rooms, blocks, and destinations are deactivated with `is_active = 0` so history can still name them.
-- `updated_at` is set by the application on every update.
-- Usernames and enrolment numbers compare case-insensitively and are stored as entered.
-- Parent phone numbers are stored in E.164, for example `+919876543210`.
-- Password hashes are Argon2id. The plaintext password is never stored and never written to the audit detail.
-- The QR payload is `bsj:v1:` followed by `qr_token`. The token is at least 128 bits from a cryptographic random generator. It is not an enrolment number and not a URL.
+People always see India time and a 12-hour clock. A stored instant of `2026-09-18T13:30:00Z` is shown as 18 September 2026, 7:00 PM. A single-digit hour is not padded. Minutes are always two digits. Midnight is 12:00 AM. Noon is 12:00 PM.
 
-`resident_profiles.presence` is a copy of the open outing, kept so the register can count inside and outside without a join on every row. It is updated in the same transaction as the outing. Invariants:
+| What is kept | Kept as | Shown to people as |
+|---|---|---|
+| Identifier | A system-chosen id. People do not invent ids. | The name of the record, not the id. |
+| Text | The words the person typed, unchanged. | Those words. |
+| Choice | One of a fixed set named in the field. | That choice, in the words this document uses. |
+| Whole number | A whole number inside the range named in the field. | That number. |
+| Yes or no | Yes or no. | Yes or no. |
+| Date | `YYYY-MM-DD`. A hall calendar date, not a clock time. 18 September 2026 is kept as `2026-09-18`. | Day, full month name, year. `2026-09-18` is shown as 18 September 2026. The day is two digits, so the 5th is 05 September 2026. |
+| Instant | Universal time, `YYYY-MM-DDTHH:MM:SSZ`. If someone sends a time with an offset, it is converted to this form before it is kept, and this form is what comes back. | India time, 12-hour clock, with the date when the date matters. |
+| Time of day | `HH:MM` from 00:00 through 23:59, hall local, with no date. A time such as 24:30 is refused. This form is unambiguous in storage. | 12-hour clock with AM or PM. `06:30` is shown as 6:30 AM. `18:30` is shown as 6:30 PM. The hall enters the 12-hour form. |
+| Month and day | `MM-DD`, with no year. 1 April is `04-01`. 1 October is `10-01`. | Day and month name, such as 01 April. |
+| Phone | Country code included, `+` then digits, no spaces. India is `+91`, for example `+919876543210`. A number without a country code is refused. | The same value. |
+| Protected value | A one-way protection of a secret. The secret itself is never kept and never written to the audit log. | Nothing. The secret is never shown back. |
 
-- `presence = outside` exactly when that resident has an outing in status `outside`.
-- Otherwise `presence = inside`.
+A password is kept as an Argon2id protected value. Argon2id is the password form OWASP recommends for a new system. It is built so that guessing many passwords is slow and needs a large amount of memory, which makes a stolen file of passwords harder to attack than older forms. bcrypt and scrypt remain acceptable. They are not stronger than Argon2id. The password the person typed is never stored.
 
-## How the records relate
+Other writing rules:
 
-```mermaid
-erDiagram
-  users ||--o| resident_profiles : "role resident"
-  users ||--o| staff_profiles : "role gate, warden, or provost"
-  blocks ||--o{ rooms : contains
-  rooms ||--o{ resident_profiles : assigned
-  users ||--o{ permissions : requests
-  permissions ||--o{ outings : authorises
-  destinations ||--o{ outings : "catalog choice"
-  users ||--o{ outings : takes
-  users ||--o{ guest_stays : hosts
-  outings ||--o{ sms_messages : notifies
-  users ||--o{ refresh_tokens : session
-  users ||--o{ audit_events : acts
-```
+- A record that points at another record may point only at one that exists. A room belongs to a real block. A resident belongs to a real room. A permission belongs to a real resident.
+- Outings, permissions, guest stays, guardian messages, and the audit log are never deleted. They change state, or, for the audit log, they are only added. A block, room, or destination that the hall retires is marked inactive, so older records can still show its name.
+- The time a record was last changed is set whenever it changes.
+- Usernames and enrolment numbers ignore capitals. `24-gllb-118` and `24-GLLB-118` are the same person. The spelling the hall typed is the spelling that is shown.
+- The hall pass text is `bsj:v1:` followed by a long random code. That code is not the enrolment number and not a web address. It is long enough that it cannot be guessed.
+- Anything a person types is saved as the value of a field. It is never used to change the shape of the records.
+- A resident's presence is inside or outside the hall. It is not whether she is signed in to the app. It is remembered on the resident so the register can count who is inside without opening every outing. It changes at the same moment as the outing. She is outside exactly when she has an outing that is currently outside. Otherwise she is inside. A new resident is inside.
 
-One user has one role. A resident has a resident profile and no staff profile. A staff account has a staff profile and no resident profile.
+## How the records connect
+
+- A person has one role. A resident has a resident profile and no staff profile. A staff account has a staff profile and no resident profile.
+- A block contains rooms. A resident is assigned to one room. The room's block is that resident's block.
+- A resident requests permissions. A permission can authorise one outing when the resident actually leaves.
+- An ordinary outing may name a destination from the hall's list.
+- A resident hosts guest stays.
+- An outing can produce at most one late notice and one return notice.
+- A signed-in phone keeps one session record for that sign-in.
+- Actions people take are written to the audit log.
 
 ## Hall settings
 
-One row, `id = 'hall'`.
+There is one settings record for the hall.
 
-| Column | Type | Null | Notes |
-|---|---|---|---|
-| id | TEXT | no | Primary key. Must be `hall`. |
-| hall_name | TEXT | no | Begum Sultan Jahan Hall |
-| university_name | TEXT | no | Aligarh Muslim University |
-| timezone | TEXT | no | `Asia/Kolkata` |
-| grace_minutes | INTEGER | no | Default 30. Confirmed by the demo. Applied when an outing is created. Later edits do not rewrite open outings. |
-| ordinary_hours_end | TEXT | yes | Local `HH:MM` from 00:00 through 23:59. Null until the hall decides. The SQL check only rejects a malformed string, so the API rejects an hour above 23. |
-| ordinary_outing_max_hours | INTEGER | no | Default 18. Open decision. |
-| permission_early_minutes | INTEGER | no | Default 30. Open decision. |
-| guest_max_inclusive_days | INTEGER | no | Default 7. Confirmed. |
-| guest_min_lead_days | INTEGER | no | Default 1. Confirmed. Today cannot be the start date. |
-| scan_duplicate_window_seconds | INTEGER | no | Default 45. Open decision. |
-| late_sms_template | TEXT | no | Placeholders below. |
-| return_sms_template | TEXT | no | Placeholders below. |
-| updated_at | TEXT | no | UTC instant. |
+Ordinary hours are the window in which an ordinary outing may start and in which its expected return must fall. The window has a start and an end. Summer and winter each have their own window. There is no separate limit on how many hours an ordinary outing may last. If the resident needs to be out after the end of the window, she asks for late-night permission. If she needs to stay away overnight, she asks for home going.
 
-Late template, matching the demo:
+The clock times below are the hall's published times. SOP 06 and SOP 07 both say summer is 6:30 AM to 6:30 PM and winter is 6:30 AM to 5:30 PM. SOP 05 prints 5:30 AM as the start. This record follows SOP 06 and SOP 07, which agree with each other.
 
-```text
-{resident_name} ({room}) was expected to return by {expected_return_local} and has not yet returned. Please contact the Hall Office if you need to speak to the duty warden.
-```
+The season is a date. Summer starts on 1 April and winter starts on 1 October. AMU University Health Services uses that split for its own seasonal hours: evening OPD is 5:00 PM to 6:00 PM from 1 April to 30 September, and 4:00 PM to 5:00 PM from 1 October to 31 March. The hall's outing SOP names summer and winter and does not name the dates, so this record uses the university's published split. A hall date from 1 April through 30 September uses the summer window. A hall date from 1 October through 31 March uses the winter window. On 30 September 2026 an ordinary outing uses 6:30 AM to 6:30 PM. On 1 October 2026 it uses 6:30 AM to 5:30 PM. The provost can correct a clock time or a start date if the hall publishes a different one. The correction does not rewrite an outing that is already open.
 
-Return template:
+| Detail | Kept as | Required | Where it comes from | Rule |
+|---|---|---|---|---|
+| id | Identifier | Yes | System | Always `hall`. There is only one. |
+| hall_name | Text | Yes | Set with the record | Begum Sultan Jahan Hall. |
+| university_name | Text | Yes | Set with the record | Aligarh Muslim University. |
+| timezone | Text | Yes | Set with the record | `Asia/Kolkata`. |
+| grace_minutes | Whole number | Yes | The hall confirmed 30. The provost can change it later. | Minutes after the expected return before a guardian can be told. Taken when the outing is created. A later change does not rewrite an outing already open. Whole minutes from 0 to 180. |
+| summer_hours_start | Time of day | Yes | SOP 06 and SOP 07 | Shown as 6:30 AM. Kept as `06:30`. |
+| summer_hours_end | Time of day | Yes | SOP 06 and SOP 07 | Shown as 6:30 PM. Kept as `18:30`. The end is after the start. |
+| winter_hours_start | Time of day | Yes | SOP 06 and SOP 07 | Shown as 6:30 AM. Kept as `06:30`. |
+| winter_hours_end | Time of day | Yes | SOP 06 and SOP 07 | Shown as 5:30 PM. Kept as `17:30`. The end is after the start. |
+| summer_season_start | Month and day | Yes | AMU University Health Services | 1 April. Kept as `04-01`. Summer runs from this day through the day before winter starts. |
+| winter_season_start | Month and day | Yes | AMU University Health Services | 1 October. Kept as `10-01`. Winter runs from this day through the day before summer starts, across the new year. |
+| permission_early_minutes | Whole number | Yes | Still open. Default 30. | How early a resident may leave on an approved permission. Whole minutes from 0 to 180. |
+| guest_max_inclusive_days | Whole number | Yes | The hall confirmed 7. | Longest guest stay, counting the first and last day. Whole days from 1 to 30. |
+| guest_min_lead_days | Whole number | Yes | The hall confirmed 1. | How many hall days must pass before a guest stay may start. Whole days from 0 to 14. Today cannot be the start date. |
+| scan_duplicate_window_seconds | Whole number | Yes | Still open. Default 45. | How long a second scan of the same resident is ignored. Whole seconds from 0 to 600. |
+| late_sms_template | Text | Yes | The message below | The late message. |
+| return_sms_template | Text | Yes | The message below | The return message. |
+| updated_at | Instant | Yes | System, whenever these settings change | Shown in the 12-hour form. |
 
-```text
-{resident_name} ({room}) has returned to {hall_name} at {returned_at_local}. Thank you.
-```
+Late message:
 
-Placeholders are replaced in hall local time, 12-hour clock with AM/PM, because that is how the demo messages read. `{room}` is the room label, such as `B-204`.
+> {resident_name} ({room}) was expected to return by {expected_return_local} and has not yet returned. Please contact the Hall Office if you need to speak to the duty warden.
+
+Return message:
+
+> {resident_name} ({room}) has returned to {hall_name} at {returned_at_local}. Thank you.
+
+The time blanks are filled in the 12-hour form, for example 7:00 PM. A date in those blanks is the day, the month name, and the year, for example 18 September 2026, 7:00 PM. `{room}` is the room label, such as `B-204`.
 
 ## Places
 
-### blocks
+### Blocks
 
-| Column | Type | Null | Notes |
-|---|---|---|---|
-| id | TEXT | no | Primary key. |
-| code | TEXT | no | Unique. Short code used in room labels, such as `B`. |
-| name | TEXT | no | Such as `Block B`. |
-| is_active | INTEGER | no | `1` or `0`. |
+The hall page names five places and how many rooms each has. The records start as this inventory. The page gives Block-A, Block-B, Block-C, and Block-D a letter. It gives Utility no letter, so the code is the published name. A, B, C, and D have four floors. The page does not say how many floors Utility has.
 
-The demo uses blocks A, B, C, and D. Those are examples. The hall office creates the real blocks. Nothing in the schema limits the hall to four.
+| Code | Name | Floors | Rooms | Beds in each room |
+|---|---|---|---|---|
+| A | Block-A | 4 | 50 | 2 |
+| B | Block-B | 4 | 58 | 2 |
+| C | Block-C | 4 | 42 | 2 |
+| D | Block-D | 4 | 40 | 2 |
+| Utility | Utility | Not on the page | 16 | 2 |
 
-### rooms
+That is 206 rooms and 412 beds. The session 2025–26 roll of 506 resident students is a separate figure on the same page. This inventory does not grow to 506 rooms.
 
-| Column | Type | Null | Notes |
-|---|---|---|---|
-| id | TEXT | no | Primary key. |
-| block_id | TEXT | no | References `blocks.id`. |
-| number | TEXT | no | Such as `204` or `087`. Text so leading zeros survive. |
-| label | TEXT | no | Unique. `{code}-{number}`, such as `B-204`. |
-| is_active | INTEGER | no | `1` or `0`. |
+| Detail | Kept as | Required | Where it comes from | Rule |
+|---|---|---|---|---|
+| id | Identifier | Yes | System | Identifies this block. |
+| code | Text | Yes | The hall page, then the provost if the hall renames it | Short code used in room labels. No two blocks share a code. |
+| name | Text | Yes | The hall page, then the provost if the hall renames it | Such as `Block-A` or `Utility`. |
+| floors | Whole number | Yes for A, B, C, and D. Empty for Utility until the hall publishes it. | The hall page | A, B, C, and D start at 4. |
+| room_count | Whole number | Yes | The hall page, then the provost if the published inventory changes | How many rooms this block has. Starts at the counts in the table above. The rooms on file for this block must match this number once the inventory is entered. |
+| beds_per_room | Whole number | Yes | The hall page, "Capacity of Room: 02" | Starts at 2. |
+| is_active | Yes or no | Yes | Provost | Yes while the hall uses this block. No when it is retired. |
 
-Unique `(block_id, number)`. A resident points at a room. Changing rooms is an update of `resident_profiles.room_id` plus an audit event. Past outings keep the destination and the resident id; they do not snapshot the room. The register shows the current room.
+### Rooms
 
-### destinations
+The hall page does not list door numbers. This document does not invent them. The provost enters each door number so that each block ends with exactly its published room count. The number is the number painted on the door, kept as written, so a leading zero is not lost.
 
-Catalog for the ordinary-outing chips.
+| Detail | Kept as | Required | Where it comes from | Rule |
+|---|---|---|---|---|
+| id | Identifier | Yes | System | Identifies this room. |
+| block_id | Identifier | Yes | The block the provost is adding the room to | The block this room belongs to. |
+| number | Text | Yes | Provost, from the door | Such as `204` or `087`. |
+| label | Text | Yes | System, from the block code, a hyphen, and the number | Such as `B-204` or `Utility-12`. No two rooms share a label. |
+| bed_count | Whole number | Yes | Copied from the block's beds per room when the room is created | How many residents this room can hold. Starts at 2. |
+| is_active | Yes or no | Yes | Provost | Yes while the room can be assigned. No when it is retired. |
 
-| Column | Type | Null | Notes |
-|---|---|---|---|
-| id | TEXT | no | Primary key. |
-| name | TEXT | no | Unique. |
-| sort_order | INTEGER | no | Display order. |
-| is_other | INTEGER | no | `1` for the single free-text choice. |
-| is_active | INTEGER | no | `1` or `0`. |
+A block cannot contain the same room number twice. A resident points at a room. The number of active residents assigned to a room, including a suspended resident who has not been moved, cannot be more than that room's bed count. Changing rooms updates the resident and writes an audit log entry. Past outings keep the place and the resident. They do not keep a copy of the old room. The register shows the room the resident has now.
 
-Initial catalog, taken from the outing screen, inserted by the first migration and editable afterwards:
+### Destinations
 
-| sort_order | name | is_other |
-|---|---|---|
-| 10 | Maulana Azad Library | 0 |
-| 20 | Shamshad Market | 0 |
-| 30 | J.N. Medical College | 0 |
-| 40 | Women's College | 0 |
-| 50 | Other | 1 |
+The list behind the ordinary-outing choices. The screen shows the active named places in alphabetical order, ignoring capitals, and always shows the free-text choice last. Nothing is stored to force a custom order.
 
-At most one active row has `is_other = 1`.
+| Detail | Kept as | Required | Where it comes from | Rule |
+|---|---|---|---|---|
+| id | Identifier | Yes | System | Identifies this destination. |
+| name | Text | Yes | Provost. The first list is below. | Unique. Named places are compared in alphabetical order for display, ignoring capitals. The free-text choice is shown last. |
+| is_other | Yes or no | Yes | Provost | Yes for the single free-text choice. No for a named place. |
+| is_active | Yes or no | Yes | Provost | Yes while it can be chosen. No when it is retired. |
+
+The first list is created with the records. The provost can add, rename, or retire entries afterwards. Shown A to Z, with the free-text choice last, the first list reads:
+
+| Name | Free text |
+|---|---|
+| J.N. Medical College | No |
+| Maulana Azad Library | No |
+| Shamshad Market | No |
+| Women's College | No |
+| Other | Yes |
+
+At most one active destination is the free-text choice.
 
 ## Accounts
 
-### users
+### People
 
-| Column | Type | Null | Notes |
-|---|---|---|---|
-| id | TEXT | no | Primary key. |
-| role | TEXT | no | `resident`, `gate`, `warden`, `provost`. |
-| username | TEXT | no | Unique, case-insensitive. Enrolment number for a resident. |
-| full_name | TEXT | no | |
-| password_hash | TEXT | no | Argon2id. |
-| status | TEXT | no | `active` or `suspended`. |
-| created_at | TEXT | no | |
-| updated_at | TEXT | no | |
-| last_login_at | TEXT | yes | |
+| Detail | Kept as | Required | Where it comes from | Rule |
+|---|---|---|---|---|
+| id | Identifier | Yes | System | Identifies this person. |
+| role | Choice | Yes | Provost, when the account is created | One of resident, gate, warden, provost. What the person may do comes from this role. The table is under Who can do what. |
+| username | Text | Yes | Provost. For a resident, the enrolment number. | Unique, ignoring capitals. |
+| full_name | Text | Yes | Provost | The name people see. |
+| password_hash | Protected value | Yes | System, from the password the provost sets, using Argon2id | Never the password itself. |
+| status | Choice | Yes | System starts it as active. Provost suspends or reinstates. | Active, or suspended. |
+| created_at | Instant | Yes | System | When the account was created. |
+| updated_at | Instant | Yes | System | When the account last changed. |
+| last_login_at | Instant | Empty until the first sign-in | System, at each successful sign-in | When this person last signed in. |
 
-A suspended user cannot sign in and cannot be scanned out or in. The account row stays.
+A suspended person cannot sign in and cannot be scanned out or in. The account stays.
 
-### resident_profiles
+### Residents
 
-Exists only when `users.role = resident`. `user_id` equals that user's id. `enrolment_number` equals `users.username`.
+A resident profile exists only for a person whose role is resident. It uses that person's id. The enrolment number is the same as the username.
 
-| Column | Type | Null | Notes |
-|---|---|---|---|
-| user_id | TEXT | no | Primary key. References `users.id`. |
-| enrolment_number | TEXT | no | Unique, case-insensitive. Shown on the warden record, for example `24-GLLB-118`. |
-| course | TEXT | yes | For example `B.A. LL.B. (Hons.)`. |
-| room_id | TEXT | no | References `rooms.id`. |
-| parent_name | TEXT | yes | For example `Mrs. S. Khan`. |
-| parent_phone | TEXT | yes | E.164. SMS is skipped when this is null. |
-| qr_token | TEXT | no | Unique. Permanent until the provost reissues it. |
-| presence | TEXT | no | `inside` or `outside`. See the invariant above. |
-| created_at | TEXT | no | |
-| updated_at | TEXT | no | |
+The guardian is the parent or other guardian the hall can reach. Both the name and the phone are required. The resident does not type them. The provost enters them from the hall's record when the account is created, and can correct them later.
 
-Reissue writes a new `qr_token` in the same transaction as the audit event. The previous token stops matching immediately.
+| Detail | Kept as | Required | Where it comes from | Rule |
+|---|---|---|---|---|
+| user_id | Identifier | Yes | The person's id | One profile for that person. |
+| enrolment_number | Text | Yes | Provost. Same value as the username. | Unique, ignoring capitals. Shown on the warden record, for example `24-GLLB-118`. |
+| course | Text | Empty if the hall has not entered it | Provost | For example `B.A. LL.B. (Hons.)`. |
+| room_id | Identifier | Yes | Provost | The room the resident lives in. |
+| guardian_name | Text | Yes | Provost, from the hall's record of the parent or guardian | The person the hall contacts about this resident. |
+| guardian_phone | Phone | Yes | Provost, from that same record | Country code required. Late and return messages go to this number. |
+| qr_token | Text | Yes | System, when the account is created, and again when the provost issues a new hall pass | The hall-pass code. Unique. |
+| presence | Choice | Yes | System. Starts as inside. Changes when a gate scan records an exit or a return. | Inside or outside. This is presence in the hall, not sign-in. |
+| created_at | Instant | Yes | System | When the profile was created. |
+| updated_at | Instant | Yes | System | When it last changed. |
 
-### staff_profiles
+The hall pass stays the same from outing to outing. It changes only when the provost issues a new one. The provost does that on the resident's record, for example after a lost phone or because someone else has seen the code. The provost does not type the new code. The system makes a new random code, puts it in place of the old one at that moment, and writes an audit log entry. The old code stops working immediately. The resident's phone shows the new code the next time it loads the pass.
 
-Exists only when the role is `gate`, `warden`, or `provost`.
+### Staff
 
-| Column | Type | Null | Notes |
-|---|---|---|---|
-| user_id | TEXT | no | Primary key. References `users.id`. |
-| job_title | TEXT | no | Such as `Warden`, `Gate staff`, `Provost`. |
-| posting | TEXT | yes | Display only. Such as `Block B` or `Main gate`. |
+A staff profile exists only for gate, warden, or provost. The role on the person is what limits the account. Gate staff scan. A warden or the provost approves. The provost also keeps the hall's records. The job title is the name of the post, such as Gatekeeper, Resident warden, Non-resident warden, or Provost. It does not grant extra actions.
 
-### refresh_tokens
+| Detail | Kept as | Required | Where it comes from | Rule |
+|---|---|---|---|---|
+| user_id | Identifier | Yes | The person's id | One profile for that person. |
+| job_title | Text | Yes | Provost | The name of the post. |
 
-| Column | Type | Null | Notes |
-|---|---|---|---|
-| id | TEXT | no | Primary key. |
-| user_id | TEXT | no | References `users.id`. |
-| token_hash | TEXT | no | Unique hash of the refresh token. The raw token is not stored. |
-| expires_at | TEXT | no | |
-| revoked_at | TEXT | yes | Set on logout, password change, password reset, and suspension. |
-| created_at | TEXT | no | |
+### Signed-in session
 
-Access tokens are JWT, signed with `APP_SECRET_KEY`, and are not stored. Access lifetime is 15 minutes. Refresh lifetime is 30 days. Those two lifetimes are application policy in the API contract.
+This record is what lets a phone stay signed in. The person signs in with a username and password. The password is not kept on the phone. The phone is given a short pass that lasts 15 minutes, and that short pass is not stored. This record keeps a protected form of a longer session secret so the phone can get a new short pass without asking for the password again. The session lasts 30 days. It stops being usable when the person signs out, when a password is changed or reset, or when the account is suspended. Those two durations are part of the agreement in the API document.
+
+| Detail | Kept as | Required | Where it comes from | Rule |
+|---|---|---|---|---|
+| id | Identifier | Yes | System | Identifies this sign-in. |
+| user_id | Identifier | Yes | The person who signed in | The person. |
+| token_hash | Protected value | Yes | System, from the session secret | The secret itself is not stored. No two rows share this value. |
+| expires_at | Instant | Yes | System, 30 days after sign-in | When this sign-in stops being usable. |
+| revoked_at | Instant | Empty while the sign-in is still usable | System, when the person signs out, a password changes, a password is reset, or the account is suspended | Set at that moment. |
+| created_at | Instant | Yes | System | When it was created. |
 
 ## Permissions
 
-A permission is a warden decision. It is not itself the gate movement. The movement is an outing.
+A permission is the warden's or the provost's decision. It is not itself the moment of leaving. The leaving is an outing.
 
-| Column | Type | Null | Notes |
-|---|---|---|---|
-| id | TEXT | no | Primary key. |
-| resident_id | TEXT | no | References `users.id`. The user is a resident. |
-| type | TEXT | no | `late_night` or `home_going`. |
-| status | TEXT | no | See lifecycle. |
-| place_label | TEXT | no | Short place. `Women's College`, `Lucknow`. This is the warden-list line. |
-| destination_detail | TEXT | yes | Late-night only, such as `Seminar Hall`. Null for home going. |
-| address | TEXT | yes | Required for home going. Null for late-night. |
-| reason | TEXT | no | Both forms require it. |
-| departure_at | TEXT | no | Planned exit instant. |
-| expected_return_at | TEXT | no | Must be later than `departure_at`. |
-| decided_by | TEXT | yes | References `users.id`. |
-| decided_at | TEXT | yes | |
-| decision_note | TEXT | yes | Optional note from the warden. The demo does not show one. |
-| created_at | TEXT | no | |
-| updated_at | TEXT | no | |
+| Detail | Kept as | Required | Where it comes from | Rule |
+|---|---|---|---|---|
+| id | Identifier | Yes | System | Identifies this permission. |
+| resident_id | Identifier | Yes | The signed-in resident | The resident who asked. |
+| type | Choice | Yes | The form the resident chose | Late-night, or home going. |
+| status | Choice | Yes | System, as the lifecycle moves | See the lifecycle below. |
+| short_place | Text | Yes | The resident types it on the permission form | The short place the warden's card shows, such as Women's College or Lucknow. It is not chosen from the ordinary destination list. |
+| destination_detail | Text | Empty for home going. For late-night it may be empty. | The resident types it on the late-night form | A further detail, such as Seminar Hall. |
+| address | Text | Yes for home going. Empty for late-night. | The resident types it on the home-going form | The home address. It must not be blank for home going. |
+| reason | Text | Yes | The resident types it | Both forms require it. |
+| departure_at | Instant | Yes | The resident sets it | When she plans to leave. Shown on the 12-hour clock. |
+| expected_return_at | Instant | Yes | The resident sets it | Must be later than the departure. Shown on the 12-hour clock. |
+| decided_by | Identifier | Empty while waiting, and empty if the resident cancels before a decision | The warden or provost who approves or rejects | Required once that decision is recorded. |
+| decided_at | Instant | Empty in the same cases as decided_by | System, at the decision | Required once the decision is recorded. |
+| decision_note | Text | Empty if they write nothing | The warden or provost may type it when deciding | Optional. |
+| created_at | Instant | Yes | System, when the resident asks | When the request was made. |
+| updated_at | Instant | Yes | System | When it last changed. |
 
-`place_label` is a contract field so the warden card can read "Home going · Lucknow" without parsing the street address. The prototype home-going form shows address, reason, departure, and return. The resident client collects `place_label` with that form.
-
-Checks:
-
-- `expected_return_at` > `departure_at` as UTC strings.
-- Late-night: `address` is null.
-- Home going: `address` is not empty, and `destination_detail` is null.
+The short place lets the warden's card read "Home going · Lucknow" without opening the street address. The home-going form asks for the short place, the address, the reason, the departure, and the return. The late-night form asks for the short place, the reason, the departure, the return, and an optional further detail.
 
 ### Permission lifecycle
 
-```text
-pending → approved → in_use → completed
-   │          │
-   │          └→ cancelled     (resident, before any exit)
-   ├→ rejected                 (warden or provost)
-   └→ cancelled                (resident, while pending)
+- Waiting: the warden or provost has not decided.
+- Approved: the resident may leave during the use window. No outing has been opened from it yet.
+- In use: an outing was opened from this permission and the resident has not returned.
+- Completed: that outing was returned.
+- Rejected, cancelled, and expired: finished. They do not start again.
 
-approved → expired             (window ended, resident never left)
-```
+From waiting, the warden or provost can reject it, or the resident can cancel it. From approved, the resident can cancel it before leaving. An approved permission whose expected return has passed, and which the resident never used, becomes expired. That check happens when the permission is looked at and when guardian messages are considered. There is no separate expiry list.
 
-- `pending`: waiting for a decision.
-- `approved`: the resident may leave during the use window. No outing has been opened from it yet.
-- `in_use`: an outing was opened from this permission and has not been returned.
-- `completed`: that outing was returned.
-- `rejected`, `cancelled`, `expired`: terminal.
+The use window runs from the departure minus the early-leave setting, through the expected return. The gate can open an outing from the permission only inside that window.
 
-Use window: from `departure_at` minus `permission_early_minutes`, through `expected_return_at`. The gate can open an outing from the permission only inside that window.
-
-Expiry is evaluated when the permission is read and when the SMS sweep runs. A permission in `approved` whose `expected_return_at` is in the past becomes `expired`. There is no separate expiry table.
-
-A resident may hold more than one permission. They may not have two open outings. Planning or scanning resolves that conflict; see Outings.
+A resident may hold more than one permission. She may also plan several ordinary outings ahead, including more than one return on the same hall day. She may not be outside on two outings, and she may not have two planned or outside outings that end at the same instant. Planning or scanning resolves that, under Outings.
 
 ## Outings
 
-The hall register of leaving and coming back. Ordinary, late-night, and home going all land here once there is something to scan.
+Ordinary, late-night, and home going are kept as one outing record. The type says which it is. The gate, the register, lateness, and the message to the guardian all follow that one record. A resident may have several planned ordinary outings, including a morning return and an afternoon return on the same hall day. She has at most one outing that is outside, and at most one planned or outside outing for a given expected return.
 
-| Column | Type | Null | Notes |
-|---|---|---|---|
-| id | TEXT | no | Primary key. |
-| resident_id | TEXT | no | References `users.id`. |
-| permission_id | TEXT | yes | References `permissions.id`. Null for ordinary. |
-| kind | TEXT | no | `ordinary`, `late_night`, `home_going`. |
-| status | TEXT | no | `planned`, `outside`, `returned`, `cancelled`. |
-| destination_id | TEXT | yes | Catalog row for an ordinary outing. Null when the destination is not from the catalog. |
-| destination_label | TEXT | no | Snapshot. Catalog name, the free-text "Other" value, or the permission `place_label`. History does not change if the catalog is renamed. |
-| expected_return_at | TEXT | no | |
-| grace_ends_at | TEXT | no | `expected_return_at` plus `grace_minutes` taken at creation. |
-| exited_at | TEXT | yes | Set when the gate records exit. |
-| returned_at | TEXT | yes | Set when the gate records return. |
-| exit_recorded_by | TEXT | yes | References `users.id`. Gate, warden, or provost. |
-| return_recorded_by | TEXT | yes | References `users.id`. |
-| created_at | TEXT | no | |
-| updated_at | TEXT | no | |
-| cancelled_at | TEXT | yes | |
+An exit is not a finished fact until it has a time and the staff member who recorded it. A return is not a finished fact until it has a time and the staff member who recorded it. Those fields are empty only before that step. A planned ordinary outing is the only outing that exists before an exit.
 
-Checks:
+| Detail | Kept as | Required | Where it comes from | Rule |
+|---|---|---|---|---|
+| id | Identifier | Yes | System | Identifies this outing. |
+| resident_id | Identifier | Yes | The resident | The resident. |
+| permission_id | Identifier | Empty for an ordinary outing. Yes for late-night and home going. | The approved permission the scan uses | The permission's type must match the outing type. |
+| type | Choice | Yes | Ordinary, from the resident's plan. Late-night or home going, from the permission. | Ordinary, late-night, or home going. |
+| status | Choice | Yes | System | Planned, outside, returned, or cancelled. |
+| destination_id | Identifier | Empty when the place is not from the list | The list entry the resident chose | For an ordinary outing chosen from the list. Empty for Other, and empty for a permission outing. |
+| place | Text | Yes | The list name, the words the resident typed for Other, or the permission's short place | The place as it should be remembered. Renaming the list later does not change this. |
+| expected_return_at | Instant | Yes | The resident, before she leaves | When she said she would be back. |
+| hall_date | Date | Yes | System, from the expected return | The hall day of that return, in Asia/Kolkata. Several planned outings may share this day. The gate uses it so a later day's plan is not taken today. |
+| grace_ends_at | Instant | Yes | System, from the expected return plus the grace minutes in force when the outing was created | A later change to grace does not rewrite this. |
+| exited_at | Instant | Yes from the moment she has left. Empty only while an ordinary outing is still planned. | The gate scan that records the exit | A permission outing is created already outside, so this is set at creation. |
+| exit_recorded_by | Identifier | Yes whenever exited_at is set. Empty only while exited_at is empty. | The signed-in gate, warden, or provost who scanned | The staff member who recorded the exit. |
+| returned_at | Instant | Yes from the moment she has returned. Empty before that. | The gate scan that records the return | At or after the exit. |
+| return_recorded_by | Identifier | Yes whenever returned_at is set. Empty only while returned_at is empty. | The signed-in gate, warden, or provost who scanned | The staff member who recorded the return. |
+| created_at | Instant | Yes | System | When the outing was created. |
+| updated_at | Instant | Yes | System | When it last changed. |
+| cancelled_at | Instant | Yes when the status is cancelled. Empty otherwise. | System, when the resident cancels a plan, or when a planned ordinary outing passes its expected return unused | A cancelled outing has no exit and no return. |
 
-- Ordinary: `permission_id` is null.
-- Late-night and home going: `permission_id` is not null, and the permission type matches `kind`.
-- `planned`: no exit, no return, no `cancelled_at`.
-- `outside`: exit set, return empty, not cancelled.
-- `returned`: exit and return set, return at or after exit, not cancelled.
-- `cancelled`: `cancelled_at` set, exit empty.
+The status and the times agree:
 
-Partial unique index: one row per resident in status `planned` or `outside`.
+- Planned: no exit, no return, and not cancelled. Only an ordinary outing can be planned.
+- Outside: exit time and exit staff member recorded, no return, and not cancelled.
+- Returned: exit and return each have a time and a staff member, the return is at or after the exit, and the outing is not cancelled.
+- Cancelled: cancelled time set, and no exit or return.
+
+A resident has at most one outing that is outside, and at most one planned or outside outing for one expected return.
 
 ### Ordinary outing
 
-Created when the resident confirms destination and expected return, and only while `presence` is `inside` and they have no planned or outside outing.
+Created when the resident confirms a destination and an expected return. Other plans may already exist, including another return on that same hall day. She may do this while she is outside. Planning does not change whether she is inside or outside. This is the step before the gate. The scan cannot invent the destination or the expected return.
 
-The expected return must be in the future. It must also fall before `ordinary_hours_end` on that hall-local day when the setting is not null. If the return would be after ordinary hours, the plan is refused and the resident requests late-night permission instead. The expected return must be within `ordinary_outing_max_hours` of the current time.
+The expected return must be in the future at the moment she confirms it. It must fall on a hall day, after that day's ordinary-hours start and at or before that day's ordinary-hours end. The season is the one that contains that hall date. If the return would be outside that window, the plan is refused and she asks for late-night permission or home going instead. If she already has a planned or outside outing ending at that same instant, the plan is refused. After that outing is cancelled or returned, she may plan that instant again.
 
-The outing is `planned` until the gate scans the hall pass. The scan sets `outside`, `exited_at`, and `presence`. The resident may cancel while the status is still `planned`.
+The outing stays planned until the gate scans the hall pass. She may cancel one planned outing by choosing it. Her other plans stay planned. If the expected return passes and she has not been scanned out, the system cancels that plan only, and writes an audit log entry with no staff member.
 
 ### Leaving on a permission
 
 Approving a permission does not create an outing. A home-going permission for next week must not block an ordinary outing today.
 
-On scan, while the resident is inside:
+When the resident is inside and the gate scans the pass:
 
-1. If the latest exit or return for this resident is inside `scan_duplicate_window_seconds`, refuse. Do not toggle.
-2. If a `planned` ordinary outing exists, record exit on that outing. Do not attach a permission.
-3. Otherwise, if an `approved` permission is inside its use window, create the outing already in status `outside`, link `permission_id`, set the permission to `in_use`, and set `presence` to `outside`. If several permissions match, use the one with the earliest `departure_at`.
-4. Otherwise refuse. The resident has not planned an outing, or the permission is not yet valid, or it is still pending.
+1. If this resident was just scanned inside the ignore window, refuse. Do not undo the last movement.
+2. If one or more ordinary outings are planned for today's hall date, and at least one of those expected returns has not passed, record the exit on the earliest of those returns, including the time and the staff member, provided the current time is inside today's ordinary-hours window. Leave every later plan for today planned. Leave a plan for another hall day planned. Do not use a later day's plan today. Do not attach a permission.
+3. Otherwise, if an approved permission is inside its use window, open the outing already outside, link the permission, copy its short place onto the outing, record the exit time and the staff member, mark the permission in use, and mark the resident outside. If several permissions match, use the one with the earliest departure.
+4. Otherwise refuse. She has not set a destination and an expected return, or the current time is outside ordinary hours, or the permission is not yet valid, or it is still waiting.
 
-If a planned ordinary outing exists and the resident meant to use a permission, they cancel the plan in the app and show the hall pass again. The gate does not choose for them.
+If a planned ordinary outing for today would be used and she meant a later trip today, or a permission, she cancels that plan in the app and shows the hall pass again. The gate does not choose for her. Her other plans stay planned. A scan while she is outside records the return on the outing she is already on. It does not start the next plan.
 
 ### Return
 
-On scan, while the resident is outside, and the duplicate window has passed: set the open outing to `returned`, set `returned_at`, set `presence` to `inside`, and if a permission is linked set it to `completed`.
+When the resident is outside, the ignore window has passed, and the gate scans the pass: mark the open outing returned, record the return time and the staff member who scanned, mark the resident inside, and if a permission is linked mark it completed.
 
-A return needs nothing filled in at the gate. That is the proposal.
+The gate fills in nothing else.
 
 ### Late
 
-A resident is late when they have an outing in status `outside` and the current instant is after `grace_ends_at`. Late is derived. It is not a stored status.
+A resident is late when her outing is outside and the current time is after grace. Late is worked out when someone looks. It is not stored as its own state.
 
-The warden late list is that set. The register state shown on a row is `inside`, `outside`, or `late`.
+The late list is that set. A row on the register reads inside, outside, or late.
 
 ## Guest stays
 
-Guests are not users and have no QR token.
+Guests are not accounts and have no hall pass.
 
-| Column | Type | Null | Notes |
-|---|---|---|---|
-| id | TEXT | no | Primary key. |
-| host_resident_id | TEXT | no | References `users.id`. |
-| guest_name | TEXT | no | |
-| relation | TEXT | no | Such as `Cousin`. |
-| start_date | TEXT | no | Inclusive hall date. |
-| end_date | TEXT | no | Inclusive hall date. |
-| reason | TEXT | no | |
-| status | TEXT | no | `pending`, `approved`, `rejected`, `cancelled`, `departed`. |
-| payment_status | TEXT | no | `unpaid` or `paid`. Default `unpaid`. |
-| payment_marked_by | TEXT | yes | References `users.id`. |
-| payment_marked_at | TEXT | yes | |
-| decided_by | TEXT | yes | References `users.id`. |
-| decided_at | TEXT | yes | |
-| decision_note | TEXT | yes | |
-| arrived_at | TEXT | yes | |
-| arrived_recorded_by | TEXT | yes | References `users.id`. |
-| departed_at | TEXT | yes | |
-| departed_recorded_by | TEXT | yes | References `users.id`. |
-| created_at | TEXT | no | |
-| updated_at | TEXT | no | |
+| Detail | Kept as | Required | Where it comes from | Rule |
+|---|---|---|---|---|
+| id | Identifier | Yes | System | Identifies this stay. |
+| host_resident_id | Identifier | Yes | The signed-in resident | The resident who applied. |
+| guest_name | Text | Yes | The resident types it | The guest's name. |
+| relation | Text | Yes | The resident types it | Such as Cousin. |
+| start_date | Date | Yes | The resident sets it | First day, included. Shown as 18 September 2026. |
+| end_date | Date | Yes | The resident sets it | Last day, included. On or after the start date. |
+| reason | Text | Yes | The resident types it | Why the guest is coming. |
+| status | Choice | Yes | System | Waiting, approved, rejected, cancelled, or departed. |
+| payment_status | Choice | Yes | System starts it as unpaid. A warden or the provost marks it paid. | Unpaid or paid. |
+| payment_marked_by | Identifier | Yes when paid. Empty when unpaid. | The warden or provost who marked it | Required together with the time when the stay is paid. |
+| payment_marked_at | Instant | Yes when paid. Empty when unpaid. | System, when payment is marked | |
+| decided_by | Identifier | Empty while waiting, and empty if the resident cancels before a decision. Yes once approved or rejected. | The warden or provost who decided | The audit of the decision. A waiting stay has no decision yet, so the field is empty until then. |
+| decided_at | Instant | Empty in the same cases as decided_by. Yes once approved or rejected. | System, at the decision | |
+| decision_note | Text | Empty if they write nothing | The warden or provost may type it | Optional. |
+| arrived_at | Instant | Yes once arrival is recorded. Empty before that. | The gate scan, or the gate, warden, or provost recording the arrival | |
+| arrived_recorded_by | Identifier | Yes whenever arrived_at is set | The staff member who recorded the arrival | |
+| departed_at | Instant | Yes once departure is recorded. Empty before that. | The staff member's record of departure | At or after arrival. |
+| departed_recorded_by | Identifier | Yes whenever departed_at is set | The staff member who recorded the departure | |
+| created_at | Instant | Yes | System | When the resident applied. |
+| updated_at | Instant | Yes | System | When it last changed. |
 
-Inclusive days are `(end_date - start_date) + 1` in calendar days. The value must be from 1 through `guest_max_inclusive_days`. `start_date` must be at least `guest_min_lead_days` after the current hall date. With the default, the start date is tomorrow or later.
+The length of the stay counts the start date and the end date. It must be at least 1 day and at most the hall's maximum. The start date must be at least the lead time after today's hall date. With the confirmed defaults, the start is tomorrow or later, and the stay is at most 7 days.
 
-Checks:
+The state and the times agree:
 
-- `end_date` >= `start_date`.
-- `paid` has both payment markers. `unpaid` has neither.
-- `pending`, `rejected`, and `cancelled` have no arrival and no departure.
-- `departed` has both arrival and departure, and departure is at or after arrival.
-- `approved` has a decision, and departure is empty. Arrival may be empty (not yet here) or set (in the hall).
+- Waiting, rejected, and cancelled: no arrival and no departure. Rejected has a decision and a staff member. Cancelled by the resident before a decision has neither.
+- Approved: a decision and a staff member are recorded, and the guest has not departed. Arrival may still be empty, or already recorded.
+- Departed: arrival and departure are both recorded, each with a staff member, and departure is at or after arrival.
 
 ### Guest lifecycle
 
-```text
-pending → approved → departed
-   │          (arrival is a timestamp, not a new status)
-   ├→ rejected
-   └→ cancelled
-```
+- From waiting, the warden or provost approves or rejects, or the resident cancels.
+- Approved is the stay that can be in the hall. Arrival is a time on that stay, not a new state.
+- Departure moves an approved stay to departed.
 
-Payment is a separate act by a warden or the provost. It can be marked before or after approval, and not after departure. Clearing it back to unpaid is allowed only before arrival.
+Payment is a separate act by a warden or the provost. It can be marked before or after approval, and not after departure. Marking it unpaid again is allowed only before arrival. Marking it unpaid clears the payment staff member and the payment time.
 
-Arrival is allowed only when status is `approved`, payment is `paid`, arrival is empty, and the hall date is within `start_date` and `end_date` inclusive.
+Arrival is allowed only when the stay is approved, payment is paid, arrival is still empty, and today's hall date falls on the start date, the end date, or a day between them.
 
-Departure is allowed when status is `approved`, arrival is set, and departure is empty. The status then becomes `departed`.
+Departure is allowed when the stay is approved, the guest has arrived, and departure is still empty. The stay then becomes departed.
 
-### Derived guest buckets
+### Guest lists
 
-Not stored.
+These are worked out when someone looks. They are not stored.
 
-| Bucket | Rule |
+| List | Who is on it |
 |---|---|
-| `pending` | status `pending` |
-| `upcoming` | `approved`, no arrival, hall date is before `start_date` |
-| `expected` | `approved`, paid, no arrival, hall date is within the stay |
-| `in_hall` | `approved`, arrival set, no departure, hall date is on or before `end_date` |
-| `should_have_left` | `approved`, arrival set, no departure, hall date is after `end_date` |
-| `departed` | status `departed` |
-| `rejected` / `cancelled` | stored status |
+| Waiting | The stay is waiting. |
+| Upcoming | Approved, not yet arrived, and today's hall date is before the start date. |
+| Expected today | Approved, paid, not yet arrived, and today's hall date is within the stay. |
+| In the hall | Approved, arrived, not departed, and today's hall date is on or before the end date. |
+| Should have left | Approved, arrived, not departed, and today's hall date is after the end date. |
+| Departed | The stay is departed. |
+| Rejected or cancelled | That stored outcome. |
 
-Dining count, "guests in hall", is every stay that has arrived and has not departed. That includes `should_have_left`. The demo keeps the guest on the dining count until the gate records departure.
+The dining count, guests in hall, is every stay that has arrived and has not departed. That includes guests who should have left. The guest stays on the dining count until the gate records departure.
 
-The gate expected list is the `expected` bucket. The gate departure list is `in_hall` plus `should_have_left`.
+The gate's expected list is Expected today. The gate's departure list is In the hall plus Should have left.
 
-## SMS
+## Messages to the parent or guardian
 
-One row per attempt. Unique `(outing_id, kind)` so an outing gets at most one late notice and one return notice.
+One record per attempt. An outing gets at most one late notice and one return notice. The phone number is the guardian phone. It is copied onto the attempt so the record still shows the number that was used if the guardian phone is corrected later.
 
-| Column | Type | Null | Notes |
-|---|---|---|---|
-| id | TEXT | no | Primary key. |
-| outing_id | TEXT | no | References `outings.id`. |
-| resident_id | TEXT | no | References `users.id`. |
-| kind | TEXT | no | `late_notice` or `return_notice`. |
-| recipient_phone | TEXT | yes | Null when skipped. |
-| body | TEXT | yes | Rendered message. Null when skipped. |
-| driver | TEXT | yes | `mock` or `dlt`. Null when skipped. |
-| status | TEXT | no | `sent`, `failed`, `skipped`. |
-| provider_reference | TEXT | yes | Id from the SMS provider, when there is one. |
-| error | TEXT | yes | |
-| created_at | TEXT | no | |
+| Detail | Kept as | Required | Where it comes from | Rule |
+|---|---|---|---|---|
+| id | Identifier | Yes | System | Identifies this attempt. |
+| outing_id | Identifier | Yes | The outing | The outing. |
+| resident_id | Identifier | Yes | The resident on that outing | The resident. |
+| notice_type | Choice | Yes | System | Late notice, or return notice. |
+| recipient_phone | Phone | Yes | Copied from the resident's guardian phone at the time of the attempt | Country code included. |
+| body | Text | Yes | System, from the hall's message and this outing | The message as it was filled in. Times in the 12-hour form. Dates as day, month name, year. |
+| driver | Choice | Yes | System, from how the hall is running | `mock` when the message is only recorded, or `dlt` when the live provider is used. |
+| status | Choice | Yes | System, from the send result | Sent, or failed. |
+| provider_reference | Text | Empty when the provider gives none | The provider, when the send is accepted | |
+| error | Text | Empty unless the send failed | The provider or the system | Why it failed. |
+| created_at | Instant | Yes | System | When the attempt was recorded. |
 
-The sweep runs inside the API process. There is no separate queue. It is not part of this setup; the table is here so the behavior has somewhere to land.
+The check runs inside the hall's service. There is no separate queue. The check is not built yet. The record is described here so the behavior has somewhere to land.
 
-Sweep, when it is built:
+When the check is built:
 
-- Select outings in status `outside` whose `grace_ends_at` is at or before now and which have no `late_notice` row.
-- If `parent_phone` is present, render the late template and send it through the configured driver. Record `sent` or `failed`.
-- If `parent_phone` is absent, record `skipped`. The warden still sees that no number is on file.
-- Do not call the network when the driver is `mock`. Write the row and the log the driver is required to keep.
-- Development and any non-production environment refuse to start unless the driver is `mock`.
+- Look at outings that are still outside, whose grace has ended, and which have no late notice yet.
+- Fill in the late message and send it to the guardian phone. Record sent or failed.
+- When the sender is the local stand-in, do not contact a phone network. Write the record, and write the log the stand-in is required to keep.
+- Any environment that is not the live hall refuses to start unless the sender is the local stand-in.
 
-On a return scan, if a `late_notice` row exists with status `sent` and no `return_notice` exists, send the return template. If the late notice was skipped or failed, do not send a return notice that pretends a late notice was delivered. Record `return_notice` as `skipped` when the late notice was `skipped`. An on-time return writes no SMS row.
+When a return is scanned, if a late notice was sent and no return notice exists yet, send the return message. If the late notice failed, do not send a return message that pretends the guardian was told. An on-time return writes no message.
 
-The warden record shows the parent name and one of: SMS sent, no number on file, SMS failed, or nothing due yet.
+The warden's resident record shows the guardian name and one of: message sent, message failed, or nothing due yet.
 
-## Audit
+## Audit log
 
-| Column | Type | Null | Notes |
-|---|---|---|---|
-| id | TEXT | no | Primary key. |
-| occurred_at | TEXT | no | |
-| actor_user_id | TEXT | yes | Null when the actor is the system, such as expiry or the SMS sweep. |
-| action | TEXT | no | Vocabulary below. |
-| entity_type | TEXT | no | `user`, `resident`, `staff`, `room`, `block`, `destination`, `settings`, `outing`, `permission`, `guest_stay`, `sms`, `hall_pass`. |
-| entity_id | TEXT | no | |
-| summary | TEXT | no | One sentence a person can read. |
-| detail_json | TEXT | yes | Before/after fields. No passwords, no raw refresh tokens, no QR token. |
+This is the audit log: the record of who did what. Each entry is one action that already happened. Entries are added and then left as they are. They are not edited and not deleted. When the system does the action, such as an expiry or cancelling an unused plan, the staff member is empty.
 
-Vocabulary for `action`. A new action is added here in the same change that uses it.
+| Detail | Kept as | Required | Where it comes from | Rule |
+|---|---|---|---|---|
+| id | Identifier | Yes | System | Identifies this entry. |
+| occurred_at | Instant | Yes | System | When it happened. |
+| actor_user_id | Identifier | Empty when the system did it | The signed-in person, when a person did it | Who did it. |
+| action | Choice | Yes | System, one of the names below | A new name is added to this list in the same change that uses it. |
+| entity_type | Choice | Yes | System | What the entry is about: a person, a resident, a staff profile, a room, a block, a destination, the settings, an outing, a permission, a guest stay, a guardian message, or a hall pass. |
+| entity_id | Identifier | Yes | System | Which record. |
+| summary | Text | Yes | System | One sentence a person can read. |
+| detail | Text | Empty when nothing further is needed | System | What changed, before and after. Never a password, a sign-in secret, or a hall-pass code. |
 
-```text
-auth.login
-auth.logout
-resident.created
-resident.updated
-resident.suspended
-resident.reinstated
-hall_pass.reissued
-staff.created
-staff.updated
-room.created
-room.updated
-block.created
-block.updated
-destination.created
-destination.updated
-settings.updated
-outing.planned
-outing.cancelled
-outing.exit
-outing.return
-permission.submitted
-permission.cancelled
-permission.approved
-permission.rejected
-permission.expired
-guest_stay.submitted
-guest_stay.cancelled
-guest_stay.approved
-guest_stay.rejected
-guest_stay.payment_marked
-guest_stay.arrived
-guest_stay.departed
-sms.late_notice
-sms.return_notice
-```
+| What happened | Recorded as |
+|---|---|
+| Signed in | auth.login |
+| Signed out | auth.logout |
+| Resident created | resident.created |
+| Resident updated | resident.updated |
+| Resident suspended | resident.suspended |
+| Resident reinstated | resident.reinstated |
+| Hall pass reissued | hall_pass.reissued |
+| Staff account created | staff.created |
+| Staff account updated | staff.updated |
+| Room created | room.created |
+| Room updated | room.updated |
+| Block created | block.created |
+| Block updated | block.updated |
+| Destination created | destination.created |
+| Destination updated | destination.updated |
+| Settings updated | settings.updated |
+| Outing planned | outing.planned |
+| Outing cancelled | outing.cancelled |
+| Exit recorded | outing.exit |
+| Return recorded | outing.return |
+| Permission submitted | permission.submitted |
+| Permission cancelled | permission.cancelled |
+| Permission approved | permission.approved |
+| Permission rejected | permission.rejected |
+| Permission expired | permission.expired |
+| Guest stay submitted | guest_stay.submitted |
+| Guest stay cancelled | guest_stay.cancelled |
+| Guest stay approved | guest_stay.approved |
+| Guest stay rejected | guest_stay.rejected |
+| Guest payment marked | guest_stay.payment_marked |
+| Guest arrived | guest_stay.arrived |
+| Guest departed | guest_stay.departed |
+| Late guardian message | sms.late_notice |
+| Return guardian message | sms.return_notice |
 
 ## Who can do what
 
-Stored as the user role. The API enforces the same matrix.
+What a person may do comes from her or his role.
+
+Gate staff scan a hall pass and record a guest's arrival and departure. They do not approve a permission, they do not approve a guest stay, and they do not change residents, rooms, or settings. Their screens are the scan result, recent gate activity, and the guest lists.
+
+A warden or the provost approves or rejects a permission and a guest stay, sees the register and the late list, and marks a guest paid. The provost also creates and edits residents, staff, rooms, destinations, and settings, issues a new hall pass, resets a password, exports the register, and reads guardian messages and the audit log.
 
 | Action | Resident | Gate | Warden | Provost |
 |---|---|---|---|---|
-| Own outing, permission, guest application, hall pass | yes | | | |
-| Scan a hall pass, record guest arrival and departure | | yes | yes | yes |
-| Register, late list, pending decisions, mark guest payment | | | yes | yes |
-| Export the register | | | | yes |
-| Create and edit residents, staff, rooms, destinations, settings | | | | yes |
-| Reissue a hall pass, reset a password | | | | yes |
-| Read the SMS log and the audit log | | | | yes |
+| Own outing, own permission, own guest application, own hall pass | Yes | | | |
+| Scan a hall pass, record a guest's arrival and departure | | Yes | Yes | Yes |
+| Register, late list, waiting decisions, mark a guest paid | | | Yes | Yes |
+| Export the register | | | | Yes |
+| Create and edit residents, staff, rooms, blocks, destinations, and settings | | | | Yes |
+| Issue a new hall pass, reset a password | | | | Yes |
+| Read guardian messages and the audit log | | | | Yes |
 
-Gate staff do not receive the full register. Their screens are the scan result, recent gate activity, and the guest lists.
+## What the register counts
 
-## Register counts
+The same counts are kept for the whole hall and, separately, for each block. A resident counts in the block of the room she is assigned to now. A guest counts in the block of the host's room. A permission waiting counts in the resident's block.
 
-All counts are hall-wide.
-
-| Count | Rule |
+| Count | Who is included |
 |---|---|
-| Currently inside | resident profiles with `presence = inside` and user `active` |
-| Currently outside | `presence = outside` and the open outing is not past grace |
-| Late return / not yet returned | `presence = outside` and `grace_ends_at` is in the past |
-| Pending special permissions | permissions in `pending` |
-| Guests in hall | guest stays arrived and not departed |
-| Should have left | guest bucket `should_have_left` |
-| Pending guest stays | guest stays in `pending` |
+| Currently inside | Active residents whose presence is inside. |
+| Currently outside | Presence outside, and the open outing is not past grace. |
+| Late, not yet returned | Presence outside, and grace has ended. |
+| Permissions waiting | Permissions still waiting for a decision. |
+| Guests in hall | Guest stays that have arrived and have not departed. |
+| Should have left | The guest list of that name. |
+| Guest stays waiting | Guest stays still waiting. |
 
-Suspended residents stay in the account list and drop out of the inside/outside counts.
+The whole-hall figure is the sum of the blocks. Suspended residents stay in the account list and are left out of the inside and outside counts.
 
-## SMS and audit are the history
+## History that is not its own list
 
-Gate recent activity is not a table. It is the latest exit and return events from `outings`, plus guest arrivals and departures, newest first.
+Recent activity at the gate is not a separate record. It is the latest exits and returns, plus guest arrivals and departures, newest first.
 
-Resident home history is the same exit and return events for that resident, newest first. The demo shows "Went out" and "Returned" as separate lines.
+A resident's own history is the same exits and returns for that resident, newest first. Each exit and each return is its own line.
 
-## What this version does not store
+## What this version does not keep
 
-- Emergency alerts, duty phone numbers, or emergency contacts.
-- A payment gateway, an amount, or a receipt. The office only marks paid or unpaid.
-- Parent accounts.
-- Push notifications.
-- More than one open outing per resident.
-- A second role on one user.
-- Room history as its own table. A room change is an audit event.
-- Docker volumes, Nginx, or a database server. The file path is an environment setting. Locally it defaults to `backend/data/hostel.db`.
-
-## DDL
-
-Normative with the tables above. A change updates both.
-
-```sql
-PRAGMA foreign_keys = ON;
-
-CREATE TABLE hall_settings (
-  id TEXT PRIMARY KEY CHECK (id = 'hall'),
-  hall_name TEXT NOT NULL,
-  university_name TEXT NOT NULL,
-  timezone TEXT NOT NULL DEFAULT 'Asia/Kolkata',
-  grace_minutes INTEGER NOT NULL DEFAULT 30 CHECK (grace_minutes BETWEEN 0 AND 180),
-  ordinary_hours_end TEXT CHECK (
-    ordinary_hours_end IS NULL
-    OR ordinary_hours_end GLOB '[0-2][0-9]:[0-5][0-9]'
-  ),
-  ordinary_outing_max_hours INTEGER NOT NULL DEFAULT 18 CHECK (ordinary_outing_max_hours BETWEEN 1 AND 72),
-  permission_early_minutes INTEGER NOT NULL DEFAULT 30 CHECK (permission_early_minutes BETWEEN 0 AND 180),
-  guest_max_inclusive_days INTEGER NOT NULL DEFAULT 7 CHECK (guest_max_inclusive_days BETWEEN 1 AND 30),
-  guest_min_lead_days INTEGER NOT NULL DEFAULT 1 CHECK (guest_min_lead_days BETWEEN 0 AND 14),
-  scan_duplicate_window_seconds INTEGER NOT NULL DEFAULT 45 CHECK (scan_duplicate_window_seconds BETWEEN 0 AND 600),
-  late_sms_template TEXT NOT NULL,
-  return_sms_template TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-);
-
-CREATE TABLE blocks (
-  id TEXT PRIMARY KEY,
-  code TEXT NOT NULL UNIQUE,
-  name TEXT NOT NULL,
-  is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1))
-);
-
-CREATE TABLE rooms (
-  id TEXT PRIMARY KEY,
-  block_id TEXT NOT NULL REFERENCES blocks(id),
-  number TEXT NOT NULL,
-  label TEXT NOT NULL UNIQUE,
-  is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
-  UNIQUE (block_id, number)
-);
-
-CREATE TABLE destinations (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL UNIQUE,
-  sort_order INTEGER NOT NULL,
-  is_other INTEGER NOT NULL DEFAULT 0 CHECK (is_other IN (0, 1)),
-  is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1))
-);
-
-CREATE TABLE users (
-  id TEXT PRIMARY KEY,
-  role TEXT NOT NULL CHECK (role IN ('resident', 'gate', 'warden', 'provost')),
-  username TEXT NOT NULL COLLATE NOCASE,
-  full_name TEXT NOT NULL,
-  password_hash TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'suspended')),
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  last_login_at TEXT
-);
-
-CREATE UNIQUE INDEX users_username ON users (username COLLATE NOCASE);
-
-CREATE TABLE resident_profiles (
-  user_id TEXT PRIMARY KEY REFERENCES users(id),
-  enrolment_number TEXT NOT NULL COLLATE NOCASE,
-  course TEXT,
-  room_id TEXT NOT NULL REFERENCES rooms(id),
-  parent_name TEXT,
-  parent_phone TEXT,
-  qr_token TEXT NOT NULL UNIQUE,
-  presence TEXT NOT NULL DEFAULT 'inside' CHECK (presence IN ('inside', 'outside')),
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-);
-
-CREATE UNIQUE INDEX resident_enrolment ON resident_profiles (enrolment_number COLLATE NOCASE);
-
-CREATE TABLE staff_profiles (
-  user_id TEXT PRIMARY KEY REFERENCES users(id),
-  job_title TEXT NOT NULL,
-  posting TEXT
-);
-
-CREATE TABLE refresh_tokens (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id),
-  token_hash TEXT NOT NULL UNIQUE,
-  expires_at TEXT NOT NULL,
-  revoked_at TEXT,
-  created_at TEXT NOT NULL
-);
-
-CREATE INDEX refresh_tokens_user ON refresh_tokens (user_id);
-
-CREATE TABLE permissions (
-  id TEXT PRIMARY KEY,
-  resident_id TEXT NOT NULL REFERENCES users(id),
-  type TEXT NOT NULL CHECK (type IN ('late_night', 'home_going')),
-  status TEXT NOT NULL CHECK (status IN (
-    'pending', 'approved', 'rejected', 'cancelled', 'in_use', 'completed', 'expired'
-  )),
-  place_label TEXT NOT NULL,
-  destination_detail TEXT,
-  address TEXT,
-  reason TEXT NOT NULL,
-  departure_at TEXT NOT NULL,
-  expected_return_at TEXT NOT NULL,
-  decided_by TEXT REFERENCES users(id),
-  decided_at TEXT,
-  decision_note TEXT,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  CHECK (expected_return_at > departure_at),
-  CHECK (
-    (type = 'late_night' AND address IS NULL)
-    OR (
-      type = 'home_going'
-      AND destination_detail IS NULL
-      AND address IS NOT NULL
-      AND length(trim(address)) > 0
-    )
-  )
-);
-
-CREATE INDEX permissions_resident_status ON permissions (resident_id, status);
-
-CREATE TABLE outings (
-  id TEXT PRIMARY KEY,
-  resident_id TEXT NOT NULL REFERENCES users(id),
-  permission_id TEXT REFERENCES permissions(id),
-  kind TEXT NOT NULL CHECK (kind IN ('ordinary', 'late_night', 'home_going')),
-  status TEXT NOT NULL CHECK (status IN ('planned', 'outside', 'returned', 'cancelled')),
-  destination_id TEXT REFERENCES destinations(id),
-  destination_label TEXT NOT NULL,
-  expected_return_at TEXT NOT NULL,
-  grace_ends_at TEXT NOT NULL,
-  exited_at TEXT,
-  returned_at TEXT,
-  exit_recorded_by TEXT REFERENCES users(id),
-  return_recorded_by TEXT REFERENCES users(id),
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  cancelled_at TEXT,
-  CHECK (
-    (kind = 'ordinary' AND permission_id IS NULL)
-    OR (kind IN ('late_night', 'home_going') AND permission_id IS NOT NULL)
-  ),
-  CHECK (
-    (status = 'planned' AND exited_at IS NULL AND returned_at IS NULL AND cancelled_at IS NULL)
-    OR (status = 'outside' AND exited_at IS NOT NULL AND returned_at IS NULL AND cancelled_at IS NULL)
-    OR (status = 'returned' AND exited_at IS NOT NULL AND returned_at IS NOT NULL AND cancelled_at IS NULL AND returned_at >= exited_at)
-    OR (status = 'cancelled' AND cancelled_at IS NOT NULL AND exited_at IS NULL AND returned_at IS NULL)
-  )
-);
-
-CREATE INDEX outings_resident_status ON outings (resident_id, status);
-CREATE UNIQUE INDEX outings_one_open ON outings (resident_id) WHERE status IN ('planned', 'outside');
-
-CREATE TABLE guest_stays (
-  id TEXT PRIMARY KEY,
-  host_resident_id TEXT NOT NULL REFERENCES users(id),
-  guest_name TEXT NOT NULL,
-  relation TEXT NOT NULL,
-  start_date TEXT NOT NULL,
-  end_date TEXT NOT NULL,
-  reason TEXT NOT NULL,
-  status TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled', 'departed')),
-  payment_status TEXT NOT NULL DEFAULT 'unpaid' CHECK (payment_status IN ('unpaid', 'paid')),
-  payment_marked_by TEXT REFERENCES users(id),
-  payment_marked_at TEXT,
-  decided_by TEXT REFERENCES users(id),
-  decided_at TEXT,
-  decision_note TEXT,
-  arrived_at TEXT,
-  arrived_recorded_by TEXT REFERENCES users(id),
-  departed_at TEXT,
-  departed_recorded_by TEXT REFERENCES users(id),
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  CHECK (end_date >= start_date),
-  CHECK (
-    (payment_status = 'paid' AND payment_marked_at IS NOT NULL AND payment_marked_by IS NOT NULL)
-    OR (payment_status = 'unpaid' AND payment_marked_at IS NULL AND payment_marked_by IS NULL)
-  ),
-  CHECK (
-    (status IN ('pending', 'rejected', 'cancelled') AND arrived_at IS NULL AND departed_at IS NULL)
-    OR (status = 'approved' AND departed_at IS NULL AND decided_at IS NOT NULL)
-    OR (status = 'departed' AND arrived_at IS NOT NULL AND departed_at IS NOT NULL AND departed_at >= arrived_at)
-  )
-);
-
-CREATE INDEX guest_stays_host ON guest_stays (host_resident_id, status);
-CREATE INDEX guest_stays_dates ON guest_stays (start_date, end_date);
-
-CREATE TABLE sms_messages (
-  id TEXT PRIMARY KEY,
-  outing_id TEXT NOT NULL REFERENCES outings(id),
-  resident_id TEXT NOT NULL REFERENCES users(id),
-  kind TEXT NOT NULL CHECK (kind IN ('late_notice', 'return_notice')),
-  recipient_phone TEXT,
-  body TEXT,
-  driver TEXT CHECK (driver IS NULL OR driver IN ('mock', 'dlt')),
-  status TEXT NOT NULL CHECK (status IN ('sent', 'failed', 'skipped')),
-  provider_reference TEXT,
-  error TEXT,
-  created_at TEXT NOT NULL
-);
-
-CREATE UNIQUE INDEX sms_one_per_outing_kind ON sms_messages (outing_id, kind);
-
-CREATE TABLE audit_events (
-  id TEXT PRIMARY KEY,
-  occurred_at TEXT NOT NULL,
-  actor_user_id TEXT REFERENCES users(id),
-  action TEXT NOT NULL,
-  entity_type TEXT NOT NULL,
-  entity_id TEXT NOT NULL,
-  summary TEXT NOT NULL,
-  detail_json TEXT
-);
-
-CREATE INDEX audit_events_entity ON audit_events (entity_type, entity_id, occurred_at);
-CREATE INDEX audit_events_occurred ON audit_events (occurred_at);
-```
-
-`users.username` uniqueness is the `users_username` index, not an inline UNIQUE constraint, because the case-insensitive rule is on the index.
-
-When implementation starts, `PRAGMA user_version` records the schema version. It stays 0 until the first migration is applied.
+- Emergency alerts, duty phone numbers, or a second emergency contact besides the guardian.
+- Phone notifications. Text messages to the guardian are kept above. What the resident's or the staff member's own phone notifies, and when, is not a record in this document.
+- A payment amount, a receipt, or card collection. The office only marks a guest stay paid or unpaid.
+- Parent or guardian accounts.
+- More than one outside outing, or two planned or outside outings with the same expected return.
+- A second role on one person.
+- A separate history of room changes. A room change is an audit log entry.
+- The layout of computers. This document says what is kept, not which machine holds it.
 
 ## Revisions
 
 | Version | Notes |
 |---|---|
-| 0.1.0 | Initial model from the proposal and the demo. Not applied to a database. |
+| 0.3.4 | A resident may plan several ordinary outings on one hall day. The gate uses the earliest return still ahead today and does not use a later day. Two open outings cannot end at the same instant. One outside outing at a time. |
+| 0.3.3 | A resident may plan one ordinary outing for each hall day. The hall day is stored on the outing. She cancels the day she chooses. One outside outing at a time. |
+| 0.3.2 | The destination list shows named places A to Z and always shows the free-text choice, Other, last. No stored order was added. |
+| 0.3.1 | The service creates these records when it starts. The fields and rules are unchanged from 0.3.0. |
+| 0.3.0 | Summer starts on 1 April and winter starts on 1 October, from the seasonal split published by AMU University Health Services. The season is worked out from the hall date. The HTTP contract uses the same names as this document. |
+| 0.2.0 | Production contract. An ordinary outing needs a destination and an expected return before the exit scan. Ordinary hours are a summer window and a winter window from SOP 06 and SOP 07. Guardian name and phone are required. Times are shown on a 12-hour clock and dates as day, month name, year. Blocks and room counts match the hall page of 30 September 2026. Destinations are shown alphabetically. Outing type and notice type replace the old kind fields. Exit, return, and decision fields are required once that step has happened. The register counts the whole hall and each block. The audit log is named as such. |
+| 0.1.0 | Initial agreement. The written rules are the contract. Not created as records yet. |

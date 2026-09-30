@@ -1,6 +1,6 @@
 # Begum Sultan Jahan Hall API
 
-API version: **0.1.0**
+API version: **0.2.12**
 
 This is the reading copy of [`backend/openapi.yaml`](../backend/openapi.yaml). Swagger at `/docs` serves that file. Stored data is in [`database.md`](database.md). When an endpoint changes, edit the YAML and regenerate this page from the repository root:
 
@@ -26,9 +26,10 @@ Do not edit this page by hand.
   - [GET `/api/v1/me/hall-pass` — Permanent hall pass](#get-api-v1-me-hall-pass)
   - [GET `/api/v1/me/history` — Own exit and return history](#get-api-v1-me-history)
   - [GET `/api/v1/destinations` — Ordinary outing destinations](#get-api-v1-destinations)
+  - [GET `/api/v1/me/outings` — Ordinary outing plans](#get-api-v1-me-outings)
   - [POST `/api/v1/me/outings` — Plan an ordinary outing](#post-api-v1-me-outings)
   - [GET `/api/v1/me/outings/current` — Open outing](#get-api-v1-me-outings-current)
-  - [POST `/api/v1/me/outings/current/cancel` — Cancel a planned outing](#post-api-v1-me-outings-current-cancel)
+  - [POST `/api/v1/me/outings/{outing_id}/cancel` — Cancel a planned outing](#post-api-v1-me-outings-outing_id-cancel)
   - [GET `/api/v1/me/permissions` — Own special permissions](#get-api-v1-me-permissions)
   - [POST `/api/v1/me/permissions` — Request late-night or home going](#post-api-v1-me-permissions)
   - [GET `/api/v1/me/permissions/{permission_id}` — Own permission](#get-api-v1-me-permissions-permission_id)
@@ -84,21 +85,30 @@ Do not edit this page by hand.
 ## How to call the API
 
 HTTP contract for the hostel movement system. Schema version of the database
-is tracked separately in `docs/database.md`.
+is tracked separately in `docs/database.md` (0.3.4).
 
-This version is the contract. Business routes are specified here and are not
-implemented yet. `GET /health` is the only route that responds. Other paths
-return 404 until they are built. Swagger on this server is the review
-surface for purpose, payload, and response.
+This version is the contract. Sign-in, staying signed in, signing out, the
+current account, changing one's own password, the resident home screen, the
+ordinary destination list, and ordinary outings respond. Planning several
+ordinary outings, including more than one return on the same hall day,
+reading those plans, reading the outing she is on, and cancelling one
+chosen plan respond. The other
+business routes are specified here and return 404 until they are built.
+Swagger on this server is the review surface for purpose, payload, and response.
 
 JSON names are snake_case. Instants are UTC `YYYY-MM-DDTHH:MM:SSZ`. Calendar
-dates are hall-local `YYYY-MM-DD` in Asia/Kolkata. The caller sends an
-access token as `Authorization: Bearer`, except on `GET /health`,
-`POST /api/v1/auth/login`, and `POST /api/v1/auth/refresh`.
+dates are hall-local `YYYY-MM-DD` in Asia/Kolkata. A time of day is `HH:MM`.
+A season start is `MM-DD`. A phone number includes the country code, `+`
+then digits. Clients show India time on a 12-hour clock and a date as the
+day, the month name, and the year. `2026-09-18T13:30:00Z` is shown as
+18 September 2026, 7:00 PM. This API returns the stored form.
+
+The caller sends an access token as `Authorization: Bearer`, except on
+`GET /health`, `POST /api/v1/auth/login`, and `POST /api/v1/auth/refresh`.
 
 Access tokens last 15 minutes. Refresh tokens last 30 days. Passwords are
-at least 10 characters. Accounts are issued by the hall office. A resident
-username is the enrolment number.
+at least 10 characters and are stored as Argon2id. Accounts are issued by
+the hall office. A resident username is the enrolment number.
 
 Stored state and lifecycles live in `docs/database.md`. This file does not
 repeat the column list. The reading copy of this contract is `docs/api.md`.
@@ -152,7 +162,7 @@ Body: [Health](#schema-health).
 
 ## <a id="tag-auth"></a>Auth
 
-Hall-issued accounts. No public registration and no parent login.
+Hall-issued accounts. No public registration and no guardian login.
 
 | Method | Path | Purpose | Who |
 |---|---|---|---|
@@ -168,9 +178,14 @@ Hall-issued accounts. No public registration and no parent login.
 
 **Who.** anyone with a hall-issued account. No token.
 
-Caller: anyone with a hall-issued account. Suspended accounts are refused.
-A resident uses the enrolment number as the username. The sample body
-leaves the password field out of this repository. The field is required.
+Caller: anyone with a hall-issued account. A resident uses the enrolment
+number as the username. The sample body leaves the password field out of
+this repository. The field is required.
+
+A username that matches no account says that username does not exist.
+A known username with the wrong password says the username exists and
+the password is wrong. A correct password on a suspended account says
+the account is suspended and asks the caller to contact the Hall Office.
 
 **Request.** Required.
 
@@ -207,9 +222,44 @@ Body: [TokenResponse](#schema-tokenresponse).
 
 #### 401
 
-The access token is missing or expired, or the username and password were refused.
+Sign-in was refused. The message says whether the username does not
+exist, the password is wrong, or the account is suspended. A suspended
+account asks the caller to contact the Hall Office.
 
 Body: [ErrorResponse](#schema-errorresponse).
+
+**Username does not exist**
+
+```json
+{
+  "error": {
+    "code": "unauthenticated",
+    "message": "That username does not exist."
+  }
+}
+```
+
+**Password is wrong**
+
+```json
+{
+  "error": {
+    "code": "unauthenticated",
+    "message": "That username exists, but the password is wrong."
+  }
+}
+```
+
+**Account is suspended**
+
+```json
+{
+  "error": {
+    "code": "unauthenticated",
+    "message": "This account is suspended. Please contact the Hall Office."
+  }
+}
+```
 
 #### 422
 
@@ -362,9 +412,10 @@ The resident phone. Ordinary outings, permissions, guest applications, and the h
 | GET | `/api/v1/me/hall-pass` | [Permanent hall pass](#get-api-v1-me-hall-pass) | resident |
 | GET | `/api/v1/me/history` | [Own exit and return history](#get-api-v1-me-history) | resident |
 | GET | `/api/v1/destinations` | [Ordinary outing destinations](#get-api-v1-destinations) | Signed-in account |
-| POST | `/api/v1/me/outings` | [Plan an ordinary outing](#post-api-v1-me-outings) | resident, and only while inside with no open outing |
+| GET | `/api/v1/me/outings` | [Ordinary outing plans](#get-api-v1-me-outings) | resident |
+| POST | `/api/v1/me/outings` | [Plan an ordinary outing](#post-api-v1-me-outings) | resident |
 | GET | `/api/v1/me/outings/current` | [Open outing](#get-api-v1-me-outings-current) | resident |
-| POST | `/api/v1/me/outings/current/cancel` | [Cancel a planned outing](#post-api-v1-me-outings-current-cancel) | resident |
+| POST | `/api/v1/me/outings/{outing_id}/cancel` | [Cancel a planned outing](#post-api-v1-me-outings-outing_id-cancel) | resident |
 | GET | `/api/v1/me/permissions` | [Own special permissions](#get-api-v1-me-permissions) | resident |
 | POST | `/api/v1/me/permissions` | [Request late-night or home going](#post-api-v1-me-permissions) | resident |
 | GET | `/api/v1/me/permissions/{permission_id}` | [Own permission](#get-api-v1-me-permissions-permission_id) | resident |
@@ -382,7 +433,9 @@ The resident phone. Ordinary outings, permissions, guest applications, and the h
 
 Caller: resident. Presence, room, the open outing if there is one, the
 permission the resident is waiting on or cleared to use, and the last
-ten exit and return lines.
+ten exit and return lines. A planned outing whose expected return has
+passed is cancelled by this read, with no staff member, before the
+screen is built.
 
 **Responses**
 
@@ -404,10 +457,10 @@ Body: [ResidentHome](#schema-residenthome).
 ```json
 {
   "resident": {
-    "full_name": "Aisha Khan",
-    "room_label": "B-204",
-    "block_name": "Block B",
+    "enrolment_number": "24-GLLB-118",
     "course": "B.A. LL.B. (Hons.)",
+    "room_label": "B-204",
+    "block_name": "Block-B",
     "presence": "inside"
   },
   "current_outing": null,
@@ -415,7 +468,7 @@ Body: [ResidentHome](#schema-residenthome).
   "recent_history": [
     {
       "event": "returned",
-      "destination_label": "Maulana Azad Library",
+      "place": "Maulana Azad Library",
       "occurred_at": "2026-09-12T15:16:00Z",
       "outing_id": "00000000-0000-4000-8000-000000000001"
     }
@@ -532,7 +585,10 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** Signed-in account. Bearer access token.
 
-Active catalog, in sort order. Any signed-in user may read it. The hall office edits it.
+Active catalog. Named places are alphabetical, ignoring capitals. The
+free-text choice, Other, is always last. Any signed-in user may read
+it. The provost edits it. A retired destination stays on file and is
+left off this list.
 
 **Responses**
 
@@ -546,9 +602,86 @@ Body: [DestinationList](#schema-destinationlist).
 |---|---|---|---|
 | `items` | yes | list of [Destination](#schema-destination) |  |
 
+**Example**
+
+```json
+{
+  "items": [
+    {
+      "id": "1285f918-cd9c-5ef8-9c04-58a69285211c",
+      "name": "J.N. Medical College",
+      "is_other": false,
+      "is_active": true
+    },
+    {
+      "id": "fc2da7c5-8d65-5680-8034-d8acb69745eb",
+      "name": "Maulana Azad Library",
+      "is_other": false,
+      "is_active": true
+    },
+    {
+      "id": "924e5c75-e9b6-57a9-bb04-720028253526",
+      "name": "Shamshad Market",
+      "is_other": false,
+      "is_active": true
+    },
+    {
+      "id": "df29c4b7-63c5-525d-a9ec-798a980c64c8",
+      "name": "Women's College",
+      "is_other": false,
+      "is_active": true
+    },
+    {
+      "id": "f2008ef3-a1df-5ff0-b936-3466d0914781",
+      "name": "Other",
+      "is_other": true,
+      "is_active": true
+    }
+  ]
+}
+```
+
 #### 401
 
 The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
+### <a id="get-api-v1-me-outings"></a>GET `/api/v1/me/outings` — Ordinary outing plans
+
+`list_outings`
+
+**Who.** resident. Bearer access token.
+
+Caller: resident. Her planned and outside outings, soonest return
+first. Several may fall on the same hall day. A later return today, and
+a later day, stay on this list. The open outing is the one she is
+outside on, or the soonest plan for today. A planned outing whose
+expected return has passed is cancelled by this read, with no staff
+member, and then left off the list.
+
+**Responses**
+
+#### 200
+
+Planned and outside outings.
+
+Body: [OutingList](#schema-outinglist).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `items` | yes | list of [Outing](#schema-outing) |  |
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
@@ -557,20 +690,28 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 `plan_outing`
 
-**Who.** resident, and only while inside with no open outing. Bearer access token.
+**Who.** resident. Bearer access token.
 
-Caller: resident, and only while inside with no open outing.
+Caller: resident. This is required before an ordinary exit scan. The
+scan does not ask for a destination or an expected return. She may plan
+several returns, including two on the same hall day, such as noon and
+5:00 PM. She may already be outside. Two planned or outside outings
+cannot end at the same instant.
 
 Sets destination and expected return. Does not record the exit. The gate
-scan does that. Grace is the hall's `grace_minutes` added to the expected
-return, and is returned on the outing so the phone can show when parents
-would be notified.
+scan does that. No warden approval. Grace is the hall's `grace_minutes`
+added to the expected return, and is returned on the outing so the phone
+can show when the guardian would be told.
 
-Refused when the expected return is not in the future, is later than
-`ordinary_outing_max_hours`, or is after `ordinary_hours_end` on that
-hall-local day when that setting is set. That last case asks for a
-late-night permission instead. When the chosen destination is the Other
-row, `destination_text` is required.
+The expected return must be in the future and inside ordinary hours on
+that hall date. The start of the window is not included. The end is
+included. Summer, 1 April through 30 September, is 6:30 AM to 6:30 PM.
+Winter, 1 October through 31 March, is 6:30 AM to 5:30 PM. A return at
+or before the start is outside ordinary hours. A return after the end
+needs late-night permission or home going. When the chosen destination
+is the Other row, `destination_text` is required. A planned outing
+whose expected return has already passed is cancelled by the system,
+with no staff member, before this plan is saved.
 
 **Request.** Required.
 
@@ -586,8 +727,8 @@ Body: [PlanOutingRequest](#schema-planoutingrequest).
 
 ```json
 {
-  "destination_id": "00000000-0000-4000-8000-000000000010",
-  "expected_return_at": "2026-09-13T13:30:00Z"
+  "destination_id": "fc2da7c5-8d65-5680-8034-d8acb69745eb",
+  "expected_return_at": "2026-09-30T13:00:00Z"
 }
 ```
 
@@ -595,21 +736,23 @@ Body: [PlanOutingRequest](#schema-planoutingrequest).
 
 #### 201
 
-Outing planned. The resident is still inside.
+Outing planned. Her presence is unchanged.
 
 Body: [Outing](#schema-outing).
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `id` | yes | uuid |  |
-| `permission_id` | no | uuid or null |  |
-| `kind` | yes | `ordinary` or `late_night` or `home_going` |  |
+| `permission_id` | no | uuid or null | Empty for an ordinary outing. Set when the exit used a permission. |
+| `type` | yes | `ordinary` or `late_night` or `home_going` |  |
 | `status` | yes | `planned` or `outside` or `returned` or `cancelled` |  |
-| `destination_label` | yes | string |  |
-| `expected_return_at` | yes | date-time |  |
+| `place` | yes | string | List name, the words typed for Other, or the permission's short place. |
+| `expected_return_at` | yes | date-time | UTC instant. Clients show India time on a 12-hour clock. |
 | `grace_ends_at` | yes | date-time |  |
-| `exited_at` | no | date-time or null |  |
-| `returned_at` | no | date-time or null |  |
+| `exited_at` | no | date-time or null | Empty only while an ordinary outing is still planned. Required once the resident has left. |
+| `exit_recorded_by_name` | no | string or null | Staff member who scanned the exit. Empty only while exited_at is empty. |
+| `returned_at` | no | date-time or null | Empty until the return scan. Required once the resident has returned. |
+| `return_recorded_by_name` | no | string or null | Staff member who scanned the return. Empty only while returned_at is empty. |
 | `is_late` | yes | boolean |  |
 | `created_at` | yes | date-time |  |
 
@@ -627,7 +770,10 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 #### 409
 
-`already_outside`, `open_outing_exists`, or `permission_required`.
+`return_already_planned` says she already has an outing ending at
+that time. `outside_ordinary_hours` says that return is outside
+ordinary hours. `permission_required` says that return is outside
+ordinary hours. Please submit a permission request.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
@@ -644,7 +790,12 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** resident. Bearer access token.
 
-Caller: resident. The planned or outside outing, or null.
+Caller: resident. The outing she is outside on, or the soonest plan
+whose return falls on today's hall date, or null. A later plan today
+stays on the plan list. A plan for a later day stays there too. If a
+planned ordinary outing's expected return has passed, this read cancels
+that plan, with no staff member, and leaves her other plans planned.
+An outside outing stays outside. It is late only after grace.
 
 **Responses**
 
@@ -671,14 +822,24 @@ The signed-in role cannot call this operation.
 Body: [ErrorResponse](#schema-errorresponse).
 
 
-### <a id="post-api-v1-me-outings-current-cancel"></a>POST `/api/v1/me/outings/current/cancel` — Cancel a planned outing
+### <a id="post-api-v1-me-outings-outing_id-cancel"></a>POST `/api/v1/me/outings/{outing_id}/cancel` — Cancel a planned outing
 
 `cancel_outing`
 
 **Who.** resident. Bearer access token.
 
-Caller: resident. Allowed only while the outing is `planned`. An exit
-that has already been scanned is closed by a return scan, not by cancel.
+Caller: resident. She chooses which plan. Allowed only while that
+outing is `planned`. Other plans stay planned, including another return
+today. An exit that has already
+been scanned is closed by a return scan, not by cancel. A plan whose
+expected return has already passed is cancelled by the system first,
+with no staff member.
+
+**Parameters**
+
+| Name | In | Required | Type | Notes |
+|---|---|---|---|---|
+| `outing_id` | path | yes | uuid |  |
 
 **Responses**
 
@@ -691,14 +852,16 @@ Body: [Outing](#schema-outing).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `id` | yes | uuid |  |
-| `permission_id` | no | uuid or null |  |
-| `kind` | yes | `ordinary` or `late_night` or `home_going` |  |
+| `permission_id` | no | uuid or null | Empty for an ordinary outing. Set when the exit used a permission. |
+| `type` | yes | `ordinary` or `late_night` or `home_going` |  |
 | `status` | yes | `planned` or `outside` or `returned` or `cancelled` |  |
-| `destination_label` | yes | string |  |
-| `expected_return_at` | yes | date-time |  |
+| `place` | yes | string | List name, the words typed for Other, or the permission's short place. |
+| `expected_return_at` | yes | date-time | UTC instant. Clients show India time on a 12-hour clock. |
 | `grace_ends_at` | yes | date-time |  |
-| `exited_at` | no | date-time or null |  |
-| `returned_at` | no | date-time or null |  |
+| `exited_at` | no | date-time or null | Empty only while an ordinary outing is still planned. Required once the resident has left. |
+| `exit_recorded_by_name` | no | string or null | Staff member who scanned the exit. Empty only while exited_at is empty. |
+| `returned_at` | no | date-time or null | Empty until the return scan. Required once the resident has returned. |
+| `return_recorded_by_name` | no | string or null | Staff member who scanned the return. Empty only while returned_at is empty. |
 | `is_late` | yes | boolean |  |
 | `created_at` | yes | date-time |  |
 
@@ -714,9 +877,16 @@ The signed-in role cannot call this operation.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
+#### 404
+
+No record with that id is visible to the caller.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
 #### 409
 
-No planned outing, or the resident is already outside.
+`no_outing_planned` says there is no planned outing. `already_outside`
+says she is already outside.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
@@ -771,13 +941,14 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** resident. Bearer access token.
 
-Caller: resident. The warden decides later. Submitting does not let the
-resident leave. The hall pass can be used for this permission only after
-it is approved and the gate scans it inside the use window.
+Caller: resident. A warden or the provost decides later. Submitting does
+not let the resident leave. The hall pass can be used for this permission
+only after it is approved and the gate scans it inside the use window.
 
 `expected_return_at` must be after `departure_at`. Home going requires
-`place_label`, `address`, and `reason`. Late-night requires `place_label`
-and `reason`, and may include `destination_detail`.
+`short_place`, `address`, and `reason`. Late-night requires `short_place`
+and `reason`, and may include `destination_detail`. `short_place` is
+typed on this form. It is not chosen from the ordinary destination list.
 
 **Request.** Required.
 
@@ -788,7 +959,7 @@ One of: [LateNightCreate](#schema-latenightcreate), [HomeGoingCreate](#schema-ho
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `type` | yes | `late_night` |  |
-| `place_label` | yes | string | 1–120 characters. |
+| `short_place` | yes | string | Typed by the resident. Not chosen from the ordinary destination list. 1–120 characters. |
 | `destination_detail` | no | string | 1–120 characters. |
 | `reason` | yes | string | 1–500 characters. |
 | `departure_at` | yes | date-time |  |
@@ -799,7 +970,7 @@ One of: [LateNightCreate](#schema-latenightcreate), [HomeGoingCreate](#schema-ho
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `type` | yes | `home_going` |  |
-| `place_label` | yes | string | Short place on the warden card, such as Lucknow. 1–120 characters. |
+| `short_place` | yes | string | Short place on the warden card, such as Lucknow. 1–120 characters. |
 | `address` | yes | string | 1–300 characters. |
 | `reason` | yes | string | 1–500 characters. |
 | `departure_at` | yes | date-time |  |
@@ -810,7 +981,7 @@ One of: [LateNightCreate](#schema-latenightcreate), [HomeGoingCreate](#schema-ho
 ```json
 {
   "type": "late_night",
-  "place_label": "Women's College",
+  "short_place": "Women's College",
   "destination_detail": "Seminar Hall",
   "reason": "Faculty seminar ends at 9:00 PM. Requesting late return to hall.",
   "departure_at": "2026-09-13T13:00:00Z",
@@ -823,7 +994,7 @@ One of: [LateNightCreate](#schema-latenightcreate), [HomeGoingCreate](#schema-ho
 ```json
 {
   "type": "home_going",
-  "place_label": "Lucknow",
+  "short_place": "Lucknow",
   "address": "14, Civil Lines, Lucknow, U.P. 226001",
   "reason": "Family visit. Eid with parents.",
   "departure_at": "2026-09-19T02:30:00Z",
@@ -844,7 +1015,7 @@ Body: [Permission](#schema-permission).
 | `id` | yes | uuid |  |
 | `type` | yes | `late_night` or `home_going` |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` |  |
-| `place_label` | yes | string |  |
+| `short_place` | yes | string |  |
 | `destination_detail` | no | string or null |  |
 | `address` | no | string or null |  |
 | `reason` | yes | string |  |
@@ -900,7 +1071,7 @@ Body: [Permission](#schema-permission).
 | `id` | yes | uuid |  |
 | `type` | yes | `late_night` or `home_going` |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` |  |
-| `place_label` | yes | string |  |
+| `short_place` | yes | string |  |
 | `destination_detail` | no | string or null |  |
 | `address` | no | string or null |  |
 | `reason` | yes | string |  |
@@ -957,7 +1128,7 @@ Body: [Permission](#schema-permission).
 | `id` | yes | uuid |  |
 | `type` | yes | `late_night` or `home_going` |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` |  |
-| `place_label` | yes | string |  |
+| `short_place` | yes | string |  |
 | `destination_detail` | no | string or null |  |
 | `address` | no | string or null |  |
 | `reason` | yes | string |  |
@@ -1095,6 +1266,9 @@ Body: [GuestStay](#schema-gueststay).
 | `payment_status` | yes | `unpaid` or `paid` |  |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
+| `decided_by_name` | no | string or null | Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `arrived_recorded_by_name` | no | string or null | Staff member who recorded arrival. Empty until arrival is recorded. |
+| `departed_recorded_by_name` | no | string or null | Staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
 | `departed_at` | no | date-time or null |  |
 | `created_at` | yes | date-time |  |
@@ -1156,6 +1330,9 @@ Body: [GuestStay](#schema-gueststay).
 | `payment_status` | yes | `unpaid` or `paid` |  |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
+| `decided_by_name` | no | string or null | Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `arrived_recorded_by_name` | no | string or null | Staff member who recorded arrival. Empty until arrival is recorded. |
+| `departed_recorded_by_name` | no | string or null | Staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
 | `departed_at` | no | date-time or null |  |
 | `created_at` | yes | date-time |  |
@@ -1217,6 +1394,9 @@ Body: [GuestStay](#schema-gueststay).
 | `payment_status` | yes | `unpaid` or `paid` |  |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
+| `decided_by_name` | no | string or null | Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `arrived_recorded_by_name` | no | string or null | Staff member who recorded arrival. Empty until arrival is recorded. |
+| `departed_recorded_by_name` | no | string or null | Staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
 | `departed_at` | no | date-time or null |  |
 | `created_at` | yes | date-time |  |
@@ -1268,11 +1448,17 @@ Caller: gate, warden, or provost.
 
 Send the raw QR text. Both `bsj:v1:{token}` and the bare token are accepted.
 
-While the resident is inside, a scan records an exit. A planned ordinary
-outing is used when one exists. Otherwise an approved permission inside
-its use window is opened as an outing and marked in use. If neither
-exists, the scan is refused and the resident plans the outing, or waits
-for approval, and shows the pass again.
+While the resident is inside, a scan records an exit. Among ordinary
+outings planned for today's hall date whose expected return has not
+passed, the earliest return is used, and only when the current time is
+inside ordinary hours today. A later return today is left planned. A
+plan for another day is left planned and is not used today. The scan
+records the exit time and the staff member. Otherwise an approved
+permission inside its use window is opened as an outing and marked in
+use. If neither exists, the scan is refused. An ordinary exit needs a
+destination and an expected return saved before the resident reaches
+the gate. If she meant a later trip today, or a permission, she cancels
+the plan the gate would use and shows the pass again.
 
 While the resident is outside, a scan records the return. Nothing else
 is filled in.
@@ -1362,8 +1548,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 #### 409
 
-`duplicate_scan`, `no_outing_planned`, `permission_not_yet_valid`,
-`open_outing_exists`, or `resident_suspended`. The body includes
+`duplicate_scan`, `no_outing_planned`, `outside_ordinary_hours`,
+`permission_not_yet_valid`, `open_outing_exists`, or
+`resident_suspended`. The body includes
 the resident name and room when the pass is known, so the gate
 screen can say what to do.
 
@@ -1426,7 +1613,7 @@ Body: [GateActivityPage](#schema-gateactivitypage).
   "offset": 0,
   "items": [
     {
-      "kind": "exit",
+      "event": "exit",
       "occurred_at": "2026-09-13T14:39:00Z",
       "title": "Zoya Siddiqui",
       "subtitle": "A-118"
@@ -1620,7 +1807,7 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 ## <a id="tag-register"></a>Register
 
-Warden and provost view of the hall. Inside, outside, late, pending decisions, and guests.
+Warden and provost view of the hall and of each block. Inside, outside, late, pending decisions, and guests.
 
 | Method | Path | Purpose | Who |
 |---|---|---|---|
@@ -1642,10 +1829,10 @@ Warden and provost view of the hall. Inside, outside, late, pending decisions, a
 
 **Who.** warden or provost. Bearer access token.
 
-Caller: warden or provost. Hall-wide counts for the register home.
-Inside, outside, late, and pending permissions are the resident register.
-Guest counts are included on the same payload so the guest register does
-not need a second summary.
+Caller: warden or provost. Counts for the whole hall, and the same counts
+for each block. A resident is counted in the block of her current room.
+A guest is counted in the host's block. The hall totals are the sum of
+the blocks.
 
 **Responses**
 
@@ -1664,6 +1851,7 @@ Body: [RegisterSummary](#schema-registersummary).
 | `guests_in_hall_count` | yes | integer |  |
 | `guests_should_have_left_count` | yes | integer |  |
 | `pending_guest_stay_count` | yes | integer |  |
+| `blocks` | yes | list of [BlockRegisterCounts](#schema-blockregistercounts) | The same counts for each block. Hall totals are the sum of these rows. |
 
 **Example**
 
@@ -1675,7 +1863,21 @@ Body: [RegisterSummary](#schema-registersummary).
   "pending_permission_count": 4,
   "guests_in_hall_count": 6,
   "guests_should_have_left_count": 1,
-  "pending_guest_stay_count": 2
+  "pending_guest_stay_count": 2,
+  "blocks": [
+    {
+      "block_id": "00000000-0000-4000-8000-0000000000b1",
+      "code": "B",
+      "name": "Block-B",
+      "inside_count": 40,
+      "outside_count": 6,
+      "late_count": 1,
+      "pending_permission_count": 1,
+      "guests_in_hall_count": 2,
+      "guests_should_have_left_count": 0,
+      "pending_guest_stay_count": 1
+    }
+  ]
 }
 ```
 
@@ -1699,7 +1901,8 @@ Body: [ErrorResponse](#schema-errorresponse).
 **Who.** warden or provost. Bearer access token.
 
 Caller: warden or provost. Search matches full name or room label.
-`state=late` is outside and past grace. Results are ordered by name.
+`block_id` limits the list to one block. `state=late` is outside and
+past grace. Results are ordered by name.
 
 **Parameters**
 
@@ -1707,6 +1910,7 @@ Caller: warden or provost. Search matches full name or room label.
 |---|---|---|---|---|
 | `q` | query | no | string | Name or room. at most 80 characters. |
 | `state` | query | no | `inside` or `outside` or `late` |  |
+| `block_id` | query | no | uuid | Limit the list to residents whose current room is in this block. |
 | `limit` | query | no | integer | 1–500. default `50`. |
 | `offset` | query | no | integer | minimum 0. default `0`. |
 
@@ -1745,7 +1949,7 @@ Body: [ErrorResponse](#schema-errorresponse).
 **Who.** warden or provost. Bearer access token.
 
 Caller: warden or provost. The open or latest outing, whether it is an
-ordinary outing or a permission, and the parent SMS state.
+ordinary outing or a permission, and whether the guardian was told.
 
 **Parameters**
 
@@ -1771,8 +1975,8 @@ Body: [ResidentRecord](#schema-residentrecord).
 | `presence` | yes | `inside` or `outside` |  |
 | `state` | yes | `inside` or `outside` or `late` |  |
 | `outing` | no | [Outing](#schema-outing) or null |  |
-| `parent_name` | yes | string or null |  |
-| `parent_notice` | yes | `not_due` or `sent` or `skipped_no_phone` or `failed` |  |
+| `guardian_name` | yes | string | Parent or guardian the hall contacts. |
+| `guardian_notice` | yes | `not_due` or `sent` or `failed` |  |
 
 #### 401
 
@@ -1908,7 +2112,7 @@ Body: [PermissionReview](#schema-permissionreview).
 | `id` | yes | uuid |  |
 | `type` | yes | `late_night` or `home_going` |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` |  |
-| `place_label` | yes | string |  |
+| `short_place` | yes | string |  |
 | `destination_detail` | no | string or null |  |
 | `address` | no | string or null |  |
 | `reason` | yes | string |  |
@@ -1988,7 +2192,7 @@ Body: [PermissionReview](#schema-permissionreview).
 | `id` | yes | uuid |  |
 | `type` | yes | `late_night` or `home_going` |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` |  |
-| `place_label` | yes | string |  |
+| `short_place` | yes | string |  |
 | `destination_detail` | no | string or null |  |
 | `address` | no | string or null |  |
 | `reason` | yes | string |  |
@@ -2111,6 +2315,9 @@ Body: [GuestStay](#schema-gueststay).
 | `payment_status` | yes | `unpaid` or `paid` |  |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
+| `decided_by_name` | no | string or null | Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `arrived_recorded_by_name` | no | string or null | Staff member who recorded arrival. Empty until arrival is recorded. |
+| `departed_recorded_by_name` | no | string or null | Staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
 | `departed_at` | no | date-time or null |  |
 | `created_at` | yes | date-time |  |
@@ -2182,6 +2389,9 @@ Body: [GuestStay](#schema-gueststay).
 | `payment_status` | yes | `unpaid` or `paid` |  |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
+| `decided_by_name` | no | string or null | Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `arrived_recorded_by_name` | no | string or null | Staff member who recorded arrival. Empty until arrival is recorded. |
+| `departed_recorded_by_name` | no | string or null | Staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
 | `departed_at` | no | date-time or null |  |
 | `created_at` | yes | date-time |  |
@@ -2267,6 +2477,9 @@ Body: [GuestStay](#schema-gueststay).
 | `payment_status` | yes | `unpaid` or `paid` |  |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
+| `decided_by_name` | no | string or null | Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `arrived_recorded_by_name` | no | string or null | Staff member who recorded arrival. Empty until arrival is recorded. |
+| `departed_recorded_by_name` | no | string or null | Staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
 | `departed_at` | no | date-time or null |  |
 | `created_at` | yes | date-time |  |
@@ -2390,8 +2603,8 @@ Body: [ResidentCreate](#schema-residentcreate).
 | `enrolment_number` | yes | string | 1–40 characters. |
 | `course` | no | string | at most 120 characters. |
 | `room_id` | yes | uuid |  |
-| `parent_name` | no | string | at most 120 characters. |
-| `parent_phone` | no | string | E.164, for example +919876543210. pattern `^\+[1-9][0-9]{7,14}$`. |
+| `guardian_name` | yes | string | Parent or guardian. Required. 1–120 characters. |
+| `guardian_phone` | yes | string | E.164 with country code, for example +919876543210. pattern `^\+[1-9][0-9]{7,14}$`. |
 | `temporary_password` | yes | string | 10–200 characters. |
 
 **Responses**
@@ -2462,10 +2675,10 @@ Body: [ResidentAccount](#schema-residentaccount).
 | `course` | no | string or null |  |
 | `room_id` | yes | uuid |  |
 | `room_label` | yes | string |  |
-| `parent_name` | no | string or null |  |
-| `parent_phone` | no | string or null |  |
+| `guardian_name` | yes | string |  |
+| `guardian_phone` | yes | string | E.164, country code required. |
 | `status` | yes | `active` or `suspended` |  |
-| `presence` | yes | `inside` or `outside` |  |
+| `presence` | yes | `inside` or `outside` | Inside or outside the hall. Changes when a gate scan records an exit or a return. This is not sign-in. |
 
 #### 401
 
@@ -2492,10 +2705,11 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** provost. Bearer access token.
 
-Caller: provost. Send only the fields that change. `parent_phone` and
-`course` may be set to null to clear them. Changing `enrolment_number`
-changes the username. `status` suspends or reinstates the account and
-revokes refresh tokens on suspension.
+Caller: provost. Send only the fields that change. `course` may be set
+to null to clear it. `guardian_name` and `guardian_phone` may be
+replaced and may not be cleared. A phone includes the country code.
+Changing `enrolment_number` changes the username. `status` suspends or
+reinstates the account and revokes refresh tokens on suspension.
 
 **Parameters**
 
@@ -2513,8 +2727,8 @@ Body: [ResidentUpdate](#schema-residentupdate).
 | `enrolment_number` | no | string | 1–40 characters. |
 | `course` | no | string or null |  |
 | `room_id` | no | uuid |  |
-| `parent_name` | no | string or null |  |
-| `parent_phone` | no | string or null |  |
+| `guardian_name` | no | string | 1–120 characters. |
+| `guardian_phone` | no | string | pattern `^\+[1-9][0-9]{7,14}$`. |
 | `status` | no | `active` or `suspended` |  |
 
 **Responses**
@@ -2533,10 +2747,10 @@ Body: [ResidentAccount](#schema-residentaccount).
 | `course` | no | string or null |  |
 | `room_id` | yes | uuid |  |
 | `room_label` | yes | string |  |
-| `parent_name` | no | string or null |  |
-| `parent_phone` | no | string or null |  |
+| `guardian_name` | yes | string |  |
+| `guardian_phone` | yes | string | E.164, country code required. |
 | `status` | yes | `active` or `suspended` |  |
-| `presence` | yes | `inside` or `outside` |  |
+| `presence` | yes | `inside` or `outside` | Inside or outside the hall. Changes when a gate scan records an exit or a return. This is not sign-in. |
 
 #### 401
 
@@ -2671,8 +2885,7 @@ Body: [StaffCreate](#schema-staffcreate).
 | `full_name` | yes | string | 1–120 characters. |
 | `username` | yes | string | 1–80 characters. |
 | `role` | yes | `gate` or `warden` or `provost` |  |
-| `job_title` | yes | string | 1–80 characters. |
-| `posting` | no | string | at most 80 characters. |
+| `job_title` | yes | string | Name of the post. Gate staff scan. A warden or the provost approves. The provost also keeps hall records. 1–80 characters. |
 | `temporary_password` | yes | string | 10–200 characters. |
 
 **Example**
@@ -2682,8 +2895,7 @@ Body: [StaffCreate](#schema-staffcreate).
   "full_name": "Imran Qureshi",
   "username": "imran.qureshi",
   "role": "gate",
-  "job_title": "Gate staff",
-  "posting": "Main gate"
+  "job_title": "Gatekeeper"
 }
 ```
 
@@ -2702,7 +2914,6 @@ Body: [StaffAccount](#schema-staffaccount).
 | `username` | yes | string |  |
 | `role` | yes | `gate` or `warden` or `provost` |  |
 | `job_title` | yes | string |  |
-| `posting` | no | string or null |  |
 | `status` | yes | `active` or `suspended` |  |
 
 #### 401
@@ -2753,7 +2964,6 @@ Body: [StaffUpdate](#schema-staffupdate).
 |---|---|---|---|
 | `full_name` | no | string | 1–120 characters. |
 | `job_title` | no | string | 1–80 characters. |
-| `posting` | no | string or null |  |
 | `status` | no | `active` or `suspended` |  |
 
 **Responses**
@@ -2771,7 +2981,6 @@ Body: [StaffAccount](#schema-staffaccount).
 | `username` | yes | string |  |
 | `role` | yes | `gate` or `warden` or `provost` |  |
 | `job_title` | yes | string |  |
-| `posting` | no | string or null |  |
 | `status` | yes | `active` or `suspended` |  |
 
 #### 401
@@ -2894,8 +3103,11 @@ Body: [BlockCreate](#schema-blockcreate).
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `code` | yes | string | 1–8 characters. |
+| `code` | yes | string | 1–16 characters. |
 | `name` | yes | string | 1–80 characters. |
+| `floors` | no | integer or null |  |
+| `room_count` | yes | integer | 1–500. |
+| `beds_per_room` | yes | integer | 1–6. |
 
 **Responses**
 
@@ -2908,8 +3120,11 @@ Body: [Block](#schema-block).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `id` | yes | uuid |  |
-| `code` | yes | string |  |
+| `code` | yes | string | Short code used in room labels. Utility has no letter on the hall page, so its code is Utility. |
 | `name` | yes | string |  |
+| `floors` | yes | integer or null | A, B, C, and D have 4. The hall page does not state a floor count for Utility. |
+| `room_count` | yes | integer | Published room count for this block. Block-A 50, Block-B 58, Block-C 42, Block-D 40, Utility 16. |
+| `beds_per_room` | yes | integer | The hall page states a room capacity of 2. |
 | `is_active` | yes | boolean |  |
 
 #### 401
@@ -2952,6 +3167,9 @@ Body: [BlockUpdate](#schema-blockupdate).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `name` | no | string | 1–80 characters. |
+| `floors` | no | integer or null |  |
+| `room_count` | no | integer | 1–500. |
+| `beds_per_room` | no | integer | 1–6. |
 | `is_active` | no | boolean |  |
 
 **Responses**
@@ -2965,8 +3183,11 @@ Body: [Block](#schema-block).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `id` | yes | uuid |  |
-| `code` | yes | string |  |
+| `code` | yes | string | Short code used in room labels. Utility has no letter on the hall page, so its code is Utility. |
 | `name` | yes | string |  |
+| `floors` | yes | integer or null | A, B, C, and D have 4. The hall page does not state a floor count for Utility. |
+| `room_count` | yes | integer | Published room count for this block. Block-A 50, Block-B 58, Block-C 42, Block-D 40, Utility 16. |
+| `beds_per_room` | yes | integer | The hall page states a room capacity of 2. |
 | `is_active` | yes | boolean |  |
 
 #### 401
@@ -3064,8 +3285,9 @@ Body: [Room](#schema-room).
 |---|---|---|---|
 | `id` | yes | uuid |  |
 | `block_id` | yes | uuid |  |
-| `number` | yes | string |  |
+| `number` | yes | string | Door number, kept as written. The hall page does not publish door numbers. |
 | `label` | yes | string |  |
+| `bed_count` | yes | integer | Copied from the block when the room is created. Active residents assigned here, including a suspended resident who has not moved, cannot exceed this. |
 | `is_active` | yes | boolean |  |
 
 #### 401
@@ -3108,6 +3330,7 @@ Body: [RoomUpdate](#schema-roomupdate).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `number` | no | string | 1–12 characters. |
+| `bed_count` | no | integer | 1–6. |
 | `is_active` | no | boolean |  |
 
 **Responses**
@@ -3122,8 +3345,9 @@ Body: [Room](#schema-room).
 |---|---|---|---|
 | `id` | yes | uuid |  |
 | `block_id` | yes | uuid |  |
-| `number` | yes | string |  |
+| `number` | yes | string | Door number, kept as written. The hall page does not publish door numbers. |
 | `label` | yes | string |  |
+| `bed_count` | yes | integer | Copied from the block when the room is created. Active residents assigned here, including a suspended resident who has not moved, cannot exceed this. |
 | `is_active` | yes | boolean |  |
 
 #### 401
@@ -3157,7 +3381,7 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** provost. Bearer access token.
 
-Caller: provost. Includes inactive rows. The resident catalog route returns active rows only.
+Caller: provost. Includes inactive rows. Named places are alphabetical, ignoring capitals. The free-text choice is last. The resident catalog route returns active rows only.
 
 **Responses**
 
@@ -3199,7 +3423,6 @@ Body: [DestinationCreate](#schema-destinationcreate).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `name` | yes | string | 1–80 characters. |
-| `sort_order` | yes | integer |  |
 | `is_other` | no | boolean | default `False`. |
 
 **Responses**
@@ -3213,8 +3436,7 @@ Body: [Destination](#schema-destination).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `id` | yes | uuid |  |
-| `name` | yes | string |  |
-| `sort_order` | yes | integer |  |
+| `name` | yes | string | Named places are shown alphabetical by this name, ignoring capitals. The free-text choice is last. |
 | `is_other` | yes | boolean |  |
 | `is_active` | yes | boolean |  |
 
@@ -3243,7 +3465,7 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** provost. Bearer access token.
 
-Caller: provost. Deactivating a destination does not change labels already stored on outings.
+Caller: provost. Deactivating a destination does not change the place already stored on an outing.
 
 **Parameters**
 
@@ -3258,7 +3480,6 @@ Body: [DestinationUpdate](#schema-destinationupdate).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `name` | no | string | 1–80 characters. |
-| `sort_order` | no | integer |  |
 | `is_other` | no | boolean |  |
 | `is_active` | no | boolean |  |
 
@@ -3273,8 +3494,7 @@ Body: [Destination](#schema-destination).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `id` | yes | uuid |  |
-| `name` | yes | string |  |
-| `sort_order` | yes | integer |  |
+| `name` | yes | string | Named places are shown alphabetical by this name, ignoring capitals. The free-text choice is last. |
 | `is_other` | yes | boolean |  |
 | `is_active` | yes | boolean |  |
 
@@ -3309,7 +3529,7 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** provost. Bearer access token.
 
-Caller: provost. Includes the open decisions the hall has not confirmed yet.
+Caller: provost. Clock times are hall-local HH:MM. Season starts are MM-DD. Clients show both on a 12-hour clock and as a day and month.
 
 **Responses**
 
@@ -3325,8 +3545,12 @@ Body: [HallSettings](#schema-hallsettings).
 | `university_name` | yes | string |  |
 | `timezone` | yes | string |  |
 | `grace_minutes` | yes | integer |  |
-| `ordinary_hours_end` | no | string or null | Hall-local HH:MM. Null until the hall sets ordinary closing time. |
-| `ordinary_outing_max_hours` | yes | integer |  |
+| `summer_hours_start` | yes | string | Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `summer_hours_end` | yes | string | Kept as HH:MM. Shown as 6:30 PM. Starts as 18:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `winter_hours_start` | yes | string | Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `winter_hours_end` | yes | string | Kept as HH:MM. Shown as 5:30 PM. Starts as 17:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `summer_season_start` | yes | string | Month and day summer hours begin. Shown as 01 April. Starts as 04-01. pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
+| `winter_season_start` | yes | string | Month and day winter hours begin. Shown as 01 October. Starts as 10-01. pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
 | `permission_early_minutes` | yes | integer |  |
 | `guest_max_inclusive_days` | yes | integer |  |
 | `guest_min_lead_days` | yes | integer |  |
@@ -3353,10 +3577,11 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** provost. Bearer access token.
 
-Caller: provost. Send only the fields that change. `ordinary_hours_end`
-may be null until the hall sets a clock time. Changing grace does not
-rewrite outings that already have a `grace_ends_at`. SMS templates keep
-the placeholders listed on `HallSettings`.
+Caller: provost. Send only the fields that change. Summer hours, winter
+hours, and the two season start dates are always set. Changing grace
+does not rewrite outings that already have a `grace_ends_at`. SMS
+templates keep the placeholders listed on `HallSettings`. A time of day
+is sent as HH:MM. A season start is sent as MM-DD.
 
 **Request.** Required.
 
@@ -3367,8 +3592,12 @@ Body: [HallSettingsUpdate](#schema-hallsettingsupdate).
 | `hall_name` | no | string | 1–160 characters. |
 | `university_name` | no | string | 1–160 characters. |
 | `grace_minutes` | no | integer | 0–180. |
-| `ordinary_hours_end` | no | string or null |  |
-| `ordinary_outing_max_hours` | no | integer | 1–72. |
+| `summer_hours_start` | no | string | pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `summer_hours_end` | no | string | pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `winter_hours_start` | no | string | pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `winter_hours_end` | no | string | pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `summer_season_start` | no | string | pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
+| `winter_season_start` | no | string | pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
 | `permission_early_minutes` | no | integer | 0–180. |
 | `guest_max_inclusive_days` | no | integer | 1–30. |
 | `guest_min_lead_days` | no | integer | 0–14. |
@@ -3390,8 +3619,12 @@ Body: [HallSettings](#schema-hallsettings).
 | `university_name` | yes | string |  |
 | `timezone` | yes | string |  |
 | `grace_minutes` | yes | integer |  |
-| `ordinary_hours_end` | no | string or null | Hall-local HH:MM. Null until the hall sets ordinary closing time. |
-| `ordinary_outing_max_hours` | yes | integer |  |
+| `summer_hours_start` | yes | string | Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `summer_hours_end` | yes | string | Kept as HH:MM. Shown as 6:30 PM. Starts as 18:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `winter_hours_start` | yes | string | Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `winter_hours_end` | yes | string | Kept as HH:MM. Shown as 5:30 PM. Starts as 17:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `summer_season_start` | yes | string | Month and day summer hours begin. Shown as 01 April. Starts as 04-01. pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
+| `winter_season_start` | yes | string | Month and day winter hours begin. Shown as 01 October. Starts as 10-01. pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
 | `permission_early_minutes` | yes | integer |  |
 | `guest_max_inclusive_days` | yes | integer |  |
 | `guest_min_lead_days` | yes | integer |  |
@@ -3430,10 +3663,12 @@ to the row are empty.
 
 Header, in this order:
 
-`record_type,full_name,enrolment_number,room_label,course,presence,state,destination_label,exited_at,expected_return_at,grace_ends_at,returned_at,outing_kind,parent_name,parent_phone,guest_name,relation,host_name,host_room_label,start_date,end_date,payment_status,guest_bucket,arrived_at,departed_at`
+`record_type,full_name,enrolment_number,room_label,block_code,course,presence,state,place,exited_at,expected_return_at,grace_ends_at,returned_at,outing_type,guardian_name,guardian_phone,guest_name,relation,host_name,host_room_label,start_date,end_date,payment_status,guest_bucket,arrived_at,departed_at`
 
-`record_type` is `resident` or `guest`. Instants are UTC. This export
-contains parent phone numbers and is not a warden route.
+`record_type` is `resident` or `guest`. Instants are UTC. Dates are
+YYYY-MM-DD. This export contains guardian phone numbers and is not a
+warden route. `block_code` is the resident's block, or the host's block
+on a guest row.
 
 **Responses**
 
@@ -3464,7 +3699,7 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** provost. Bearer access token.
 
-Caller: provost. Newest first. Includes skipped sends where no parent number was on file.
+Caller: provost. Newest first. Each row is a late notice or a return notice sent to the guardian phone.
 
 **Parameters**
 
@@ -3566,7 +3801,7 @@ Each JSON object used above. An operation section already shows the fields for i
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `code` | yes | string | Stable machine code. Known codes: `unauthenticated`, `forbidden`, `not_found`, `validation_error`, `duplicate_username`, `duplicate_block`, `duplicate_room`, `duplicate_destination`, `room_in_use`, `other_exists`, `already_outside`, `open_outing_exists`, `permission_required`, `no_outing_planned`, `permission_not_yet_valid`, `duplicate_scan`, `resident_suspended`, `unknown_hall_pass`, `not_pending`, `guest_not_expected`, `guest_not_in_hall`, `payment_required`, `payment_locked`. |
+| `code` | yes | string | Stable machine code. Known codes: `unauthenticated`, `forbidden`, `not_found`, `validation_error`, `duplicate_username`, `duplicate_block`, `duplicate_room`, `duplicate_destination`, `room_in_use`, `other_exists`, `already_outside`, `return_already_planned`, `open_outing_exists`, `outside_ordinary_hours`, `permission_required`, `no_outing_planned`, `permission_not_yet_valid`, `duplicate_scan`, `resident_suspended`, `unknown_hall_pass`, `not_pending`, `guest_not_expected`, `guest_not_in_hall`, `payment_required`, `payment_locked`. |
 | `message` | yes | string | Sentence the phone can show. Not a stack trace. |
 | `details` | no | object |  |
 
@@ -3662,8 +3897,7 @@ One of: `active`, `suspended`.
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `job_title` | yes | string |  |
-| `posting` | no | string or null |  |
+| `job_title` | yes | string | Name of the post, such as Gatekeeper or Resident warden. The role decides what the account may do. |
 
 ### <a id="schema-presence"></a>Presence
 
@@ -3695,7 +3929,7 @@ One of: `inside`, `outside`, `late`.
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `event` | yes | `exited` or `returned` |  |
-| `destination_label` | yes | string |  |
+| `place` | yes | string | Place remembered on the outing. |
 | `occurred_at` | yes | date-time |  |
 | `outing_id` | yes | uuid |  |
 
@@ -3713,8 +3947,7 @@ One of: `inside`, `outside`, `late`.
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `id` | yes | uuid |  |
-| `name` | yes | string |  |
-| `sort_order` | yes | integer |  |
+| `name` | yes | string | Named places are shown alphabetical by this name, ignoring capitals. The free-text choice is last. |
 | `is_other` | yes | boolean |  |
 | `is_active` | yes | boolean |  |
 
@@ -3729,7 +3962,6 @@ One of: `inside`, `outside`, `late`.
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `name` | yes | string | 1–80 characters. |
-| `sort_order` | yes | integer |  |
 | `is_other` | no | boolean | default `False`. |
 
 ### <a id="schema-destinationupdate"></a>DestinationUpdate
@@ -3737,7 +3969,6 @@ One of: `inside`, `outside`, `late`.
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `name` | no | string | 1–80 characters. |
-| `sort_order` | no | integer |  |
 | `is_other` | no | boolean |  |
 | `is_active` | no | boolean |  |
 
@@ -3749,7 +3980,9 @@ One of: `inside`, `outside`, `late`.
 | `destination_text` | no | string | Required when the destination is the Other row. Ignored otherwise. 1–120 characters. |
 | `expected_return_at` | yes | date-time |  |
 
-### <a id="schema-outingkind"></a>OutingKind
+### <a id="schema-outingtype"></a>OutingType
+
+Ordinary, late-night, and home going are one outing record. This says which.
 
 One of: `ordinary`, `late_night`, `home_going`.
 
@@ -3762,16 +3995,24 @@ One of: `planned`, `outside`, `returned`, `cancelled`.
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `id` | yes | uuid |  |
-| `permission_id` | no | uuid or null |  |
-| `kind` | yes | `ordinary` or `late_night` or `home_going` |  |
+| `permission_id` | no | uuid or null | Empty for an ordinary outing. Set when the exit used a permission. |
+| `type` | yes | `ordinary` or `late_night` or `home_going` |  |
 | `status` | yes | `planned` or `outside` or `returned` or `cancelled` |  |
-| `destination_label` | yes | string |  |
-| `expected_return_at` | yes | date-time |  |
+| `place` | yes | string | List name, the words typed for Other, or the permission's short place. |
+| `expected_return_at` | yes | date-time | UTC instant. Clients show India time on a 12-hour clock. |
 | `grace_ends_at` | yes | date-time |  |
-| `exited_at` | no | date-time or null |  |
-| `returned_at` | no | date-time or null |  |
+| `exited_at` | no | date-time or null | Empty only while an ordinary outing is still planned. Required once the resident has left. |
+| `exit_recorded_by_name` | no | string or null | Staff member who scanned the exit. Empty only while exited_at is empty. |
+| `returned_at` | no | date-time or null | Empty until the return scan. Required once the resident has returned. |
+| `return_recorded_by_name` | no | string or null | Staff member who scanned the return. Empty only while returned_at is empty. |
 | `is_late` | yes | boolean |  |
 | `created_at` | yes | date-time |  |
+
+### <a id="schema-outinglist"></a>OutingList
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `items` | yes | list of [Outing](#schema-outing) |  |
 
 ### <a id="schema-currentouting"></a>CurrentOuting
 
@@ -3799,7 +4040,7 @@ The `type` field selects the object:
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `type` | yes | `late_night` |  |
-| `place_label` | yes | string | 1–120 characters. |
+| `short_place` | yes | string | Typed by the resident. Not chosen from the ordinary destination list. 1–120 characters. |
 | `destination_detail` | no | string | 1–120 characters. |
 | `reason` | yes | string | 1–500 characters. |
 | `departure_at` | yes | date-time |  |
@@ -3810,7 +4051,7 @@ The `type` field selects the object:
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `type` | yes | `home_going` |  |
-| `place_label` | yes | string | Short place on the warden card, such as Lucknow. 1–120 characters. |
+| `short_place` | yes | string | Short place on the warden card, such as Lucknow. 1–120 characters. |
 | `address` | yes | string | 1–300 characters. |
 | `reason` | yes | string | 1–500 characters. |
 | `departure_at` | yes | date-time |  |
@@ -3823,7 +4064,7 @@ The `type` field selects the object:
 | `id` | yes | uuid |  |
 | `type` | yes | `late_night` or `home_going` |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` |  |
-| `place_label` | yes | string |  |
+| `short_place` | yes | string |  |
 | `destination_detail` | no | string or null |  |
 | `address` | no | string or null |  |
 | `reason` | yes | string |  |
@@ -3840,7 +4081,7 @@ The `type` field selects the object:
 | `id` | yes | uuid |  |
 | `type` | yes | `late_night` or `home_going` |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` |  |
-| `place_label` | yes | string |  |
+| `short_place` | yes | string |  |
 | `destination_detail` | no | string or null |  |
 | `address` | no | string or null |  |
 | `reason` | yes | string |  |
@@ -3902,6 +4143,9 @@ One of: `pending`, `upcoming`, `expected`, `in_hall`, `should_have_left`, `depar
 | `payment_status` | yes | `unpaid` or `paid` |  |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
+| `decided_by_name` | no | string or null | Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `arrived_recorded_by_name` | no | string or null | Staff member who recorded arrival. Empty until arrival is recorded. |
+| `departed_recorded_by_name` | no | string or null | Staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
 | `departed_at` | no | date-time or null |  |
 | `created_at` | yes | date-time |  |
@@ -3943,7 +4187,7 @@ One of: `pending`, `upcoming`, `expected`, `in_hall`, `should_have_left`, `depar
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `kind` | yes | `exit` or `return` or `guest_arrival` or `guest_departure` |  |
+| `event` | yes | `exit` or `return` or `guest_arrival` or `guest_departure` | What the gate recorded. |
 | `occurred_at` | yes | date-time |  |
 | `title` | yes | string | Resident or guest name. |
 | `subtitle` | yes | string | Room label, or host and room for a guest. |
@@ -3998,6 +4242,22 @@ One of: `pending`, `upcoming`, `expected`, `in_hall`, `should_have_left`, `depar
 | `guests_in_hall_count` | yes | integer |  |
 | `guests_should_have_left_count` | yes | integer |  |
 | `pending_guest_stay_count` | yes | integer |  |
+| `blocks` | yes | list of [BlockRegisterCounts](#schema-blockregistercounts) | The same counts for each block. Hall totals are the sum of these rows. |
+
+### <a id="schema-blockregistercounts"></a>BlockRegisterCounts
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `block_id` | yes | uuid |  |
+| `code` | yes | string |  |
+| `name` | yes | string |  |
+| `inside_count` | yes | integer |  |
+| `outside_count` | yes | integer |  |
+| `late_count` | yes | integer |  |
+| `pending_permission_count` | yes | integer |  |
+| `guests_in_hall_count` | yes | integer |  |
+| `guests_should_have_left_count` | yes | integer |  |
+| `pending_guest_stay_count` | yes | integer |  |
 
 ### <a id="schema-registerrow"></a>RegisterRow
 
@@ -4008,7 +4268,7 @@ One of: `pending`, `upcoming`, `expected`, `in_hall`, `should_have_left`, `depar
 | `room_label` | yes | string |  |
 | `presence` | yes | `inside` or `outside` |  |
 | `state` | yes | `inside` or `outside` or `late` |  |
-| `destination_label` | no | string or null |  |
+| `place` | no | string or null | Place on the open outing. Empty when the resident is inside. |
 | `expected_return_at` | no | date-time or null |  |
 | `returned_at` | no | date-time or null |  |
 
@@ -4021,9 +4281,11 @@ One of: `pending`, `upcoming`, `expected`, `in_hall`, `should_have_left`, `depar
 | `offset` | yes | integer |  |
 | `items` | yes | list of [RegisterRow](#schema-registerrow) |  |
 
-### <a id="schema-parentnotice"></a>ParentNotice
+### <a id="schema-guardiannotice"></a>GuardianNotice
 
-One of: `not_due`, `sent`, `skipped_no_phone`, `failed`.
+Whether the guardian has been told about the open outing.
+
+One of: `not_due`, `sent`, `failed`.
 
 ### <a id="schema-residentrecord"></a>ResidentRecord
 
@@ -4037,8 +4299,8 @@ One of: `not_due`, `sent`, `skipped_no_phone`, `failed`.
 | `presence` | yes | `inside` or `outside` |  |
 | `state` | yes | `inside` or `outside` or `late` |  |
 | `outing` | no | [Outing](#schema-outing) or null |  |
-| `parent_name` | yes | string or null |  |
-| `parent_notice` | yes | `not_due` or `sent` or `skipped_no_phone` or `failed` |  |
+| `guardian_name` | yes | string | Parent or guardian the hall contacts. |
+| `guardian_notice` | yes | `not_due` or `sent` or `failed` |  |
 
 ### <a id="schema-residentaccount"></a>ResidentAccount
 
@@ -4050,10 +4312,10 @@ One of: `not_due`, `sent`, `skipped_no_phone`, `failed`.
 | `course` | no | string or null |  |
 | `room_id` | yes | uuid |  |
 | `room_label` | yes | string |  |
-| `parent_name` | no | string or null |  |
-| `parent_phone` | no | string or null |  |
+| `guardian_name` | yes | string |  |
+| `guardian_phone` | yes | string | E.164, country code required. |
 | `status` | yes | `active` or `suspended` |  |
-| `presence` | yes | `inside` or `outside` |  |
+| `presence` | yes | `inside` or `outside` | Inside or outside the hall. Changes when a gate scan records an exit or a return. This is not sign-in. |
 
 ### <a id="schema-residentaccountpage"></a>ResidentAccountPage
 
@@ -4072,8 +4334,8 @@ One of: `not_due`, `sent`, `skipped_no_phone`, `failed`.
 | `enrolment_number` | yes | string | 1–40 characters. |
 | `course` | no | string | at most 120 characters. |
 | `room_id` | yes | uuid |  |
-| `parent_name` | no | string | at most 120 characters. |
-| `parent_phone` | no | string | E.164, for example +919876543210. pattern `^\+[1-9][0-9]{7,14}$`. |
+| `guardian_name` | yes | string | Parent or guardian. Required. 1–120 characters. |
+| `guardian_phone` | yes | string | E.164 with country code, for example +919876543210. pattern `^\+[1-9][0-9]{7,14}$`. |
 | `temporary_password` | yes | string | 10–200 characters. |
 
 ### <a id="schema-residentcreated"></a>ResidentCreated
@@ -4091,8 +4353,8 @@ One of: `not_due`, `sent`, `skipped_no_phone`, `failed`.
 | `enrolment_number` | no | string | 1–40 characters. |
 | `course` | no | string or null |  |
 | `room_id` | no | uuid |  |
-| `parent_name` | no | string or null |  |
-| `parent_phone` | no | string or null |  |
+| `guardian_name` | no | string | 1–120 characters. |
+| `guardian_phone` | no | string | pattern `^\+[1-9][0-9]{7,14}$`. |
 | `status` | no | `active` or `suspended` |  |
 
 ### <a id="schema-staffaccount"></a>StaffAccount
@@ -4104,7 +4366,6 @@ One of: `not_due`, `sent`, `skipped_no_phone`, `failed`.
 | `username` | yes | string |  |
 | `role` | yes | `gate` or `warden` or `provost` |  |
 | `job_title` | yes | string |  |
-| `posting` | no | string or null |  |
 | `status` | yes | `active` or `suspended` |  |
 
 ### <a id="schema-staffpage"></a>StaffPage
@@ -4123,8 +4384,7 @@ One of: `not_due`, `sent`, `skipped_no_phone`, `failed`.
 | `full_name` | yes | string | 1–120 characters. |
 | `username` | yes | string | 1–80 characters. |
 | `role` | yes | `gate` or `warden` or `provost` |  |
-| `job_title` | yes | string | 1–80 characters. |
-| `posting` | no | string | at most 80 characters. |
+| `job_title` | yes | string | Name of the post. Gate staff scan. A warden or the provost approves. The provost also keeps hall records. 1–80 characters. |
 | `temporary_password` | yes | string | 10–200 characters. |
 
 ### <a id="schema-staffupdate"></a>StaffUpdate
@@ -4133,7 +4393,6 @@ One of: `not_due`, `sent`, `skipped_no_phone`, `failed`.
 |---|---|---|---|
 | `full_name` | no | string | 1–120 characters. |
 | `job_title` | no | string | 1–80 characters. |
-| `posting` | no | string or null |  |
 | `status` | no | `active` or `suspended` |  |
 
 ### <a id="schema-block"></a>Block
@@ -4141,22 +4400,31 @@ One of: `not_due`, `sent`, `skipped_no_phone`, `failed`.
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `id` | yes | uuid |  |
-| `code` | yes | string |  |
+| `code` | yes | string | Short code used in room labels. Utility has no letter on the hall page, so its code is Utility. |
 | `name` | yes | string |  |
+| `floors` | yes | integer or null | A, B, C, and D have 4. The hall page does not state a floor count for Utility. |
+| `room_count` | yes | integer | Published room count for this block. Block-A 50, Block-B 58, Block-C 42, Block-D 40, Utility 16. |
+| `beds_per_room` | yes | integer | The hall page states a room capacity of 2. |
 | `is_active` | yes | boolean |  |
 
 ### <a id="schema-blockcreate"></a>BlockCreate
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `code` | yes | string | 1–8 characters. |
+| `code` | yes | string | 1–16 characters. |
 | `name` | yes | string | 1–80 characters. |
+| `floors` | no | integer or null |  |
+| `room_count` | yes | integer | 1–500. |
+| `beds_per_room` | yes | integer | 1–6. |
 
 ### <a id="schema-blockupdate"></a>BlockUpdate
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `name` | no | string | 1–80 characters. |
+| `floors` | no | integer or null |  |
+| `room_count` | no | integer | 1–500. |
+| `beds_per_room` | no | integer | 1–6. |
 | `is_active` | no | boolean |  |
 
 ### <a id="schema-room"></a>Room
@@ -4165,8 +4433,9 @@ One of: `not_due`, `sent`, `skipped_no_phone`, `failed`.
 |---|---|---|---|
 | `id` | yes | uuid |  |
 | `block_id` | yes | uuid |  |
-| `number` | yes | string |  |
+| `number` | yes | string | Door number, kept as written. The hall page does not publish door numbers. |
 | `label` | yes | string |  |
+| `bed_count` | yes | integer | Copied from the block when the room is created. Active residents assigned here, including a suspended resident who has not moved, cannot exceed this. |
 | `is_active` | yes | boolean |  |
 
 ### <a id="schema-roomcreate"></a>RoomCreate
@@ -4181,6 +4450,7 @@ One of: `not_due`, `sent`, `skipped_no_phone`, `failed`.
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `number` | no | string | 1–12 characters. |
+| `bed_count` | no | integer | 1–6. |
 | `is_active` | no | boolean |  |
 
 ### <a id="schema-hallsettings"></a>HallSettings
@@ -4191,8 +4461,12 @@ One of: `not_due`, `sent`, `skipped_no_phone`, `failed`.
 | `university_name` | yes | string |  |
 | `timezone` | yes | string |  |
 | `grace_minutes` | yes | integer |  |
-| `ordinary_hours_end` | no | string or null | Hall-local HH:MM. Null until the hall sets ordinary closing time. |
-| `ordinary_outing_max_hours` | yes | integer |  |
+| `summer_hours_start` | yes | string | Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `summer_hours_end` | yes | string | Kept as HH:MM. Shown as 6:30 PM. Starts as 18:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `winter_hours_start` | yes | string | Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `winter_hours_end` | yes | string | Kept as HH:MM. Shown as 5:30 PM. Starts as 17:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `summer_season_start` | yes | string | Month and day summer hours begin. Shown as 01 April. Starts as 04-01. pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
+| `winter_season_start` | yes | string | Month and day winter hours begin. Shown as 01 October. Starts as 10-01. pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
 | `permission_early_minutes` | yes | integer |  |
 | `guest_max_inclusive_days` | yes | integer |  |
 | `guest_min_lead_days` | yes | integer |  |
@@ -4207,8 +4481,12 @@ One of: `not_due`, `sent`, `skipped_no_phone`, `failed`.
 | `hall_name` | no | string | 1–160 characters. |
 | `university_name` | no | string | 1–160 characters. |
 | `grace_minutes` | no | integer | 0–180. |
-| `ordinary_hours_end` | no | string or null |  |
-| `ordinary_outing_max_hours` | no | integer | 1–72. |
+| `summer_hours_start` | no | string | pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `summer_hours_end` | no | string | pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `winter_hours_start` | no | string | pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `winter_hours_end` | no | string | pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `summer_season_start` | no | string | pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
+| `winter_season_start` | no | string | pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
 | `permission_early_minutes` | no | integer | 0–180. |
 | `guest_max_inclusive_days` | no | integer | 1–30. |
 | `guest_min_lead_days` | no | integer | 0–14. |
@@ -4224,11 +4502,11 @@ One of: `not_due`, `sent`, `skipped_no_phone`, `failed`.
 | `outing_id` | yes | uuid |  |
 | `resident_id` | yes | uuid |  |
 | `resident_name` | no | string |  |
-| `kind` | yes | `late_notice` or `return_notice` |  |
-| `recipient_phone` | no | string or null |  |
-| `body` | no | string or null |  |
-| `driver` | no | `mock` or `dlt` or null |  |
-| `status` | yes | `sent` or `failed` or `skipped` |  |
+| `notice_type` | yes | `late_notice` or `return_notice` | Late notice, or return notice. |
+| `recipient_phone` | yes | string | Guardian phone copied at send time. Country code required. pattern `^\+[1-9][0-9]{7,14}$`. |
+| `body` | yes | string | Filled message. Times are described for display as 12-hour; this body is the text that was sent. |
+| `driver` | yes | `mock` or `dlt` |  |
+| `status` | yes | `sent` or `failed` |  |
 | `created_at` | yes | date-time |  |
 
 ### <a id="schema-smspage"></a>SmsPage

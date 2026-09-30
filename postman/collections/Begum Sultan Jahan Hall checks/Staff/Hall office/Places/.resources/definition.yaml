@@ -1,0 +1,5 @@
+$kind: collection
+name: Places
+order: 3000
+description: |-
+  Blocks, rooms, and ordinary destinations.

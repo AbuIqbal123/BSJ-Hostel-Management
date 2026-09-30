@@ -1,0 +1,36 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/api/v1/admin/destinations'
+order: 7000
+description: |-
+  Caller: provost. Includes inactive rows. Named places are alphabetical, ignoring capitals. The free-text choice is last. The resident catalog route returns active rows only. Returns 404 until this route is built.
+scripts:
+  - type: beforeRequest
+    language: text/javascript
+    code: |-
+      pm.sendRequest({
+          url: pm.collectionVariables.get("baseUrl") + "/api/v1/auth/login",
+          method: "POST",
+          header: {"Content-Type": "application/json"},
+          body: {
+              mode: "raw",
+              raw: JSON.stringify({username: "provost.halima", password: ""})
+          }
+      }, function (err, res) {
+          if (err || !res || res.code !== 200) {
+              throw new Error("Could not sign in as Halima Begum.");
+          }
+          const signedIn = res.json();
+          pm.request.headers.upsert({
+              key: "Authorization",
+              value: "Bearer " + signedIn.access_token
+          });
+          const target = String(pm.request.url);
+          if (target.indexOf("/api/v1/auth/refresh") !== -1) {
+              pm.request.body.update({
+                  mode: "raw",
+                  raw: JSON.stringify({refresh_token: signedIn.refresh_token}),
+                  options: {raw: {language: "json"}}
+              });
+          }
+      });

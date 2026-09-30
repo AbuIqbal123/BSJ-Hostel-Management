@@ -1,7 +1,8 @@
 """SQLite connection for one environment.
 
-The schema is not created here. docs/database.md is the model, and it has
-not been applied yet. Callers open a short transaction and close it.
+Each connection uses WAL, a busy timeout, and foreign keys. The hall
+records are created by app.shared.migrate when the service starts. Callers open
+a short transaction and close it.
 """
 
 from __future__ import annotations
@@ -9,7 +10,7 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Iterator
 
-from app.config import get_settings
+from app.shared.config import get_settings
 
 
 def create_connection() -> sqlite3.Connection:

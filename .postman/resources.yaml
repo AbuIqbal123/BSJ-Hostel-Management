@@ -1,0 +1,8 @@
+cloudResources:
+  collections:
+    ../postman/collections/Begum Sultan Jahan Hall checks: 27698614-ee8da4eb-741c-4bdc-a16d-c3e3713052f0
+  environments:
+    ../postman/environments/local.environment.yaml: 27698614-7da4dac1-2de8-42c5-8e3f-8480fe52b7b5
+workspace:
+  id: fe5c103d-8ca2-4b9b-82c9-7516ad07d5b2
+  name: My Workspace

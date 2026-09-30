@@ -1,0 +1,5 @@
+$kind: collection
+name: Settings
+order: 4000
+description: |-
+  Hours, seasons, grace, and the guardian message text.

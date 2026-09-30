@@ -1,0 +1,5 @@
+$kind: collection
+name: Resident accounts
+order: 1000
+description: |-
+  Resident accounts, including a new hall pass.
