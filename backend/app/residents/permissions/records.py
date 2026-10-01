@@ -196,6 +196,11 @@ def list_reviews(
     status: str | None,
     limit: int,
     offset: int,
+    permission_type: str | None = None,
+    block_id: str | None = None,
+    created_from: str | None = None,
+    created_to: str | None = None,
+    order: Literal["newest", "oldest"] = "newest",
 ) -> PermissionPageBody:
     clauses: list[str] = []
     params: list[str] = []
@@ -205,16 +210,37 @@ def list_reviews(
     if status is not None:
         clauses.append("permissions.status = ?")
         params.append(status)
+    if permission_type is not None:
+        clauses.append("permissions.type = ?")
+        params.append(permission_type)
+    if block_id is not None:
+        clauses.append("rooms.block_id = ?")
+        params.append(block_id)
+    if created_from is not None:
+        clauses.append("permissions.created_at >= ?")
+        params.append(created_from)
+    if created_to is not None:
+        clauses.append("permissions.created_at <= ?")
+        params.append(created_to)
     where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    if block_id is not None:
+        count_from = """
+        permissions
+        JOIN residents ON residents.user_id = permissions.resident_id
+        JOIN rooms ON rooms.id = residents.room_id
+        """
+    else:
+        count_from = "permissions"
     total = connection.execute(
-        f"SELECT COUNT(*) FROM permissions {where}",
+        f"SELECT COUNT(*) FROM {count_from} {where}",
         params,
     ).fetchone()[0]
+    direction = "ASC" if order == "oldest" else "DESC"
     rows = connection.execute(
         f"""
         {_REVIEW_SELECT}
         {where}
-        ORDER BY permissions.created_at DESC, permissions.id DESC
+        ORDER BY permissions.created_at {direction}, permissions.id {direction}
         LIMIT ? OFFSET ?
         """,
         [*params, limit, offset],

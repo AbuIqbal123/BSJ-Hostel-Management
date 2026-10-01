@@ -1,0 +1,5 @@
+$kind: collection
+name: Payment
+order: 4000
+description: |-
+  Mark guest payment.

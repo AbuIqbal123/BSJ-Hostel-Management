@@ -1,8 +1,8 @@
 # Test catalog
 
-Document version: **0.4.18**
+Document version: **0.4.19**
 
-Status: ten recorded tests. Startup creates the hall. Sign-in keeps a session. A development command adds local accounts. Resident home reads the resident's own screen. The destination list shows the active ordinary-outing choices, with Other last. A resident can plan an ordinary outing before the gate scan. She can read the outing that is still planned or outside. She can cancel that plan before the gate scan. A warden or the provost can read the register presence board: hall and block counts, the resident list with filters, one resident's record, and the late list. A resident can submit, list, read, and cancel late-night and home-going permissions. A warden or the provost can read the permission queue and decide a pending request.
+Status: eleven recorded tests. Startup creates the hall. Sign-in keeps a session. A development command adds local accounts. Resident home reads the resident's own screen. The destination list shows the active ordinary-outing choices, with Other last. A resident can plan an ordinary outing before the gate scan. She can read the outing that is still planned or outside. She can cancel that plan before the gate scan. A warden or the provost can read the register presence board: hall and block counts, the resident list with filters, one resident's record, and the late list. A resident can submit, list, read, and cancel late-night and home-going permissions. A warden or the provost can read the permission queue and decide a pending request. The staff permission queue sorts by created_at (newest default) and accepts optional filters for block, type, and created_at date range.
 
 Each test has an entry here and a file next to the business area it covers. Write the failing check for one behavior, see it fail, then make it pass. Update the entry in that same change. The entry names the test file. It does not copy every payload when the test already states them. A migration is not part of this loop unless the stored records change. Bump this document when the format or a recorded test changes.
 
@@ -156,4 +156,18 @@ Copy this block for each test and fill every field.
 | Expected response | No token returns 401 `unauthenticated`. Gate on resident routes and gate or resident on staff routes return 403 `forbidden`. A departure clearly in the past returns 422 `validation_error` on `departure_at`. A departure a few minutes before now is accepted. Return not after departure returns 422 `validation_error`. Overlapping late-night and home-going submissions return 201. Own list is newest first and includes resident name and room; looking at it expires that resident's unused approved permission past its return. Another resident's id returns 404. Cancel pending or approved returns 200 `cancelled`. Cancel after exit returns 409 `permission_in_use`. Staff default list is pending; looking at it expires any unused approved permission past its return. Approve returns 200 `approved`, stores the decider, writes `permission.approved`, and leaves outings empty for that permission. A second decision returns 409 `not_pending` and says only a pending permission can be approved or rejected, naming the current status. Reject returns 200 `rejected`. Expired permissions stay `expired` when looked at again, with a system `permission.expired` audit entry from the first look. |
 | Failure cases | E2E; failure cases are covered by the expected response. |
 | Artifact | `backend/app/residents/permissions/tests/artifacts/permission-lifecycle.json` |
+
+### `permission-queue` Staff permission queue filters and sort
+
+| Field | Content |
+|---|---|
+| Test | `backend/app/staff/register/tests/test_permission_queue.py` |
+| Purpose | A warden or the provost lists permissions sorted by `created_at` (newest first by default, or oldest), and may filter by the resident's current-room `block_id`, by `type` (late_night or home_going), and by an inclusive `created_at` range (`created_from` / `created_to`). Status still defaults to pending. |
+| Actor | A warden. A gate or resident account is refused. The provost may call the same route. |
+| Preconditions | The hall from `hall-created` exists. The clock is frozen at 2026-09-30T13:00:00Z. Fatima Khan is active gate staff. Sara Malik is an active warden. Halima Begum is an active provost. Active residents: Aisha Khan in B-204 (Block-B) and Zara Ahmed in A-101 (Block-A). Four pending permissions exist with known created_at times and types so filters and sort order are visible. |
+| Action | `GET /api/v1/permissions` with no token, as Fatima, as Aisha, then as Sara: default pending list (newest first); `order=oldest`; filter `type=home_going`; filter `block_id` for Block-A; filter `created_from` and `created_to`; combine `type` and `block_id`. As Halima, read the default list once. |
+| Expected response | No token returns 401 `unauthenticated`. Gate and resident return 403 `forbidden`. The default list matches `default` in the artifact (newest `created_at` first). `order=oldest` matches `oldest`. `type=home_going` matches `home_going`. Block-A matches `block_a`. The created_at window matches `created_range`. Combined type and block matches `home_going_block_a`. The provost default list matches the warden default. The reads do not add an audit entry beyond sign-in. |
+| Failure cases | E2E; failure cases are covered by the expected response. |
+| Artifact | `backend/app/staff/register/tests/artifacts/permission-queue.json` |
+
 

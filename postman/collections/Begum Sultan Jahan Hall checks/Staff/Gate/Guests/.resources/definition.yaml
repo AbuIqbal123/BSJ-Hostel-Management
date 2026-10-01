@@ -1,0 +1,5 @@
+$kind: collection
+name: Guests
+order: 2000
+description: |-
+  Guest list, arrival, and departure at the gate.

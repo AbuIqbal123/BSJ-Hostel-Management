@@ -3,7 +3,7 @@ method: POST
 url: '{{baseUrl}}/api/v1/auth/login'
 order: 100
 description: |-
-  Signs in as Halima Begum, the provost. Press Send. The response is her access token, her refresh token, and her account. She can open the gate, the register, and the hall office.
+  Signs in as Halima Begum, the provost. Press Send. Stashes `access_token` in collection variable `provost_token`.
 headers:
   - key: Content-Type
     value: application/json
@@ -39,3 +39,6 @@ scripts:
           pm.expect(body.user.role).to.eql("provost");
           pm.expect(body.user.full_name).to.eql("Halima Begum");
       });
+      if (pm.response.code === 200 && body.access_token) {
+          pm.collectionVariables.set("provost_token", body.access_token);
+      }

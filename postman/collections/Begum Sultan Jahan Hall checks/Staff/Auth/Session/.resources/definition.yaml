@@ -1,0 +1,5 @@
+$kind: collection
+name: Session
+order: 200
+description: |-
+  Current account, refresh, change password, and sign out.

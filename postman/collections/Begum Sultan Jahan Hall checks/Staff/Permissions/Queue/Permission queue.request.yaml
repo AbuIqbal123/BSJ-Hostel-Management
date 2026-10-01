@@ -1,14 +1,31 @@
 $kind: http-request
 method: GET
-url: '{{baseUrl}}/api/v1/permissions?limit=50&offset=0'
+url: '{{baseUrl}}/api/v1/permissions?status=pending&order=newest&limit=50&offset=0'
 order: 5000
 queryParams:
+  - key: status
+    value: pending
+  - key: type
+    value: ''
+    description: Optional. late_night or home_going.
+  - key: block_id
+    value: ''
+    description: Optional. Resident's current-room block.
+  - key: created_from
+    value: ''
+    description: Optional inclusive UTC lower bound on created_at.
+  - key: created_to
+    value: ''
+    description: Optional inclusive UTC upper bound on created_at.
+  - key: order
+    value: newest
+    description: newest (default) or oldest by created_at.
   - key: limit
     value: '50'
   - key: offset
     value: '0'
 description: |-
-  Caller: warden or provost. Defaults to `pending`. Newest first. An approved permission whose expected return has passed, and which was never used, becomes `expired` when this list is read.
+  Caller: warden or provost. Defaults to `pending`. Ordered by `created_at` (`order=newest` or `oldest`). Optional filters: `type`, `block_id`, `created_from`, `created_to`. An approved permission whose expected return has passed, and which was never used, becomes `expired` when this list is read.
 scripts:
   - type: beforeRequest
     language: text/javascript

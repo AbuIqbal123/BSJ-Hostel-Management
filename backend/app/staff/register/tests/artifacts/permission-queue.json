@@ -1,0 +1,194 @@
+{
+  "default": {
+    "total": 4,
+    "limit": 50,
+    "offset": 0,
+    "items": [
+      {
+        "id": "f8800000-0000-4000-8000-000000000044",
+        "type": "home_going",
+        "status": "pending",
+        "short_place": "Delhi",
+        "created_at": "2026-09-30T12:30:00Z",
+        "resident_id": "d55fa000-0000-4000-8000-00000000000a",
+        "resident_name": "Zara Ahmed",
+        "room_label": "A-101"
+      },
+      {
+        "id": "f8800000-0000-4000-8000-000000000043",
+        "type": "late_night",
+        "status": "pending",
+        "short_place": "City library",
+        "created_at": "2026-09-30T12:00:00Z",
+        "resident_id": "d55fa000-0000-4000-8000-00000000000a",
+        "resident_name": "Zara Ahmed",
+        "room_label": "A-101"
+      },
+      {
+        "id": "f8800000-0000-4000-8000-000000000042",
+        "type": "home_going",
+        "status": "pending",
+        "short_place": "Lucknow",
+        "created_at": "2026-09-30T11:00:00Z",
+        "resident_id": "b22de000-0000-4000-8000-000000000002",
+        "resident_name": "Aisha Khan",
+        "room_label": "B-204"
+      },
+      {
+        "id": "f8800000-0000-4000-8000-000000000041",
+        "type": "late_night",
+        "status": "pending",
+        "short_place": "Women's College",
+        "created_at": "2026-09-30T10:00:00Z",
+        "resident_id": "b22de000-0000-4000-8000-000000000002",
+        "resident_name": "Aisha Khan",
+        "room_label": "B-204"
+      }
+    ]
+  },
+  "oldest": {
+    "total": 4,
+    "limit": 50,
+    "offset": 0,
+    "items": [
+      {
+        "id": "f8800000-0000-4000-8000-000000000041",
+        "type": "late_night",
+        "status": "pending",
+        "short_place": "Women's College",
+        "created_at": "2026-09-30T10:00:00Z",
+        "resident_id": "b22de000-0000-4000-8000-000000000002",
+        "resident_name": "Aisha Khan",
+        "room_label": "B-204"
+      },
+      {
+        "id": "f8800000-0000-4000-8000-000000000042",
+        "type": "home_going",
+        "status": "pending",
+        "short_place": "Lucknow",
+        "created_at": "2026-09-30T11:00:00Z",
+        "resident_id": "b22de000-0000-4000-8000-000000000002",
+        "resident_name": "Aisha Khan",
+        "room_label": "B-204"
+      },
+      {
+        "id": "f8800000-0000-4000-8000-000000000043",
+        "type": "late_night",
+        "status": "pending",
+        "short_place": "City library",
+        "created_at": "2026-09-30T12:00:00Z",
+        "resident_id": "d55fa000-0000-4000-8000-00000000000a",
+        "resident_name": "Zara Ahmed",
+        "room_label": "A-101"
+      },
+      {
+        "id": "f8800000-0000-4000-8000-000000000044",
+        "type": "home_going",
+        "status": "pending",
+        "short_place": "Delhi",
+        "created_at": "2026-09-30T12:30:00Z",
+        "resident_id": "d55fa000-0000-4000-8000-00000000000a",
+        "resident_name": "Zara Ahmed",
+        "room_label": "A-101"
+      }
+    ]
+  },
+  "home_going": {
+    "total": 2,
+    "limit": 50,
+    "offset": 0,
+    "items": [
+      {
+        "id": "f8800000-0000-4000-8000-000000000044",
+        "type": "home_going",
+        "status": "pending",
+        "short_place": "Delhi",
+        "created_at": "2026-09-30T12:30:00Z",
+        "resident_id": "d55fa000-0000-4000-8000-00000000000a",
+        "resident_name": "Zara Ahmed",
+        "room_label": "A-101"
+      },
+      {
+        "id": "f8800000-0000-4000-8000-000000000042",
+        "type": "home_going",
+        "status": "pending",
+        "short_place": "Lucknow",
+        "created_at": "2026-09-30T11:00:00Z",
+        "resident_id": "b22de000-0000-4000-8000-000000000002",
+        "resident_name": "Aisha Khan",
+        "room_label": "B-204"
+      }
+    ]
+  },
+  "block_a": {
+    "total": 2,
+    "limit": 50,
+    "offset": 0,
+    "items": [
+      {
+        "id": "f8800000-0000-4000-8000-000000000044",
+        "type": "home_going",
+        "status": "pending",
+        "short_place": "Delhi",
+        "created_at": "2026-09-30T12:30:00Z",
+        "resident_id": "d55fa000-0000-4000-8000-00000000000a",
+        "resident_name": "Zara Ahmed",
+        "room_label": "A-101"
+      },
+      {
+        "id": "f8800000-0000-4000-8000-000000000043",
+        "type": "late_night",
+        "status": "pending",
+        "short_place": "City library",
+        "created_at": "2026-09-30T12:00:00Z",
+        "resident_id": "d55fa000-0000-4000-8000-00000000000a",
+        "resident_name": "Zara Ahmed",
+        "room_label": "A-101"
+      }
+    ]
+  },
+  "created_range": {
+    "total": 2,
+    "limit": 50,
+    "offset": 0,
+    "items": [
+      {
+        "id": "f8800000-0000-4000-8000-000000000043",
+        "type": "late_night",
+        "status": "pending",
+        "short_place": "City library",
+        "created_at": "2026-09-30T12:00:00Z",
+        "resident_id": "d55fa000-0000-4000-8000-00000000000a",
+        "resident_name": "Zara Ahmed",
+        "room_label": "A-101"
+      },
+      {
+        "id": "f8800000-0000-4000-8000-000000000042",
+        "type": "home_going",
+        "status": "pending",
+        "short_place": "Lucknow",
+        "created_at": "2026-09-30T11:00:00Z",
+        "resident_id": "b22de000-0000-4000-8000-000000000002",
+        "resident_name": "Aisha Khan",
+        "room_label": "B-204"
+      }
+    ]
+  },
+  "home_going_block_a": {
+    "total": 1,
+    "limit": 50,
+    "offset": 0,
+    "items": [
+      {
+        "id": "f8800000-0000-4000-8000-000000000044",
+        "type": "home_going",
+        "status": "pending",
+        "short_place": "Delhi",
+        "created_at": "2026-09-30T12:30:00Z",
+        "resident_id": "d55fa000-0000-4000-8000-00000000000a",
+        "resident_name": "Zara Ahmed",
+        "room_label": "A-101"
+      }
+    ]
+  }
+}

@@ -1,0 +1,5 @@
+$kind: collection
+name: Summary
+order: 1000
+description: |-
+  Hall and block presence counts.

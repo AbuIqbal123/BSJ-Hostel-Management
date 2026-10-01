@@ -1,0 +1,5 @@
+$kind: collection
+name: Cancel
+order: 3000
+description: |-
+  Cancel own guest application.

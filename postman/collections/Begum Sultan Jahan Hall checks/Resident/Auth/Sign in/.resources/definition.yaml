@@ -1,0 +1,5 @@
+$kind: collection
+name: Sign in
+order: 100
+description: |-
+  Sign in as the resident. Stashes resident_token.

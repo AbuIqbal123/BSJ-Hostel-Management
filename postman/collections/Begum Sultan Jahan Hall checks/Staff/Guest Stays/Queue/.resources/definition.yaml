@@ -1,0 +1,5 @@
+$kind: collection
+name: Queue
+order: 1000
+description: |-
+  Guest stay list for the warden or provost.

@@ -1120,8 +1120,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** resident. Bearer access token.
 
-Caller: resident. Allowed while `pending` or `approved`. Not allowed
-once the gate has recorded an exit against it.
+Caller: resident. Allowed while `pending` or `approved` and unused at
+the gate (no exit scan; status is not `in_use`). Not allowed once the
+gate has recorded an exit against it.
 
 **Parameters**
 
@@ -1185,15 +1186,24 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** warden or provost. Bearer access token.
 
-Caller: warden or provost. Defaults to `pending`. Newest first. An
-approved permission whose expected return has passed, and which was never
-used, becomes `expired` when this list is read.
+Caller: warden or provost. Defaults to `pending`. Ordered by
+`created_at`, newest first (`order=newest`). Pass `order=oldest` for
+oldest first. Optional filters narrow the page: `block_id` is the block
+of the resident's current room; `type` is late-night or home going;
+`created_from` and `created_to` are inclusive UTC bounds on
+`created_at`. An approved permission whose expected return has passed,
+and which was never used, becomes `expired` when this list is read.
 
 **Parameters**
 
 | Name | In | Required | Type | Notes |
 |---|---|---|---|---|
-| `status` | query | no | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` |  |
+| `status` | query | no | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` | Defaults to pending when omitted. |
+| `type` | query | no | `late_night` or `home_going` | Limit to late-night or home-going permissions. |
+| `block_id` | query | no | uuid | Limit to residents whose current room is in this block. |
+| `created_from` | query | no | date-time | Inclusive lower bound on created_at (UTC instant). |
+| `created_to` | query | no | date-time | Inclusive upper bound on created_at (UTC instant). |
+| `order` | query | no | `newest` or `oldest` | Sort by created_at. Default newest. default `newest`. |
 | `limit` | query | no | integer | 1–500. default `50`. |
 | `offset` | query | no | integer | minimum 0. default `0`. |
 

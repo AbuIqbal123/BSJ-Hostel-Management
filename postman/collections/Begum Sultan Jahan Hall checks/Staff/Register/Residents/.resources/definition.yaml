@@ -1,0 +1,5 @@
+$kind: collection
+name: Residents
+order: 2000
+description: |-
+  Resident register list and one resident's record.

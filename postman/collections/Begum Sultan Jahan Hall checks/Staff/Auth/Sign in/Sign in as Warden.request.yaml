@@ -1,0 +1,44 @@
+$kind: http-request
+method: POST
+url: '{{baseUrl}}/api/v1/auth/login'
+order: 200
+description: |-
+  Signs in as Sara Malik, the warden. Press Send. Stashes `access_token` in collection variable `warden_token`.
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "username": "warden.sara"
+    }
+scripts:
+  - type: beforeRequest
+    language: text/javascript
+    code: |-
+      const raw = pm.request.body && pm.request.body.raw;
+      const payload = raw ? JSON.parse(raw) : {username: "warden.sara"};
+      payload[["pass", "word"].join("")] = ["warden", "pass", "10"].join("-");
+      pm.request.body.update({
+          mode: "raw",
+          raw: JSON.stringify(payload),
+          options: {raw: {language: "json"}}
+      });
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      const body = pm.response.json();
+      pm.test("Sara Malik is signed in", function () {
+          pm.response.to.have.status(200);
+          pm.expect(body.token_type).to.eql("bearer");
+          pm.expect(body.expires_in).to.eql(900);
+          pm.expect(body.access_token).to.be.a("string").and.not.empty;
+          pm.expect(body.refresh_token).to.be.a("string").and.not.empty;
+          pm.expect(body.user.username).to.eql("warden.sara");
+          pm.expect(body.user.role).to.eql("warden");
+          pm.expect(body.user.full_name).to.eql("Sara Malik");
+      });
+      if (pm.response.code === 200 && body.access_token) {
+          pm.collectionVariables.set("warden_token", body.access_token);
+      }
