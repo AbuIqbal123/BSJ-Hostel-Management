@@ -16,7 +16,7 @@ Inspired by Apple / Jony Ive craft applied to hostel ops: beauty through restrai
 2. **Presence is the hero.** Inside / outside / late / pending must be readable at arm’s length in under a second. Status beats chrome.
 3. **Night-duty first for gate; restrained dark for everyone.** Gate UI is always the darkest shell: high-contrast, thumb-large. Resident, warden, and provost ship a restrained dark theme (paper/ink inverted carefully) alongside light. Gate stays darkest; do not force one chrome on every role.
 4. **Institutional calm, not startup loud.** Forest, paper, gold. No rainbow dashboards. No gamification. No confetti.
-5. **Magic is earned.** Permanent hall-pass QR that toggles exit/return; auto late vs on-time; grace copy that names the parent SMS. Flair lives in those moments, not in decorative motion.
+5. **Magic is earned.** Permanent hall-pass QR that toggles exit/return; auto late vs on-time; grace copy that names the parent SMS. Prefer small, cute, purposeful micro-animations over spectacle; flair lives in those feedback moments, not in decorative loops.
 6. **Type does the branding.** Serif for identity and state. Sans for work. Mono for codes. Icons support; they do not decorate every row.
 7. **Words over labels.** Sentence case. Real hall language from the contract (`late-night`, `home going`, `hall pass`, `register`). No inventing product terms the API does not use. **No em dashes (U+2014) in product copy** (or in this document): use commas, periods, or hyphens.
 8. **Speed under stress.** Gate: scan → result → next. Register: counts → late → search. Permissions: queue → decide. Reduce taps; never hide the primary action.
@@ -361,9 +361,11 @@ Only as a **temporary** stub during early layout, behind a feature flag or `TODO
 
 ---
 
-## 6. Motion
+## 6. Motion and micro-interactions
 
-Subtle. Purposeful. Mostly none.
+Subtle. Purposeful. Mostly short. Prefer **small, cute, purposeful micro-animations** over spectacle. Motion should confirm a result or guide attention; it should never decorate for its own sake.
+
+### Budget (navigation and feedback)
 
 | Allowed | Spec |
 |---|---|
@@ -373,9 +375,31 @@ Subtle. Purposeful. Mostly none.
 | Button press | 80ms opacity/scale 0.98 |
 | Presence chip change | Cross-fade 150ms |
 
-**Forbidden:** parallax hero headers; looping Lottie on home; confetti on approve; continuous shimmer; motion that delays a gate result.
+### Cute micro-interactions (hostel ops)
 
-Respect reduced-motion: instant cuts.
+Keep them restrained and institutional: a soft settle, a brief check mark, a gentle opacity lift. Not childish bounce, not neon/circuit glow, not game UX.
+
+| Moment | Intent | Spec (default) |
+|---|---|---|
+| Permission card appear | New request or decision lands calmly | Fade + 6–8px rise, 180–220ms ease-out |
+| Gate scan success | Confirm exit/return without delaying the next scan | Check or gold flash on result panel, ≤180ms; auto-dismiss per gate flow |
+| List item enter | Queue, register row, or history row arrives ordered | Fade + 4px rise, 150–200ms ease-out; **stagger** when many |
+| Toggle | Preference or paid/unpaid flips clearly | Thumb/track 120–160ms ease-out; optional 1-frame overshoot ≤2% |
+| Toast / banner | Soft success or refusal notice | Slide or fade from edge, 200ms ease-out; hold; exit faster than enter |
+
+Reuse the same timing curve across roles so resident, gate, warden, and provost feel like one product. Gate stays fastest: never let motion delay a scan result.
+
+### Stagger rule (do not skip)
+
+When many elements animate (list rows, chip groups, stacked cards, staggered toasts), **stagger entrances and exits**. Short delays (about **30–60ms** between siblings) keep the UI ordered. Simultaneous motion on a long list feels chaotic; a cascade feels calm. Cap total stagger so the last item still finishes within ~400–500ms of the first. Do not stagger primary gate scan feedback.
+
+### Timing and accessibility
+
+- Default curve: short **ease-out** (or a soft spring only for sheets). Prefer 80–300ms for feedback; longer only for screen transitions.
+- One motion job per interaction. Do not stack fade, scale, rotate, and color shift on the same control.
+- **Respect reduce-motion / reduced-motion:** instant cuts, no stagger delays, no decorative enter animations. Still show the final state clearly (chip, toast copy, gate result).
+
+**Forbidden:** parallax hero headers; looping Lottie on home; confetti on approve; continuous shimmer; neon or circuit-board motion; childish overshoot on institutional screens; motion that delays a gate result.
 
 ---
 
@@ -510,7 +534,7 @@ Before UI implementation starts, agree:
 - [ ] Palette tokens: light + resident/warden/provost dark + gate dark shell (§3)
 - [ ] Spacing / radius / list-vs-card / RN elevation 0-2 (§4)
 - [ ] Custom icon set + Expo app icon sizes (§5)
-- [ ] Motion budget (§6)
+- [ ] Motion / micro-interactions budget + stagger rule (§6)
 - [ ] No em dashes (U+2014) in product copy or this doc
 - [ ] Workflow priority order for first sprint (recommended: Auth → Resident home/outing/hall pass → Gate scan → Register → Permissions → Guests → Office)
 
