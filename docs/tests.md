@@ -1,8 +1,8 @@
 # Test catalog
 
-Document version: **0.4.23**
+Document version: **0.4.24**
 
-Status: fifteen recorded tests. Startup creates the hall. Sign-in keeps a session. A development command adds local accounts. Resident home reads the resident's own screen. The destination list shows the active ordinary-outing choices, with Other last. A resident can plan an ordinary outing before the gate scan. She can read the outing that is still planned or outside. She can cancel that plan before the gate scan. A warden or the provost can read the register presence board: hall and block counts, the resident list with filters, one resident's record, and the late list. A resident can submit, list, read, and cancel late-night and home-going permissions. A warden or the provost can read the permission queue and decide a pending request. The staff permission queue sorts by created_at (newest default) and accepts optional filters for block, type, and created_at date range. A resident can read her own exit and return history as a paginated list. A resident can read her permanent hall-pass QR payload. A resident can apply for, list, read, and cancel her own guest stays. A warden or the provost can list guest stays by bucket, decide a pending stay, and mark payment before arrival.
+Status: sixteen recorded tests. Startup creates the hall. Sign-in keeps a session. A development command adds local accounts. Resident home reads the resident's own screen. The destination list shows the active ordinary-outing choices, with Other last. A resident can plan an ordinary outing before the gate scan. She can read the outing that is still planned or outside. She can cancel that plan before the gate scan. A warden or the provost can read the register presence board: hall and block counts, the resident list with filters, one resident's record, and the late list. A resident can submit, list, read, and cancel late-night and home-going permissions. A warden or the provost can read the permission queue and decide a pending request. The staff permission queue sorts by created_at (newest default) and accepts optional filters for block, type, and created_at date range. A resident can read her own exit and return history as a paginated list. A resident can read her permanent hall-pass QR payload. A resident can apply for, list, read, and cancel her own guest stays. A warden or the provost can list guest stays by bucket, decide a pending stay, and mark payment before arrival. Gate staff can scan a hall pass to record an exit or return, and read recent gate activity.
 
 Each test has an entry here and a file next to the business area it covers. Write the failing check for one behavior, see it fail, then make it pass. Update the entry in that same change. The entry names the test file. It does not copy every payload when the test already states them. A migration is not part of this loop unless the stored records change. Bump this document when the format or a recorded test changes.
 
@@ -225,6 +225,21 @@ Copy this block for each test and fill every field.
 | Expected response | No token returns 401. Gate and resident return 403. Pending bucket matches the artifact id order. `bucket=in_hall` includes in-hall and should-have-left; `should_have_left` is that subset alone. Approve with empty note stores `approved` unpaid and clears the note; a second decision returns 409 `not_pending`. Reject stores the note. Payment paid then unpaid on an approved stay before arrival succeeds; payment on pending succeeds; payment after arrival or on departed/rejected returns 409 `payment_locked`. Audit records `guest_stay.approved`, `guest_stay.rejected`, and `guest_stay.payment_marked`. |
 | Failure cases | E2E; failure cases are covered by the expected response. |
 | Artifact | `backend/app/residents/guests/tests/artifacts/guest-stays-staff.json` |
+
+
+### `gate-scans` Hall-pass scan and recent gate activity
+
+| Field | Content |
+|---|---|
+| Test | `backend/app/staff/gate/tests/test_scans.py` |
+| Purpose | Gate (or warden/provost) scans a hall pass to record an ordinary exit or return, refuses unknown passes and scans with no usable plan, refuses a second scan inside the duplicate window, and lists recent exit/return activity newest first. |
+| Actor | Gate staff. Warden may read activity. Resident is refused on scan. |
+| Preconditions | The hall from `hall-created` exists. Clock starts at 2026-09-30T12:00:00Z (inside summer ordinary hours). Aisha Khan is an active resident with hall-pass `bsj:v1:test-resident-hall-pass`, inside. Fatima Khan is gate staff. Sara Malik is warden. |
+| Action | `POST /api/v1/gate/scans` and `GET /api/v1/gate/activity` with no token, as Aisha, as Fatima (unknown QR; no plan; plan then exit with bare token; duplicate; return after 60s), then activity as Fatima and Sara. |
+| Expected response | No token returns 401. Resident returns 403. Unknown QR returns 404 `unknown_hall_pass`. No plan returns 409 `no_outing_planned` with name/room details. Exit returns 200 `exit_recorded` and matches artifact message; outing is outside with exit staff Fatima. Immediate rescan returns 409 `duplicate_scan`. After the window, return returns 200 `return_recorded` on time. Activity total 2 with events return then exit. Warden can read activity. Audit gains `outing.exit` and `outing.return`. |
+| Failure cases | E2E; failure cases are covered by the expected response. |
+| Artifact | `backend/app/staff/gate/tests/artifacts/gate-scans.json` |
+
 
 
 

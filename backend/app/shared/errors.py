@@ -5,6 +5,8 @@ Every failure the caller can see is {"error": {"code", "message", "details"?}}.
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -17,17 +19,26 @@ class ApiError(Exception):
         code: str,
         message: str,
         field: str | None = None,
+        details: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(message)
         self.status_code = status_code
         self.code = code
         self.message = message
         self.field = field
+        self.details = details
 
 
-def error_content(code: str, message: str, field: str | None = None) -> dict:
+def error_content(
+    code: str,
+    message: str,
+    field: str | None = None,
+    details: dict[str, Any] | None = None,
+) -> dict:
     error: dict = {"code": code, "message": message}
-    if field is not None:
+    if details is not None:
+        error["details"] = details
+    elif field is not None:
         error["details"] = {"field": field}
     return {"error": error}
 
@@ -35,7 +46,7 @@ def error_content(code: str, message: str, field: str | None = None) -> dict:
 def api_error_handler(_request: Request, exc: ApiError) -> JSONResponse:
     return JSONResponse(
         status_code=exc.status_code,
-        content=error_content(exc.code, exc.message, exc.field),
+        content=error_content(exc.code, exc.message, exc.field, exc.details),
     )
 
 

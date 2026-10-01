@@ -8,7 +8,7 @@ queryParams:
   - key: offset
     value: '0'
 description: |-
-  Caller: gate, warden, or provost. Newest first. Lines are resident exits, resident returns, guest arrivals, and guest departures. Returns 404 until this route is built.
+  Caller: gate, warden, or provost. Newest first. Lines are resident exits, resident returns, guest arrivals, and guest departures.
 scripts:
   - type: beforeRequest
     language: text/javascript

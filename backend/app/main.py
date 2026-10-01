@@ -28,6 +28,7 @@ from app.residents.outings.routes import router as outings_router
 from app.residents.permissions.routes import router as permissions_router
 from app.staff.register.routes import router as register_router
 from app.staff.register.permission_routes import router as permission_queue_router
+from app.staff.gate.routes import router as gate_router
 
 SPEC_PATH = Path(__file__).resolve().parent.parent / "openapi.yaml"
 DOCUMENTATION_PATHS = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
@@ -81,6 +82,7 @@ app.include_router(outings_router)
 app.include_router(permissions_router)
 app.include_router(register_router)
 app.include_router(permission_queue_router)
+app.include_router(gate_router)
 app.add_exception_handler(ApiError, api_error_handler)
 app.add_exception_handler(RequestValidationError, validation_error_handler)
 
