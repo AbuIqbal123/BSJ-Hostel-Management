@@ -22,6 +22,7 @@ from app.shared.migrate import migrate
 from app.shared.auth.routes import router as auth_router
 from app.residents.home.routes import router as home_router
 from app.residents.outings.routes import router as outings_router
+from app.staff.register.routes import router as register_router
 
 SPEC_PATH = Path(__file__).resolve().parent.parent / "openapi.yaml"
 DOCUMENTATION_PATHS = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
@@ -69,6 +70,7 @@ app = FastAPI(lifespan=lifespan, docs_url="/docs", redoc_url="/redoc")
 app.include_router(auth_router)
 app.include_router(home_router)
 app.include_router(outings_router)
+app.include_router(register_router)
 app.add_exception_handler(ApiError, api_error_handler)
 app.add_exception_handler(RequestValidationError, validation_error_handler)
 

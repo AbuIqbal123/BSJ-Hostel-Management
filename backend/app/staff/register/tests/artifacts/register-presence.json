@@ -1,0 +1,327 @@
+{
+  "empty": {
+    "inside_count": 0,
+    "outside_count": 0,
+    "late_count": 0,
+    "pending_permission_count": 0,
+    "guests_in_hall_count": 0,
+    "guests_should_have_left_count": 0,
+    "pending_guest_stay_count": 0,
+    "blocks": [
+      {
+        "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+        "code": "A",
+        "name": "Block-A",
+        "inside_count": 0,
+        "outside_count": 0,
+        "late_count": 0,
+        "pending_permission_count": 0,
+        "guests_in_hall_count": 0,
+        "guests_should_have_left_count": 0,
+        "pending_guest_stay_count": 0
+      },
+      {
+        "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+        "code": "B",
+        "name": "Block-B",
+        "inside_count": 0,
+        "outside_count": 0,
+        "late_count": 0,
+        "pending_permission_count": 0,
+        "guests_in_hall_count": 0,
+        "guests_should_have_left_count": 0,
+        "pending_guest_stay_count": 0
+      },
+      {
+        "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+        "code": "C",
+        "name": "Block-C",
+        "inside_count": 0,
+        "outside_count": 0,
+        "late_count": 0,
+        "pending_permission_count": 0,
+        "guests_in_hall_count": 0,
+        "guests_should_have_left_count": 0,
+        "pending_guest_stay_count": 0
+      },
+      {
+        "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+        "code": "D",
+        "name": "Block-D",
+        "inside_count": 0,
+        "outside_count": 0,
+        "late_count": 0,
+        "pending_permission_count": 0,
+        "guests_in_hall_count": 0,
+        "guests_should_have_left_count": 0,
+        "pending_guest_stay_count": 0
+      },
+      {
+        "block_id": "916c689d-598e-55b4-b3dc-fcf7120ca3b1",
+        "code": "Utility",
+        "name": "Utility",
+        "inside_count": 0,
+        "outside_count": 0,
+        "late_count": 0,
+        "pending_permission_count": 0,
+        "guests_in_hall_count": 0,
+        "guests_should_have_left_count": 0,
+        "pending_guest_stay_count": 0
+      }
+    ]
+  },
+  "summary": {
+    "inside_count": 1,
+    "outside_count": 1,
+    "late_count": 1,
+    "pending_permission_count": 2,
+    "guests_in_hall_count": 2,
+    "guests_should_have_left_count": 1,
+    "pending_guest_stay_count": 1,
+    "blocks": [
+      {
+        "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+        "code": "A",
+        "name": "Block-A",
+        "inside_count": 0,
+        "outside_count": 0,
+        "late_count": 1,
+        "pending_permission_count": 1,
+        "guests_in_hall_count": 0,
+        "guests_should_have_left_count": 0,
+        "pending_guest_stay_count": 0
+      },
+      {
+        "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+        "code": "B",
+        "name": "Block-B",
+        "inside_count": 1,
+        "outside_count": 1,
+        "late_count": 0,
+        "pending_permission_count": 1,
+        "guests_in_hall_count": 2,
+        "guests_should_have_left_count": 1,
+        "pending_guest_stay_count": 1
+      },
+      {
+        "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+        "code": "C",
+        "name": "Block-C",
+        "inside_count": 0,
+        "outside_count": 0,
+        "late_count": 0,
+        "pending_permission_count": 0,
+        "guests_in_hall_count": 0,
+        "guests_should_have_left_count": 0,
+        "pending_guest_stay_count": 0
+      },
+      {
+        "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+        "code": "D",
+        "name": "Block-D",
+        "inside_count": 0,
+        "outside_count": 0,
+        "late_count": 0,
+        "pending_permission_count": 0,
+        "guests_in_hall_count": 0,
+        "guests_should_have_left_count": 0,
+        "pending_guest_stay_count": 0
+      },
+      {
+        "block_id": "916c689d-598e-55b4-b3dc-fcf7120ca3b1",
+        "code": "Utility",
+        "name": "Utility",
+        "inside_count": 0,
+        "outside_count": 0,
+        "late_count": 0,
+        "pending_permission_count": 0,
+        "guests_in_hall_count": 0,
+        "guests_should_have_left_count": 0,
+        "pending_guest_stay_count": 0
+      }
+    ]
+  },
+  "residents": {
+    "total": 3,
+    "limit": 50,
+    "offset": 0,
+    "items": [
+      {
+        "id": "b22de000-0000-4000-8000-000000000002",
+        "full_name": "Aisha Khan",
+        "room_label": "B-204",
+        "presence": "inside",
+        "state": "inside",
+        "place": null,
+        "expected_return_at": null,
+        "returned_at": null
+      },
+      {
+        "id": "c44ef000-0000-4000-8000-000000000009",
+        "full_name": "Maryam Siddiqui",
+        "room_label": "B-205",
+        "presence": "outside",
+        "state": "outside",
+        "place": "Maulana Azad Library",
+        "expected_return_at": "2026-09-30T13:30:00Z",
+        "returned_at": null
+      },
+      {
+        "id": "d55fa000-0000-4000-8000-00000000000a",
+        "full_name": "Zara Ahmed",
+        "room_label": "A-101",
+        "presence": "outside",
+        "state": "late",
+        "place": "Shamshad Market",
+        "expected_return_at": "2026-09-30T12:00:00Z",
+        "returned_at": null
+      }
+    ]
+  },
+  "search_aisha": {
+    "total": 1,
+    "limit": 50,
+    "offset": 0,
+    "items": [
+      {
+        "id": "b22de000-0000-4000-8000-000000000002",
+        "full_name": "Aisha Khan",
+        "room_label": "B-204",
+        "presence": "inside",
+        "state": "inside",
+        "place": null,
+        "expected_return_at": null,
+        "returned_at": null
+      }
+    ]
+  },
+  "state_late": {
+    "total": 1,
+    "limit": 50,
+    "offset": 0,
+    "items": [
+      {
+        "id": "d55fa000-0000-4000-8000-00000000000a",
+        "full_name": "Zara Ahmed",
+        "room_label": "A-101",
+        "presence": "outside",
+        "state": "late",
+        "place": "Shamshad Market",
+        "expected_return_at": "2026-09-30T12:00:00Z",
+        "returned_at": null
+      }
+    ]
+  },
+  "block_a": {
+    "total": 1,
+    "limit": 50,
+    "offset": 0,
+    "items": [
+      {
+        "id": "d55fa000-0000-4000-8000-00000000000a",
+        "full_name": "Zara Ahmed",
+        "room_label": "A-101",
+        "presence": "outside",
+        "state": "late",
+        "place": "Shamshad Market",
+        "expected_return_at": "2026-09-30T12:00:00Z",
+        "returned_at": null
+      }
+    ]
+  },
+  "late": {
+    "total": 1,
+    "limit": 50,
+    "offset": 0,
+    "items": [
+      {
+        "id": "d55fa000-0000-4000-8000-00000000000a",
+        "full_name": "Zara Ahmed",
+        "room_label": "A-101",
+        "presence": "outside",
+        "state": "late",
+        "place": "Shamshad Market",
+        "expected_return_at": "2026-09-30T12:00:00Z",
+        "returned_at": null
+      }
+    ]
+  },
+  "aisha": {
+    "id": "b22de000-0000-4000-8000-000000000002",
+    "full_name": "Aisha Khan",
+    "enrolment_number": "24-GLLB-118",
+    "course": "B.A. LL.B. (Hons.)",
+    "room_label": "B-204",
+    "presence": "inside",
+    "state": "inside",
+    "outing": {
+      "id": "e7700000-0000-4000-8000-000000000031",
+      "permission_id": null,
+      "type": "ordinary",
+      "status": "returned",
+      "place": "Maulana Azad Library",
+      "expected_return_at": "2026-09-29T12:00:00Z",
+      "grace_ends_at": "2026-09-29T12:30:00Z",
+      "exited_at": "2026-09-29T08:00:00Z",
+      "exit_recorded_by_name": "Fatima Khan",
+      "returned_at": "2026-09-29T11:00:00Z",
+      "return_recorded_by_name": "Fatima Khan",
+      "is_late": false,
+      "created_at": "2026-09-29T07:00:00Z"
+    },
+    "guardian_name": "Rashid Khan",
+    "guardian_notice": "not_due"
+  },
+  "maryam": {
+    "id": "c44ef000-0000-4000-8000-000000000009",
+    "full_name": "Maryam Siddiqui",
+    "enrolment_number": "24-BA-002",
+    "course": "B.A.",
+    "room_label": "B-205",
+    "presence": "outside",
+    "state": "outside",
+    "outing": {
+      "id": "e7700000-0000-4000-8000-000000000032",
+      "permission_id": null,
+      "type": "ordinary",
+      "status": "outside",
+      "place": "Maulana Azad Library",
+      "expected_return_at": "2026-09-30T13:30:00Z",
+      "grace_ends_at": "2026-09-30T14:00:00Z",
+      "exited_at": "2026-09-30T10:00:00Z",
+      "exit_recorded_by_name": "Fatima Khan",
+      "returned_at": null,
+      "return_recorded_by_name": null,
+      "is_late": false,
+      "created_at": "2026-09-30T09:00:00Z"
+    },
+    "guardian_name": "Yusuf Siddiqui",
+    "guardian_notice": "not_due"
+  },
+  "zara": {
+    "id": "d55fa000-0000-4000-8000-00000000000a",
+    "full_name": "Zara Ahmed",
+    "enrolment_number": "24-BA-003",
+    "course": "B.A.",
+    "room_label": "A-101",
+    "presence": "outside",
+    "state": "late",
+    "outing": {
+      "id": "e7700000-0000-4000-8000-000000000033",
+      "permission_id": null,
+      "type": "ordinary",
+      "status": "outside",
+      "place": "Shamshad Market",
+      "expected_return_at": "2026-09-30T12:00:00Z",
+      "grace_ends_at": "2026-09-30T12:30:00Z",
+      "exited_at": "2026-09-30T08:00:00Z",
+      "exit_recorded_by_name": "Fatima Khan",
+      "returned_at": null,
+      "return_recorded_by_name": null,
+      "is_late": true,
+      "created_at": "2026-09-30T07:30:00Z"
+    },
+    "guardian_name": "Imran Ahmed",
+    "guardian_notice": "sent"
+  }
+}
