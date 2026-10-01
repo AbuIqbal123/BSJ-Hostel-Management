@@ -3,7 +3,7 @@ method: POST
 url: '{{baseUrl}}/api/v1/admin/staff'
 order: 2000
 description: |-
-  Caller: provost. Role is gate, warden, or provost. The temporary password is required and is not returned. Returns 404 until this route is built.
+  Caller: provost. Role is gate, warden, or provost. The temporary password is required and is not returned.
 headers:
   - key: Content-Type
     value: application/json
