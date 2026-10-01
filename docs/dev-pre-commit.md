@@ -15,6 +15,6 @@ pre-commit install
 pre-commit run --all-files
 ```
 
-After `pre-commit install`, Gitleaks runs on staged files at each commit. To skip one commit: `SKIP=gitleaks git commit …`.
+This scans the working tree, including at commit, not only staged lines. To skip one commit: `SKIP=gitleaks git commit …`.
 
 Paid scanners such as GitGuardian (`ggshield`) are optional and not required for this hook.
