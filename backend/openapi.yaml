@@ -1402,7 +1402,9 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
         "409":
-          description: Enrolment number already in use. Code `duplicate_username`.
+          description: |
+            Enrolment number already in use. Code `duplicate_username`.
+            That room is not in use. Code `room_inactive`.
           content:
             application/json:
               schema:
@@ -1463,11 +1465,15 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
-          description: Enrolment number already in use. Code `duplicate_username`.
+          description: |
+            Enrolment number already in use. Code `duplicate_username`.
+            That room is not in use. Code `room_inactive`.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
 
   /api/v1/admin/residents/{resident_id}/hall-pass/reissue:
     post:
@@ -2146,7 +2152,7 @@ components:
             Stable machine code. Known codes: `unauthenticated`, `forbidden`,
             `not_found`, `validation_error`, `duplicate_username`,
             `duplicate_block`, `duplicate_room`, `duplicate_destination`,
-            `room_in_use`, `other_exists`, `already_outside`, `return_already_planned`,
+            `room_in_use`, `room_inactive`, `other_exists`, `already_outside`, `return_already_planned`,
             `open_outing_exists`,
             `outside_ordinary_hours`, `permission_required`, `no_outing_planned`,
             `permission_not_yet_valid`,

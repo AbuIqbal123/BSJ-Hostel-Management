@@ -1,0 +1,11 @@
+{
+  "create": {
+    "full_name": "Maryam Siddiqui",
+    "enrolment_number": "26-BA-001",
+    "course": "B.A.",
+    "guardian_name": "Yusuf Siddiqui",
+    "guardian_phone": "+919800000001"
+  },
+  "duplicate_message": "Enrolment number already in use.",
+  "search_q": "26-BA"
+}

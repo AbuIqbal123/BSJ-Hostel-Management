@@ -3,7 +3,7 @@ method: PATCH
 url: '{{baseUrl}}/api/v1/admin/residents/{{residentId}}'
 order: 4000
 description: |-
-  Caller: provost. Send only the fields that change. `course` may be set to null to clear it. `guardian_name` and `guardian_phone` may be replaced and may not be cleared. A phone includes the country code. Changing `enrolment_number` changes the username. `status` suspends or reinstates the account and revokes refresh tokens on suspension. Returns 404 until this route is built.
+  Caller: provost. Send only the fields that change. `course` may be set to null to clear it. `guardian_name` and `guardian_phone` may be replaced and may not be cleared. A phone includes the country code. Changing `enrolment_number` changes the username. `status` suspends or reinstates the account and revokes refresh tokens on suspension.
 headers:
   - key: Content-Type
     value: application/json

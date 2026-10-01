@@ -3,7 +3,7 @@ method: GET
 url: '{{baseUrl}}/api/v1/admin/residents/{{residentId}}'
 order: 3000
 description: |-
-  Caller: provost. No hall-pass token. Returns 404 until this route is built.
+  Caller: provost. No hall-pass token.
 scripts:
   - type: beforeRequest
     language: text/javascript

@@ -3,7 +3,7 @@ method: POST
 url: '{{baseUrl}}/api/v1/admin/residents'
 order: 2000
 description: |-
-  Caller: provost. Username is the enrolment number. The response includes the hall pass payload once, so the office can place it on the resident's phone. Later reads of the account do not return the token. Room B-204 already has Aisha Khan. This sample is a second resident for that room. Returns 404 until this route is built.
+  Caller: provost. Username is the enrolment number. The response includes the hall pass payload once, so the office can place it on the resident's phone. Later reads of the account do not return the token. Room B-204 already has Aisha Khan. This sample is a second resident for that room.
 headers:
   - key: Content-Type
     value: application/json
