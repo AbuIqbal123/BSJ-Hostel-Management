@@ -37,6 +37,7 @@ from app.staff.office.destinations_routes import router as office_destinations_r
 from app.staff.office.residents_routes import router as office_residents_router
 from app.staff.office.staff_routes import router as office_staff_router
 from app.staff.office.password_routes import router as office_password_router
+from app.staff.office.audit_routes import router as office_audit_router
 
 SPEC_PATH = Path(__file__).resolve().parent.parent / "openapi.yaml"
 DOCUMENTATION_PATHS = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
@@ -99,6 +100,7 @@ app.include_router(office_destinations_router)
 app.include_router(office_residents_router)
 app.include_router(office_staff_router)
 app.include_router(office_password_router)
+app.include_router(office_audit_router)
 app.add_exception_handler(ApiError, api_error_handler)
 app.add_exception_handler(RequestValidationError, validation_error_handler)
 

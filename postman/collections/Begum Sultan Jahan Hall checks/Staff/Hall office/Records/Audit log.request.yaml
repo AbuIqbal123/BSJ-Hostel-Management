@@ -8,7 +8,7 @@ queryParams:
   - key: offset
     value: '0'
 description: |-
-  Caller: provost. Newest first. Detail never contains a password, a refresh token, or a hall-pass token. Returns 404 until this route is built.
+  Caller: provost. Newest first. Detail never contains a password, a refresh token, or a hall-pass token.
 scripts:
   - type: beforeRequest
     language: text/javascript

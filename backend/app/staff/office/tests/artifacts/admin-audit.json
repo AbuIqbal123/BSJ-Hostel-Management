@@ -1,0 +1,4 @@
+{
+  "actions_newest_first": ["settings.updated", "auth.login"],
+  "settings_action": "settings.updated"
+}
