@@ -1,6 +1,6 @@
 # Begum Sultan Jahan Hall API
 
-API version: **0.1.0**
+API version: **0.2.12**
 
 This is the reading copy of [`backend/openapi.yaml`](../backend/openapi.yaml). Swagger at `/docs` serves that file. Stored data is in [`database.md`](database.md). When an endpoint changes, edit the YAML and regenerate this page from the repository root:
 
@@ -87,10 +87,7 @@ Do not edit this page by hand.
 ## How to call the API
 
 HTTP contract for the hostel movement system. Schema version of the database
-is tracked separately in `docs/database.md` (0.1.0).
-
-Pre-production hall API. Version 0.1.0 is the first version; earlier numbers
-such as 0.2.x and 0.3.x were iterative draft labels and were never released.
+is tracked separately in `docs/database.md` (0.3.4).
 
 This version is the contract. Auth, resident phone (home, history, hall pass,
 destinations, ordinary outings, permissions, guest stays), register, staff
@@ -185,10 +182,11 @@ Caller: anyone with a hall-issued account. A resident uses the enrolment
 number as the username. The sample body leaves the password field out of
 this repository. The field is required.
 
-A username that matches no account says that username does not exist.
-A known username with the wrong password says the username exists and
-the password is wrong. A correct password on a suspended account says
-the account is suspended and asks the caller to contact the Hall Office.
+An unknown username and a known username with the wrong password both
+return the same message, so a caller cannot tell whether the username
+exists. A correct password on a suspended account says the account is
+suspended and asks the caller to contact the Hall Office. Repeated
+attempts from the same client are limited; further attempts return 429.
 
 **Request.** Required.
 
@@ -225,30 +223,18 @@ Body: [TokenResponse](#schema-tokenresponse).
 
 #### 401
 
-Sign-in was refused. The message says whether the username does not
-exist, the password is wrong, or the account is suspended. A suspended
-account asks the caller to contact the Hall Office.
+Sign-in was refused. Unknown username and wrong password share one
+message. A suspended account asks the caller to contact the Hall Office.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
-**Username does not exist**
+**Username or password is wrong**
 
 ```json
 {
   "error": {
     "code": "unauthenticated",
-    "message": "That username does not exist."
-  }
-}
-```
-
-**Password is wrong**
-
-```json
-{
-  "error": {
-    "code": "unauthenticated",
-    "message": "That username exists, but the password is wrong."
+    "message": "Username or password is wrong."
   }
 }
 ```
@@ -260,6 +246,23 @@ Body: [ErrorResponse](#schema-errorresponse).
   "error": {
     "code": "unauthenticated",
     "message": "This account is suspended. Please contact the Hall Office."
+  }
+}
+```
+
+#### 429
+
+Too many sign-in attempts from this client in a short window.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+**Example**
+
+```json
+{
+  "error": {
+    "code": "rate_limited",
+    "message": "Too many attempts. Try again shortly."
   }
 }
 ```
@@ -279,6 +282,8 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 Issues a new access token and a new refresh token. The presented refresh
 token is revoked. A revoked, expired, or unknown token is refused.
+Repeated attempts from the same client are limited; further attempts
+return 429.
 
 **Request.** Required.
 
@@ -309,6 +314,23 @@ Body: [TokenResponse](#schema-tokenresponse).
 The access token is missing or expired, or the username and password were refused.
 
 Body: [ErrorResponse](#schema-errorresponse).
+
+#### 429
+
+Too many refresh attempts from this client in a short window.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+**Example**
+
+```json
+{
+  "error": {
+    "code": "rate_limited",
+    "message": "Too many attempts. Try again shortly."
+  }
+}
+```
 
 
 ### <a id="post-api-v1-auth-logout"></a>POST `/api/v1/auth/logout` — Sign out
@@ -3865,7 +3887,7 @@ Each JSON object used above. An operation section already shows the fields for i
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `code` | yes | string | Stable machine code. Known codes: `unauthenticated`, `forbidden`, `not_found`, `validation_error`, `duplicate_username`, `duplicate_block`, `duplicate_room`, `duplicate_destination`, `room_in_use`, `room_inactive`, `other_exists`, `already_outside`, `return_already_planned`, `open_outing_exists`, `outside_ordinary_hours`, `permission_required`, `no_outing_planned`, `permission_not_yet_valid`, `duplicate_scan`, `resident_suspended`, `unknown_hall_pass`, `not_pending`, `permission_in_use`, `not_cancellable`, `guest_not_expected`, `guest_not_in_hall`, `payment_required`, `payment_locked`. |
+| `code` | yes | string | Stable machine code. Known codes: `unauthenticated`, `rate_limited`, `forbidden`, `not_found`, `validation_error`, `duplicate_username`, `duplicate_block`, `duplicate_room`, `duplicate_destination`, `room_in_use`, `room_inactive`, `other_exists`, `already_outside`, `return_already_planned`, `open_outing_exists`, `outside_ordinary_hours`, `permission_required`, `no_outing_planned`, `permission_not_yet_valid`, `duplicate_scan`, `resident_suspended`, `unknown_hall_pass`, `not_pending`, `permission_in_use`, `not_cancellable`, `guest_not_expected`, `guest_not_in_hall`, `payment_required`, `payment_locked`. |
 | `message` | yes | string | Sentence the phone can show. Not a stack trace. |
 | `details` | no | object |  |
 

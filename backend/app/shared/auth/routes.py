@@ -9,12 +9,13 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, Header, Response
+from fastapi import APIRouter, Depends, Header, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.shared import clock
 from app.shared.db import get_connection
 from app.shared.errors import ApiError
+from app.shared.auth.rate_limit import client_key, login_limiter, refresh_limiter
 from app.shared.auth.security import (
     ACCESS_TOKEN_SECONDS,
     REFRESH_TOKEN_DAYS,
@@ -28,6 +29,8 @@ from app.shared.auth.security import (
 )
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
+
+_BAD_CREDENTIALS = "Username or password is wrong."
 
 ConnectionDep = Annotated[sqlite3.Connection, Depends(get_connection)]
 _SIGN_IN_AGAIN = "Sign in again."
@@ -223,7 +226,8 @@ def _start_session(connection: sqlite3.Connection, account: Account, now: dateti
 
 
 @router.post("/login")
-def login(body: LoginRequest, connection: ConnectionDep) -> TokenResponse:
+def login(body: LoginRequest, request: Request, connection: ConnectionDep) -> TokenResponse:
+    login_limiter.check(client_key(request.client.host if request.client else None))
     row = connection.execute(
         """
         SELECT id
@@ -234,13 +238,13 @@ def login(body: LoginRequest, connection: ConnectionDep) -> TokenResponse:
     ).fetchone()
     if row is None:
         consume_unknown_password(body.password)
-        raise ApiError(401, "unauthenticated", "That username does not exist.")
+        raise ApiError(401, "unauthenticated", _BAD_CREDENTIALS)
     account = _load_account(connection, row["id"])
     if account is None:
         consume_unknown_password(body.password)
-        raise ApiError(401, "unauthenticated", "That username does not exist.")
+        raise ApiError(401, "unauthenticated", _BAD_CREDENTIALS)
     if not password_matches(account.password_hash, body.password):
-        raise ApiError(401, "unauthenticated", "That username exists, but the password is wrong.")
+        raise ApiError(401, "unauthenticated", _BAD_CREDENTIALS)
     if account.status != "active":
         raise ApiError(
         401,
@@ -262,7 +266,8 @@ def login(body: LoginRequest, connection: ConnectionDep) -> TokenResponse:
 
 
 @router.post("/refresh")
-def refresh(body: RefreshRequest, connection: ConnectionDep) -> TokenResponse:
+def refresh(body: RefreshRequest, request: Request, connection: ConnectionDep) -> TokenResponse:
+    refresh_limiter.check(client_key(request.client.host if request.client else None))
     row = connection.execute(
         """
         SELECT sessions.id, sessions.user_id, sessions.expires_at, sessions.revoked_at
