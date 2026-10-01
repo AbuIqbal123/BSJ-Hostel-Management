@@ -220,3 +220,58 @@ def test_mock_late_and_return_notices(database_path: Path, monkeypatch: pytest.M
             ]
         finally:
             connection.close()
+
+
+def test_duplicate_notice_does_not_drop_the_return(database_path: Path) -> None:
+    """A second insert of the same notice must not abort the return transaction."""
+    from app.main import app
+    from app.shared.sms import _insert_message
+
+    with TestClient(app) as client:
+        assert client.get("/health").status_code == 200
+        issue_late_outside(database_path)
+        connection = sqlite3.connect(database_path)
+        connection.row_factory = sqlite3.Row
+        try:
+            connection.execute("PRAGMA foreign_keys=ON;")
+            now_text = "2026-09-30T12:30:00Z"
+            connection.execute(
+                """
+                UPDATE outings
+                SET status = 'returned', returned_at = ?, return_recorded_by = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (now_text, GATE_ID, now_text, OUTING_ID),
+            )
+            notice = dict(
+                outing_id=OUTING_ID,
+                resident_id=RESIDENT_ID,
+                notice_type="return_notice",
+                phone="+919876543210",
+                body="Aisha Khan (B-204) has returned to Begum Sultan Jahan Hall.",
+                now_text=now_text,
+                summary="Return notice recorded for Aisha Khan.",
+            )
+            _insert_message(connection, **notice)
+            _insert_message(connection, **notice)
+            connection.commit()
+            outing = connection.execute(
+                "SELECT status, returned_at FROM outings WHERE id = ?",
+                (OUTING_ID,),
+            ).fetchone()
+            assert outing["status"] == "returned"
+            assert outing["returned_at"] == now_text
+            count = connection.execute(
+                """
+                SELECT COUNT(*) AS n FROM guardian_messages
+                WHERE outing_id = ? AND notice_type = 'return_notice'
+                """,
+                (OUTING_ID,),
+            ).fetchone()["n"]
+            assert count == 1
+            audits = connection.execute(
+                "SELECT COUNT(*) AS n FROM audit_log WHERE action = 'sms.return_notice'"
+            ).fetchone()["n"]
+            assert audits == 1
+        finally:
+            connection.close()

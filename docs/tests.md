@@ -51,8 +51,8 @@ Copy this block for each test and fill every field.
 | Actor | Warden (register), then gate staff (return scan). |
 | Preconditions | Hall exists. One resident is outside past grace with no guardian messages yet. SMS driver is mock. |
 | Action | `GET /api/v1/register/late` as warden. Then `POST /api/v1/gate/scans` with that resident's hall pass as gate. |
-| Expected response | Late list succeeds. One `late_notice` row is `sent` via `mock` and names the hall. Return scan records return. One `return_notice` is `sent` via `mock`. Audit has `sms.late_notice` and `sms.return_notice`. |
-| Failure cases | E2E; failure cases are covered by the expected response. |
+| Expected response | Late list succeeds. One `late_notice` row is `sent` via `mock` and names the hall. Return scan records return. One `return_notice` is `sent` via `mock`. Audit has `sms.late_notice` and `sms.return_notice`. A second insert of the same notice leaves the outing `returned`, keeps one message, and writes one audit entry. |
+| Failure cases | Isolated for the overlapping insert: the unique `(outing_id, notice_type)` index is hit after the return is marked, which two HTTP calls cannot freeze between the existence check and the insert. The second insert does not raise, and the return stays recorded. |
 | Artifact | none |
 
 ### `ready` Database readiness beside health

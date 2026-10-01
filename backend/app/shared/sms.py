@@ -41,7 +41,7 @@ def _insert_message(
     body: str,
     now_text: str,
     summary: str,
-) -> None:
+) -> bool:
     settings = get_settings()
     driver = settings.sms_driver
     if driver == "mock":
@@ -50,12 +50,13 @@ def _insert_message(
         # Live provider is out of scope for this path; refuse rather than invent.
         status, reference, error = "failed", None, "Live SMS driver is not configured in this build."
     message_id = str(uuid.uuid4())
-    connection.execute(
+    cursor = connection.execute(
         """
         INSERT INTO guardian_messages (
           id, outing_id, resident_id, notice_type, recipient_phone, body,
           driver, status, provider_reference, error, created_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (outing_id, notice_type) DO NOTHING
         """,
         (
             message_id,
@@ -71,6 +72,8 @@ def _insert_message(
             now_text,
         ),
     )
+    if cursor.rowcount != 1:
+        return False
     action = "sms.late_notice" if notice_type == "late_notice" else "sms.return_notice"
     connection.execute(
         """
@@ -80,6 +83,7 @@ def _insert_message(
         """,
         (str(uuid.uuid4()), now_text, action, message_id, summary),
     )
+    return True
 
 
 def consider_late_notices(connection: sqlite3.Connection, now_text: str) -> int:
@@ -122,7 +126,7 @@ def consider_late_notices(connection: sqlite3.Connection, now_text: str) -> int:
                 "hall_name": row["hall_name"],
             },
         )
-        _insert_message(
+        inserted = _insert_message(
             connection,
             outing_id=row["outing_id"],
             resident_id=row["resident_id"],
@@ -132,7 +136,8 @@ def consider_late_notices(connection: sqlite3.Connection, now_text: str) -> int:
             now_text=now_text,
             summary=f"Late notice recorded for {row['resident_name']}.",
         )
-        sent += 1
+        if inserted:
+            sent += 1
     return sent
 
 
@@ -192,7 +197,7 @@ def send_return_notice_if_due(
             "hall_name": row["hall_name"],
         },
     )
-    _insert_message(
+    return _insert_message(
         connection,
         outing_id=outing_id,
         resident_id=row["resident_id"],
@@ -202,4 +207,3 @@ def send_return_notice_if_due(
         now_text=now_text,
         summary=f"Return notice recorded for {row['resident_name']}.",
     )
-    return True
