@@ -1,8 +1,8 @@
 # Test catalog
 
-Document version: **0.4.20**
+Document version: **0.4.21**
 
-Status: twelve recorded tests. Startup creates the hall. Sign-in keeps a session. A development command adds local accounts. Resident home reads the resident's own screen. The destination list shows the active ordinary-outing choices, with Other last. A resident can plan an ordinary outing before the gate scan. She can read the outing that is still planned or outside. She can cancel that plan before the gate scan. A warden or the provost can read the register presence board: hall and block counts, the resident list with filters, one resident's record, and the late list. A resident can submit, list, read, and cancel late-night and home-going permissions. A warden or the provost can read the permission queue and decide a pending request. The staff permission queue sorts by created_at (newest default) and accepts optional filters for block, type, and created_at date range. A resident can read her own exit and return history as a paginated list.
+Status: thirteen recorded tests. Startup creates the hall. Sign-in keeps a session. A development command adds local accounts. Resident home reads the resident's own screen. The destination list shows the active ordinary-outing choices, with Other last. A resident can plan an ordinary outing before the gate scan. She can read the outing that is still planned or outside. She can cancel that plan before the gate scan. A warden or the provost can read the register presence board: hall and block counts, the resident list with filters, one resident's record, and the late list. A resident can submit, list, read, and cancel late-night and home-going permissions. A warden or the provost can read the permission queue and decide a pending request. The staff permission queue sorts by created_at (newest default) and accepts optional filters for block, type, and created_at date range. A resident can read her own exit and return history as a paginated list. A resident can read her permanent hall-pass QR payload.
 
 Each test has an entry here and a file next to the business area it covers. Write the failing check for one behavior, see it fail, then make it pass. Update the entry in that same change. The entry names the test file. It does not copy every payload when the test already states them. A migration is not part of this loop unless the stored records change. Bump this document when the format or a recorded test changes.
 
@@ -183,6 +183,21 @@ Copy this block for each test and fill every field.
 | Expected response | No token returns 401 `unauthenticated`. Gate returns 403 `forbidden`. Empty matches `empty` in the artifact. After the open day, the default page matches `full` (eleven lines, newest first). The first page of three matches `page`. The tail page matches `tail`. The ten newest lines match home `recent_history`. Another resident's lines and a cancelled plan are absent. The reads do not add an audit entry beyond sign-in. |
 | Failure cases | E2E; failure cases are covered by the expected response. |
 | Artifact | `backend/app/residents/home/tests/artifacts/resident-history.json` |
+
+
+### `resident-hall-pass` Permanent hall pass
+
+| Field | Content |
+|---|---|
+| Test | `backend/app/residents/hall_pass/tests/test_hall_pass.py` |
+| Purpose | A resident reads the permanent hall-pass payload the phone encodes as a QR image. The same payload is used to leave and to come back. |
+| Actor | A resident. Gate and warden accounts are refused. |
+| Preconditions | The hall from `hall-created` exists. The clock is frozen at 2026-09-30T13:00:00Z. Aisha Khan is an active resident, username `24-GLLB-118`, room B-204, hall-pass token `bsj:v1:test-resident-hall-pass`. Fatima Khan is active gate staff. Sara Malik is an active warden. |
+| Action | `GET /api/v1/me/hall-pass` with no token, as Fatima, as Sara, then as Aisha. |
+| Expected response | No token returns 401 `unauthenticated`. Gate and warden return 403 `forbidden`. Aisha's call matches `pass` in the artifact: `qr_payload` is the stored `qr_token`, with her full name and room label. The read does not change the token and does not add an audit entry beyond sign-in. |
+| Failure cases | E2E; failure cases are covered by the expected response. |
+| Artifact | `backend/app/residents/hall_pass/tests/artifacts/resident-hall-pass.json` |
+
 
 
 
