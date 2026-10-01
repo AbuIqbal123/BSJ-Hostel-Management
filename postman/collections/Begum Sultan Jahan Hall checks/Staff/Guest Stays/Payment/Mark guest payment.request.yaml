@@ -3,7 +3,7 @@ method: POST
 url: '{{baseUrl}}/api/v1/guest-stays/{{guestStayId}}/payment'
 order: 11000
 description: |-
-  Caller: warden or provost. Records that the hall office has or has not taken payment. Allowed before arrival, whether the stay is pending or approved. The app does not collect money. Returns 404 until this route is built.
+  Caller: warden or provost. Records that the hall office has or has not taken payment. Allowed before arrival, whether the stay is pending or approved. The app does not collect money.
 headers:
   - key: Content-Type
     value: application/json

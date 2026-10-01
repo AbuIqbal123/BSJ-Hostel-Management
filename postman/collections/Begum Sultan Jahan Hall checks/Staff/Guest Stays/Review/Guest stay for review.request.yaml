@@ -3,7 +3,7 @@ method: GET
 url: '{{baseUrl}}/api/v1/guest-stays/{{guestStayId}}'
 order: 9000
 description: |-
-  Caller: warden or provost. Returns 404 until this route is built.
+  Caller: warden or provost.
 scripts:
   - type: beforeRequest
     language: text/javascript

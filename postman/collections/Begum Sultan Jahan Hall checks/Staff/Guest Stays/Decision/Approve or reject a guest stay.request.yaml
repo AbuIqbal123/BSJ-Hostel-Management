@@ -3,7 +3,7 @@ method: POST
 url: '{{baseUrl}}/api/v1/guest-stays/{{guestStayId}}/decision'
 order: 10000
 description: |-
-  Caller: warden or provost. Only while `pending`. Approval does not mark payment and does not record arrival. Returns 404 until this route is built.
+  Caller: warden or provost. Only while `pending`. Approval does not mark payment and does not record arrival.
 headers:
   - key: Content-Type
     value: application/json

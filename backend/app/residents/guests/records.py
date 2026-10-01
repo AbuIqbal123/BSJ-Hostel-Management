@@ -104,6 +104,15 @@ def derive_bucket(
     return "should_have_left"
 
 
+def bucket_matches(filter_bucket: GuestBucket | None, actual: GuestBucket) -> bool:
+    """Staff list: `in_hall` is the dining set (in_hall + should_have_left)."""
+    if filter_bucket is None:
+        return True
+    if filter_bucket == "in_hall":
+        return actual in {"in_hall", "should_have_left"}
+    return actual == filter_bucket
+
+
 _STAY_SELECT = """
 SELECT
   guest_stays.id,
@@ -197,30 +206,32 @@ def list_guest_stays(
     limit: int,
     offset: int,
     today: str,
+    bucket: GuestBucket | None = None,
 ) -> GuestStayPageBody:
     where = ""
     params: list[object] = []
     if host_resident_id is not None:
         where = "WHERE guest_stays.host_resident_id = ?"
         params.append(host_resident_id)
-    total = connection.execute(
-        f"SELECT COUNT(*) AS n FROM guest_stays {where}",
-        params,
-    ).fetchone()["n"]
     rows = connection.execute(
         f"""
         {_STAY_SELECT}
         {where}
         ORDER BY guest_stays.created_at DESC, guest_stays.id DESC
-        LIMIT ? OFFSET ?
         """,
-        [*params, limit, offset],
+        params,
     ).fetchall()
+    items = [
+        body
+        for body in (_body_from_row(row, today) for row in rows)
+        if bucket_matches(bucket, body.bucket)
+    ]
+    total = len(items)
     return GuestStayPageBody(
         total=total,
         limit=limit,
         offset=offset,
-        items=[_body_from_row(row, today) for row in rows],
+        items=items[offset : offset + limit],
     )
 
 
