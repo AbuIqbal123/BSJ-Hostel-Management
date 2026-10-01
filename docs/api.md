@@ -15,6 +15,7 @@ Do not edit this page by hand.
 - [How to call the API](#how-to-call-the-api)
 - [Operations](#tag-operations)
   - [GET `/health` — Process health](#get-health)
+  - [GET `/ready` — Process readiness](#get-ready)
 - [Auth](#tag-auth)
   - [POST `/api/v1/auth/login` — Sign in](#post-api-v1-auth-login)
   - [POST `/api/v1/auth/refresh` — Exchange a refresh token](#post-api-v1-auth-refresh)
@@ -130,6 +131,7 @@ Process health. No hall data.
 | Method | Path | Purpose | Who |
 |---|---|---|---|
 | GET | `/health` | [Process health](#get-health) | Anyone |
+| GET | `/ready` | [Process readiness](#get-ready) | Anyone |
 
 ### <a id="get-health"></a>GET `/health` — Process health
 
@@ -156,6 +158,55 @@ Body: [Health](#schema-health).
 ```json
 {
   "status": "ok"
+}
+```
+
+
+### <a id="get-ready"></a>GET `/ready` — Process readiness
+
+`ready`
+
+**Who.** Anyone. No token.
+
+Opens the hall database and reports `PRAGMA user_version`. Use this to
+confirm the process can read the hall file. `GET /health` stays shallow.
+
+**Responses**
+
+#### 200
+
+The database opened and the schema version was read.
+
+Body: [Ready](#schema-ready).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `status` | yes | `ready` |  |
+| `user_version` | yes | integer | SQLite PRAGMA user_version after migrations. minimum 0. |
+
+**Example**
+
+```json
+{
+  "status": "ready",
+  "user_version": 4
+}
+```
+
+#### 503
+
+The database could not be opened.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+**Example**
+
+```json
+{
+  "error": {
+    "code": "not_ready",
+    "message": "The hall database could not be opened."
+  }
 }
 ```
 
@@ -3877,6 +3928,13 @@ Each JSON object used above. An operation section already shows the fields for i
 |---|---|---|---|
 | `status` | yes | `ok` |  |
 
+### <a id="schema-ready"></a>Ready
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `status` | yes | `ready` |  |
+| `user_version` | yes | integer | SQLite PRAGMA user_version after migrations. minimum 0. |
+
 ### <a id="schema-errorresponse"></a>ErrorResponse
 
 | Field | Required | Type | Notes |
@@ -3887,7 +3945,7 @@ Each JSON object used above. An operation section already shows the fields for i
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `code` | yes | string | Stable machine code. Known codes: `unauthenticated`, `rate_limited`, `forbidden`, `not_found`, `validation_error`, `duplicate_username`, `duplicate_block`, `duplicate_room`, `duplicate_destination`, `room_in_use`, `room_inactive`, `other_exists`, `already_outside`, `return_already_planned`, `open_outing_exists`, `outside_ordinary_hours`, `permission_required`, `no_outing_planned`, `permission_not_yet_valid`, `duplicate_scan`, `resident_suspended`, `unknown_hall_pass`, `not_pending`, `permission_in_use`, `not_cancellable`, `guest_not_expected`, `guest_not_in_hall`, `payment_required`, `payment_locked`. |
+| `code` | yes | string | Stable machine code. Known codes: `unauthenticated`, `rate_limited`, `not_ready`, `forbidden`, `not_found`, `validation_error`, `duplicate_username`, `duplicate_block`, `duplicate_room`, `duplicate_destination`, `room_in_use`, `room_inactive`, `other_exists`, `already_outside`, `return_already_planned`, `open_outing_exists`, `outside_ordinary_hours`, `permission_required`, `no_outing_planned`, `permission_not_yet_valid`, `duplicate_scan`, `resident_suspended`, `unknown_hall_pass`, `not_pending`, `permission_in_use`, `not_cancellable`, `guest_not_expected`, `guest_not_in_hall`, `payment_required`, `payment_locked`. |
 | `message` | yes | string | Sentence the phone can show. Not a stack trace. |
 | `details` | no | object |  |
 
