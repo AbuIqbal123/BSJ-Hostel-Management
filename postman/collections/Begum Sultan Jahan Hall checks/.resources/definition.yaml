@@ -5,7 +5,7 @@ description: |-
 
   Resident is Aisha Khan, enrolment 24-GLLB-118. Staff sign-ins: Halima Begum (provost), Sara Malik (warden), Fatima Khan (gate). Auth Sign in requests stash provost_token, warden_token, resident_token, and gate_token.
 
-  Health, Sign in, Current account, the refresh token, the password check, and Sign out respond. Every other request is specified and returns 404 until that route is built.
+  Every route in the HTTP contract is here, including GET /ready. Plan an ordinary outing, request a permission, or apply for a guest stay before the requests that use outingId, permissionId, or guestStayId. Those Sends save the new id.
 variables:
   - key: baseUrl
     value: 'http://127.0.0.1:8000'

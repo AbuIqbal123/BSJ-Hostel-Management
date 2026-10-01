@@ -3,7 +3,7 @@ method: POST
 url: '{{baseUrl}}/api/v1/me/permissions'
 order: 2000
 description: |-
-  Caller: resident. A warden or the provost decides later. Submitting does not let the resident leave. The hall pass can be used for this permission only after it is approved and the gate scans it inside the use window. `departure_at` must not be in the past. A few minutes of clock skew are allowed. There is no maximum how far ahead the departure may be. `expected_return_at` must be after `departure_at`. Home going requires `short_place`, `address`, and `reason`. Late-night requires `short_place` and `reason`, and may include `destination_detail`. `short_place` is typed on this form. It is not chosen from the ordinary destination list. This body is a late-night request. Home going uses this same request with type home_going, an address, and no destination_detail.
+  Caller: resident. A warden or the provost decides later. Submitting does not let the resident leave. The hall pass can be used for this permission only after it is approved and the gate scans it inside the use window. `departure_at` must not be in the past. A few minutes of clock skew are allowed. There is no maximum how far ahead the departure may be. `expected_return_at` must be after `departure_at`. Home going requires `short_place`, `address`, and `reason`. Late-night requires `short_place` and `reason`, and may include `destination_detail`. `short_place` is typed on this form. It is not chosen from the ordinary destination list. This body is a late-night request. Home going uses this same request with type home_going, an address, and no destination_detail. Send moves departure to 7:00 PM Asia/Kolkata today, or tomorrow if that time has passed, and the return to two and a half hours later. The new permission id is saved for the review and cancel requests.
 headers:
   - key: Content-Type
     value: application/json
@@ -39,4 +39,20 @@ scripts:
               key: "Authorization",
               value: "Bearer " + signedIn.access_token
           });
+          const now = new Date();
+          let departure = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 13, 30, 0));
+          if (departure.getTime() <= now.getTime()) {
+              departure = new Date(departure.getTime() + 24 * 60 * 60 * 1000);
+          }
+          const expected = new Date(departure.getTime() + 150 * 60 * 1000);
+          const payload = JSON.parse(pm.request.body.raw);
+          payload.departure_at = departure.toISOString().replace(".000Z", "Z");
+          payload.expected_return_at = expected.toISOString().replace(".000Z", "Z");
+          pm.request.body.raw = JSON.stringify(payload, null, 2);
       });
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      if (pm.response.code === 201) {
+          pm.collectionVariables.set("permissionId", pm.response.json().id);
+      }

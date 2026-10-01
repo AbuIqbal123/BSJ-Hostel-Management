@@ -1,0 +1,16 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/ready'
+order: 2000
+description: |-
+  Opens the hall database and reports user_version. A missing or unreadable file answers 503 and is not created. GET /health stays shallow.
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("hall database is open", function () {
+          pm.response.to.have.status(200);
+          const body = pm.response.json();
+          pm.expect(body.status).to.eql("ready");
+          pm.expect(body.user_version).to.eql(5);
+      });

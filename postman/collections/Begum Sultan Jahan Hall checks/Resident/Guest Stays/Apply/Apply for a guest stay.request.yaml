@@ -3,7 +3,7 @@ method: POST
 url: '{{baseUrl}}/api/v1/me/guest-stays'
 order: 2000
 description: |-
-  Caller: resident. Start date must be at least `guest_min_lead_days` after today in Asia/Kolkata (by default, tomorrow or later). Inclusive days from start through end must be within `guest_max_inclusive_days` (by default, 7). Friday 18 September through Monday 21 September is 4 days. Payment is not taken here.
+  Caller: resident. Start date must be at least `guest_min_lead_days` after today in Asia/Kolkata (by default, tomorrow or later). Inclusive days from start through end must be within `guest_max_inclusive_days` (by default, 7). Send sets the start to two hall days ahead and the end three days after that, four inclusive days. Payment is not taken here. The new guest stay id is saved for review, payment, arrival, and cancel.
 headers:
   - key: Content-Type
     value: application/json
@@ -38,4 +38,17 @@ scripts:
               key: "Authorization",
               value: "Bearer " + signedIn.access_token
           });
+          const kolkata = new Date(Date.now() + (5 * 60 + 30) * 60 * 1000);
+          const start = new Date(Date.UTC(kolkata.getUTCFullYear(), kolkata.getUTCMonth(), kolkata.getUTCDate() + 2));
+          const end = new Date(start.getTime() + 3 * 24 * 60 * 60 * 1000);
+          const payload = JSON.parse(pm.request.body.raw);
+          payload.start_date = start.toISOString().slice(0, 10);
+          payload.end_date = end.toISOString().slice(0, 10);
+          pm.request.body.raw = JSON.stringify(payload, null, 2);
       });
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      if (pm.response.code === 201) {
+          pm.collectionVariables.set("guestStayId", pm.response.json().id);
+      }
