@@ -13,7 +13,7 @@ Read these three first.
 | [`docs/design/design-system.md`](docs/design/design-system.md) | Visual design lock for the Expo client |
 | [`docs/design/workflows.md`](docs/design/workflows.md) | Product workflows (auth, home, permissions, register, gate, guests) |
 
-Swagger serves the same HTTP contract at http://127.0.0.1:8000/docs from `backend/openapi.yaml`. The test catalog is [`docs/tests.md`](docs/tests.md) (thirty-one recorded checks).
+Swagger serves the same HTTP contract at http://127.0.0.1:8000/docs from `backend/openapi.yaml`. The test catalog is [`docs/tests/tests.md`](docs/tests/tests.md) (thirty-one recorded checks).
 
 ## Repository
 
@@ -83,7 +83,7 @@ On startup the service creates the hall in `backend/data/hostel.db` when that fi
 
 From `backend/`, add the local sign-in accounts with `.venv/bin/python -m app.dev_seed`. This runs only when `ENVIRONMENT` is `development`. A second run leaves an account that is already there, including a password that was changed. The command prints the password of each account it adds. Room B-204 is created for the sample resident because the published hall page does not list door numbers.
 
-From `backend/`, run the checks with `.venv/bin/pytest`. A push to `dev`, and a pull request, runs the same checks on GitHub. Every recorded check is listed in [`docs/tests.md`](docs/tests.md); each entry names its test file under `backend/app/.../tests/` or `backend/tests/`.
+From `backend/`, run the checks with `.venv/bin/pytest`. A push to `dev`, and a pull request, runs the same checks on GitHub. Every recorded check is listed in [`docs/tests/tests.md`](docs/tests/tests.md); each entry names its test file under `backend/app/.../tests/` or `backend/tests/`.
 
 ## What is deliberately not here
 

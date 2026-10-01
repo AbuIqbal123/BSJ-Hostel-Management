@@ -17,22 +17,22 @@ Keep this document Fowler-simple: one workflow per section, steps a person can n
 |---|---|
 | **Actors** | Anyone with a hall-issued account |
 | **Goal** | Sign in, stay signed in, change password, sign out |
-| **API** | `POST /auth/login`, `/auth/refresh`, `/auth/logout`, `GET /auth/me`, `POST /auth/change-password`. Provost creates accounts and resets passwords under `/admin/residents*` and `/admin/staff*` (temporary password fields). |
+| **API** | `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, `POST /api/v1/auth/logout`, `GET /api/v1/auth/me`, `POST /api/v1/auth/change-password`. The provost creates residents at `POST /api/v1/admin/residents` and staff at `POST /api/v1/admin/staff`. Password reset is `POST /api/v1/admin/users/{user_id}/password`. |
 
 **How an account starts**
 
 1. Provost creates the person at the hall office (resident or staff). Resident username is the **enrolment number**. Staff get a hall-issued username.
-2. Provost sets a **temporary password** (not chosen by the person on a public form).
+2. Provost sets the password (not chosen by the person on a public form). Login accepts that password and returns tokens. There is no must-change flag.
 3. There is **no public self-sign-up** and no guardian login.
 
 **Screens / steps**
 
 1. Username + password.
-2. Route by `role` from `/auth/me` into the correct shell.
-3. Change password (settings, or after a reset when the temporary password must be replaced).
+2. Route by `role` from `GET /api/v1/auth/me` into the correct shell.
+3. Change password from settings when she chooses. The call needs the current password and a new one. The shell does not block until she does this.
 4. Sign out revokes the refresh session.
 
-**Critical states:** wrong password; unknown user; suspended account; expired session → re-auth; temporary password after create/reset.
+**Critical states:** a bad username and a wrong password are the same refusal, `Username or password is wrong.`; a suspended account says `This account is suspended. Please contact the Hall Office.`; too many attempts says `Too many attempts. Try again shortly.`; an expired session returns to sign-in. Do not show a screen that says the username is missing.
 
 **Success:** correct shell for role with valid tokens; no public registration UI.
 
@@ -42,9 +42,9 @@ Keep this document Fowler-simple: one workflow per section, steps a person can n
 
 | Role | Goal | Key screens | Critical states | Success |
 |---|---|---|---|---|
-| **Resident** | Know presence; start outing / permission / guest; open hall pass or history | `GET /me/home` hub: name, room, presence chip, open outing or active permission summary; CTAs: Plan outing, Request permission, Guest stay; tiles: Hall pass, History | Inside idle; planned ready to leave; outside with expected return + grace; pending permission; approved usable; suspended (read-only messaging) | One glance answers "where am I?" and the next action |
-| **Gate** | Ready to scan; see recent activity | Dark home: primary Scan; list from `GET /gate/activity`; entry to guests | Idle; last result flash | Thumb on Scan in under a second |
-| **Warden** | Hall pulse | Register summary counts; shortcuts to Late, Permissions waiting, Guest stays waiting | Quiet night vs busy late list | Counts match `/register/summary` |
+| **Resident** | Know presence; start outing / permission / guest; open hall pass or history | `GET /api/v1/me/home` hub: name, room, presence chip, open outing or active permission summary; actions that can sit together: Plan outing, Request permission, Guest stay, Hall pass, History | Inside idle; one or more plans, including two returns on the same hall day; outside with expected return and grace, and she may still plan another return; pending permission; approved permission usable. A suspended account never reaches this screen: sign-in and the next refresh fail, and she sees the Hall Office sentence | One glance answers "where am I?" and the next action |
+| **Gate** | Ready to scan; see recent activity | Dark home: primary Scan; list from `GET /api/v1/gate/activity`; entry to guests | Idle; last result flash | Thumb on Scan in under a second |
+| **Warden** | Hall pulse | Register summary counts; shortcuts to Late, Permissions waiting, Guest stays waiting | Quiet night vs busy late list | Counts match `GET /api/v1/register/summary` |
 | **Provost** | Same as warden + office entry | Warden home + Hall office | (none special) | Office reachable without burying register |
 
 ---
@@ -55,27 +55,28 @@ Keep this document Fowler-simple: one workflow per section, steps a person can n
 |---|---|
 | **Actors** | Resident requests; warden or provost decide |
 | **Goal** | Late-night or home going approved before exit |
-| **API** | Resident: `/me/permissions*`. Staff: `/permissions`, `/permissions/{id}`, `/permissions/{id}/decision` |
+| **API** | Resident: `GET` and `POST /api/v1/me/permissions`, `GET /api/v1/me/permissions/{permission_id}`, `POST /api/v1/me/permissions/{permission_id}/cancel`. Staff: `GET /api/v1/permissions`, `GET /api/v1/permissions/{permission_id}`, `POST /api/v1/permissions/{permission_id}/decision` |
 
 **Resident steps**
 
 1. List own permissions.
-2. Request (type, short place, reason, departure, expected return).
-3. Pending detail → Approved (show when usable) / Rejected.
+2. Two forms. Late-night: type, short place (typed, not chosen from `GET /api/v1/destinations`), reason, optional further detail, departure, expected return. Home going: those fields plus address. Home going does not use the destination list.
+3. Pending detail, then approved (show when usable) or rejected.
 4. Cancel while **pending**, or while **approved and unused** (before leaving). Cancel is forbidden once `in_use`.
 
 **Staff steps**
 
 1. Queue (default pending).
 2. Detail.
-3. Approve or Reject (reason when the API requires it).
+3. Approve or reject. The note is optional. The API does not require a reason.
 
 **Edge cases by date / time**
 
 - Use window: departure minus `permission_early_minutes` through expected return. Gate may open an outing from the permission only inside that window.
 - Approved unused whose expected return has passed becomes **expired** when listed or fetched (no separate expiry list). Gate cannot use it.
-- Ordinary plan past ordinary hours → `permission_required`; resident must request late-night or home going instead.
-- Resident may hold more than one permission; she may not be outside on two outings at once.
+- A return at or before that hall date's ordinary-hours start is 409 `outside_ordinary_hours`: "That return is outside ordinary hours." Do not send her to late-night or home going.
+- A return after the end is 409 `permission_required`: "That return is outside ordinary hours. Please submit a permission request." Summer, 1 April through 30 September, is 6:30 AM to 6:30 PM. Winter, 1 October through 31 March, is 6:30 AM to 5:30 PM. The start is not included. The end is included.
+- She may hold more than one permission. She may not be outside on two outings at once. Two planned or outside outings cannot share an expected return (`return_already_planned`).
 
 **Critical states:** pending; approved unused; `in_use`; expired unused; rejected; permission_required on ordinary plan.
 
@@ -89,7 +90,7 @@ Keep this document Fowler-simple: one workflow per section, steps a person can n
 |---|---|
 | **Actors** | Warden, provost |
 | **Goal** | Who is inside, outside, late; drill into a resident |
-| **API** | `/register/summary`, `/register/residents`, `/register/residents/{id}`, `/register/late` |
+| **API** | `GET /api/v1/register/summary`, `GET /api/v1/register/residents`, `GET /api/v1/register/residents/{resident_id}`, `GET /api/v1/register/late` |
 
 **Screens**
 
@@ -102,7 +103,7 @@ Keep this document Fowler-simple: one workflow per section, steps a person can n
 
 **Success:** duty warden can answer "is she in?" and "who is late?" without spreadsheets.
 
-Provost may also export CSV via `/admin/register/export`.
+Provost may also export CSV via `GET /api/v1/admin/register/export`.
 
 ---
 
@@ -112,14 +113,15 @@ Provost may also export CSV via `/admin/register/export`.
 |---|---|
 | **Actors** | Gate (warden/provost may scan). Resident shows the pass. |
 | **Goal** | Record exit or return from the permanent QR; never double-undo |
-| **API** | Resident: plan `POST /me/outings`, show `GET /me/hall-pass`, history `GET /me/history`. Gate: `POST /gate/scans`, `GET /gate/activity` |
+| **API** | Resident: plan `POST /api/v1/me/outings`, list `GET /api/v1/me/outings`, open outing `GET /api/v1/me/outings/current`, cancel `POST /api/v1/me/outings/{outing_id}/cancel`, show `GET /api/v1/me/hall-pass`, history `GET /api/v1/me/history`. Gate: `POST /api/v1/gate/scans`, `GET /api/v1/gate/activity` |
 
 **Resident loop**
 
-1. Plan ordinary outing (destination + expected return) when inside ordinary hours, or hold an approved permission for late-night / home going.
-2. Open hall pass (permanent QR; same code both ways).
-3. Gate scan → home shows outside (or refusal).
-4. Return scan → history lines.
+1. Plan an ordinary outing with a destination and an expected return. She may save several plans, including two on the same hall day, and she may plan while she is already outside. Planning does not change presence. The check is the expected return (in the future, inside that hall date's window), not whether the clock is inside ordinary hours when she plans. She may also hold an approved late-night or home-going permission.
+2. Open the hall pass. The QR is permanent and the same code is used both ways. The pass stays available while a plan or an outside outing exists.
+3. At an exit scan, today's earliest ordinary plan whose return has not passed is used when the current time is inside today's ordinary hours. A later plan today, and any other day's plan, stay planned. An approved permission is opened only if no such plan is used. If she meant the permission, or a later trip today, she cancels the plan the gate would use and shows the pass again.
+4. The scan updates home to outside, or shows the refusal.
+5. A return scan adds the history line.
 
 **Gate screens**
 
@@ -127,7 +129,7 @@ Provost may also export CSV via `/admin/register/export`.
 2. Full-screen result (exit / return / refusal) → auto back to ready.
 3. Activity list.
 
-**Critical states:** exit recorded; return recorded; already outside (duplicate window); no plan / outside ordinary hours / permission not usable; resident suspended; pass unknown.
+**Critical states:** exit recorded; return recorded; `duplicate_scan` inside `scan_duplicate_window_seconds` (she is already recorded as outside and should present the same pass on return); `already_outside` only when she cancels an outing that is already outside ("You are already outside."); `no_outing_planned`; `outside_ordinary_hours`; `permission_not_yet_valid`; `resident_suspended`; `unknown_hall_pass` (404).
 
 **Copy:** prefer API `message` (for example already outside; present the same pass on return).
 
@@ -141,7 +143,7 @@ Provost may also export CSV via `/admin/register/export`.
 |---|---|
 | **Actors** | Resident hosts; warden/provost review + payment mark; gate arrival/departure |
 | **Goal** | Paid guest in hall for dining/register without a hall pass |
-| **API** | Resident `/me/guest-stays*`; staff `/guest-stays*` + payment; gate `/gate/guests*` |
+| **API** | Resident `GET` and `POST /api/v1/me/guest-stays`, `GET /api/v1/me/guest-stays/{guest_stay_id}`, `POST /api/v1/me/guest-stays/{guest_stay_id}/cancel`. Staff `GET /api/v1/guest-stays`, `GET /api/v1/guest-stays/{guest_stay_id}`, `POST /api/v1/guest-stays/{guest_stay_id}/decision`, `POST /api/v1/guest-stays/{guest_stay_id}/payment`. Gate `GET /api/v1/gate/guests`, `POST /api/v1/gate/guests/{guest_stay_id}/arrival`, `POST /api/v1/gate/guests/{guest_stay_id}/departure` |
 
 **Resident steps:** apply (≥ `guest_min_lead_days`, ≤ `guest_max_inclusive_days`) → Pending → Approved / Rejected → Cancel before arrival.
 
@@ -161,7 +163,7 @@ Provost may also export CSV via `/admin/register/export`.
 |---|---|
 | **Actors** | Provost only |
 | **Goal** | Keep people, places, and settings accurate |
-| **API** | `/admin/settings`, `/admin/blocks`, `/admin/rooms`, `/admin/destinations`, `/admin/residents`, `/admin/staff`, password reset, hall-pass reissue, `/admin/register/export`, `/admin/sms`, `/admin/audit` |
+| **API** | `/api/v1/admin/settings`, `/api/v1/admin/blocks`, `/api/v1/admin/rooms`, `/api/v1/admin/destinations`, `/api/v1/admin/residents`, `/api/v1/admin/staff`, `POST /api/v1/admin/users/{user_id}/password`, `POST /api/v1/admin/residents/{resident_id}/hall-pass/reissue`, `GET /api/v1/admin/register/export`, `GET /api/v1/admin/sms`, `GET /api/v1/admin/audit` |
 
 **Screens:** settings (hours, grace, seasons, guest rules, SMS templates; show 12-hour + day-month as contract) → blocks/rooms → destinations → residents (create/edit, suspend, reissue pass) → staff → password reset → SMS log → audit → CSV export.
 
@@ -183,6 +185,6 @@ Provost may also export CSV via `/admin/register/export`.
 
 ## 9. Cross-cutting rules (UI must honor)
 
-Same as [`docs/design/design-system.md`](design-system.md) §9 (clock, dates, presence ≠ login, ordinary outing vs permission, grace copy, one primary CTA). Do not invent SMS timing beyond hall settings.
+Same as [`docs/design/design-system.md`](design-system.md) §9 (clock, dates, presence is not login, ordinary outing vs permission, grace copy, actions that can be true together). Do not invent SMS timing beyond hall settings.
 
 *End of workflows document.*

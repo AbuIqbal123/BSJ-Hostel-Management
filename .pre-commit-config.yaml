@@ -1,4 +1,4 @@
-# Free local secret scanning (no API key). See docs/dev-pre-commit.md.
+# Free local secret scanning (no API key). See docs/engineering/dev-pre-commit.md.
 repos:
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.30.1

@@ -1,4 +1,4 @@
--- Hall records for docs/database.md. Applied once, while user_version is 0.
+-- Hall records for docs/database/database.md. Applied once, while user_version is 0.
 
 CREATE TABLE hall_settings (
   id TEXT PRIMARY KEY CHECK (id = 'hall'),

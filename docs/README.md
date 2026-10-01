@@ -25,6 +25,7 @@ Organised by domain. Prefer these folders over dumping new files at the `docs/` 
 | [`tests/tests.md`](tests/tests.md) | Every test entry |
 | [`engineering/dev-pre-commit.md`](engineering/dev-pre-commit.md) | Gitleaks via pre-commit |
 | [`security/pre-ship-checklist.md`](security/pre-ship-checklist.md) | Don't ship until you check this |
+| [`load.md`](load.md) | Optional Locust notes. Not part of the recorded catalog |
 
 **Product / business rules:** kept in [`database/database.md`](database/database.md) with the data they govern. No separate `rules/` folder until a rule set outgrows that file.
 
