@@ -30,6 +30,8 @@ Docker is not part of local development. Hosting is written in code when that wo
 
 Secret scanning for commits is documented in [`docs/dev-pre-commit.md`](docs/dev-pre-commit.md) (free Gitleaks via pre-commit; no API key).
 
+Optional Locust load checks (not on every PR CI) are in [`docs/load.md`](docs/load.md).
+
 A change to stored data, HTTP, or the shape of the system updates the owning document in the same change. The rule is in `AGENTS.md`. Schema and HTTP edits follow `.grok/skills/contract-maintenance/SKILL.md`.
 
 ## Local API
