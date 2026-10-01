@@ -4,20 +4,23 @@ Thin Locust scenarios for a running local hall API. **Not** part of the GitHub C
 
 ## Setup
 
+Use a disposable database file. Login writes sessions, and a gate scan writes a movement. Do not point this run at `backend/data/hostel.db`.
+
 ```bash
 cd backend
 source .venv/bin/activate
 pip install -r requirements-load.txt
 cp -n .env.example .env   # APP_SECRET_KEY ≥ 32 bytes
+export DATABASE_PATH="$(pwd)/data/load-test.db"
+rm -f "$DATABASE_PATH" "${DATABASE_PATH}-wal" "${DATABASE_PATH}-shm"
+python -m app.dev_seed
 uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-In another shell, with the same venv, seed the DB then export load-test credentials (use the same accounts you just seeded — do not commit values):
+The seed command prints each new account's phrase. Copy those into the next shell. Do not commit them. `DATABASE_PATH` above is only for the seed and the server. Locust talks to the host below and does not open the file.
 
 ```bash
 cd backend
-python -m app.dev_seed
-
 export LOAD_TEST_WARDEN_USERNAME=...   # seeded warden username
 export LOAD_TEST_WARDEN_PASSWORD=...   # seeded warden phrase
 export LOAD_TEST_GATE_USERNAME=...     # seeded gate username
@@ -44,7 +47,7 @@ Open http://127.0.0.1:8089.
 
 | Mode | Users | Spawn rate | Notes |
 |---|---|---|---|
-| Smoke | 10 | 2/s | Confirm the four scenarios return mostly 2xx. |
+| Smoke | 10 | 2/s | Login, the register, and the permission queue should return mostly 2xx. `gate_scan` shares one hall pass, so after the first movement further scans of that pass are refusals. |
 | Target ~500 | 500 | 50/s | Hold 3–5 minutes; watch p95 and error rate. |
 | Stress ~1000 | 1000 | 100/s | Expect saturation; use to find the cliff, not a pass/fail gate. |
 
