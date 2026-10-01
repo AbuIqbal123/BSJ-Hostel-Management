@@ -2062,8 +2062,8 @@ Body: [ErrorResponse](#schema-errorresponse).
 #### 409
 
 `duplicate_scan`, `no_outing_planned`, `outside_ordinary_hours`,
-`permission_not_yet_valid`, `open_outing_exists`, or
-`resident_suspended`. The body includes
+`permission_not_yet_valid`, `open_outing_exists`,
+`resident_suspended`, or `return_already_planned`. The body includes
 the resident name and room when the pass is known, so the gate
 screen can say what to do.
 

@@ -1,0 +1,5 @@
+{
+  "exit_message": "The resident is now outside.",
+  "return_message": "On time. Status is now inside.",
+  "activity_events": ["return", "exit"]
+}
