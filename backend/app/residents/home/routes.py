@@ -12,6 +12,7 @@ from app.shared import clock
 from app.shared.auth.routes import Account, AccountDep, ConnectionDep, ResidentSummary
 from app.shared.errors import ApiError
 from app.residents.outings.records import OutingBody, expire_passed_plans, load_current_outing
+from app.residents.permissions.records import PermissionBody, expire_passed_permissions
 
 router = APIRouter(prefix="/api/v1", tags=["Resident"])
 
@@ -22,30 +23,6 @@ class HistoryEvent(BaseModel):
     place: str
     occurred_at: str
     outing_id: str
-
-
-class PermissionBody(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    id: str
-    type: Literal["late_night", "home_going"]
-    status: Literal[
-        "pending",
-        "approved",
-        "rejected",
-        "cancelled",
-        "in_use",
-        "completed",
-        "expired",
-    ]
-    short_place: str
-    destination_detail: str | None
-    address: str | None
-    reason: str
-    departure_at: str
-    expected_return_at: str
-    decision_note: str | None
-    decided_at: str | None
-    created_at: str
 
 
 class ResidentHome(BaseModel):
@@ -136,7 +113,9 @@ def _recent_history(connection: sqlite3.Connection, resident_id: str) -> list[Hi
 @router.get("/me/home", response_model=ResidentHome)
 def resident_home(account: ResidentDep, connection: ConnectionDep) -> ResidentHome:
     now = clock.utc_now()
-    expire_passed_plans(connection, account.id, clock.format_instant(now))
+    now_text = clock.format_instant(now)
+    expire_passed_plans(connection, account.id, now_text)
+    expire_passed_permissions(connection, now_text, resident_id=account.id)
     return ResidentHome(
         resident=ResidentSummary.model_validate(
             {

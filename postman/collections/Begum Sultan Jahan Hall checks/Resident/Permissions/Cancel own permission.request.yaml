@@ -3,7 +3,7 @@ method: POST
 url: '{{baseUrl}}/api/v1/me/permissions/{{permissionId}}/cancel'
 order: 4000
 description: |-
-  Caller: resident. Allowed while `pending` or `approved`. Not allowed once the gate has recorded an exit against it. Returns 404 until this route is built.
+  Caller: resident. Allowed while `pending` or `approved`. Not allowed once the gate has recorded an exit against it.
 scripts:
   - type: beforeRequest
     language: text/javascript

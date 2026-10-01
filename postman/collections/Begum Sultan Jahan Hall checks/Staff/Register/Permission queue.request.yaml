@@ -8,7 +8,7 @@ queryParams:
   - key: offset
     value: '0'
 description: |-
-  Caller: warden or provost. Defaults to `pending`. Newest first. Returns 404 until this route is built.
+  Caller: warden or provost. Defaults to `pending`. Newest first.
 scripts:
   - type: beforeRequest
     language: text/javascript

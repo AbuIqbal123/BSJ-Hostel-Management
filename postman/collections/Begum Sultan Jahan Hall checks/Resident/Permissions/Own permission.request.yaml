@@ -3,7 +3,7 @@ method: GET
 url: '{{baseUrl}}/api/v1/me/permissions/{{permissionId}}'
 order: 3000
 description: |-
-  Caller: resident. Refuses another resident's permission. Returns 404 until this route is built.
+  Caller: resident. Refuses another resident's permission.
 scripts:
   - type: beforeRequest
     language: text/javascript

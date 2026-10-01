@@ -3,7 +3,7 @@ method: POST
 url: '{{baseUrl}}/api/v1/permissions/{{permissionId}}/decision'
 order: 7000
 description: |-
-  Caller: warden or provost. Only a `pending` permission can be decided. Approval does not create an outing and does not by itself let a scan succeed before the use window. Rejection leaves ordinary outings available. Returns 404 until this route is built.
+  Caller: warden or provost. Only a `pending` permission can be decided. Approval does not create an outing and does not by itself let a scan succeed before the use window. Rejection leaves ordinary outings available.
 headers:
   - key: Content-Type
     value: application/json

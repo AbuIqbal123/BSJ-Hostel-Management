@@ -599,7 +599,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
-          description: The permission can no longer be cancelled.
+          description: The permission can no longer be cancelled. Code `cannot_cancel`.
           content:
             application/json:
               schema:
@@ -2073,7 +2073,7 @@ components:
             `outside_ordinary_hours`, `permission_required`, `no_outing_planned`,
             `permission_not_yet_valid`,
             `duplicate_scan`, `resident_suspended`, `unknown_hall_pass`,
-            `not_pending`, `guest_not_expected`, `guest_not_in_hall`,
+            `not_pending`, `cannot_cancel`, `guest_not_expected`, `guest_not_in_hall`,
             `payment_required`, `payment_locked`.
         message:
           type: string
