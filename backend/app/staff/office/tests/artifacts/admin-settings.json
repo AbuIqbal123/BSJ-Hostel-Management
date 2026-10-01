@@ -1,0 +1,24 @@
+{
+  "defaults": {
+    "hall_name": "Begum Sultan Jahan Hall",
+    "university_name": "Aligarh Muslim University",
+    "timezone": "Asia/Kolkata",
+    "grace_minutes": 30,
+    "summer_hours_start": "06:30",
+    "summer_hours_end": "18:30",
+    "winter_hours_start": "06:30",
+    "winter_hours_end": "17:30",
+    "summer_season_start": "04-01",
+    "winter_season_start": "10-01",
+    "permission_early_minutes": 30,
+    "guest_max_inclusive_days": 7,
+    "guest_min_lead_days": 1,
+    "scan_duplicate_window_seconds": 45,
+    "late_sms_template": "{resident_name} ({room}) was expected to return by {expected_return_local} and has not yet returned. Please contact the Hall Office if you need to speak to the duty warden.",
+    "return_sms_template": "{resident_name} ({room}) has returned to {hall_name} at {returned_at_local}. Thank you."
+  },
+  "patched": {
+    "grace_minutes": 45,
+    "guest_min_lead_days": 2
+  }
+}

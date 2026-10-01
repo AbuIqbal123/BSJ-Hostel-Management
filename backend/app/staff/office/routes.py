@@ -1,0 +1,129 @@
+"""Provost hall-office settings routes."""
+
+from __future__ import annotations
+
+import json
+from typing import Annotated
+
+from fastapi import APIRouter, Depends
+
+from app.shared import clock
+from app.shared.auth.routes import Account, AccountDep, ConnectionDep
+from app.shared.errors import ApiError
+from app.staff.office.records import (
+    LATE_PLACEHOLDERS,
+    RETURN_PLACEHOLDERS,
+    HallSettings,
+    HallSettingsUpdate,
+    apply_settings_update,
+    load_settings,
+    record_settings_updated,
+    template_keeps_placeholders,
+)
+
+router = APIRouter(prefix="/api/v1/admin", tags=["Hall office"])
+
+
+def provost_account(account: AccountDep) -> Account:
+    if account.role != "provost":
+        raise ApiError(403, "forbidden", "This account cannot do that.")
+    return account
+
+
+ProvostDep = Annotated[Account, Depends(provost_account)]
+
+
+def _require_hours_order(merged: HallSettings) -> None:
+    if not (merged.summer_hours_end > merged.summer_hours_start):
+        raise ApiError(
+            422,
+            "validation_error",
+            "Summer hours end must be after the start.",
+            field="summer_hours_end",
+        )
+    if not (merged.winter_hours_end > merged.winter_hours_start):
+        raise ApiError(
+            422,
+            "validation_error",
+            "Winter hours end must be after the start.",
+            field="winter_hours_end",
+        )
+
+
+def _require_distinct_seasons(merged: HallSettings) -> None:
+    if merged.summer_season_start == merged.winter_season_start:
+        raise ApiError(
+            422,
+            "validation_error",
+            "Summer and winter season starts must differ.",
+            field="winter_season_start",
+        )
+
+
+def _require_sms_placeholders(merged: HallSettings, changes: dict[str, object]) -> None:
+    # Default late template in hall seed omits {hall_name}; OpenAPI still lists it.
+    # Enforce placeholders only when a template is being changed.
+    if "late_sms_template" in changes and not template_keeps_placeholders(
+        merged.late_sms_template, LATE_PLACEHOLDERS
+    ):
+        raise ApiError(
+            422,
+            "validation_error",
+            "Late SMS template must keep the listed placeholders.",
+            field="late_sms_template",
+        )
+    if "return_sms_template" in changes and not template_keeps_placeholders(
+        merged.return_sms_template, RETURN_PLACEHOLDERS
+    ):
+        raise ApiError(
+            422,
+            "validation_error",
+            "Return SMS template must keep the listed placeholders.",
+            field="return_sms_template",
+        )
+
+
+@router.get("/settings", response_model=HallSettings)
+def get_settings(_account: ProvostDep, connection: ConnectionDep) -> HallSettings:
+    return load_settings(connection)
+
+
+@router.patch("/settings", response_model=HallSettings)
+def update_settings(
+    body: HallSettingsUpdate,
+    account: ProvostDep,
+    connection: ConnectionDep,
+) -> HallSettings:
+    current = load_settings(connection)
+    merged, changes = apply_settings_update(current, body)
+    if not changes:
+        return current
+
+    _require_hours_order(merged)
+    _require_distinct_seasons(merged)
+    _require_sms_placeholders(merged, changes)
+
+    now_text = clock.format_instant(clock.utc_now())
+    assignments = ", ".join(f"{key} = ?" for key in changes)
+    values = [changes[key] for key in changes]
+    connection.execute(
+        f"""
+        UPDATE hall_settings
+        SET {assignments}, updated_at = ?
+        WHERE id = 'hall'
+        """,
+        (*values, now_text),
+    )
+    detail = json.dumps(
+        {"before": {key: getattr(current, key) for key in changes}, "after": changes},
+        sort_keys=True,
+    )
+    record_settings_updated(
+        connection,
+        now_text,
+        account.id,
+        f"{account.full_name} updated hall settings.",
+        detail,
+    )
+    connection.commit()
+    return load_settings(connection)
