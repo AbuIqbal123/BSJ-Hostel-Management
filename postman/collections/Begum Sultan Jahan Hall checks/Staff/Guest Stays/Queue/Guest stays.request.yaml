@@ -8,7 +8,7 @@ queryParams:
   - key: offset
     value: '0'
 description: |-
-  Caller: warden or provost. Filter by derived bucket. `in_hall` here is the dining set and includes guests who should have left. Use `should_have_left` for that subset. Returns 404 until this route is built.
+  Caller: warden or provost. Filter by derived bucket. `in_hall` here is the dining set and includes guests who should have left. Use `should_have_left` for that subset.
 scripts:
   - type: beforeRequest
     language: text/javascript

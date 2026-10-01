@@ -1,0 +1,12 @@
+{
+  "pending_ids": [
+    "bb100000-0000-4000-8000-0000000000b1",
+    "bb100000-0000-4000-8000-0000000000b2"
+  ],
+  "approved_empty_note": {
+    "status": "approved",
+    "payment_status": "unpaid",
+    "decision_note": null,
+    "bucket": "upcoming"
+  }
+}

@@ -1,8 +1,8 @@
 # Test catalog
 
-Document version: **0.4.22**
+Document version: **0.4.23**
 
-Status: fourteen recorded tests. Startup creates the hall. Sign-in keeps a session. A development command adds local accounts. Resident home reads the resident's own screen. The destination list shows the active ordinary-outing choices, with Other last. A resident can plan an ordinary outing before the gate scan. She can read the outing that is still planned or outside. She can cancel that plan before the gate scan. A warden or the provost can read the register presence board: hall and block counts, the resident list with filters, one resident's record, and the late list. A resident can submit, list, read, and cancel late-night and home-going permissions. A warden or the provost can read the permission queue and decide a pending request. The staff permission queue sorts by created_at (newest default) and accepts optional filters for block, type, and created_at date range. A resident can read her own exit and return history as a paginated list. A resident can read her permanent hall-pass QR payload. A resident can apply for, list, read, and cancel her own guest stays.
+Status: fifteen recorded tests. Startup creates the hall. Sign-in keeps a session. A development command adds local accounts. Resident home reads the resident's own screen. The destination list shows the active ordinary-outing choices, with Other last. A resident can plan an ordinary outing before the gate scan. She can read the outing that is still planned or outside. She can cancel that plan before the gate scan. A warden or the provost can read the register presence board: hall and block counts, the resident list with filters, one resident's record, and the late list. A resident can submit, list, read, and cancel late-night and home-going permissions. A warden or the provost can read the permission queue and decide a pending request. The staff permission queue sorts by created_at (newest default) and accepts optional filters for block, type, and created_at date range. A resident can read her own exit and return history as a paginated list. A resident can read her permanent hall-pass QR payload. A resident can apply for, list, read, and cancel her own guest stays. A warden or the provost can list guest stays by bucket, decide a pending stay, and mark payment before arrival.
 
 Each test has an entry here and a file next to the business area it covers. Write the failing check for one behavior, see it fail, then make it pass. Update the entry in that same change. The entry names the test file. It does not copy every payload when the test already states them. A migration is not part of this loop unless the stored records change. Bump this document when the format or a recorded test changes.
 
@@ -211,6 +211,21 @@ Copy this block for each test and fill every field.
 | Expected response | No token returns 401 `unauthenticated`. Gate returns 403 `forbidden`. Start on today's hall date, end before start, and inclusive length over 7 return 422 `validation_error`. A valid apply returns 201 `pending` / `unpaid` / bucket `pending` and matches `submitted` in the artifact (apart from the new id). Own list is newest first. Get another host's id returns 404. Cancel pending or approved (before arrival) returns 200 `cancelled`. Cancel after arrival, or cancel a terminal stay, returns 409 `not_cancellable`. Audit gains `guest_stay.submitted` and `guest_stay.cancelled` for the resident's own actions. A paid approved stay that has not arrived, from 30 September 2026 through 2 October 2026, is bucket `expected`. The same dates unpaid are bucket `not_expected`. A paid approved stay that has not arrived, from 20 September 2026 through 28 September 2026, is bucket `not_expected`. |
 | Failure cases | E2E; failure cases are covered by the expected response. |
 | Artifact | `backend/app/residents/guests/tests/artifacts/guest-stays-resident.json` |
+
+
+### `guest-stays-staff` Staff guest stay queue, decision, and payment
+
+| Field | Content |
+|---|---|
+| Test | `backend/app/residents/guests/tests/test_staff_queue.py` |
+| Purpose | A warden or the provost lists guest stays filtered by derived bucket (`in_hall` is the dining set and includes `should_have_left`), reads one stay, approves or rejects only while pending, and marks payment paid or unpaid before arrival on pending or approved stays. |
+| Actor | A warden. The provost may call the same routes. Gate and resident accounts are refused. |
+| Preconditions | The hall from `hall-created` exists. The clock is frozen at 2026-09-30T13:00:00Z. Seeded stays cover pending, upcoming, in-hall, should-have-left, departed, and rejected. Fatima Khan is gate staff. Sara Malik is warden. Halima Begum is provost. |
+| Action | `GET /api/v1/guest-stays` (with and without `bucket`), `GET /api/v1/guest-stays/{id}`, `POST .../decision`, `POST .../payment` with no token, as Fatima, as Aisha, then as Sara; as Halima read upcoming once. |
+| Expected response | No token returns 401. Gate and resident return 403. Pending bucket matches the artifact id order. `bucket=in_hall` includes in-hall and should-have-left; `should_have_left` is that subset alone. Approve with empty note stores `approved` unpaid and clears the note; a second decision returns 409 `not_pending`. Reject stores the note. Payment paid then unpaid on an approved stay before arrival succeeds; payment on pending succeeds; payment after arrival or on departed/rejected returns 409 `payment_locked`. Audit records `guest_stay.approved`, `guest_stay.rejected`, and `guest_stay.payment_marked`. |
+| Failure cases | E2E; failure cases are covered by the expected response. |
+| Artifact | `backend/app/residents/guests/tests/artifacts/guest-stays-staff.json` |
+
 
 
 
