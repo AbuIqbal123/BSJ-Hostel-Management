@@ -50,7 +50,7 @@ class RegisterRow(BaseModel):
     room_label: str
     presence: Literal["inside", "outside"]
     state: RegisterState
-    place: str | None = None
+    outside_destination: str | None = None
     expected_return_at: str | None = None
     returned_at: str | None = None
 
@@ -215,11 +215,11 @@ def load_summary(connection: sqlite3.Connection) -> RegisterSummary:
 def _row_from_resident(row: sqlite3.Row, now_text: str) -> RegisterRow:
     state = register_state(row["presence"], row["grace_ends_at"], now_text)
     if state == "inside":
-        place = None
+        outside_destination = None
         expected_return_at = None
         returned_at = None
     else:
-        place = row["place"]
+        outside_destination = row["place"]
         expected_return_at = row["expected_return_at"]
         returned_at = None
     return RegisterRow(
@@ -228,7 +228,7 @@ def _row_from_resident(row: sqlite3.Row, now_text: str) -> RegisterRow:
         room_label=row["room_label"],
         presence=row["presence"],
         state=state,
-        place=place,
+        outside_destination=outside_destination,
         expected_return_at=expected_return_at,
         returned_at=returned_at,
     )
@@ -317,16 +317,14 @@ LEFT JOIN users AS return_staff ON return_staff.id = outings.return_recorded_by
 """
 
 
-def load_open_or_latest_outing(
+def load_open_outing(
     connection: sqlite3.Connection, resident_id: str
 ) -> OutingBody | None:
     row = connection.execute(
         _OUTING_SELECT
         + """
         WHERE outings.resident_id = ?
-        ORDER BY CASE outings.status WHEN 'outside' THEN 0 ELSE 1 END,
-                 COALESCE(outings.returned_at, outings.exited_at, outings.created_at) DESC,
-                 outings.id DESC
+          AND outings.status = 'outside'
         LIMIT 1
         """,
         (resident_id,),
@@ -386,7 +384,7 @@ def load_resident_record(connection: sqlite3.Connection, resident_id: str) -> Re
     if row is None:
         return None
     state = register_state(row["presence"], row["grace_ends_at"], now_text)
-    outing = load_open_or_latest_outing(connection, resident_id)
+    outing = load_open_outing(connection, resident_id)
     return ResidentRecord(
         id=row["id"],
         full_name=row["full_name"],

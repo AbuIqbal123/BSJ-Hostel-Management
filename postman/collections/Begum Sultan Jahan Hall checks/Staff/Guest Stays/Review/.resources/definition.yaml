@@ -1,0 +1,5 @@
+$kind: collection
+name: Review
+order: 2000
+description: |-
+  One guest stay for review.

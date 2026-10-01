@@ -1,0 +1,5 @@
+$kind: collection
+name: Decision
+order: 3000
+description: |-
+  Approve or reject a pending permission.

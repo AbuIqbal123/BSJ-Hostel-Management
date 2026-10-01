@@ -37,6 +37,7 @@ ROOM_B205 = "d4400000-0000-4000-8000-000000000005"
 ROOM_A101 = "d4400000-0000-4000-8000-000000000006"
 ROOM_A102 = "d4400000-0000-4000-8000-000000000007"
 AISHA_RETURNED = "e7700000-0000-4000-8000-000000000031"
+AISHA_CANCELLED = "e7700000-0000-4000-8000-000000000034"
 MARYAM_OUTING = "e7700000-0000-4000-8000-000000000032"
 ZARA_OUTING = "e7700000-0000-4000-8000-000000000033"
 CREATED = "2026-09-30T00:00:00Z"
@@ -223,6 +224,7 @@ def insert_outing(
     exited_at: str | None = None,
     returned_at: str | None = None,
     created_at: str,
+    cancelled_at: str | None = None,
 ) -> None:
     connection.execute(
         """
@@ -230,7 +232,7 @@ def insert_outing(
           id, resident_id, permission_id, type, status, destination_id, place,
           expected_return_at, grace_ends_at, exited_at, exit_recorded_by,
           returned_at, return_recorded_by, created_at, updated_at, cancelled_at, hall_date
-        ) VALUES (?, ?, NULL, 'ordinary', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)
+        ) VALUES (?, ?, NULL, 'ordinary', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             outing_id,
@@ -246,6 +248,7 @@ def insert_outing(
             GATE_ID if returned_at else None,
             created_at,
             created_at,
+            cancelled_at,
             hall_date(expected_return_at),
         ),
     )
@@ -255,6 +258,17 @@ def store_register_day(path: Path) -> None:
     connection = sqlite3.connect(path)
     try:
         connection.execute("PRAGMA foreign_keys=ON;")
+        insert_outing(
+            connection,
+            AISHA_CANCELLED,
+            AISHA_ID,
+            "cancelled",
+            "Women's College",
+            expected_return_at="2026-09-28T12:00:00Z",
+            grace_ends_at="2026-09-28T12:30:00Z",
+            created_at="2026-09-28T08:00:00Z",
+            cancelled_at="2026-09-28T09:00:00Z",
+        )
         insert_outing(
             connection,
             AISHA_RETURNED,
@@ -539,7 +553,7 @@ def expected_artifact() -> dict:
         "room_label": "B-204",
         "presence": "inside",
         "state": "inside",
-        "place": None,
+        "outside_destination": None,
         "expected_return_at": None,
         "returned_at": None,
     }
@@ -549,7 +563,7 @@ def expected_artifact() -> dict:
         "room_label": "B-205",
         "presence": "outside",
         "state": "outside",
-        "place": "Maulana Azad Library",
+        "outside_destination": "Maulana Azad Library",
         "expected_return_at": "2026-09-30T13:30:00Z",
         "returned_at": None,
     }
@@ -559,7 +573,7 @@ def expected_artifact() -> dict:
         "room_label": "A-101",
         "presence": "outside",
         "state": "late",
-        "place": "Shamshad Market",
+        "outside_destination": "Shamshad Market",
         "expected_return_at": "2026-09-30T12:00:00Z",
         "returned_at": None,
     }
@@ -613,21 +627,7 @@ def expected_artifact() -> dict:
             "room_label": "B-204",
             "presence": "inside",
             "state": "inside",
-            "outing": {
-                "id": AISHA_RETURNED,
-                "permission_id": None,
-                "type": "ordinary",
-                "status": "returned",
-                "place": "Maulana Azad Library",
-                "expected_return_at": "2026-09-29T12:00:00Z",
-                "grace_ends_at": "2026-09-29T12:30:00Z",
-                "exited_at": "2026-09-29T08:00:00Z",
-                "exit_recorded_by_name": "Fatima Khan",
-                "returned_at": "2026-09-29T11:00:00Z",
-                "return_recorded_by_name": "Fatima Khan",
-                "is_late": False,
-                "created_at": "2026-09-29T07:00:00Z",
-            },
+            "outing": None,
             "guardian_name": "Rashid Khan",
             "guardian_notice": "not_due",
         },

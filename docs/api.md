@@ -30,14 +30,23 @@ Do not edit this page by hand.
   - [POST `/api/v1/me/outings` — Plan an ordinary outing](#post-api-v1-me-outings)
   - [GET `/api/v1/me/outings/current` — Open outing](#get-api-v1-me-outings-current)
   - [POST `/api/v1/me/outings/{outing_id}/cancel` — Cancel a planned outing](#post-api-v1-me-outings-outing_id-cancel)
+- [Permissions](#tag-permissions)
   - [GET `/api/v1/me/permissions` — Own special permissions](#get-api-v1-me-permissions)
   - [POST `/api/v1/me/permissions` — Request late-night or home going](#post-api-v1-me-permissions)
   - [GET `/api/v1/me/permissions/{permission_id}` — Own permission](#get-api-v1-me-permissions-permission_id)
   - [POST `/api/v1/me/permissions/{permission_id}/cancel` — Cancel own permission](#post-api-v1-me-permissions-permission_id-cancel)
+  - [GET `/api/v1/permissions` — Permission queue](#get-api-v1-permissions)
+  - [GET `/api/v1/permissions/{permission_id}` — Permission for review](#get-api-v1-permissions-permission_id)
+  - [POST `/api/v1/permissions/{permission_id}/decision` — Approve or reject a permission](#post-api-v1-permissions-permission_id-decision)
+- [Guest Stays](#tag-guest-stays)
   - [GET `/api/v1/me/guest-stays` — Own guest applications](#get-api-v1-me-guest-stays)
   - [POST `/api/v1/me/guest-stays` — Apply for a guest stay](#post-api-v1-me-guest-stays)
   - [GET `/api/v1/me/guest-stays/{guest_stay_id}` — Own guest stay](#get-api-v1-me-guest-stays-guest_stay_id)
   - [POST `/api/v1/me/guest-stays/{guest_stay_id}/cancel` — Cancel own guest application](#post-api-v1-me-guest-stays-guest_stay_id-cancel)
+  - [GET `/api/v1/guest-stays` — Guest stays](#get-api-v1-guest-stays)
+  - [GET `/api/v1/guest-stays/{guest_stay_id}` — Guest stay for review](#get-api-v1-guest-stays-guest_stay_id)
+  - [POST `/api/v1/guest-stays/{guest_stay_id}/decision` — Approve or reject a guest stay](#post-api-v1-guest-stays-guest_stay_id-decision)
+  - [POST `/api/v1/guest-stays/{guest_stay_id}/payment` — Mark guest payment](#post-api-v1-guest-stays-guest_stay_id-payment)
 - [Gate](#tag-gate)
   - [POST `/api/v1/gate/scans` — Scan a hall pass](#post-api-v1-gate-scans)
   - [GET `/api/v1/gate/activity` — Recent gate activity](#get-api-v1-gate-activity)
@@ -49,13 +58,6 @@ Do not edit this page by hand.
   - [GET `/api/v1/register/residents` — Resident register](#get-api-v1-register-residents)
   - [GET `/api/v1/register/residents/{resident_id}` — Resident record](#get-api-v1-register-residents-resident_id)
   - [GET `/api/v1/register/late` — Late list](#get-api-v1-register-late)
-  - [GET `/api/v1/permissions` — Permission queue](#get-api-v1-permissions)
-  - [GET `/api/v1/permissions/{permission_id}` — Permission for review](#get-api-v1-permissions-permission_id)
-  - [POST `/api/v1/permissions/{permission_id}/decision` — Approve or reject a permission](#post-api-v1-permissions-permission_id-decision)
-  - [GET `/api/v1/guest-stays` — Guest stays](#get-api-v1-guest-stays)
-  - [GET `/api/v1/guest-stays/{guest_stay_id}` — Guest stay for review](#get-api-v1-guest-stays-guest_stay_id)
-  - [POST `/api/v1/guest-stays/{guest_stay_id}/decision` — Approve or reject a guest stay](#post-api-v1-guest-stays-guest_stay_id-decision)
-  - [POST `/api/v1/guest-stays/{guest_stay_id}/payment` — Mark guest payment](#post-api-v1-guest-stays-guest_stay_id-payment)
 - [Hall office](#tag-hall-office)
   - [GET `/api/v1/admin/residents` — List resident accounts](#get-api-v1-admin-residents)
   - [POST `/api/v1/admin/residents` — Create a resident](#post-api-v1-admin-residents)
@@ -404,7 +406,7 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 ## <a id="tag-resident"></a>Resident
 
-The resident phone. Ordinary outings, permissions, guest applications, and the hall pass.
+The resident phone. Ordinary outings, home, destinations, and the hall pass.
 
 | Method | Path | Purpose | Who |
 |---|---|---|---|
@@ -416,14 +418,6 @@ The resident phone. Ordinary outings, permissions, guest applications, and the h
 | POST | `/api/v1/me/outings` | [Plan an ordinary outing](#post-api-v1-me-outings) | resident |
 | GET | `/api/v1/me/outings/current` | [Open outing](#get-api-v1-me-outings-current) | resident |
 | POST | `/api/v1/me/outings/{outing_id}/cancel` | [Cancel a planned outing](#post-api-v1-me-outings-outing_id-cancel) | resident |
-| GET | `/api/v1/me/permissions` | [Own special permissions](#get-api-v1-me-permissions) | resident |
-| POST | `/api/v1/me/permissions` | [Request late-night or home going](#post-api-v1-me-permissions) | resident |
-| GET | `/api/v1/me/permissions/{permission_id}` | [Own permission](#get-api-v1-me-permissions-permission_id) | resident |
-| POST | `/api/v1/me/permissions/{permission_id}/cancel` | [Cancel own permission](#post-api-v1-me-permissions-permission_id-cancel) | resident |
-| GET | `/api/v1/me/guest-stays` | [Own guest applications](#get-api-v1-me-guest-stays) | resident |
-| POST | `/api/v1/me/guest-stays` | [Apply for a guest stay](#post-api-v1-me-guest-stays) | resident |
-| GET | `/api/v1/me/guest-stays/{guest_stay_id}` | [Own guest stay](#get-api-v1-me-guest-stays-guest_stay_id) | resident, and only for a stay they host |
-| POST | `/api/v1/me/guest-stays/{guest_stay_id}/cancel` | [Cancel own guest application](#post-api-v1-me-guest-stays-guest_stay_id-cancel) | resident |
 
 ### <a id="get-api-v1-me-home"></a>GET `/api/v1/me/home` — Resident home
 
@@ -891,6 +885,20 @@ says she is already outside.
 Body: [ErrorResponse](#schema-errorresponse).
 
 
+## <a id="tag-permissions"></a>Permissions
+
+Late-night and home-going permissions. Resident requests under /api/v1/me/permissions; warden or provost queue and decisions under /api/v1/permissions.
+
+| Method | Path | Purpose | Who |
+|---|---|---|---|
+| GET | `/api/v1/me/permissions` | [Own special permissions](#get-api-v1-me-permissions) | resident |
+| POST | `/api/v1/me/permissions` | [Request late-night or home going](#post-api-v1-me-permissions) | resident |
+| GET | `/api/v1/me/permissions/{permission_id}` | [Own permission](#get-api-v1-me-permissions-permission_id) | resident |
+| POST | `/api/v1/me/permissions/{permission_id}/cancel` | [Cancel own permission](#post-api-v1-me-permissions-permission_id-cancel) | resident |
+| GET | `/api/v1/permissions` | [Permission queue](#get-api-v1-permissions) | warden or provost |
+| GET | `/api/v1/permissions/{permission_id}` | [Permission for review](#get-api-v1-permissions-permission_id) | warden or provost |
+| POST | `/api/v1/permissions/{permission_id}/decision` | [Approve or reject a permission](#post-api-v1-permissions-permission_id-decision) | warden or provost |
+
 ### <a id="get-api-v1-me-permissions"></a>GET `/api/v1/me/permissions` — Own special permissions
 
 `list_own_permissions`
@@ -1112,8 +1120,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** resident. Bearer access token.
 
-Caller: resident. Allowed while `pending` or `approved`. Not allowed
-once the gate has recorded an exit against it.
+Caller: resident. Allowed while `pending` or `approved` and unused at
+the gate (no exit scan; status is not `in_use`). Not allowed once the
+gate has recorded an exit against it.
 
 **Parameters**
 
@@ -1170,6 +1179,224 @@ the message names the current status (`not_cancellable`).
 
 Body: [ErrorResponse](#schema-errorresponse).
 
+
+### <a id="get-api-v1-permissions"></a>GET `/api/v1/permissions` — Permission queue
+
+`list_permissions`
+
+**Who.** warden or provost. Bearer access token.
+
+Caller: warden or provost. Defaults to `pending`. Ordered by
+`created_at`, newest first (`order=newest`). Pass `order=oldest` for
+oldest first. Optional filters narrow the page: `block_id` is the block
+of the resident's current room; `type` is late-night or home going;
+`created_from` and `created_to` are inclusive UTC bounds on
+`created_at`. An approved permission whose expected return has passed,
+and which was never used, becomes `expired` when this list is read.
+
+**Parameters**
+
+| Name | In | Required | Type | Notes |
+|---|---|---|---|---|
+| `status` | query | no | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` | Defaults to pending when omitted. |
+| `type` | query | no | `late_night` or `home_going` | Limit to late-night or home-going permissions. |
+| `block_id` | query | no | uuid | Limit to residents whose current room is in this block. |
+| `created_from` | query | no | date-time | Inclusive lower bound on created_at (UTC instant). |
+| `created_to` | query | no | date-time | Inclusive upper bound on created_at (UTC instant). |
+| `order` | query | no | `newest` or `oldest` | Sort by created_at. Default newest. default `newest`. |
+| `limit` | query | no | integer | 1–500. default `50`. |
+| `offset` | query | no | integer | minimum 0. default `0`. |
+
+**Responses**
+
+#### 200
+
+Permission page.
+
+Body: [PermissionPage](#schema-permissionpage).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `total` | yes | integer | minimum 0. |
+| `limit` | yes | integer |  |
+| `offset` | yes | integer |  |
+| `items` | yes | list of [PermissionReview](#schema-permissionreview) |  |
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
+### <a id="get-api-v1-permissions-permission_id"></a>GET `/api/v1/permissions/{permission_id}` — Permission for review
+
+`get_permission`
+
+**Who.** warden or provost. Bearer access token.
+
+Caller: warden or provost. An approved permission whose expected return
+has passed, and which was never used, becomes `expired` when it is read.
+
+**Parameters**
+
+| Name | In | Required | Type | Notes |
+|---|---|---|---|---|
+| `permission_id` | path | yes | uuid |  |
+
+**Responses**
+
+#### 200
+
+Permission, including the resident's name and room.
+
+Body: [PermissionReview](#schema-permissionreview).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `id` | yes | uuid |  |
+| `type` | yes | `late_night` or `home_going` |  |
+| `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` |  |
+| `short_place` | yes | string |  |
+| `destination_detail` | no | string or null |  |
+| `address` | no | string or null |  |
+| `reason` | yes | string |  |
+| `departure_at` | yes | date-time |  |
+| `expected_return_at` | yes | date-time |  |
+| `decision_note` | no | string or null |  |
+| `decided_at` | no | date-time or null |  |
+| `created_at` | yes | date-time |  |
+| `resident_id` | yes | uuid |  |
+| `resident_name` | yes | string |  |
+| `room_label` | yes | string |  |
+| `decided_by_name` | no | string or null |  |
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 404
+
+No record with that id is visible to the caller.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
+### <a id="post-api-v1-permissions-permission_id-decision"></a>POST `/api/v1/permissions/{permission_id}/decision` — Approve or reject a permission
+
+`decide_permission`
+
+**Who.** warden or provost. Bearer access token.
+
+Caller: warden or provost. Only a `pending` permission can be decided.
+Approval does not create an outing and does not by itself let a scan
+succeed before the use window. Rejection leaves ordinary outings available.
+
+**Parameters**
+
+| Name | In | Required | Type | Notes |
+|---|---|---|---|---|
+| `permission_id` | path | yes | uuid |  |
+
+**Request.** Required.
+
+Body: [DecisionRequest](#schema-decisionrequest).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `decision` | yes | `approved` or `rejected` |  |
+| `note` | no | string | at most 500 characters. |
+
+**Example**
+
+```json
+{
+  "decision": "approved",
+  "note": ""
+}
+```
+
+**Responses**
+
+#### 200
+
+Decision stored.
+
+Body: [PermissionReview](#schema-permissionreview).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `id` | yes | uuid |  |
+| `type` | yes | `late_night` or `home_going` |  |
+| `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` |  |
+| `short_place` | yes | string |  |
+| `destination_detail` | no | string or null |  |
+| `address` | no | string or null |  |
+| `reason` | yes | string |  |
+| `departure_at` | yes | date-time |  |
+| `expected_return_at` | yes | date-time |  |
+| `decision_note` | no | string or null |  |
+| `decided_at` | no | date-time or null |  |
+| `created_at` | yes | date-time |  |
+| `resident_id` | yes | uuid |  |
+| `resident_name` | yes | string |  |
+| `room_label` | yes | string |  |
+| `decided_by_name` | no | string or null |  |
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 404
+
+No record with that id is visible to the caller.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 409
+
+Only a pending permission can be approved or rejected. The message
+names the current status. Code `not_pending`.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
+## <a id="tag-guest-stays"></a>Guest Stays
+
+Guest applications. Resident applies under /api/v1/me/guest-stays; warden or provost review under /api/v1/guest-stays. Gate arrival and departure stay under Gate.
+
+| Method | Path | Purpose | Who |
+|---|---|---|---|
+| GET | `/api/v1/me/guest-stays` | [Own guest applications](#get-api-v1-me-guest-stays) | resident |
+| POST | `/api/v1/me/guest-stays` | [Apply for a guest stay](#post-api-v1-me-guest-stays) | resident |
+| GET | `/api/v1/me/guest-stays/{guest_stay_id}` | [Own guest stay](#get-api-v1-me-guest-stays-guest_stay_id) | resident, and only for a stay they host |
+| POST | `/api/v1/me/guest-stays/{guest_stay_id}/cancel` | [Cancel own guest application](#post-api-v1-me-guest-stays-guest_stay_id-cancel) | resident |
+| GET | `/api/v1/guest-stays` | [Guest stays](#get-api-v1-guest-stays) | warden or provost |
+| GET | `/api/v1/guest-stays/{guest_stay_id}` | [Guest stay for review](#get-api-v1-guest-stays-guest_stay_id) | warden or provost |
+| POST | `/api/v1/guest-stays/{guest_stay_id}/decision` | [Approve or reject a guest stay](#post-api-v1-guest-stays-guest_stay_id-decision) | warden or provost |
+| POST | `/api/v1/guest-stays/{guest_stay_id}/payment` | [Mark guest payment](#post-api-v1-guest-stays-guest_stay_id-payment) | warden or provost |
 
 ### <a id="get-api-v1-me-guest-stays"></a>GET `/api/v1/me/guest-stays` — Own guest applications
 
@@ -1430,6 +1657,284 @@ Body: [ErrorResponse](#schema-errorresponse).
 #### 403
 
 The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
+### <a id="get-api-v1-guest-stays"></a>GET `/api/v1/guest-stays` — Guest stays
+
+`list_guest_stays`
+
+**Who.** warden or provost. Bearer access token.
+
+Caller: warden or provost. Filter by derived bucket. `in_hall` here is
+the dining set and includes guests who should have left. Use
+`should_have_left` for that subset.
+
+**Parameters**
+
+| Name | In | Required | Type | Notes |
+|---|---|---|---|---|
+| `bucket` | query | no | `pending` or `upcoming` or `expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
+| `limit` | query | no | integer | 1–500. default `50`. |
+| `offset` | query | no | integer | minimum 0. default `0`. |
+
+**Responses**
+
+#### 200
+
+Guest stay page.
+
+Body: [GuestStayPage](#schema-gueststaypage).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `total` | yes | integer | minimum 0. |
+| `limit` | yes | integer |  |
+| `offset` | yes | integer |  |
+| `items` | yes | list of [GuestStay](#schema-gueststay) |  |
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
+### <a id="get-api-v1-guest-stays-guest_stay_id"></a>GET `/api/v1/guest-stays/{guest_stay_id}` — Guest stay for review
+
+`get_guest_stay`
+
+**Who.** warden or provost. Bearer access token.
+
+Caller: warden or provost.
+
+**Parameters**
+
+| Name | In | Required | Type | Notes |
+|---|---|---|---|---|
+| `guest_stay_id` | path | yes | uuid |  |
+
+**Responses**
+
+#### 200
+
+Guest stay, including the host.
+
+Body: [GuestStay](#schema-gueststay).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `id` | yes | uuid |  |
+| `host_resident_id` | yes | uuid |  |
+| `host_name` | yes | string |  |
+| `host_room_label` | yes | string |  |
+| `guest_name` | yes | string |  |
+| `relation` | yes | string |  |
+| `start_date` | yes | date |  |
+| `end_date` | yes | date |  |
+| `inclusive_days` | yes | integer |  |
+| `reason` | yes | string |  |
+| `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
+| `payment_status` | yes | `unpaid` or `paid` |  |
+| `bucket` | yes | `pending` or `upcoming` or `expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
+| `decision_note` | no | string or null |  |
+| `decided_by_name` | no | string or null | Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `arrived_recorded_by_name` | no | string or null | Staff member who recorded arrival. Empty until arrival is recorded. |
+| `departed_recorded_by_name` | no | string or null | Staff member who recorded departure. Empty until departure is recorded. |
+| `arrived_at` | no | date-time or null |  |
+| `departed_at` | no | date-time or null |  |
+| `created_at` | yes | date-time |  |
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 404
+
+No record with that id is visible to the caller.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
+### <a id="post-api-v1-guest-stays-guest_stay_id-decision"></a>POST `/api/v1/guest-stays/{guest_stay_id}/decision` — Approve or reject a guest stay
+
+`decide_guest_stay`
+
+**Who.** warden or provost. Bearer access token.
+
+Caller: warden or provost. Only while `pending`. Approval does not mark
+payment and does not record arrival.
+
+**Parameters**
+
+| Name | In | Required | Type | Notes |
+|---|---|---|---|---|
+| `guest_stay_id` | path | yes | uuid |  |
+
+**Request.** Required.
+
+Body: [DecisionRequest](#schema-decisionrequest).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `decision` | yes | `approved` or `rejected` |  |
+| `note` | no | string | at most 500 characters. |
+
+**Responses**
+
+#### 200
+
+Decision stored.
+
+Body: [GuestStay](#schema-gueststay).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `id` | yes | uuid |  |
+| `host_resident_id` | yes | uuid |  |
+| `host_name` | yes | string |  |
+| `host_room_label` | yes | string |  |
+| `guest_name` | yes | string |  |
+| `relation` | yes | string |  |
+| `start_date` | yes | date |  |
+| `end_date` | yes | date |  |
+| `inclusive_days` | yes | integer |  |
+| `reason` | yes | string |  |
+| `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
+| `payment_status` | yes | `unpaid` or `paid` |  |
+| `bucket` | yes | `pending` or `upcoming` or `expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
+| `decision_note` | no | string or null |  |
+| `decided_by_name` | no | string or null | Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `arrived_recorded_by_name` | no | string or null | Staff member who recorded arrival. Empty until arrival is recorded. |
+| `departed_recorded_by_name` | no | string or null | Staff member who recorded departure. Empty until departure is recorded. |
+| `arrived_at` | no | date-time or null |  |
+| `departed_at` | no | date-time or null |  |
+| `created_at` | yes | date-time |  |
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 404
+
+No record with that id is visible to the caller.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 409
+
+Not pending. Code `not_pending`.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
+### <a id="post-api-v1-guest-stays-guest_stay_id-payment"></a>POST `/api/v1/guest-stays/{guest_stay_id}/payment` — Mark guest payment
+
+`mark_guest_payment`
+
+**Who.** warden or provost. Bearer access token.
+
+Caller: warden or provost. Records that the hall office has or has not
+taken payment. Allowed before arrival, whether the stay is pending or
+approved. The app does not collect money.
+
+**Parameters**
+
+| Name | In | Required | Type | Notes |
+|---|---|---|---|---|
+| `guest_stay_id` | path | yes | uuid |  |
+
+**Request.** Required.
+
+Body: [PaymentRequest](#schema-paymentrequest).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `payment_status` | yes | `paid` or `unpaid` |  |
+
+**Example**
+
+```json
+{
+  "payment_status": "paid"
+}
+```
+
+**Responses**
+
+#### 200
+
+Payment status stored.
+
+Body: [GuestStay](#schema-gueststay).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `id` | yes | uuid |  |
+| `host_resident_id` | yes | uuid |  |
+| `host_name` | yes | string |  |
+| `host_room_label` | yes | string |  |
+| `guest_name` | yes | string |  |
+| `relation` | yes | string |  |
+| `start_date` | yes | date |  |
+| `end_date` | yes | date |  |
+| `inclusive_days` | yes | integer |  |
+| `reason` | yes | string |  |
+| `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
+| `payment_status` | yes | `unpaid` or `paid` |  |
+| `bucket` | yes | `pending` or `upcoming` or `expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
+| `decision_note` | no | string or null |  |
+| `decided_by_name` | no | string or null | Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `arrived_recorded_by_name` | no | string or null | Staff member who recorded arrival. Empty until arrival is recorded. |
+| `departed_recorded_by_name` | no | string or null | Staff member who recorded departure. Empty until departure is recorded. |
+| `arrived_at` | no | date-time or null |  |
+| `departed_at` | no | date-time or null |  |
+| `created_at` | yes | date-time |  |
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 404
+
+No record with that id is visible to the caller.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 409
+
+The guest has already arrived or the stay is closed. Code `payment_locked`.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
@@ -1815,7 +2320,7 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 ## <a id="tag-register"></a>Register
 
-Warden and provost view of the hall and of each block. Inside, outside, late, pending decisions, and guests.
+Warden and provost presence board under /api/v1/register. Inside, outside, and late for the hall and each block.
 
 | Method | Path | Purpose | Who |
 |---|---|---|---|
@@ -1823,13 +2328,6 @@ Warden and provost view of the hall and of each block. Inside, outside, late, pe
 | GET | `/api/v1/register/residents` | [Resident register](#get-api-v1-register-residents) | warden or provost |
 | GET | `/api/v1/register/residents/{resident_id}` | [Resident record](#get-api-v1-register-residents-resident_id) | warden or provost |
 | GET | `/api/v1/register/late` | [Late list](#get-api-v1-register-late) | warden or provost |
-| GET | `/api/v1/permissions` | [Permission queue](#get-api-v1-permissions) | warden or provost |
-| GET | `/api/v1/permissions/{permission_id}` | [Permission for review](#get-api-v1-permissions-permission_id) | warden or provost |
-| POST | `/api/v1/permissions/{permission_id}/decision` | [Approve or reject a permission](#post-api-v1-permissions-permission_id-decision) | warden or provost |
-| GET | `/api/v1/guest-stays` | [Guest stays](#get-api-v1-guest-stays) | warden or provost |
-| GET | `/api/v1/guest-stays/{guest_stay_id}` | [Guest stay for review](#get-api-v1-guest-stays-guest_stay_id) | warden or provost |
-| POST | `/api/v1/guest-stays/{guest_stay_id}/decision` | [Approve or reject a guest stay](#post-api-v1-guest-stays-guest_stay_id-decision) | warden or provost |
-| POST | `/api/v1/guest-stays/{guest_stay_id}/payment` | [Mark guest payment](#post-api-v1-guest-stays-guest_stay_id-payment) | warden or provost |
 
 ### <a id="get-api-v1-register-summary"></a>GET `/api/v1/register/summary` — Hall register counts
 
@@ -1956,8 +2454,10 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** warden or provost. Bearer access token.
 
-Caller: warden or provost. The open or latest outing, whether it is an
-ordinary outing or a permission, and whether the guardian was told.
+Caller: warden or provost. The open outside outing when she is outside
+(status `outside`), or null when she is inside. Cancelled, returned, and
+planned outings are not returned here. The outing may be ordinary or a
+permission. Whether the guardian was told is included.
 
 **Parameters**
 
@@ -1982,7 +2482,7 @@ Body: [ResidentRecord](#schema-residentrecord).
 | `room_label` | yes | string |  |
 | `presence` | yes | `inside` or `outside` |  |
 | `state` | yes | `inside` or `outside` or `late` |  |
-| `outing` | no | [Outing](#schema-outing) or null |  |
+| `outing` | no | [Outing](#schema-outing) or null | The open outing with status outside, or null when the resident is inside. Cancelled, returned, and planned outings are omitted. |
 | `guardian_name` | yes | string | Parent or guardian the hall contacts. |
 | `guardian_notice` | yes | `not_due` or `sent` or `failed` |  |
 
@@ -2045,478 +2545,6 @@ Body: [ErrorResponse](#schema-errorresponse).
 #### 403
 
 The signed-in role cannot call this operation.
-
-Body: [ErrorResponse](#schema-errorresponse).
-
-
-### <a id="get-api-v1-permissions"></a>GET `/api/v1/permissions` — Permission queue
-
-`list_permissions`
-
-**Who.** warden or provost. Bearer access token.
-
-Caller: warden or provost. Defaults to `pending`. Newest first. An
-approved permission whose expected return has passed, and which was never
-used, becomes `expired` when this list is read.
-
-**Parameters**
-
-| Name | In | Required | Type | Notes |
-|---|---|---|---|---|
-| `status` | query | no | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` |  |
-| `limit` | query | no | integer | 1–500. default `50`. |
-| `offset` | query | no | integer | minimum 0. default `0`. |
-
-**Responses**
-
-#### 200
-
-Permission page.
-
-Body: [PermissionPage](#schema-permissionpage).
-
-| Field | Required | Type | Notes |
-|---|---|---|---|
-| `total` | yes | integer | minimum 0. |
-| `limit` | yes | integer |  |
-| `offset` | yes | integer |  |
-| `items` | yes | list of [PermissionReview](#schema-permissionreview) |  |
-
-#### 401
-
-The access token is missing or expired, or the username and password were refused.
-
-Body: [ErrorResponse](#schema-errorresponse).
-
-#### 403
-
-The signed-in role cannot call this operation.
-
-Body: [ErrorResponse](#schema-errorresponse).
-
-
-### <a id="get-api-v1-permissions-permission_id"></a>GET `/api/v1/permissions/{permission_id}` — Permission for review
-
-`get_permission`
-
-**Who.** warden or provost. Bearer access token.
-
-Caller: warden or provost. An approved permission whose expected return
-has passed, and which was never used, becomes `expired` when it is read.
-
-**Parameters**
-
-| Name | In | Required | Type | Notes |
-|---|---|---|---|---|
-| `permission_id` | path | yes | uuid |  |
-
-**Responses**
-
-#### 200
-
-Permission, including the resident's name and room.
-
-Body: [PermissionReview](#schema-permissionreview).
-
-| Field | Required | Type | Notes |
-|---|---|---|---|
-| `id` | yes | uuid |  |
-| `type` | yes | `late_night` or `home_going` |  |
-| `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` |  |
-| `short_place` | yes | string |  |
-| `destination_detail` | no | string or null |  |
-| `address` | no | string or null |  |
-| `reason` | yes | string |  |
-| `departure_at` | yes | date-time |  |
-| `expected_return_at` | yes | date-time |  |
-| `decision_note` | no | string or null |  |
-| `decided_at` | no | date-time or null |  |
-| `created_at` | yes | date-time |  |
-| `resident_id` | yes | uuid |  |
-| `resident_name` | yes | string |  |
-| `room_label` | yes | string |  |
-| `decided_by_name` | no | string or null |  |
-
-#### 401
-
-The access token is missing or expired, or the username and password were refused.
-
-Body: [ErrorResponse](#schema-errorresponse).
-
-#### 403
-
-The signed-in role cannot call this operation.
-
-Body: [ErrorResponse](#schema-errorresponse).
-
-#### 404
-
-No record with that id is visible to the caller.
-
-Body: [ErrorResponse](#schema-errorresponse).
-
-
-### <a id="post-api-v1-permissions-permission_id-decision"></a>POST `/api/v1/permissions/{permission_id}/decision` — Approve or reject a permission
-
-`decide_permission`
-
-**Who.** warden or provost. Bearer access token.
-
-Caller: warden or provost. Only a `pending` permission can be decided.
-Approval does not create an outing and does not by itself let a scan
-succeed before the use window. Rejection leaves ordinary outings available.
-
-**Parameters**
-
-| Name | In | Required | Type | Notes |
-|---|---|---|---|---|
-| `permission_id` | path | yes | uuid |  |
-
-**Request.** Required.
-
-Body: [DecisionRequest](#schema-decisionrequest).
-
-| Field | Required | Type | Notes |
-|---|---|---|---|
-| `decision` | yes | `approved` or `rejected` |  |
-| `note` | no | string | at most 500 characters. |
-
-**Example**
-
-```json
-{
-  "decision": "approved",
-  "note": ""
-}
-```
-
-**Responses**
-
-#### 200
-
-Decision stored.
-
-Body: [PermissionReview](#schema-permissionreview).
-
-| Field | Required | Type | Notes |
-|---|---|---|---|
-| `id` | yes | uuid |  |
-| `type` | yes | `late_night` or `home_going` |  |
-| `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` |  |
-| `short_place` | yes | string |  |
-| `destination_detail` | no | string or null |  |
-| `address` | no | string or null |  |
-| `reason` | yes | string |  |
-| `departure_at` | yes | date-time |  |
-| `expected_return_at` | yes | date-time |  |
-| `decision_note` | no | string or null |  |
-| `decided_at` | no | date-time or null |  |
-| `created_at` | yes | date-time |  |
-| `resident_id` | yes | uuid |  |
-| `resident_name` | yes | string |  |
-| `room_label` | yes | string |  |
-| `decided_by_name` | no | string or null |  |
-
-#### 401
-
-The access token is missing or expired, or the username and password were refused.
-
-Body: [ErrorResponse](#schema-errorresponse).
-
-#### 403
-
-The signed-in role cannot call this operation.
-
-Body: [ErrorResponse](#schema-errorresponse).
-
-#### 404
-
-No record with that id is visible to the caller.
-
-Body: [ErrorResponse](#schema-errorresponse).
-
-#### 409
-
-Only a pending permission can be approved or rejected. The message
-names the current status. Code `not_pending`.
-
-Body: [ErrorResponse](#schema-errorresponse).
-
-
-### <a id="get-api-v1-guest-stays"></a>GET `/api/v1/guest-stays` — Guest stays
-
-`list_guest_stays`
-
-**Who.** warden or provost. Bearer access token.
-
-Caller: warden or provost. Filter by derived bucket. `in_hall` here is
-the dining set and includes guests who should have left. Use
-`should_have_left` for that subset.
-
-**Parameters**
-
-| Name | In | Required | Type | Notes |
-|---|---|---|---|---|
-| `bucket` | query | no | `pending` or `upcoming` or `expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
-| `limit` | query | no | integer | 1–500. default `50`. |
-| `offset` | query | no | integer | minimum 0. default `0`. |
-
-**Responses**
-
-#### 200
-
-Guest stay page.
-
-Body: [GuestStayPage](#schema-gueststaypage).
-
-| Field | Required | Type | Notes |
-|---|---|---|---|
-| `total` | yes | integer | minimum 0. |
-| `limit` | yes | integer |  |
-| `offset` | yes | integer |  |
-| `items` | yes | list of [GuestStay](#schema-gueststay) |  |
-
-#### 401
-
-The access token is missing or expired, or the username and password were refused.
-
-Body: [ErrorResponse](#schema-errorresponse).
-
-#### 403
-
-The signed-in role cannot call this operation.
-
-Body: [ErrorResponse](#schema-errorresponse).
-
-
-### <a id="get-api-v1-guest-stays-guest_stay_id"></a>GET `/api/v1/guest-stays/{guest_stay_id}` — Guest stay for review
-
-`get_guest_stay`
-
-**Who.** warden or provost. Bearer access token.
-
-Caller: warden or provost.
-
-**Parameters**
-
-| Name | In | Required | Type | Notes |
-|---|---|---|---|---|
-| `guest_stay_id` | path | yes | uuid |  |
-
-**Responses**
-
-#### 200
-
-Guest stay, including the host.
-
-Body: [GuestStay](#schema-gueststay).
-
-| Field | Required | Type | Notes |
-|---|---|---|---|
-| `id` | yes | uuid |  |
-| `host_resident_id` | yes | uuid |  |
-| `host_name` | yes | string |  |
-| `host_room_label` | yes | string |  |
-| `guest_name` | yes | string |  |
-| `relation` | yes | string |  |
-| `start_date` | yes | date |  |
-| `end_date` | yes | date |  |
-| `inclusive_days` | yes | integer |  |
-| `reason` | yes | string |  |
-| `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
-| `payment_status` | yes | `unpaid` or `paid` |  |
-| `bucket` | yes | `pending` or `upcoming` or `expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
-| `decision_note` | no | string or null |  |
-| `decided_by_name` | no | string or null | Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
-| `arrived_recorded_by_name` | no | string or null | Staff member who recorded arrival. Empty until arrival is recorded. |
-| `departed_recorded_by_name` | no | string or null | Staff member who recorded departure. Empty until departure is recorded. |
-| `arrived_at` | no | date-time or null |  |
-| `departed_at` | no | date-time or null |  |
-| `created_at` | yes | date-time |  |
-
-#### 401
-
-The access token is missing or expired, or the username and password were refused.
-
-Body: [ErrorResponse](#schema-errorresponse).
-
-#### 403
-
-The signed-in role cannot call this operation.
-
-Body: [ErrorResponse](#schema-errorresponse).
-
-#### 404
-
-No record with that id is visible to the caller.
-
-Body: [ErrorResponse](#schema-errorresponse).
-
-
-### <a id="post-api-v1-guest-stays-guest_stay_id-decision"></a>POST `/api/v1/guest-stays/{guest_stay_id}/decision` — Approve or reject a guest stay
-
-`decide_guest_stay`
-
-**Who.** warden or provost. Bearer access token.
-
-Caller: warden or provost. Only while `pending`. Approval does not mark
-payment and does not record arrival.
-
-**Parameters**
-
-| Name | In | Required | Type | Notes |
-|---|---|---|---|---|
-| `guest_stay_id` | path | yes | uuid |  |
-
-**Request.** Required.
-
-Body: [DecisionRequest](#schema-decisionrequest).
-
-| Field | Required | Type | Notes |
-|---|---|---|---|
-| `decision` | yes | `approved` or `rejected` |  |
-| `note` | no | string | at most 500 characters. |
-
-**Responses**
-
-#### 200
-
-Decision stored.
-
-Body: [GuestStay](#schema-gueststay).
-
-| Field | Required | Type | Notes |
-|---|---|---|---|
-| `id` | yes | uuid |  |
-| `host_resident_id` | yes | uuid |  |
-| `host_name` | yes | string |  |
-| `host_room_label` | yes | string |  |
-| `guest_name` | yes | string |  |
-| `relation` | yes | string |  |
-| `start_date` | yes | date |  |
-| `end_date` | yes | date |  |
-| `inclusive_days` | yes | integer |  |
-| `reason` | yes | string |  |
-| `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
-| `payment_status` | yes | `unpaid` or `paid` |  |
-| `bucket` | yes | `pending` or `upcoming` or `expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
-| `decision_note` | no | string or null |  |
-| `decided_by_name` | no | string or null | Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
-| `arrived_recorded_by_name` | no | string or null | Staff member who recorded arrival. Empty until arrival is recorded. |
-| `departed_recorded_by_name` | no | string or null | Staff member who recorded departure. Empty until departure is recorded. |
-| `arrived_at` | no | date-time or null |  |
-| `departed_at` | no | date-time or null |  |
-| `created_at` | yes | date-time |  |
-
-#### 401
-
-The access token is missing or expired, or the username and password were refused.
-
-Body: [ErrorResponse](#schema-errorresponse).
-
-#### 403
-
-The signed-in role cannot call this operation.
-
-Body: [ErrorResponse](#schema-errorresponse).
-
-#### 404
-
-No record with that id is visible to the caller.
-
-Body: [ErrorResponse](#schema-errorresponse).
-
-#### 409
-
-Not pending. Code `not_pending`.
-
-Body: [ErrorResponse](#schema-errorresponse).
-
-
-### <a id="post-api-v1-guest-stays-guest_stay_id-payment"></a>POST `/api/v1/guest-stays/{guest_stay_id}/payment` — Mark guest payment
-
-`mark_guest_payment`
-
-**Who.** warden or provost. Bearer access token.
-
-Caller: warden or provost. Records that the hall office has or has not
-taken payment. Allowed before arrival, whether the stay is pending or
-approved. The app does not collect money.
-
-**Parameters**
-
-| Name | In | Required | Type | Notes |
-|---|---|---|---|---|
-| `guest_stay_id` | path | yes | uuid |  |
-
-**Request.** Required.
-
-Body: [PaymentRequest](#schema-paymentrequest).
-
-| Field | Required | Type | Notes |
-|---|---|---|---|
-| `payment_status` | yes | `paid` or `unpaid` |  |
-
-**Example**
-
-```json
-{
-  "payment_status": "paid"
-}
-```
-
-**Responses**
-
-#### 200
-
-Payment status stored.
-
-Body: [GuestStay](#schema-gueststay).
-
-| Field | Required | Type | Notes |
-|---|---|---|---|
-| `id` | yes | uuid |  |
-| `host_resident_id` | yes | uuid |  |
-| `host_name` | yes | string |  |
-| `host_room_label` | yes | string |  |
-| `guest_name` | yes | string |  |
-| `relation` | yes | string |  |
-| `start_date` | yes | date |  |
-| `end_date` | yes | date |  |
-| `inclusive_days` | yes | integer |  |
-| `reason` | yes | string |  |
-| `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
-| `payment_status` | yes | `unpaid` or `paid` |  |
-| `bucket` | yes | `pending` or `upcoming` or `expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
-| `decision_note` | no | string or null |  |
-| `decided_by_name` | no | string or null | Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
-| `arrived_recorded_by_name` | no | string or null | Staff member who recorded arrival. Empty until arrival is recorded. |
-| `departed_recorded_by_name` | no | string or null | Staff member who recorded departure. Empty until departure is recorded. |
-| `arrived_at` | no | date-time or null |  |
-| `departed_at` | no | date-time or null |  |
-| `created_at` | yes | date-time |  |
-
-#### 401
-
-The access token is missing or expired, or the username and password were refused.
-
-Body: [ErrorResponse](#schema-errorresponse).
-
-#### 403
-
-The signed-in role cannot call this operation.
-
-Body: [ErrorResponse](#schema-errorresponse).
-
-#### 404
-
-No record with that id is visible to the caller.
-
-Body: [ErrorResponse](#schema-errorresponse).
-
-#### 409
-
-The guest has already arrived or the stay is closed. Code `payment_locked`.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
@@ -4280,7 +4308,7 @@ One of: `pending`, `upcoming`, `expected`, `in_hall`, `should_have_left`, `depar
 | `room_label` | yes | string |  |
 | `presence` | yes | `inside` or `outside` |  |
 | `state` | yes | `inside` or `outside` or `late` |  |
-| `place` | no | string or null | Place on the open outing. Empty when the resident is inside. |
+| `outside_destination` | no | string or null | Place on the open outing. Empty when the resident is inside. |
 | `expected_return_at` | no | date-time or null |  |
 | `returned_at` | no | date-time or null |  |
 
@@ -4310,7 +4338,7 @@ One of: `not_due`, `sent`, `failed`.
 | `room_label` | yes | string |  |
 | `presence` | yes | `inside` or `outside` |  |
 | `state` | yes | `inside` or `outside` or `late` |  |
-| `outing` | no | [Outing](#schema-outing) or null |  |
+| `outing` | no | [Outing](#schema-outing) or null | The open outing with status outside, or null when the resident is inside. Cancelled, returned, and planned outings are omitted. |
 | `guardian_name` | yes | string | Parent or guardian the hall contacts. |
 | `guardian_notice` | yes | `not_due` or `sent` or `failed` |  |
 

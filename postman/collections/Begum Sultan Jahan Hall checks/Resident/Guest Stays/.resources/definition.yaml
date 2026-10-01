@@ -1,0 +1,5 @@
+$kind: collection
+name: Guest Stays
+order: 5000
+description: |-
+  Guest applications made by the host resident.

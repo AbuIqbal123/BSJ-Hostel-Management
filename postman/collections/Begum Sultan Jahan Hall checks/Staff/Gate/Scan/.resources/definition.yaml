@@ -1,0 +1,5 @@
+$kind: collection
+name: Scan
+order: 1000
+description: |-
+  Scan a permanent hall pass.

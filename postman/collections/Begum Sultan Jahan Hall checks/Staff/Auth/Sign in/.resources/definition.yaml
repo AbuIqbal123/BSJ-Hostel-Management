@@ -1,0 +1,5 @@
+$kind: collection
+name: Sign in
+order: 100
+description: |-
+  Sign in as provost, warden, or gate. Each stashes its own access token.

@@ -21,7 +21,7 @@ from app.shared.auth.routes import ConnectionDep
 from app.shared.errors import ApiError
 from app.staff.register.routes import RegisterDep
 
-router = APIRouter(prefix="/api/v1", tags=["Register"])
+router = APIRouter(prefix="/api/v1", tags=["Permissions"])
 
 
 class DecisionRequest(BaseModel):
@@ -35,6 +35,11 @@ def list_permissions(
     _account: RegisterDep,
     connection: ConnectionDep,
     status: Annotated[PermissionStatus | None, Query()] = None,
+    type: Annotated[Literal["late_night", "home_going"] | None, Query()] = None,
+    block_id: Annotated[str | None, Query()] = None,
+    created_from: Annotated[str | None, Query()] = None,
+    created_to: Annotated[str | None, Query()] = None,
+    order: Annotated[Literal["newest", "oldest"], Query()] = "newest",
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> PermissionPageBody:
@@ -47,6 +52,11 @@ def list_permissions(
         status=filter_status,
         limit=limit,
         offset=offset,
+        permission_type=type,
+        block_id=block_id,
+        created_from=created_from,
+        created_to=created_to,
+        order=order,
     )
     connection.commit()
     return page

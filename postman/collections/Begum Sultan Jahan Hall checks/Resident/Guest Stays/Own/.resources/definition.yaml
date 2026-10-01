@@ -1,0 +1,5 @@
+$kind: collection
+name: Own
+order: 2000
+description: |-
+  List and read own guest applications.

@@ -3,7 +3,7 @@ name: 'Begum Sultan Jahan Hall checks'
 description: |-
   Press Send. Each request signs itself in.
 
-  Resident is Aisha Khan, enrolment 24-GLLB-118. Staff is Halima Begum, the provost. Halima can open the gate, the register, and the hall office.
+  Resident is Aisha Khan, enrolment 24-GLLB-118. Staff sign-ins: Halima Begum (provost), Sara Malik (warden), Fatima Khan (gate). Auth Sign in requests stash provost_token, warden_token, resident_token, and gate_token.
 
   Health, Sign in, Current account, the refresh token, the password check, and Sign out respond. Every other request is specified and returns 404 until that route is built.
 variables:
@@ -25,3 +25,11 @@ variables:
     value: 00000000-0000-4000-8000-0000000000a1
   - key: guestStayId
     value: 00000000-0000-4000-8000-0000000000a2
+  - key: provost_token
+    value: ''
+  - key: warden_token
+    value: ''
+  - key: resident_token
+    value: ''
+  - key: gate_token
+    value: ''

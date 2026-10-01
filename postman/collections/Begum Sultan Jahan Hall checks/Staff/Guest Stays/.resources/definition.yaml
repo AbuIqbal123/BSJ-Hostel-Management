@@ -1,0 +1,5 @@
+$kind: collection
+name: Guest Stays
+order: 2200
+description: |-
+  Guest stay review, payment, and decisions. Each request signs in as Halima Begum, the provost.

@@ -1,0 +1,5 @@
+$kind: collection
+name: Activity
+order: 3000
+description: |-
+  Recent gate activity.
