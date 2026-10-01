@@ -1,5 +1,5 @@
 $kind: collection
-name: Sign in
+name: Auth
 order: 100
 description: |-
   Aisha Khan, enrolment 24-GLLB-118. Press Send.

@@ -26,6 +26,18 @@ When a change affects what a client sends, what the server returns, who may call
 5. Do not leave the change only in a commit message or a code comment.
 6. If the change adds, removes, or connects a part of the system, update `docs/system-architecture.md` in the same change. The line convention is at the top of that file.
 
+OpenAPI tags group operations by URL prefix. Keep tags and Postman folders aligned:
+
+| Tag | URL prefix |
+|---|---|
+| Auth | `/api/v1/auth` |
+| Register | `/api/v1/register` |
+| Gate | `/api/v1/gate` |
+| Permissions | `/api/v1/permissions` and `/api/v1/me/permissions*` |
+| Guest Stays | `/api/v1/guest-stays` and `/api/v1/me/guest-stays*` |
+
+When you add a path, set its `tags` to the prefix it belongs under. Do not leave permission or guest-stay staff routes under Register. Postman hand-laid folders under `postman/collections/` use the same names (Auth, Register, Gate, Permissions, Guest Stays) under Resident or Staff as appropriate.
+
 A route registered in `backend/app` must already be a path in `backend/openapi.yaml`. The process refuses to start otherwise. A path may be documented before it is implemented.
 
 Confirmed hall rules and open decisions are both listed in `docs/database.md`. An open decision becomes a confirmed rule only when that file says the hall decided it.

@@ -49,11 +49,21 @@ tags:
   - name: Auth
     description: Hall-issued accounts. No public registration and no guardian login.
   - name: Resident
-    description: The resident phone. Ordinary outings, permissions, guest applications, and the hall pass.
+    description: The resident phone. Ordinary outings, home, destinations, and the hall pass.
+  - name: Permissions
+    description: >
+      Late-night and home-going permissions. Resident requests under /api/v1/me/permissions;
+      warden or provost queue and decisions under /api/v1/permissions.
+  - name: Guest Stays
+    description: >
+      Guest applications. Resident applies under /api/v1/me/guest-stays; warden or
+      provost review under /api/v1/guest-stays. Gate arrival and departure stay under Gate.
   - name: Gate
     description: Scan the permanent hall pass, and record guest arrival and departure. Guests have no hall pass.
   - name: Register
-    description: Warden and provost view of the hall and of each block. Inside, outside, late, pending decisions, and guests.
+    description: >
+      Warden and provost presence board under /api/v1/register. Inside, outside, and late
+      for the hall and each block.
   - name: Hall office
     description: Provost only. Residents, staff, rooms, destinations, settings, export, SMS log, and audit.
 
@@ -480,7 +490,7 @@ paths:
 
   /api/v1/me/permissions:
     get:
-      tags: [Resident]
+      tags: [Permissions]
       operationId: list_own_permissions
       summary: Own special permissions
       description: |
@@ -507,7 +517,7 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
     post:
-      tags: [Resident]
+      tags: [Permissions]
       operationId: submit_permission
       summary: Request late-night or home going
       description: |
@@ -560,7 +570,7 @@ paths:
 
   /api/v1/me/permissions/{permission_id}:
     get:
-      tags: [Resident]
+      tags: [Permissions]
       operationId: get_own_permission
       summary: Own permission
       description: |
@@ -585,7 +595,7 @@ paths:
 
   /api/v1/me/permissions/{permission_id}/cancel:
     post:
-      tags: [Resident]
+      tags: [Permissions]
       operationId: cancel_permission
       summary: Cancel own permission
       description: |
@@ -618,7 +628,7 @@ paths:
 
   /api/v1/me/guest-stays:
     get:
-      tags: [Resident]
+      tags: [Guest Stays]
       operationId: list_own_guest_stays
       summary: Own guest applications
       description: "Caller: resident. Stays this resident is hosting. Newest first."
@@ -637,7 +647,7 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
     post:
-      tags: [Resident]
+      tags: [Guest Stays]
       operationId: submit_guest_stay
       summary: Apply for a guest stay
       description: |
@@ -674,7 +684,7 @@ paths:
 
   /api/v1/me/guest-stays/{guest_stay_id}:
     get:
-      tags: [Resident]
+      tags: [Guest Stays]
       operationId: get_own_guest_stay
       summary: Own guest stay
       description: "Caller: resident, and only for a stay they host."
@@ -696,7 +706,7 @@ paths:
 
   /api/v1/me/guest-stays/{guest_stay_id}/cancel:
     post:
-      tags: [Resident]
+      tags: [Guest Stays]
       operationId: cancel_guest_stay
       summary: Cancel own guest application
       description: "Caller: resident. Allowed while `pending` or `approved`, and only before arrival is recorded."
@@ -1077,7 +1087,7 @@ paths:
 
   /api/v1/permissions:
     get:
-      tags: [Register]
+      tags: [Permissions]
       operationId: list_permissions
       summary: Permission queue
       description: |
@@ -1106,7 +1116,7 @@ paths:
 
   /api/v1/permissions/{permission_id}:
     get:
-      tags: [Register]
+      tags: [Permissions]
       operationId: get_permission
       summary: Permission for review
       description: |
@@ -1130,7 +1140,7 @@ paths:
 
   /api/v1/permissions/{permission_id}/decision:
     post:
-      tags: [Register]
+      tags: [Permissions]
       operationId: decide_permission
       summary: Approve or reject a permission
       description: |
@@ -1172,7 +1182,7 @@ paths:
 
   /api/v1/guest-stays:
     get:
-      tags: [Register]
+      tags: [Guest Stays]
       operationId: list_guest_stays
       summary: Guest stays
       description: |
@@ -1201,7 +1211,7 @@ paths:
 
   /api/v1/guest-stays/{guest_stay_id}:
     get:
-      tags: [Register]
+      tags: [Guest Stays]
       operationId: get_guest_stay
       summary: Guest stay for review
       description: "Caller: warden or provost."
@@ -1223,7 +1233,7 @@ paths:
 
   /api/v1/guest-stays/{guest_stay_id}/decision:
     post:
-      tags: [Register]
+      tags: [Guest Stays]
       operationId: decide_guest_stay
       summary: Approve or reject a guest stay
       description: |
@@ -1259,7 +1269,7 @@ paths:
 
   /api/v1/guest-stays/{guest_stay_id}/payment:
     post:
-      tags: [Register]
+      tags: [Guest Stays]
       operationId: mark_guest_payment
       summary: Mark guest payment
       description: |

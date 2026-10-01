@@ -29,6 +29,20 @@ Behavior is specified before it is implemented.
 
 Do not implement a behavior those documents do not already describe. Update the owning document in the same change as the code. While this work is on dev, leave the API version and the database document version as they are. Do not add a database revision row for a dev change. Those version numbers start when the work moves to production.
 
+### OpenAPI tags and Postman folders
+
+OpenAPI tags are grouped by URL prefix. Postman collection folders use the same names so Swagger and Postman stay aligned.
+
+| Tag / folder | URL prefix |
+|---|---|
+| Auth | `/api/v1/auth` |
+| Register | `/api/v1/register` |
+| Gate | `/api/v1/gate` |
+| Permissions | `/api/v1/permissions` and `/api/v1/me/permissions*` |
+| Guest Stays | `/api/v1/guest-stays` and `/api/v1/me/guest-stays*` |
+
+Other tags (Operations, Resident, Hall office) follow the same idea: one tag owns a clear path family. When you add a route, put it under the tag for its prefix. When you add or move a Postman request, put it in the matching folder. Do not put permission or guest-stay routes under Register.
+
 ### Documents that stay current
 
 Finish the change and the document together.
