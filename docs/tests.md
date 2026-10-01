@@ -1,8 +1,8 @@
 # Test catalog
 
-Document version: **0.4.26**
+Document version: **0.4.27**
 
-Status: eighteen recorded tests. Startup creates the hall. Sign-in keeps a session. A development command adds local accounts. Resident home reads the resident's own screen. The destination list shows the active ordinary-outing choices, with Other last. A resident can plan an ordinary outing before the gate scan. She can read the outing that is still planned or outside. She can cancel that plan before the gate scan. A warden or the provost can read the register presence board: hall and block counts, the resident list with filters, one resident's record, and the late list. A resident can submit, list, read, and cancel late-night and home-going permissions. A warden or the provost can read the permission queue and decide a pending request. The staff permission queue sorts by created_at (newest default) and accepts optional filters for block, type, and created_at date range. A resident can read her own exit and return history as a paginated list. A resident can read her permanent hall-pass QR payload. A resident can apply for, list, read, and cancel her own guest stays. A warden or the provost can list guest stays by bucket, decide a pending stay, and mark payment before arrival. Gate staff can scan a hall pass to record an exit or return, and read recent gate activity. Gate staff can list expected and in-hall guests and record guest arrival and departure. The provost can read and update hall settings.
+Status: nineteen recorded tests. Startup creates the hall. Sign-in keeps a session. A development command adds local accounts. Resident home reads the resident's own screen. The destination list shows the active ordinary-outing choices, with Other last. A resident can plan an ordinary outing before the gate scan. She can read the outing that is still planned or outside. She can cancel that plan before the gate scan. A warden or the provost can read the register presence board: hall and block counts, the resident list with filters, one resident's record, and the late list. A resident can submit, list, read, and cancel late-night and home-going permissions. A warden or the provost can read the permission queue and decide a pending request. The staff permission queue sorts by created_at (newest default) and accepts optional filters for block, type, and created_at date range. A resident can read her own exit and return history as a paginated list. A resident can read her permanent hall-pass QR payload. A resident can apply for, list, read, and cancel her own guest stays. A warden or the provost can list guest stays by bucket, decide a pending stay, and mark payment before arrival. Gate staff can scan a hall pass to record an exit or return, and read recent gate activity. Gate staff can list expected and in-hall guests and record guest arrival and departure. The provost can read and update hall settings. The provost can list, create, and update blocks.
 
 Each test has an entry here and a file next to the business area it covers. Write the failing check for one behavior, see it fail, then make it pass. Update the entry in that same change. The entry names the test file. It does not copy every payload when the test already states them. A migration is not part of this loop unless the stored records change. Bump this document when the format or a recorded test changes.
 
@@ -275,4 +275,19 @@ Copy this block for each test and fill every field.
 | Expected response | No token returns 401. Resident and warden return 403. GET matches artifact defaults. Successful PATCH returns updated HallSettings and audit `settings.updated`. Invalid hours/seasons/templates return 422 `validation_error`. Extra `timezone` returns 422. Empty patch returns current settings with no new audit. |
 | Failure cases | E2E; failure cases are covered by the expected response. |
 | Artifact | `backend/app/staff/office/tests/artifacts/admin-settings.json` |
+
+
+
+### `admin-blocks` List, create, and update blocks
+
+| Field | Content |
+|---|---|
+| Test | `backend/app/staff/office/tests/test_blocks.py` |
+| Purpose | Provost lists all blocks (including inactive), creates a block with a unique code, and patches name/floors/room_count/beds_per_room/is_active. Duplicate codes are refused. Code is not patchable. Deactivating leaves rooms in place. |
+| Actor | Provost. Warden and resident are refused. |
+| Preconditions | The hall from `hall-created` exists (five published blocks). Clock frozen at 2026-09-30T12:00:00Z. Halima Begum is provost. Sara Malik is warden. Aisha Khan is a resident with room B-204 in Block-B. |
+| Action | `GET/POST /api/v1/admin/blocks` and `PATCH /api/v1/admin/blocks/{block_id}` with no token, as Aisha, as Sara, as Halima (list seed order; create Block-E; refuse duplicate code case-insensitively; patch name and deactivate B; confirm room B-204 remains; unknown id 404). |
+| Expected response | No token returns 401. Resident and warden return 403. List matches artifact seed codes. Create returns 201 with `is_active` true and audit `block.created`. Duplicate returns 409 `duplicate_block`. Patch returns 200 and audit `block.updated`. Deactivated block stays on the list. |
+| Failure cases | E2E; failure cases are covered by the expected response. |
+| Artifact | `backend/app/staff/office/tests/artifacts/admin-blocks.json` |
 

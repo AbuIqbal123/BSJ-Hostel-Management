@@ -3,7 +3,7 @@ method: PATCH
 url: '{{baseUrl}}/api/v1/admin/blocks/{{blockId}}'
 order: 3000
 description: |-
-  Caller: provost. Deactivate with `is_active` false. Rooms in the block remain. Returns 404 until this route is built.
+  Caller: provost. Deactivate with `is_active` false. Rooms in the block remain.
 headers:
   - key: Content-Type
     value: application/json

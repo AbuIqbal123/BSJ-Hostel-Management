@@ -3,7 +3,7 @@ method: GET
 url: '{{baseUrl}}/api/v1/admin/blocks'
 order: 1000
 description: |-
-  Caller: provost. Includes inactive blocks. Returns 404 until this route is built.
+  Caller: provost. Includes inactive blocks.
 scripts:
   - type: beforeRequest
     language: text/javascript
