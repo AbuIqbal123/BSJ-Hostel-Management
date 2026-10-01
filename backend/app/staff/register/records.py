@@ -317,16 +317,14 @@ LEFT JOIN users AS return_staff ON return_staff.id = outings.return_recorded_by
 """
 
 
-def load_open_or_latest_outing(
+def load_open_outing(
     connection: sqlite3.Connection, resident_id: str
 ) -> OutingBody | None:
     row = connection.execute(
         _OUTING_SELECT
         + """
         WHERE outings.resident_id = ?
-        ORDER BY CASE outings.status WHEN 'outside' THEN 0 ELSE 1 END,
-                 COALESCE(outings.returned_at, outings.exited_at, outings.created_at) DESC,
-                 outings.id DESC
+          AND outings.status = 'outside'
         LIMIT 1
         """,
         (resident_id,),
@@ -386,7 +384,7 @@ def load_resident_record(connection: sqlite3.Connection, resident_id: str) -> Re
     if row is None:
         return None
     state = register_state(row["presence"], row["grace_ends_at"], now_text)
-    outing = load_open_or_latest_outing(connection, resident_id)
+    outing = load_open_outing(connection, resident_id)
     return ResidentRecord(
         id=row["id"],
         full_name=row["full_name"],

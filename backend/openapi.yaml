@@ -1032,8 +1032,10 @@ paths:
       operationId: register_resident
       summary: Resident record
       description: |
-        Caller: warden or provost. The open or latest outing, whether it is an
-        ordinary outing or a permission, and whether the guardian was told.
+        Caller: warden or provost. The open outside outing when she is outside
+        (status `outside`), or null when she is inside. Cancelled, returned, and
+        planned outings are not returned here. The outing may be ordinary or a
+        permission. Whether the guardian was told is included.
       parameters:
         - $ref: "#/components/parameters/ResidentId"
       responses:
@@ -3059,6 +3061,9 @@ components:
           oneOf:
             - $ref: "#/components/schemas/Outing"
             - type: "null"
+          description: >
+            The open outing with status outside, or null when the resident is
+            inside. Cancelled, returned, and planned outings are omitted.
         guardian_name:
           type: string
           description: Parent or guardian the hall contacts.

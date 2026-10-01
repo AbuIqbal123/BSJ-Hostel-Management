@@ -254,21 +254,7 @@
     "room_label": "B-204",
     "presence": "inside",
     "state": "inside",
-    "outing": {
-      "id": "e7700000-0000-4000-8000-000000000031",
-      "permission_id": null,
-      "type": "ordinary",
-      "status": "returned",
-      "place": "Maulana Azad Library",
-      "expected_return_at": "2026-09-29T12:00:00Z",
-      "grace_ends_at": "2026-09-29T12:30:00Z",
-      "exited_at": "2026-09-29T08:00:00Z",
-      "exit_recorded_by_name": "Fatima Khan",
-      "returned_at": "2026-09-29T11:00:00Z",
-      "return_recorded_by_name": "Fatima Khan",
-      "is_late": false,
-      "created_at": "2026-09-29T07:00:00Z"
-    },
+    "outing": null,
     "guardian_name": "Rashid Khan",
     "guardian_notice": "not_due"
   },

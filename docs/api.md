@@ -1956,8 +1956,10 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** warden or provost. Bearer access token.
 
-Caller: warden or provost. The open or latest outing, whether it is an
-ordinary outing or a permission, and whether the guardian was told.
+Caller: warden or provost. The open outside outing when she is outside
+(status `outside`), or null when she is inside. Cancelled, returned, and
+planned outings are not returned here. The outing may be ordinary or a
+permission. Whether the guardian was told is included.
 
 **Parameters**
 
@@ -1982,7 +1984,7 @@ Body: [ResidentRecord](#schema-residentrecord).
 | `room_label` | yes | string |  |
 | `presence` | yes | `inside` or `outside` |  |
 | `state` | yes | `inside` or `outside` or `late` |  |
-| `outing` | no | [Outing](#schema-outing) or null |  |
+| `outing` | no | [Outing](#schema-outing) or null | The open outing with status outside, or null when the resident is inside. Cancelled, returned, and planned outings are omitted. |
 | `guardian_name` | yes | string | Parent or guardian the hall contacts. |
 | `guardian_notice` | yes | `not_due` or `sent` or `failed` |  |
 
@@ -4310,7 +4312,7 @@ One of: `not_due`, `sent`, `failed`.
 | `room_label` | yes | string |  |
 | `presence` | yes | `inside` or `outside` |  |
 | `state` | yes | `inside` or `outside` or `late` |  |
-| `outing` | no | [Outing](#schema-outing) or null |  |
+| `outing` | no | [Outing](#schema-outing) or null | The open outing with status outside, or null when the resident is inside. Cancelled, returned, and planned outings are omitted. |
 | `guardian_name` | yes | string | Parent or guardian the hall contacts. |
 | `guardian_notice` | yes | `not_due` or `sent` or `failed` |  |
 
