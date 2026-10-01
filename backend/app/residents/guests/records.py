@@ -18,6 +18,7 @@ GuestBucket = Literal[
     "pending",
     "upcoming",
     "expected",
+    "not_expected",
     "in_hall",
     "should_have_left",
     "departed",
@@ -82,8 +83,6 @@ def derive_bucket(
     departed_at: str | None,
     today: str,
 ) -> GuestBucket:
-    # payment_status is part of docs Expected today; gate lists also filter paid.
-    _ = payment_status
     if status == "pending":
         return "pending"
     if status == "rejected":
@@ -96,9 +95,9 @@ def derive_bucket(
     if arrived_at is None:
         if today < start_date:
             return "upcoming"
-        # Approved and not yet arrived on/after the start date. Gate's expected list
-        # further requires paid and today within the stay; this field uses expected.
-        return "expected"
+        if payment_status == "paid" and today <= end_date:
+            return "expected"
+        return "not_expected"
     if today <= end_date:
         return "in_hall"
     return "should_have_left"

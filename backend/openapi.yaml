@@ -2719,7 +2719,7 @@ components:
 
     GuestBucket:
       type: string
-      enum: [pending, upcoming, expected, in_hall, should_have_left, departed, rejected, cancelled]
+      enum: [pending, upcoming, expected, not_expected, in_hall, should_have_left, departed, rejected, cancelled]
 
     GuestStayCreate:
       type: object

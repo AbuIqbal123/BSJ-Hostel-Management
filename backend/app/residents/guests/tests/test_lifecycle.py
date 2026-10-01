@@ -26,6 +26,9 @@ APPROVED_STAY = "aa100000-0000-4000-8000-0000000000a1"
 ARRIVED_STAY = "aa100000-0000-4000-8000-0000000000a2"
 OTHER_STAY = "aa100000-0000-4000-8000-0000000000a3"
 REJECTED_STAY = "aa100000-0000-4000-8000-0000000000a4"
+PAID_INSIDE_STAY = "aa100000-0000-4000-8000-0000000000b1"
+UNPAID_INSIDE_STAY = "aa100000-0000-4000-8000-0000000000b2"
+PAID_PAST_STAY = "aa100000-0000-4000-8000-0000000000b3"
 
 
 class FrozenClock:
@@ -160,6 +163,62 @@ def seed_staff_shaped_stays(path: Path) -> None:
                 RESIDENT_ID,
                 WARDEN_ID,
             ),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+
+def seed_expected_boundary_stays(path: Path) -> None:
+    """Approved, not-yet-arrived stays used only to read the expected bucket."""
+    connection = sqlite3.connect(path)
+    try:
+        connection.execute("PRAGMA foreign_keys=ON;")
+        # 20 September through 28 September is 9 days, over the default maximum of 7.
+        connection.execute(
+            "UPDATE hall_settings SET guest_max_inclusive_days = 9 WHERE id = 'hall'"
+        )
+        connection.execute(
+            """
+            INSERT INTO guest_stays (
+              id, host_resident_id, guest_name, relation, start_date, end_date, reason,
+              status, payment_status, payment_marked_by, payment_marked_at,
+              decided_by, decided_at, decision_note,
+              arrived_at, arrived_recorded_by, departed_at, departed_recorded_by,
+              created_at, updated_at
+            ) VALUES
+              (?, ?, 'Paid Inside Guest', 'Aunt', '2026-09-30', '2026-10-02', 'Visit.',
+               'approved', 'paid', ?, '2026-09-29T10:00:00Z',
+               ?, '2026-09-29T12:00:00Z', NULL,
+               NULL, NULL, NULL, NULL,
+               '2026-09-29T08:00:00Z', '2026-09-29T12:00:00Z'),
+              (?, ?, 'Unpaid Inside Guest', 'Aunt', '2026-09-30', '2026-10-02', 'Visit.',
+               'approved', 'unpaid', NULL, NULL,
+               ?, '2026-09-29T12:00:00Z', NULL,
+               NULL, NULL, NULL, NULL,
+               '2026-09-29T08:01:00Z', '2026-09-29T12:00:00Z'),
+              (?, ?, 'Paid Past Guest', 'Aunt', '2026-09-20', '2026-09-28', 'Visit.',
+               'approved', 'paid', ?, '2026-09-20T10:00:00Z',
+               ?, '2026-09-19T12:00:00Z', NULL,
+               NULL, NULL, NULL, NULL,
+               '2026-09-19T08:00:00Z', '2026-09-20T10:00:00Z')
+            """,
+            (
+                PAID_INSIDE_STAY,
+                RESIDENT_ID,
+                WARDEN_ID,
+                WARDEN_ID,
+                UNPAID_INSIDE_STAY,
+                RESIDENT_ID,
+                WARDEN_ID,
+                PAID_PAST_STAY,
+                RESIDENT_ID,
+                WARDEN_ID,
+                WARDEN_ID,
+            ),
+        )
+        connection.execute(
+            "UPDATE hall_settings SET guest_max_inclusive_days = 7 WHERE id = 'hall'"
         )
         connection.commit()
     finally:
@@ -343,3 +402,26 @@ def test_guest_stays_resident(database_path: Path, monkeypatch: pytest.MonkeyPat
             "guest_stay.cancelled",
             "guest_stay.submitted",
         ]
+
+
+def test_expected_means_paid_inside_dates(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.main import app
+    from app.shared import clock
+
+    monkeypatch.setattr(clock, "utc_now", FrozenClock().utc_now)
+    with TestClient(app) as client:
+        issue_people(database_path)
+        seed_expected_boundary_stays(database_path)
+        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        headers = {"Authorization": f"Bearer {resident}"}
+        cases = (
+            (PAID_INSIDE_STAY, "expected"),
+            (UNPAID_INSIDE_STAY, "not_expected"),
+            (PAID_PAST_STAY, "not_expected"),
+        )
+        for stay_id, bucket in cases:
+            got = client.get(f"/api/v1/me/guest-stays/{stay_id}", headers=headers)
+            assert got.status_code == 200
+            assert got.json()["bucket"] == bucket

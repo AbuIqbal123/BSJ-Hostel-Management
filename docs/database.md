@@ -446,6 +446,7 @@ These are worked out when someone looks. They are not stored.
 | Waiting | The stay is waiting. |
 | Upcoming | Approved, not yet arrived, and today's hall date is before the start date. |
 | Expected today | Approved, paid, not yet arrived, and today's hall date is within the stay. |
+| Not expected | Approved, not yet arrived, and not Upcoming and not Expected today. |
 | In the hall | Approved, arrived, not departed, and today's hall date is on or before the end date. |
 | Should have left | Approved, arrived, not departed, and today's hall date is after the end date. |
 | Departed | The stay is departed. |
