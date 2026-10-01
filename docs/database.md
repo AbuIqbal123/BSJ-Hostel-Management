@@ -1,6 +1,6 @@
 # Begum Sultan Jahan Hall — what the hall keeps
 
-Version: **0.3.4**
+Version: **0.1.0**
 
 Status: agreed. The service creates these records when it starts. They match this document.
 
@@ -594,10 +594,4 @@ A resident's own history is the same exits and returns for that resident, newest
 
 | Version | Notes |
 |---|---|
-| 0.3.4 | A resident may plan several ordinary outings on one hall day. The gate uses the earliest return still ahead today and does not use a later day. Two open outings cannot end at the same instant. One outside outing at a time. |
-| 0.3.3 | A resident may plan one ordinary outing for each hall day. The hall day is stored on the outing. She cancels the day she chooses. One outside outing at a time. |
-| 0.3.2 | The destination list shows named places A to Z and always shows the free-text choice, Other, last. No stored order was added. |
-| 0.3.1 | The service creates these records when it starts. The fields and rules are unchanged from 0.3.0. |
-| 0.3.0 | Summer starts on 1 April and winter starts on 1 October, from the seasonal split published by AMU University Health Services. The season is worked out from the hall date. The HTTP contract uses the same names as this document. |
-| 0.2.0 | Production contract. An ordinary outing needs a destination and an expected return before the exit scan. Ordinary hours are a summer window and a winter window from SOP 06 and SOP 07. Guardian name and phone are required. Times are shown on a 12-hour clock and dates as day, month name, year. Blocks and room counts match the hall page of 30 September 2026. Destinations are shown alphabetically. Outing type and notice type replace the old kind fields. Exit, return, and decision fields are required once that step has happened. The register counts the whole hall and each block. The audit log is named as such. |
-| 0.1.0 | Initial agreement. The written rules are the contract. Not created as records yet. |
+| 0.1.0 | Pre-production hall data model. First version for this contract. Earlier numbers (0.2.x–0.3.x) were iterative draft labels while the API was built on `dev`; they were never released. The service creates these records when it starts. Ordinary outings may have several planned returns on one hall day with one outside outing at a time; destinations list Other last; seasons follow AMU UHS dates. |
