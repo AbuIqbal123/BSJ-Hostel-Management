@@ -190,7 +190,7 @@ def test_admin_register_export(database_path: Path, monkeypatch: pytest.MonkeyPa
         assert resident_row["state"] == "late"
         assert resident_row["place"] == "Maulana Azad Library"
         assert resident_row["outing_type"] == "ordinary"
-        assert resident_row["guardian_phone"] == "+919876543210"
+        assert resident_row["guardian_phone"] == "'+919876543210"
         assert resident_row["guest_name"] == ""
 
         guest_row = rows[1]
@@ -201,3 +201,43 @@ def test_admin_register_export(database_path: Path, monkeypatch: pytest.MonkeyPa
         assert guest_row["guest_bucket"] == "in_hall"
         assert guest_row["payment_status"] == "paid"
         assert guest_row["full_name"] == ""
+
+
+def test_register_export_prefixes_formula_cells(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    expected_header = ARTIFACT.read_text(encoding="utf-8").strip().splitlines()[0]
+    from app.main import app
+    from app.shared import clock
+
+    monkeypatch.setattr(clock, "utc_now", FrozenClock().utc_now)
+    with TestClient(app) as client:
+        issue_people(database_path)
+        connection = sqlite3.connect(database_path)
+        try:
+            connection.execute(
+                "UPDATE outings SET place = ? WHERE id = ?",
+                ("=Maulana Azad Library", OUTING_ID),
+            )
+            connection.execute(
+                "UPDATE guest_stays SET guest_name = ? WHERE id = ?",
+                ("=Zara Ahmed", GUEST_ID),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+        provost = sign_in(client, "provost.halima", PROVOST_PHRASE)
+        exported = client.get(
+            "/api/v1/admin/register/export",
+            headers={"Authorization": f"Bearer {provost}"},
+        )
+        assert exported.status_code == 200
+        text = exported.text
+        assert text.splitlines()[0] == expected_header
+        rows = list(csv.DictReader(io.StringIO(text)))
+        assert rows[0]["full_name"] == "Aisha Khan"
+        assert rows[0]["place"] == "'=Maulana Azad Library"
+        assert rows[0]["guardian_phone"].startswith("'+91")
+        assert rows[1]["guest_name"] == "'=Zara Ahmed"
+        assert rows[1]["host_name"] == "Aisha Khan"

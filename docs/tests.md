@@ -402,11 +402,11 @@ Copy this block for each test and fill every field.
 | Field | Content |
 |---|---|
 | Test | `backend/app/staff/office/tests/test_register_export.py` |
-| Purpose | Provost downloads one UTF-8 CSV of active residents and guest stays with the contract header. |
+| Purpose | Provost downloads one UTF-8 CSV of active residents and guest stays with the contract header. A cell a spreadsheet would treat as a formula is prefixed with a single quote. |
 | Actor | Provost. Warden and resident are refused. |
-| Preconditions | The hall from `hall-created` exists. Clock frozen at 2026-09-30T13:00:00Z. Halima Begum is provost. Aisha is outside past grace (late). One approved paid guest stay in hall. |
+| Preconditions | The hall from `hall-created` exists. Clock frozen at 2026-09-30T13:00:00Z. Halima Begum is provost. Aisha is outside past grace (late), guardian phone +919876543210. One approved paid guest stay in hall. A second export uses a place and a guest name that start with `=`. |
 | Action | `GET /api/v1/admin/register/export` with no token, as Aisha, as Sara, as Halima. |
-| Expected response | No token returns 401. Non-provost returns 403. CSV `text/csv` with artifact header; resident then guest rows; empty cells where a field does not apply. |
+| Expected response | No token returns 401. Non-provost returns 403. CSV `text/csv` with artifact header; resident then guest rows; empty cells where a field does not apply. The guardian phone cell starts with a single quote then +91. A place or guest name that starts with `=` is prefixed the same way. Ordinary text and the header are unchanged. |
 | Failure cases | E2E; failure cases are covered by the expected response. |
 | Artifact | `backend/app/staff/office/tests/artifacts/admin-register-export.csv` |
 

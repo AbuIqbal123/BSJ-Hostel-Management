@@ -50,6 +50,18 @@ def _empty_row() -> dict[str, str]:
     return {key: "" for key in CSV_HEADER}
 
 
+# Quoting a CSV field is not enough: a spreadsheet still treats a leading
+# =, +, -, @, tab, or carriage return as a formula.
+def _spreadsheet_cell(value: str) -> str:
+    if value.startswith(("=", "+", "-", "@", "\t", "\r")):
+        return "'" + value
+    return value
+
+
+def _write_row(writer: csv.DictWriter, item: dict[str, str]) -> None:
+    writer.writerow({key: _spreadsheet_cell(value) for key, value in item.items()})
+
+
 def build_register_csv(connection: sqlite3.Connection) -> str:
     now = clock.utc_now()
     now_text = clock.format_instant(now)
@@ -111,7 +123,7 @@ def build_register_csv(connection: sqlite3.Connection) -> str:
             item["grace_ends_at"] = row["grace_ends_at"] or ""
             item["returned_at"] = row["returned_at"] or ""
             item["outing_type"] = row["outing_type"] or ""
-        writer.writerow(item)
+        _write_row(writer, item)
 
     guests = connection.execute(
         """
@@ -162,7 +174,7 @@ def build_register_csv(connection: sqlite3.Connection) -> str:
                 "departed_at": row["departed_at"] or "",
             }
         )
-        writer.writerow(item)
+        _write_row(writer, item)
 
     return buffer.getvalue()
 

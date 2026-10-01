@@ -3708,7 +3708,10 @@ Header, in this order:
 `record_type` is `resident` or `guest`. Instants are UTC. Dates are
 YYYY-MM-DD. This export contains guardian phone numbers and is not a
 warden route. `block_code` is the resident's block, or the host's block
-on a guest row.
+on a guest row. A data cell whose text starts with `=`, `+`, `-`, `@`,
+a tab, or a carriage return is prefixed with one single quote so a
+spreadsheet keeps the text. The header row is not prefixed. Other text
+is unchanged.
 
 **Responses**
 
