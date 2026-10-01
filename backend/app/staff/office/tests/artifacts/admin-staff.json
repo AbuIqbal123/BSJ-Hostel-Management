@@ -1,0 +1,9 @@
+{
+  "create": {
+    "full_name": "Imran Qureshi",
+    "username": "imran.qureshi",
+    "role": "gate",
+    "job_title": "Gatekeeper"
+  },
+  "duplicate_message": "Username already in use."
+}

@@ -3,7 +3,7 @@ method: PATCH
 url: '{{baseUrl}}/api/v1/admin/staff/{{userId}}'
 order: 3000
 description: |-
-  Caller: provost. Role cannot be changed on this route, and a staff account cannot become a resident. Suspension revokes refresh tokens. Returns 404 until this route is built.
+  Caller: provost. Role cannot be changed on this route, and a staff account cannot become a resident. Suspension revokes refresh tokens.
 headers:
   - key: Content-Type
     value: application/json

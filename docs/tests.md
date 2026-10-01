@@ -1,8 +1,8 @@
 # Test catalog
 
-Document version: **0.4.30**
+Document version: **0.4.31**
 
-Status: twenty-two recorded tests. Startup creates the hall. Sign-in keeps a session. A development command adds local accounts. Resident home reads the resident's own screen. The destination list shows the active ordinary-outing choices, with Other last. A resident can plan an ordinary outing before the gate scan. She can read the outing that is still planned or outside. She can cancel that plan before the gate scan. A warden or the provost can read the register presence board: hall and block counts, the resident list with filters, one resident's record, and the late list. A resident can submit, list, read, and cancel late-night and home-going permissions. A warden or the provost can read the permission queue and decide a pending request. The staff permission queue sorts by created_at (newest default) and accepts optional filters for block, type, and created_at date range. A resident can read her own exit and return history as a paginated list. A resident can read her permanent hall-pass QR payload. A resident can apply for, list, read, and cancel her own guest stays. A warden or the provost can list guest stays by bucket, decide a pending stay, and mark payment before arrival. Gate staff can scan a hall pass to record an exit or return, and read recent gate activity. Gate staff can list expected and in-hall guests and record guest arrival and departure. The provost can read and update hall settings. The provost can list, create, and update blocks. The provost can list, create, and update rooms. The provost can list, create, and update destinations. The provost can list, create, and update residents and reissue a hall pass.
+Status: twenty-three recorded tests. Startup creates the hall. Sign-in keeps a session. A development command adds local accounts. Resident home reads the resident's own screen. The destination list shows the active ordinary-outing choices, with Other last. A resident can plan an ordinary outing before the gate scan. She can read the outing that is still planned or outside. She can cancel that plan before the gate scan. A warden or the provost can read the register presence board: hall and block counts, the resident list with filters, one resident's record, and the late list. A resident can submit, list, read, and cancel late-night and home-going permissions. A warden or the provost can read the permission queue and decide a pending request. The staff permission queue sorts by created_at (newest default) and accepts optional filters for block, type, and created_at date range. A resident can read her own exit and return history as a paginated list. A resident can read her permanent hall-pass QR payload. A resident can apply for, list, read, and cancel her own guest stays. A warden or the provost can list guest stays by bucket, decide a pending stay, and mark payment before arrival. Gate staff can scan a hall pass to record an exit or return, and read recent gate activity. Gate staff can list expected and in-hall guests and record guest arrival and departure. The provost can read and update hall settings. The provost can list, create, and update blocks. The provost can list, create, and update rooms. The provost can list, create, and update destinations. The provost can list, create, and update residents and reissue a hall pass. The provost can list, create, and update staff accounts.
 
 Each test has an entry here and a file next to the business area it covers. Write the failing check for one behavior, see it fail, then make it pass. Update the entry in that same change. The entry names the test file. It does not copy every payload when the test already states them. A migration is not part of this loop unless the stored records change. Bump this document when the format or a recorded test changes.
 
@@ -335,4 +335,19 @@ Copy this block for each test and fill every field.
 | Expected response | No token returns 401. Non-provost returns 403. Create returns 201 with account+hall_pass (`bsj:v1:`). Duplicate returns 409 `duplicate_username`. GET/list omit QR. Suspend audits `resident.suspended` and revokes sessions. Reissue returns new HallPass and audits `hall_pass.reissued`; old token stops matching. A null full name returns 422 `validation_error` and the stored name stays Aisha Khan. Clearing course returns 200 with course null. Create or a room move onto the retired room returns 409 `room_inactive` and the resident stays in B-204. |
 | Failure cases | E2E; failure cases are covered by the expected response. |
 | Artifact | `backend/app/staff/office/tests/artifacts/admin-residents.json` |
+
+
+
+### `admin-staff` Staff account list, create, and update
+
+| Field | Content |
+|---|---|
+| Test | `backend/app/staff/office/tests/test_staff.py` |
+| Purpose | Provost lists gate/warden/provost accounts, creates a staff account with a temporary password that is not returned, and patches name/job title/status. Role is not patchable. Suspension revokes refresh tokens. |
+| Actor | Provost. Warden and resident are refused. |
+| Preconditions | The hall from `hall-created` exists. Clock frozen at 2026-09-30T12:00:00Z. Halima Begum is provost. Sara Malik is warden. Aisha Khan is a resident. |
+| Action | `GET/POST /api/v1/admin/staff` and `PATCH /api/v1/admin/staff/{user_id}` with no token, as Aisha, as Sara, as Halima (list; create Imran gate; refuse duplicate username; refuse role in patch; suspend and confirm refresh revoked; reinstate; unknown id 404). |
+| Expected response | No token returns 401. Non-provost returns 403. Create returns 201 StaffAccount without password and audit `staff.created`. Duplicate returns 409 `duplicate_username`. Suspend/update audits `staff.updated` and revokes sessions on suspension. |
+| Failure cases | E2E; failure cases are covered by the expected response. |
+| Artifact | `backend/app/staff/office/tests/artifacts/admin-staff.json` |
 

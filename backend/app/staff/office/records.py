@@ -703,3 +703,105 @@ def room_has_capacity(
     if row is None:
         return False
     return int(row["taken"]) < int(row["beds"])
+
+
+StaffRole = Literal["gate", "warden", "provost"]
+
+
+class StaffAccount(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str
+    full_name: str
+    username: str
+    role: StaffRole
+    job_title: str
+    status: AccountStatus
+
+
+class StaffPage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    total: int
+    limit: int
+    offset: int
+    items: list[StaffAccount]
+
+
+class StaffCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    full_name: str = Field(min_length=1, max_length=120)
+    username: str = Field(min_length=1, max_length=80)
+    role: StaffRole
+    job_title: str = Field(min_length=1, max_length=80)
+    temporary_password: str = Field(min_length=10, max_length=200)
+
+
+class StaffUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    full_name: str | None = Field(default=None, min_length=1, max_length=120)
+    job_title: str | None = Field(default=None, min_length=1, max_length=80)
+    status: AccountStatus | None = None
+
+
+_STAFF_SELECT = """
+SELECT
+  users.id,
+  users.full_name,
+  users.username,
+  users.role,
+  users.status,
+  staff.job_title
+FROM staff
+JOIN users ON users.id = staff.user_id
+"""
+
+
+def row_to_staff_account(row: sqlite3.Row) -> StaffAccount:
+    return StaffAccount(
+        id=row["id"],
+        full_name=row["full_name"],
+        username=row["username"],
+        role=row["role"],
+        job_title=row["job_title"],
+        status=row["status"],
+    )
+
+
+def load_staff_account(connection: sqlite3.Connection, user_id: str) -> StaffAccount | None:
+    row = connection.execute(
+        _STAFF_SELECT + " WHERE staff.user_id = ?",
+        (user_id,),
+    ).fetchone()
+    if row is None:
+        return None
+    return row_to_staff_account(row)
+
+
+def list_staff_accounts(
+    connection: sqlite3.Connection,
+    *,
+    limit: int,
+    offset: int,
+) -> StaffPage:
+    total = connection.execute(
+        """
+        SELECT COUNT(*) AS n
+        FROM staff
+        JOIN users ON users.id = staff.user_id
+        WHERE users.role IN ('gate', 'warden', 'provost')
+        """
+    ).fetchone()["n"]
+    rows = connection.execute(
+        f"""
+        {_STAFF_SELECT}
+        WHERE users.role IN ('gate', 'warden', 'provost')
+        ORDER BY users.full_name COLLATE NOCASE, users.id
+        LIMIT ? OFFSET ?
+        """,
+        (limit, offset),
+    ).fetchall()
+    return StaffPage(
+        total=int(total),
+        limit=limit,
+        offset=offset,
+        items=[row_to_staff_account(row) for row in rows],
+    )
