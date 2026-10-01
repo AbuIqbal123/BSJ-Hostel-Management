@@ -16,6 +16,7 @@ Before changing API behavior, the database, or the shape of the system, follow `
 | HTTP contract served at `/docs` | `backend/openapi.yaml` |
 | Test specifications | `docs/tests/tests.md` |
 | Local engineering notes | `docs/engineering/` |
+| Pre-ship security checklist | `docs/security/pre-ship-checklist.md` |
 
 ## Engineering rules
 

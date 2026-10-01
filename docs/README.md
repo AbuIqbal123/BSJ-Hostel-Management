@@ -11,6 +11,7 @@ Organised by domain. Prefer these folders over dumping new files at the `docs/` 
 | **Architecture** | [`architecture/`](architecture/) | System shape as it stands |
 | **Tests** | [`tests/`](tests/) | Test catalog / specifications |
 | **Engineering** | [`engineering/`](engineering/) | Local engineering notes (pre-commit, tooling) |
+| **Security** | [`security/`](security/) | Pre-ship checklist before production |
 
 ## Files
 
@@ -23,6 +24,7 @@ Organised by domain. Prefer these folders over dumping new files at the `docs/` 
 | [`architecture/system-architecture.md`](architecture/system-architecture.md) | Diagram and parts in use |
 | [`tests/tests.md`](tests/tests.md) | Every test entry |
 | [`engineering/dev-pre-commit.md`](engineering/dev-pre-commit.md) | Gitleaks via pre-commit |
+| [`security/pre-ship-checklist.md`](security/pre-ship-checklist.md) | Don't ship until you check this |
 
 **Product / business rules:** kept in [`database/database.md`](database/database.md) with the data they govern. No separate `rules/` folder until a rule set outgrows that file.
 
