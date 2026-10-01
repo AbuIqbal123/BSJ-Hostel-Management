@@ -1,0 +1,23 @@
+{
+  "submitted": {
+    "host_resident_id": "b22de000-0000-4000-8000-000000000002",
+    "host_name": "Aisha Khan",
+    "host_room_label": "B-204",
+    "guest_name": "Zara Ahmed",
+    "relation": "Cousin",
+    "start_date": "2026-10-02",
+    "end_date": "2026-10-05",
+    "inclusive_days": 4,
+    "reason": "Family wedding in Aligarh. Staying with Aisha, B-204.",
+    "status": "pending",
+    "payment_status": "unpaid",
+    "bucket": "pending",
+    "decision_note": null,
+    "decided_by_name": null,
+    "arrived_recorded_by_name": null,
+    "departed_recorded_by_name": null,
+    "arrived_at": null,
+    "departed_at": null,
+    "created_at": "2026-09-30T13:00:00Z"
+  }
+}

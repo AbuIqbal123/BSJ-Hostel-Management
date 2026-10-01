@@ -3,7 +3,7 @@ method: POST
 url: '{{baseUrl}}/api/v1/me/guest-stays'
 order: 2000
 description: |-
-  Caller: resident. Start date must be at least `guest_min_lead_days` after today in Asia/Kolkata (by default, tomorrow or later). Inclusive days from start through end must be within `guest_max_inclusive_days` (by default, 7). Friday 18 September through Monday 21 September is 4 days. Payment is not taken here. Returns 404 until this route is built.
+  Caller: resident. Start date must be at least `guest_min_lead_days` after today in Asia/Kolkata (by default, tomorrow or later). Inclusive days from start through end must be within `guest_max_inclusive_days` (by default, 7). Friday 18 September through Monday 21 September is 4 days. Payment is not taken here.
 headers:
   - key: Content-Type
     value: application/json

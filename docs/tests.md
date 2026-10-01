@@ -1,8 +1,8 @@
 # Test catalog
 
-Document version: **0.4.21**
+Document version: **0.4.22**
 
-Status: thirteen recorded tests. Startup creates the hall. Sign-in keeps a session. A development command adds local accounts. Resident home reads the resident's own screen. The destination list shows the active ordinary-outing choices, with Other last. A resident can plan an ordinary outing before the gate scan. She can read the outing that is still planned or outside. She can cancel that plan before the gate scan. A warden or the provost can read the register presence board: hall and block counts, the resident list with filters, one resident's record, and the late list. A resident can submit, list, read, and cancel late-night and home-going permissions. A warden or the provost can read the permission queue and decide a pending request. The staff permission queue sorts by created_at (newest default) and accepts optional filters for block, type, and created_at date range. A resident can read her own exit and return history as a paginated list. A resident can read her permanent hall-pass QR payload.
+Status: fourteen recorded tests. Startup creates the hall. Sign-in keeps a session. A development command adds local accounts. Resident home reads the resident's own screen. The destination list shows the active ordinary-outing choices, with Other last. A resident can plan an ordinary outing before the gate scan. She can read the outing that is still planned or outside. She can cancel that plan before the gate scan. A warden or the provost can read the register presence board: hall and block counts, the resident list with filters, one resident's record, and the late list. A resident can submit, list, read, and cancel late-night and home-going permissions. A warden or the provost can read the permission queue and decide a pending request. The staff permission queue sorts by created_at (newest default) and accepts optional filters for block, type, and created_at date range. A resident can read her own exit and return history as a paginated list. A resident can read her permanent hall-pass QR payload. A resident can apply for, list, read, and cancel her own guest stays.
 
 Each test has an entry here and a file next to the business area it covers. Write the failing check for one behavior, see it fail, then make it pass. Update the entry in that same change. The entry names the test file. It does not copy every payload when the test already states them. A migration is not part of this loop unless the stored records change. Bump this document when the format or a recorded test changes.
 
@@ -197,6 +197,21 @@ Copy this block for each test and fill every field.
 | Expected response | No token returns 401 `unauthenticated`. Gate and warden return 403 `forbidden`. Aisha's call matches `pass` in the artifact: `qr_payload` is the stored `qr_token`, with her full name and room label. The read does not change the token and does not add an audit entry beyond sign-in. |
 | Failure cases | E2E; failure cases are covered by the expected response. |
 | Artifact | `backend/app/residents/hall_pass/tests/artifacts/resident-hall-pass.json` |
+
+
+### `guest-stays-resident` Own guest stay applications
+
+| Field | Content |
+|---|---|
+| Test | `backend/app/residents/guests/tests/test_lifecycle.py` |
+| Purpose | A resident applies for a guest stay (lead days and inclusive length from hall settings), lists and reads her own, and cancels while pending or approved before arrival. Another resident's stay is not visible. |
+| Actor | A resident. A gate account is refused. |
+| Preconditions | The hall from `hall-created` exists. The clock is frozen at 2026-09-30T13:00:00Z (hall date 30 September 2026). Aisha Khan is an active resident in B-204. Maryam Siddiqui is another active resident. Fatima Khan is active gate staff. Sara Malik is an active warden (used only to seed an approved stay and an arrived stay in the fixture). Hall settings keep `guest_min_lead_days` 1 and `guest_max_inclusive_days` 7. |
+| Action | `POST/GET /api/v1/me/guest-stays`, `GET /api/v1/me/guest-stays/{id}`, `POST .../cancel` with no token, as Fatima, then as Aisha: refuse start on today and over-long stays; submit a valid stay; list and get; cancel pending; submit again and cancel; cancel a seeded approved stay before arrival; refuse cancel after arrival; refuse get/cancel of Maryam's stay. |
+| Expected response | No token returns 401 `unauthenticated`. Gate returns 403 `forbidden`. Start on today's hall date, end before start, and inclusive length over 7 return 422 `validation_error`. A valid apply returns 201 `pending` / `unpaid` / bucket `pending` and matches `submitted` in the artifact (apart from the new id). Own list is newest first. Get another host's id returns 404. Cancel pending or approved (before arrival) returns 200 `cancelled`. Cancel after arrival, or cancel a terminal stay, returns 409 `not_cancellable`. Audit gains `guest_stay.submitted` and `guest_stay.cancelled` for the resident's own actions. |
+| Failure cases | E2E; failure cases are covered by the expected response. |
+| Artifact | `backend/app/residents/guests/tests/artifacts/guest-stays-resident.json` |
+
 
 
 
