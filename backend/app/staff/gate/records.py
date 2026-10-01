@@ -42,13 +42,14 @@ def normalize_qr_payload(qr_payload: str) -> str:
 
 
 _GATE_ACTIVITY_UNION = """
-SELECT event, occurred_at, title, subtitle
+SELECT event, occurred_at, title, subtitle, source_id
 FROM (
   SELECT
     'exit' AS event,
     outings.exited_at AS occurred_at,
     users.full_name AS title,
-    rooms.label AS subtitle
+    rooms.label AS subtitle,
+    outings.id AS source_id
   FROM outings
   JOIN residents ON residents.user_id = outings.resident_id
   JOIN users ON users.id = outings.resident_id
@@ -59,7 +60,8 @@ FROM (
     'return',
     outings.returned_at,
     users.full_name,
-    rooms.label
+    rooms.label,
+    outings.id
   FROM outings
   JOIN residents ON residents.user_id = outings.resident_id
   JOIN users ON users.id = outings.resident_id
@@ -70,7 +72,8 @@ FROM (
     'guest_arrival',
     guest_stays.arrived_at,
     guest_stays.guest_name,
-    host.full_name || ' · ' || rooms.label
+    host.full_name || ' · ' || rooms.label,
+    guest_stays.id
   FROM guest_stays
   JOIN users AS host ON host.id = guest_stays.host_resident_id
   JOIN residents ON residents.user_id = guest_stays.host_resident_id
@@ -81,7 +84,8 @@ FROM (
     'guest_departure',
     guest_stays.departed_at,
     guest_stays.guest_name,
-    host.full_name || ' · ' || rooms.label
+    host.full_name || ' · ' || rooms.label,
+    guest_stays.id
   FROM guest_stays
   JOIN users AS host ON host.id = guest_stays.host_resident_id
   JOIN residents ON residents.user_id = guest_stays.host_resident_id
@@ -103,7 +107,7 @@ def list_gate_activity(
     rows = connection.execute(
         f"""
         {_GATE_ACTIVITY_UNION}
-        ORDER BY occurred_at DESC, event, title
+        ORDER BY occurred_at DESC, event, title, source_id
         LIMIT ? OFFSET ?
         """,
         (limit, offset),
