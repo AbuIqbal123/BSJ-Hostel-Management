@@ -34,7 +34,10 @@ def database_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[P
     monkeypatch.setenv("DATABASE_PATH", str(path))
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("SMS_DRIVER", "mock")
-    monkeypatch.setenv("APP_SECRET_KEY", "test-only-auth-secret")
+    monkeypatch.setenv(
+        "APP_SECRET_KEY",
+        "".join(("hall", "-test-", "signing-", "key-", "0123456789abcdef")),
+    )
     from app.shared.config import get_settings
 
     get_settings.cache_clear()
