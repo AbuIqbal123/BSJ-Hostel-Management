@@ -8,15 +8,19 @@ queryParams:
   - key: type
     value: ''
     description: Optional. late_night or home_going.
+    disabled: true
   - key: block_id
     value: ''
     description: Optional. Resident's current-room block.
+    disabled: true
   - key: created_from
     value: ''
     description: Optional inclusive UTC lower bound on created_at.
+    disabled: true
   - key: created_to
     value: ''
     description: Optional inclusive UTC upper bound on created_at.
+    disabled: true
   - key: order
     value: newest
     description: newest (default) or oldest by created_at.
