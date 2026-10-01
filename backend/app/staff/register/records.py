@@ -264,7 +264,6 @@ def list_register(
 ) -> RegisterPage:
     now_text = _now_text()
     params: list[object] = []
-    clauses = [_RESIDENT_SELECT]
     filters: list[str] = []
     if q:
         filters.append("(lower(users.full_name) LIKE ? OR lower(rooms.label) LIKE ?)")
@@ -273,17 +272,37 @@ def list_register(
     if block_id:
         filters.append("rooms.block_id = ?")
         params.append(block_id)
-    sql = clauses[0]
-    if filters:
-        sql += " AND " + " AND ".join(filters)
-    sql += " ORDER BY users.full_name COLLATE NOCASE, users.id"
-    rows = connection.execute(sql, params).fetchall()
+    if state == "inside":
+        filters.append("residents.presence != 'outside'")
+    elif state == "outside":
+        filters.append("residents.presence = 'outside'")
+        filters.append("(open_outing.grace_ends_at IS NULL OR open_outing.grace_ends_at >= ?)")
+        params.append(now_text)
+    elif state == "late":
+        filters.append("residents.presence = 'outside'")
+        filters.append("open_outing.grace_ends_at IS NOT NULL")
+        filters.append("open_outing.grace_ends_at < ?")
+        params.append(now_text)
+    where_extra = (" AND " + " AND ".join(filters)) if filters else ""
+    count_sql = f"""
+        SELECT COUNT(*) AS n
+        FROM residents
+        JOIN users ON users.id = residents.user_id
+        JOIN rooms ON rooms.id = residents.room_id
+        LEFT JOIN outings AS open_outing
+          ON open_outing.resident_id = residents.user_id
+         AND open_outing.status = 'outside'
+        WHERE users.status = 'active'{where_extra}
+    """
+    total = connection.execute(count_sql, params).fetchone()["n"]
+    page_sql = (
+        _RESIDENT_SELECT
+        + where_extra
+        + " ORDER BY users.full_name COLLATE NOCASE, users.id LIMIT ? OFFSET ?"
+    )
+    rows = connection.execute(page_sql, [*params, limit, offset]).fetchall()
     items = [_row_from_resident(row, now_text) for row in rows]
-    if state is not None:
-        items = [item for item in items if item.state == state]
-    total = len(items)
-    page = items[offset : offset + limit]
-    return RegisterPage(total=total, limit=limit, offset=offset, items=page)
+    return RegisterPage(total=total, limit=limit, offset=offset, items=items)
 
 
 def late_list(connection: sqlite3.Connection, *, limit: int, offset: int) -> RegisterPage:
