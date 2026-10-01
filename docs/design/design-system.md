@@ -7,6 +7,8 @@
 
 This document is opinionated. Prefer clarity over novelty. Prefer fewer decisions over more themes.
 
+**Implementation bias (hard):** keep the client Fowler-simple. Hyper-optimize for blazing-fast, smooth UX (light view trees, few layers, 60fps micro-motion). Docs may list wishes; ship the smallest thing that feels great. Do not adopt heavy animation libraries or web-only kits as core Expo dependencies.
+
 ---
 
 ## 1. Design principles
@@ -23,6 +25,7 @@ Inspired by Apple / Jony Ive craft applied to hostel ops: beauty through restrai
 8. **Speed under stress.** Gate: scan → result → next. Register: counts → late → search. Permissions: queue → decide. Reduce taps; never hide the primary action.
 9. **Honest emptiness.** Empty, error, and loading states are designed, not afterthoughts. Error copy matches API refusal messages where the contract already provides them.
 10. **Do not invent backend behavior.** UI may only express roles and routes that exist. Parents have no login. Guests have no QR. Payment is mark paid/unpaid, not a gateway.
+11. **Simple and fast over elaborate.** Fowler-simple code paths. Bias to performance and smoothness: 60fps micro-motion, light trees, few layers. Prefer Reanimated / built-in Animated / LayoutAnimation sparingly over heavy frameworks. Docs can list wishes; ship the smallest thing that feels great.
 
 ### Anti-patterns (ban list)
 
@@ -35,6 +38,8 @@ Inspired by Apple / Jony Ive craft applied to hostel ops: beauty through restrai
 - Skeleton screens that shimmer longer than the real fetch.
 - Inventing an Emergency tab in v1.
 - Em dashes (U+2014) in UI strings, empty/error copy, or docs that define product language. Use commas, periods, or hyphens.
+- Heavy animation libraries or web-only motion kits as core Expo deps (Lottie-everywhere, Framer-style stacks, large gesture frameworks for trivial fades).
+- Deep component trees, nested ScrollViews, or decorative layers that cost frames for little gain.
 
 ---
 
@@ -371,7 +376,7 @@ Only as a **temporary** stub during early layout, behind a feature flag or `TODO
 
 ## 6. Motion and micro-interactions
 
-Subtle. Purposeful. Mostly short. Prefer **small, cute, purposeful micro-animations** over spectacle. Motion should confirm a result or guide attention; it should never decorate for its own sake.
+Subtle. Purposeful. Mostly short. Prefer **small, cute, purposeful micro-animations** over spectacle. Motion should confirm a result or guide attention; it should never decorate for its own sake. Target smooth 60fps on mid phones: short transforms/opacity, few simultaneous animating views, no heavy libraries for core feedback.
 
 ### Budget (navigation and feedback)
 
@@ -475,6 +480,7 @@ Change vs prototype screenshots:
 
 Before UI implementation starts, agree:
 
+- [ ] Fowler-simple / performance bias locked (§1 intro + principle 11)
 - [ ] Font trio via expo-font / Expo Google Fonts + case rules + `text-wrap: pretty` default (§2)
 - [ ] Palette tokens: light + resident/warden/provost dark + gate dark shell (§3)
 - [ ] Spacing / radius / list-vs-card / RN elevation 0-2 (§4)

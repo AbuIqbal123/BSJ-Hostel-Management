@@ -7,7 +7,7 @@
 
 Actors: **resident**, **gate**, **warden**, **provost**. Emergency alert flows are **out of scope for v1**.
 
-Keep this document Fowler-simple: one workflow per section, steps a person can name, states the UI must show. Do not invent backend behavior.
+Keep this document Fowler-simple: one workflow per section, steps a person can name, states the UI must show. Do not invent backend behavior. Prefer the smallest screen set that feels fast and smooth; elaborate multi-step wizards are not a goal.
 
 ---
 

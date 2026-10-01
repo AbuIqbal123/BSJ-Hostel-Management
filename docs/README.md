@@ -1,6 +1,6 @@
 # Docs
 
-Organised by domain. Prefer these folders over dumping new files at the `docs/` root.
+Organised by domain. Prefer these folders over dumping new files at the `docs/` root. Design docs list intent; implementation stays Fowler-simple and biased to fast, smooth Expo UX (see `design/design-system.md` §1).
 
 | Domain | Path | What lives here |
 |---|---|---|
