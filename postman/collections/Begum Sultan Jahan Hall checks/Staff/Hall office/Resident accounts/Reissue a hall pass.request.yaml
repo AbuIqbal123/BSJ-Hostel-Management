@@ -3,7 +3,7 @@ method: POST
 url: '{{baseUrl}}/api/v1/admin/residents/{{residentId}}/hall-pass/reissue'
 order: 5000
 description: |-
-  Caller: provost. Replaces the token immediately. The previous QR stops working. The new payload is returned once. Returns 404 until this route is built.
+  Caller: provost. Replaces the token immediately. The previous QR stops working. The new payload is returned once.
 scripts:
   - type: beforeRequest
     language: text/javascript

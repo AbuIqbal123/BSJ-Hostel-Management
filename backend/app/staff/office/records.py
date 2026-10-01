@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import secrets
 import sqlite3
 import uuid
+
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -452,3 +455,243 @@ def record_destination_audit(
             detail,
         ),
     )
+
+
+AccountStatus = Literal["active", "suspended"]
+Presence = Literal["inside", "outside"]
+
+
+class ResidentAccount(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str
+    full_name: str
+    enrolment_number: str
+    course: str | None = None
+    room_id: str
+    room_label: str
+    guardian_name: str
+    guardian_phone: str
+    status: AccountStatus
+    presence: Presence
+
+
+class ResidentAccountPage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    total: int
+    limit: int
+    offset: int
+    items: list[ResidentAccount]
+
+
+class ResidentCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    full_name: str = Field(min_length=1, max_length=120)
+    enrolment_number: str = Field(min_length=1, max_length=40)
+    course: str | None = Field(default=None, max_length=120)
+    room_id: str
+    guardian_name: str = Field(min_length=1, max_length=120)
+    guardian_phone: str = Field(pattern=r"^\+[1-9][0-9]{7,14}$")
+    temporary_password: str = Field(min_length=10, max_length=200)
+
+
+class HallPass(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    qr_payload: str
+    full_name: str
+    room_label: str
+
+
+class ResidentCreated(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    account: ResidentAccount
+    hall_pass: HallPass
+
+
+class ResidentUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    full_name: str | None = Field(default=None, min_length=1, max_length=120)
+    enrolment_number: str | None = Field(default=None, min_length=1, max_length=40)
+    course: str | None = Field(default=None, max_length=120)
+    room_id: str | None = None
+    guardian_name: str | None = Field(default=None, min_length=1, max_length=120)
+    guardian_phone: str | None = Field(default=None, pattern=r"^\+[1-9][0-9]{7,14}$")
+    status: AccountStatus | None = None
+
+
+def row_to_resident_account(row: sqlite3.Row) -> ResidentAccount:
+    return ResidentAccount(
+        id=row["id"],
+        full_name=row["full_name"],
+        enrolment_number=row["enrolment_number"],
+        course=row["course"],
+        room_id=row["room_id"],
+        room_label=row["room_label"],
+        guardian_name=row["guardian_name"],
+        guardian_phone=row["guardian_phone"],
+        status=row["status"],
+        presence=row["presence"],
+    )
+
+
+_RESIDENT_SELECT = """
+SELECT
+  users.id,
+  users.full_name,
+  users.status,
+  residents.enrolment_number,
+  residents.course,
+  residents.room_id,
+  rooms.label AS room_label,
+  residents.guardian_name,
+  residents.guardian_phone,
+  residents.presence
+FROM residents
+JOIN users ON users.id = residents.user_id
+JOIN rooms ON rooms.id = residents.room_id
+"""
+
+
+def load_resident_account(
+    connection: sqlite3.Connection, resident_id: str
+) -> ResidentAccount | None:
+    row = connection.execute(
+        _RESIDENT_SELECT + " WHERE residents.user_id = ?",
+        (resident_id,),
+    ).fetchone()
+    if row is None:
+        return None
+    return row_to_resident_account(row)
+
+
+def list_resident_accounts(
+    connection: sqlite3.Connection,
+    *,
+    q: str | None,
+    limit: int,
+    offset: int,
+) -> ResidentAccountPage:
+    filters = ["users.role = 'resident'"]
+    params: list[object] = []
+    if q is not None and q.strip():
+        needle = f"%{q.strip().lower()}%"
+        filters.append(
+            """
+            (
+              lower(users.full_name) LIKE ?
+              OR lower(residents.enrolment_number) LIKE ?
+              OR lower(rooms.label) LIKE ?
+            )
+            """
+        )
+        params.extend([needle, needle, needle])
+    where = " AND ".join(filters)
+    total = connection.execute(
+        f"""
+        SELECT COUNT(*) AS n
+        FROM residents
+        JOIN users ON users.id = residents.user_id
+        JOIN rooms ON rooms.id = residents.room_id
+        WHERE {where}
+        """,
+        params,
+    ).fetchone()["n"]
+    rows = connection.execute(
+        f"""
+        {_RESIDENT_SELECT}
+        WHERE {where}
+        ORDER BY users.full_name COLLATE NOCASE, users.id
+        LIMIT ? OFFSET ?
+        """,
+        (*params, limit, offset),
+    ).fetchall()
+    return ResidentAccountPage(
+        total=int(total),
+        limit=limit,
+        offset=offset,
+        items=[row_to_resident_account(row) for row in rows],
+    )
+
+
+def new_hall_pass_token() -> str:
+    return f"bsj:v1:{secrets.token_urlsafe(32)}"
+
+
+def revoke_live_sessions(
+    connection: sqlite3.Connection, user_id: str, when: str
+) -> None:
+    connection.execute(
+        """
+        UPDATE sessions
+        SET revoked_at = ?
+        WHERE user_id = ? AND revoked_at IS NULL
+        """,
+        (when, user_id),
+    )
+
+
+def record_resident_audit(
+    connection: sqlite3.Connection,
+    occurred_at: str,
+    actor_user_id: str,
+    action: str,
+    entity_type: str,
+    entity_id: str,
+    summary: str,
+    detail: str | None = None,
+) -> None:
+    connection.execute(
+        """
+        INSERT INTO audit_log (
+          id, occurred_at, actor_user_id, action, entity_type, entity_id, summary, detail
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            str(uuid.uuid4()),
+            occurred_at,
+            actor_user_id,
+            action,
+            entity_type,
+            entity_id,
+            summary,
+            detail,
+        ),
+    )
+
+
+def room_exists(connection: sqlite3.Connection, room_id: str) -> bool:
+    row = connection.execute(
+        "SELECT 1 FROM rooms WHERE id = ?",
+        (room_id,),
+    ).fetchone()
+    return row is not None
+
+
+def room_has_capacity(
+    connection: sqlite3.Connection, room_id: str, *, excluding_user_id: str | None = None
+) -> bool:
+    if excluding_user_id is None:
+        row = connection.execute(
+            """
+            SELECT rooms.bed_count AS beds,
+                   (SELECT COUNT(*) FROM residents WHERE room_id = rooms.id) AS taken
+            FROM rooms
+            WHERE rooms.id = ?
+            """,
+            (room_id,),
+        ).fetchone()
+    else:
+        row = connection.execute(
+            """
+            SELECT rooms.bed_count AS beds,
+                   (
+                     SELECT COUNT(*) FROM residents
+                     WHERE room_id = rooms.id AND user_id <> ?
+                   ) AS taken
+            FROM rooms
+            WHERE rooms.id = ?
+            """,
+            (excluding_user_id, room_id),
+        ).fetchone()
+    if row is None:
+        return False
+    return int(row["taken"]) < int(row["beds"])
