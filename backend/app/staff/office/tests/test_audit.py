@@ -23,7 +23,7 @@ ROOM_ID = "d4400000-0000-4000-8000-000000000004"
 CREATED = "2026-09-30T00:00:00Z"
 LOGIN_AT = "2026-09-30T11:00:00Z"
 SETTINGS_AT = "2026-09-30T12:00:00Z"
-NOW = datetime(2026, 9, 30, 12, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 9, 30, 12, 1, tzinfo=timezone.utc)  # after SETTINGS_AT so live login sorts first
 LOGIN_AUDIT = "aa100000-0000-4000-8000-0000000000a1"
 SETTINGS_AUDIT = "aa100000-0000-4000-8000-0000000000a2"
 
@@ -162,7 +162,7 @@ def test_admin_audit(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
         assert body["total"] >= 3
         assert "detail" not in json.dumps(body)
         actions = [item["action"] for item in body["items"]]
-        # newest first: provost login, then settings, then aisha login (or mixed with seeding)
+        # newest first: frozen clock is after SETTINGS_AT, so the live provost login leads
         assert actions[0] == "auth.login"
         assert expected["settings_action"] in actions
         settings_row = next(item for item in body["items"] if item["action"] == "settings.updated")
