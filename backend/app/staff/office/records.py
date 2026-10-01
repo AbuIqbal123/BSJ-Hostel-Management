@@ -226,3 +226,114 @@ def record_block_audit(
         """,
         (str(uuid.uuid4()), occurred_at, actor_user_id, action, block_id, summary, detail),
     )
+
+
+ROOM_COLUMNS = (
+    "id",
+    "block_id",
+    "number",
+    "label",
+    "bed_count",
+    "is_active",
+)
+
+
+class Room(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str
+    block_id: str
+    number: str
+    label: str
+    bed_count: int
+    is_active: bool
+
+
+class RoomCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    block_id: str
+    number: str = Field(min_length=1, max_length=12)
+
+
+class RoomUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    number: str | None = Field(default=None, min_length=1, max_length=12)
+    bed_count: int | None = Field(default=None, ge=1, le=6)
+    is_active: bool | None = None
+
+
+def row_to_room(row: sqlite3.Row) -> Room:
+    return Room(
+        id=row["id"],
+        block_id=row["block_id"],
+        number=row["number"],
+        label=row["label"],
+        bed_count=row["bed_count"],
+        is_active=bool(row["is_active"]),
+    )
+
+
+def list_rooms(
+    connection: sqlite3.Connection,
+    *,
+    block_id: str | None = None,
+) -> list[Room]:
+    if block_id is None:
+        rows = connection.execute(
+            f"""
+            SELECT {', '.join(ROOM_COLUMNS)}
+            FROM rooms
+            ORDER BY label COLLATE NOCASE, id
+            """
+        ).fetchall()
+    else:
+        rows = connection.execute(
+            f"""
+            SELECT {', '.join(ROOM_COLUMNS)}
+            FROM rooms
+            WHERE block_id = ?
+            ORDER BY label COLLATE NOCASE, id
+            """,
+            (block_id,),
+        ).fetchall()
+    return [row_to_room(row) for row in rows]
+
+
+def load_room(connection: sqlite3.Connection, room_id: str) -> Room | None:
+    row = connection.execute(
+        f"""
+        SELECT {', '.join(ROOM_COLUMNS)}
+        FROM rooms
+        WHERE id = ?
+        """,
+        (room_id,),
+    ).fetchone()
+    if row is None:
+        return None
+    return row_to_room(row)
+
+
+def residents_in_room(connection: sqlite3.Connection, room_id: str) -> int:
+    row = connection.execute(
+        "SELECT COUNT(*) AS n FROM residents WHERE room_id = ?",
+        (room_id,),
+    ).fetchone()
+    return int(row["n"])
+
+
+def record_room_audit(
+    connection: sqlite3.Connection,
+    occurred_at: str,
+    actor_user_id: str,
+    action: str,
+    room_id: str,
+    summary: str,
+    detail: str | None = None,
+) -> None:
+    connection.execute(
+        """
+        INSERT INTO audit_log (
+          id, occurred_at, actor_user_id, action, entity_type, entity_id, summary, detail
+        ) VALUES (?, ?, ?, ?, 'room', ?, ?, ?)
+        """,
+        (str(uuid.uuid4()), occurred_at, actor_user_id, action, room_id, summary, detail),
+    )
