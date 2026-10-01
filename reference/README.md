@@ -8,4 +8,4 @@ These folders are the hall materials the contracts were written from. They are n
 | `demo/` | The workflow pages used to confirm fields and message copy |
 | `prototype/` | An earlier clickable draft and its screenshots |
 
-The system in this repository is `backend/` plus the documents in `docs/`. Start with `docs/database.md` and `docs/api.md`.
+The system in this repository is `backend/` plus the documents in `docs/`. Start with `docs/database/database.md` and `docs/api/api.md`.

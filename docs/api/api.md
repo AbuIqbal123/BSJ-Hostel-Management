@@ -2,7 +2,7 @@
 
 API version: **0.2.12**
 
-This is the reading copy of [`backend/openapi.yaml`](../backend/openapi.yaml). Swagger at `/docs` serves that file. Stored data is in [`database.md`](database.md). When an endpoint changes, edit the YAML and regenerate this page from the repository root:
+This is the reading copy of [`backend/openapi.yaml`](../../backend/openapi.yaml). Swagger at `/docs` serves that file. Stored data is in [`database.md`](../database/database.md). When an endpoint changes, edit the YAML and regenerate this page from the repository root:
 
 ```bash
 backend/.venv/bin/python backend/scripts/render_api_md.py
@@ -88,7 +88,7 @@ Do not edit this page by hand.
 ## How to call the API
 
 HTTP contract for the hostel movement system. Schema version of the database
-is tracked separately in `docs/database.md` (0.3.4).
+is tracked separately in `docs/database/database.md` (0.3.4).
 
 This version is the contract. Auth, resident phone (home, history, hall pass,
 destinations, ordinary outings, permissions, guest stays), register, staff
@@ -111,8 +111,8 @@ Access tokens last 15 minutes. Refresh tokens last 30 days. Passwords are
 at least 10 characters and are stored as Argon2id. Accounts are issued by
 the hall office. A resident username is the enrolment number.
 
-Stored state and lifecycles live in `docs/database.md`. This file does not
-repeat the column list. The reading copy of this contract is `docs/api.md`.
+Stored state and lifecycles live in `docs/database/database.md`. This file does not
+repeat the column list. The reading copy of this contract is `docs/api/api.md`.
 
 | Server | Use |
 |---|---|

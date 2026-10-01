@@ -16,9 +16,9 @@ description: >
 
 # Engineering discipline
 
-Read and follow **Engineering rules** in `AGENTS.md` before writing code, tests, API contracts, schema changes, or a change to the shape of the system. The diagram is `docs/system-architecture.md`.
+Read and follow **Engineering rules** in `AGENTS.md` before writing code, tests, API contracts, schema changes, or a change to the shape of the system. The diagram is `docs/architecture/system-architecture.md`.
 
-The test entry format is at the top of `docs/tests.md`.
+The test entry format is at the top of `docs/tests/tests.md`.
 
 Red, green, refactor in small slices. One slice is one named behavior. A migration happens only when stored records change. Tests live in the business folder they protect.
 

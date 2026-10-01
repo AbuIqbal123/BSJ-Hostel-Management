@@ -6,11 +6,14 @@ Read these three first.
 
 | Document | What is in it |
 |---|---|
-| [`docs/system-architecture.md`](docs/system-architecture.md) | The diagram of the system as it stands |
-| [`docs/database.md`](docs/database.md) | What the hall keeps, and the rules for how it changes. Version 0.3.4. Created when the service starts |
-| [`docs/api.md`](docs/api.md) | Every endpoint: who calls it, the payload, and the response. API version 0.2.12 |
+| [`docs/README.md`](docs/README.md) | Docs map by domain (design, api, database, architecture, tests, engineering) |
+| [`docs/architecture/system-architecture.md`](docs/architecture/system-architecture.md) | The diagram of the system as it stands |
+| [`docs/database/database.md`](docs/database/database.md) | What the hall keeps, and the rules for how it changes. Version 0.3.4. Created when the service starts |
+| [`docs/api/api.md`](docs/api/api.md) | Every endpoint: who calls it, the payload, and the response. API version 0.2.12 |
+| [`docs/design/design-system.md`](docs/design/design-system.md) | Visual design lock for the Expo client |
+| [`docs/design/workflows.md`](docs/design/workflows.md) | Product workflows (auth, home, permissions, register, gate, guests) |
 
-Swagger serves the same HTTP contract at http://127.0.0.1:8000/docs from `backend/openapi.yaml`. The test catalog is [`docs/tests.md`](docs/tests.md) (thirty-one recorded checks).
+Swagger serves the same HTTP contract at http://127.0.0.1:8000/docs from `backend/openapi.yaml`. The test catalog is [`docs/tests/tests.md`](docs/tests/tests.md) (thirty-one recorded checks).
 
 ## Repository
 
@@ -22,13 +25,15 @@ Swagger serves the same HTTP contract at http://127.0.0.1:8000/docs from `backen
 | `backend/app/staff/` | Gate, the register, and the hall office: `gate`, `register`, `office` |
 | `backend/app/dev_seed.py` | Local sign-in accounts. Not created when the service starts |
 | `backend/tests/` | Startup check for the whole hall, and the development-account check |
-| `docs/` | The diagram, what the hall keeps, the API, and the test catalog |
+| `docs/` | Domain folders: design, api, database, architecture, tests, engineering. See `docs/README.md` |
 | `reference/` | The original proposal, demo, and prototype. Not the application |
 | `AGENTS.md` | Engineering rules for changes in this repo |
 
 Docker is not part of local development. Hosting is written in code when that work starts.
 
-Secret scanning for commits is documented in [`docs/dev-pre-commit.md`](docs/dev-pre-commit.md) (free Gitleaks via pre-commit; no API key).
+Secret scanning for commits is documented in [`docs/engineering/dev-pre-commit.md`](docs/engineering/dev-pre-commit.md) (free Gitleaks via pre-commit; no API key).
+
+Before production, walk [`docs/security/pre-ship-checklist.md`](docs/security/pre-ship-checklist.md).
 
 Optional Locust load checks (not on every PR CI) are in [`docs/load.md`](docs/load.md).
 
@@ -78,7 +83,7 @@ On startup the service creates the hall in `backend/data/hostel.db` when that fi
 
 From `backend/`, add the local sign-in accounts with `.venv/bin/python -m app.dev_seed`. This runs only when `ENVIRONMENT` is `development`. A second run leaves an account that is already there, including a password that was changed. The command prints the password of each account it adds. Room B-204 is created for the sample resident because the published hall page does not list door numbers.
 
-From `backend/`, run the checks with `.venv/bin/pytest`. A push to `dev`, and a pull request, runs the same checks on GitHub. Every recorded check is listed in [`docs/tests.md`](docs/tests.md); each entry names its test file under `backend/app/.../tests/` or `backend/tests/`.
+From `backend/`, run the checks with `.venv/bin/pytest`. A push to `dev`, and a pull request, runs the same checks on GitHub. Every recorded check is listed in [`docs/tests/tests.md`](docs/tests/tests.md); each entry names its test file under `backend/app/.../tests/` or `backend/tests/`.
 
 ## What is deliberately not here
 
@@ -90,7 +95,7 @@ From `backend/`, run the checks with `.venv/bin/pytest`. A push to `dev`, and a 
 
 ## Open decisions
 
-These are in `docs/database.md` and in hall settings, because the proposal did not fix them:
+These are in `docs/database/database.md` and in hall settings, because the proposal did not fix them:
 
 - The clock time when ordinary hours end
 - How many seconds a second gate scan is ignored so it cannot undo the first

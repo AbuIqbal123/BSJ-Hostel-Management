@@ -4,7 +4,7 @@ info:
   version: 0.2.12
   description: |
     HTTP contract for the hostel movement system. Schema version of the database
-    is tracked separately in `docs/database.md` (0.3.4).
+    is tracked separately in `docs/database/database.md` (0.3.4).
 
     This version is the contract. Auth, resident phone (home, history, hall pass,
     destinations, ordinary outings, permissions, guest stays), register, staff
@@ -27,8 +27,8 @@ info:
     at least 10 characters and are stored as Argon2id. Accounts are issued by
     the hall office. A resident username is the enrolment number.
 
-    Stored state and lifecycles live in `docs/database.md`. This file does not
-    repeat the column list. The reading copy of this contract is `docs/api.md`.
+    Stored state and lifecycles live in `docs/database/database.md`. This file does not
+    repeat the column list. The reading copy of this contract is `docs/api/api.md`.
   license:
     name: Proprietary
     identifier: LicenseRef-proprietary

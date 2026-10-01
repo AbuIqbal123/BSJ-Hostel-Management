@@ -1,4 +1,4 @@
-"""Starting the service creates the hall described in docs/database.md."""
+"""Starting the service creates the hall described in docs/database/database.md."""
 
 from __future__ import annotations
 

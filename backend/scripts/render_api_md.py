@@ -1,4 +1,4 @@
-"""Write docs/api.md from backend/openapi.yaml.
+"""Write docs/api/api.md from backend/openapi.yaml.
 
 The YAML is the contract the server serves. This page is the reading copy.
 Edit the YAML, then run this script from the repository root:
@@ -17,7 +17,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 SPEC_PATH = ROOT / "backend" / "openapi.yaml"
-OUT_PATH = ROOT / "docs" / "api.md"
+OUT_PATH = ROOT / "docs" / "api" / "api.md"
 METHODS = {"get", "post", "put", "patch", "delete", "head", "options", "trace"}
 
 
@@ -324,8 +324,8 @@ def render(spec: dict) -> tuple[str, int]:
         "",
         f"API version: **{info['version']}**",
         "",
-        "This is the reading copy of [`backend/openapi.yaml`](../backend/openapi.yaml). "
-        "Swagger at `/docs` serves that file. Stored data is in [`database.md`](database.md). "
+        "This is the reading copy of [`backend/openapi.yaml`](../../backend/openapi.yaml). "
+        "Swagger at `/docs` serves that file. Stored data is in [`database.md`](../database/database.md). "
         "When an endpoint changes, edit the YAML and regenerate this page from the repository root:",
         "",
         "```bash",
