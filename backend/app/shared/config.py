@@ -35,10 +35,16 @@ class Settings(BaseSettings):
             )
 
     def reject_missing_secret(self) -> None:
-        if not self.app_secret_key.strip():
+        key = self.app_secret_key.strip()
+        if not key:
             raise RuntimeError(
                 "APP_SECRET_KEY is empty. Set it in the untracked backend/.env. "
                 "Refusing to start."
+            )
+        if len(key.encode("utf-8")) < 32:
+            raise RuntimeError(
+                "APP_SECRET_KEY must be at least 32 bytes so JWT HS256 signing "
+                "meets the recommended key length. Refusing to start."
             )
 
 
