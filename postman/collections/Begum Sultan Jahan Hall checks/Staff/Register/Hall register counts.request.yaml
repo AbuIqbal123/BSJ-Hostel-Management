@@ -3,7 +3,13 @@ method: GET
 url: '{{baseUrl}}/api/v1/register/summary'
 order: 1000
 description: |-
-  Caller: warden or provost. Counts for the whole hall, and the same counts for each block. A resident is counted in the block of her current room. A guest is counted in the host's block. The hall totals are the sum of the blocks. Returns 404 until this route is built.
+  Caller: warden or provost. Counts for the whole hall and the same counts for
+  each block: active residents inside, outside before grace, or late after grace;
+  permissions waiting; guests in hall; guests who should have left; and guest
+  stays waiting. A resident and a waiting permission count in the block of the
+  resident's current room. A guest counts in the host's block. Suspended
+  residents are left out of the inside and outside counts. Hall totals are the
+  sum of the block counts.
 scripts:
   - type: beforeRequest
     language: text/javascript

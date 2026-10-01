@@ -3,7 +3,9 @@ method: GET
 url: '{{baseUrl}}/api/v1/register/residents/{{residentId}}'
 order: 3000
 description: |-
-  Caller: warden or provost. The open or latest outing, whether it is an ordinary outing or a permission, and whether the guardian was told. Returns 404 until this route is built.
+  Caller: warden or provost. Shows the resident's presence and register state,
+  the open or latest outing (ordinary or permission), and whether the guardian
+  notice is not due, sent, or failed.
 scripts:
   - type: beforeRequest
     language: text/javascript
