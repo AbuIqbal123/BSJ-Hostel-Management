@@ -1,0 +1,125 @@
+{
+  "empty": {
+    "total": 0,
+    "limit": 50,
+    "offset": 0,
+    "items": []
+  },
+  "full": {
+    "total": 11,
+    "limit": 50,
+    "offset": 0,
+    "items": [
+      {
+        "event": "exited",
+        "place": "Maulana Azad Library",
+        "occurred_at": "2026-09-30T08:00:00Z",
+        "outing_id": "e7700000-0000-4000-8000-000000000011"
+      },
+      {
+        "event": "returned",
+        "place": "Maulana Azad Library",
+        "occurred_at": "2026-09-29T16:00:00Z",
+        "outing_id": "e7700000-0000-4000-8000-000000000005"
+      },
+      {
+        "event": "exited",
+        "place": "Maulana Azad Library",
+        "occurred_at": "2026-09-29T15:00:00Z",
+        "outing_id": "e7700000-0000-4000-8000-000000000005"
+      },
+      {
+        "event": "returned",
+        "place": "City bookshop",
+        "occurred_at": "2026-09-29T14:00:00Z",
+        "outing_id": "e7700000-0000-4000-8000-000000000004"
+      },
+      {
+        "event": "exited",
+        "place": "City bookshop",
+        "occurred_at": "2026-09-29T13:00:00Z",
+        "outing_id": "e7700000-0000-4000-8000-000000000004"
+      },
+      {
+        "event": "returned",
+        "place": "J.N. Medical College",
+        "occurred_at": "2026-09-29T12:00:00Z",
+        "outing_id": "e7700000-0000-4000-8000-000000000003"
+      },
+      {
+        "event": "exited",
+        "place": "J.N. Medical College",
+        "occurred_at": "2026-09-29T11:00:00Z",
+        "outing_id": "e7700000-0000-4000-8000-000000000003"
+      },
+      {
+        "event": "returned",
+        "place": "Women's College",
+        "occurred_at": "2026-09-29T10:00:00Z",
+        "outing_id": "e7700000-0000-4000-8000-000000000002"
+      },
+      {
+        "event": "exited",
+        "place": "Women's College",
+        "occurred_at": "2026-09-29T09:00:00Z",
+        "outing_id": "e7700000-0000-4000-8000-000000000002"
+      },
+      {
+        "event": "returned",
+        "place": "Shamshad Market",
+        "occurred_at": "2026-09-29T08:00:00Z",
+        "outing_id": "e7700000-0000-4000-8000-000000000001"
+      },
+      {
+        "event": "exited",
+        "place": "Shamshad Market",
+        "occurred_at": "2026-09-29T07:00:00Z",
+        "outing_id": "e7700000-0000-4000-8000-000000000001"
+      }
+    ]
+  },
+  "page": {
+    "total": 11,
+    "limit": 3,
+    "offset": 0,
+    "items": [
+      {
+        "event": "exited",
+        "place": "Maulana Azad Library",
+        "occurred_at": "2026-09-30T08:00:00Z",
+        "outing_id": "e7700000-0000-4000-8000-000000000011"
+      },
+      {
+        "event": "returned",
+        "place": "Maulana Azad Library",
+        "occurred_at": "2026-09-29T16:00:00Z",
+        "outing_id": "e7700000-0000-4000-8000-000000000005"
+      },
+      {
+        "event": "exited",
+        "place": "Maulana Azad Library",
+        "occurred_at": "2026-09-29T15:00:00Z",
+        "outing_id": "e7700000-0000-4000-8000-000000000005"
+      }
+    ]
+  },
+  "tail": {
+    "total": 11,
+    "limit": 3,
+    "offset": 9,
+    "items": [
+      {
+        "event": "returned",
+        "place": "Shamshad Market",
+        "occurred_at": "2026-09-29T08:00:00Z",
+        "outing_id": "e7700000-0000-4000-8000-000000000001"
+      },
+      {
+        "event": "exited",
+        "place": "Shamshad Market",
+        "occurred_at": "2026-09-29T07:00:00Z",
+        "outing_id": "e7700000-0000-4000-8000-000000000001"
+      }
+    ]
+  }
+}

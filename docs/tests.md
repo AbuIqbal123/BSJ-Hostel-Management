@@ -1,8 +1,8 @@
 # Test catalog
 
-Document version: **0.4.19**
+Document version: **0.4.20**
 
-Status: eleven recorded tests. Startup creates the hall. Sign-in keeps a session. A development command adds local accounts. Resident home reads the resident's own screen. The destination list shows the active ordinary-outing choices, with Other last. A resident can plan an ordinary outing before the gate scan. She can read the outing that is still planned or outside. She can cancel that plan before the gate scan. A warden or the provost can read the register presence board: hall and block counts, the resident list with filters, one resident's record, and the late list. A resident can submit, list, read, and cancel late-night and home-going permissions. A warden or the provost can read the permission queue and decide a pending request. The staff permission queue sorts by created_at (newest default) and accepts optional filters for block, type, and created_at date range.
+Status: twelve recorded tests. Startup creates the hall. Sign-in keeps a session. A development command adds local accounts. Resident home reads the resident's own screen. The destination list shows the active ordinary-outing choices, with Other last. A resident can plan an ordinary outing before the gate scan. She can read the outing that is still planned or outside. She can cancel that plan before the gate scan. A warden or the provost can read the register presence board: hall and block counts, the resident list with filters, one resident's record, and the late list. A resident can submit, list, read, and cancel late-night and home-going permissions. A warden or the provost can read the permission queue and decide a pending request. The staff permission queue sorts by created_at (newest default) and accepts optional filters for block, type, and created_at date range. A resident can read her own exit and return history as a paginated list.
 
 Each test has an entry here and a file next to the business area it covers. Write the failing check for one behavior, see it fail, then make it pass. Update the entry in that same change. The entry names the test file. It does not copy every payload when the test already states them. A migration is not part of this loop unless the stored records change. Bump this document when the format or a recorded test changes.
 
@@ -169,5 +169,20 @@ Copy this block for each test and fill every field.
 | Expected response | No token returns 401 `unauthenticated`. Gate and resident return 403 `forbidden`. The default list matches `default` in the artifact (newest `created_at` first). `order=oldest` matches `oldest`. `type=home_going` matches `home_going`. Block-A matches `block_a`. The created_at window matches `created_range`. Combined type and block matches `home_going_block_a`. The provost default list matches the warden default. The reads do not add an audit entry beyond sign-in. |
 | Failure cases | E2E; failure cases are covered by the expected response. |
 | Artifact | `backend/app/staff/register/tests/artifacts/permission-queue.json` |
+
+
+### `resident-history` Own exit and return history
+
+| Field | Content |
+|---|---|
+| Test | `backend/app/residents/home/tests/test_history.py` |
+| Purpose | A resident reads her own exit and return lines, newest first, with limit and offset. Each outing contributes an exit line and, once returned, a return line. |
+| Actor | A resident. A gate account is refused. |
+| Preconditions | The hall from `hall-created` exists. The clock is frozen at 2026-09-30T13:00:00Z. Aisha Khan is an active resident, username `24-GLLB-118`, room B-204, inside. Fatima Khan is active gate staff. Maryam Siddiqui is another active resident. No outing history exists yet until the open-day fixture runs. |
+| Action | `GET /api/v1/me/history` with no token, as Fatima, then as Aisha when empty; again after exits and returns exist; with `limit=3&offset=0` and `limit=3&offset=9`. |
+| Expected response | No token returns 401 `unauthenticated`. Gate returns 403 `forbidden`. Empty matches `empty` in the artifact. After the open day, the default page matches `full` (eleven lines, newest first). The first page of three matches `page`. The tail page matches `tail`. The ten newest lines match home `recent_history`. Another resident's lines and a cancelled plan are absent. The reads do not add an audit entry beyond sign-in. |
+| Failure cases | E2E; failure cases are covered by the expected response. |
+| Artifact | `backend/app/residents/home/tests/artifacts/resident-history.json` |
+
 
 
