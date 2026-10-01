@@ -239,3 +239,57 @@ def test_admin_blocks(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
             connection.close()
         assert room == ("B-204", 1)
         assert actions == ["block.created", "block.updated", "block.updated"]
+
+
+def test_block_patch_rejects_null_except_floors(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.main import app
+    from app.shared import clock
+
+    monkeypatch.setattr(clock, "utc_now", FrozenClock().utc_now)
+    with TestClient(app) as client:
+        issue_people(database_path)
+        provost = sign_in(client, "provost.halima", PROVOST_PHRASE)
+        headers = {"Authorization": f"Bearer {provost}"}
+
+        listed = client.get("/api/v1/admin/blocks", headers=headers)
+        assert listed.status_code == 200
+        block_b = next(item for item in listed.json() if item["id"] == BLOCK_B)
+        assert block_b["is_active"] is True
+        assert block_b["floors"] == 4
+        assert block_b["name"] == "Block-B"
+        assert block_b["room_count"] == 58
+
+        refused = (
+            ("is_active", "Is active is required."),
+            ("name", "Name is required."),
+            ("room_count", "Room count is required."),
+        )
+        for field_name, message in refused:
+            response = client.patch(
+                f"/api/v1/admin/blocks/{BLOCK_B}",
+                headers=headers,
+                json={field_name: None},
+            )
+            assert_error(response, 422, "validation_error")
+            error = response.json()["error"]
+            assert error["message"] == message
+            assert error["details"] == {"field": field_name}
+
+        after = client.get("/api/v1/admin/blocks", headers=headers)
+        assert after.status_code == 200
+        stayed = next(item for item in after.json() if item["id"] == BLOCK_B)
+        assert stayed["is_active"] is True
+        assert stayed["name"] == "Block-B"
+        assert stayed["room_count"] == 58
+        assert stayed["floors"] == 4
+
+        cleared = client.patch(
+            f"/api/v1/admin/blocks/{BLOCK_B}",
+            headers=headers,
+            json={"floors": None},
+        )
+        assert cleared.status_code == 200
+        assert cleared.json()["floors"] is None
+        assert cleared.json()["is_active"] is True
