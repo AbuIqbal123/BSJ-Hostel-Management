@@ -8,7 +8,7 @@ queryParams:
   - key: offset
     value: '0'
 description: |-
-  Caller: resident. Newest first. Includes late-night and home going.
+  Caller: resident. Newest first. Includes late-night and home going. An approved permission whose expected return has passed, and which was never used, becomes `expired` when this list is read.
 scripts:
   - type: beforeRequest
     language: text/javascript

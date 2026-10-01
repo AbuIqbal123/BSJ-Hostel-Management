@@ -31,6 +31,7 @@ ROOM_B204 = "d4400000-0000-4000-8000-000000000004"
 ROOM_B205 = "d4400000-0000-4000-8000-000000000005"
 IN_USE_ID = "f8800000-0000-4000-8000-000000000030"
 EXPIRED_ID = "f8800000-0000-4000-8000-000000000031"
+STAFF_EXPIRE_ID = "f8800000-0000-4000-8000-000000000032"
 OTHER_PERM = "f8800000-0000-4000-8000-000000000099"
 MISSING = "00000000-0000-4000-8000-000000000099"
 CREATED = "2026-09-30T00:00:00Z"
@@ -67,11 +68,19 @@ def database_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[P
     get_settings.cache_clear()
 
 
-def assert_error(response, status: int, code: str, message: str) -> None:
+def assert_error(
+    response, status: int, code: str, message: str, field: str | None = None
+) -> None:
     assert response.status_code == status
     body = response.json()
     assert set(body) == {"error"}
-    assert body["error"] == {"code": code, "message": message}
+    error = body["error"]
+    assert error["code"] == code
+    assert error["message"] == message
+    if field is None:
+        assert "details" not in error
+    else:
+        assert error["details"] == {"field": field}
 
 
 def sign_in(client: TestClient, username: str, password: str) -> str:
@@ -158,6 +167,10 @@ def insert_seed_permissions(path: Path) -> None:
             (?, ?, 'home_going', 'approved', 'Lucknow', NULL, '12 Park Road',
              'Unused and past its return.', '2026-09-28T02:30:00Z', '2026-09-29T12:00:00Z',
              ?, '2026-09-27T11:00:00Z', NULL, '2026-09-27T10:00:00Z', '2026-09-27T11:00:00Z'),
+            (?, ?, 'late_night', 'approved', 'City library', NULL, NULL,
+             'Unused past return for staff expire-on-look.', '2026-09-28T10:00:00Z',
+             '2026-09-29T10:00:00Z', ?, '2026-09-28T09:00:00Z', NULL,
+             '2026-09-28T08:00:00Z', '2026-09-28T09:00:00Z'),
             (?, ?, 'late_night', 'pending', 'Other hall', NULL, NULL,
              'Another resident is waiting.', '2026-09-30T15:00:00Z', '2026-09-30T17:00:00Z',
              NULL, NULL, NULL, '2026-09-30T12:00:00Z', '2026-09-30T12:00:00Z')
@@ -168,6 +181,9 @@ def insert_seed_permissions(path: Path) -> None:
                 WARDEN_ID,
                 EXPIRED_ID,
                 RESIDENT_ID,
+                WARDEN_ID,
+                STAFF_EXPIRE_ID,
+                OTHER_ID,
                 WARDEN_ID,
                 OTHER_PERM,
                 OTHER_ID,
@@ -262,6 +278,40 @@ def test_permission_lifecycle(database_path: Path, monkeypatch: pytest.MonkeyPat
                 headers=auth(resident),
                 json={
                     **late_night_body,
+                    "departure_at": "2026-09-30T12:00:00Z",
+                    "expected_return_at": "2026-09-30T16:00:00Z",
+                },
+            ),
+            422,
+            "validation_error",
+            "The departure must not be in the past.",
+            "departure_at",
+        )
+        skew = client.post(
+            "/api/v1/me/permissions",
+            headers=auth(resident),
+            json={
+                **late_night_body,
+                "short_place": "Skew check",
+                "departure_at": "2026-09-30T12:57:00Z",
+                "expected_return_at": "2026-09-30T16:00:00Z",
+            },
+        )
+        assert skew.status_code == 201
+        skew_id = skew.json()["id"]
+        frozen.advance()
+        cancelled_skew = client.post(
+            f"/api/v1/me/permissions/{skew_id}/cancel",
+            headers=auth(resident),
+        )
+        assert cancelled_skew.status_code == 200
+        frozen.advance()
+        assert_error(
+            client.post(
+                "/api/v1/me/permissions",
+                headers=auth(resident),
+                json={
+                    **late_night_body,
                     "expected_return_at": "2026-09-30T14:00:00Z",
                 },
             ),
@@ -313,7 +363,7 @@ def test_permission_lifecycle(database_path: Path, monkeypatch: pytest.MonkeyPat
                 "short_place": "Lucknow",
                 "address": "14, Civil Lines, Lucknow, U.P. 226001",
                 "reason": "Family visit. Eid with parents.",
-                "departure_at": "2026-09-30T02:30:00Z",
+                "departure_at": "2026-09-30T15:00:00Z",
                 "expected_return_at": "2026-10-02T13:30:00Z",
             },
         )
@@ -327,13 +377,14 @@ def test_permission_lifecycle(database_path: Path, monkeypatch: pytest.MonkeyPat
         own_list = client.get("/api/v1/me/permissions", headers=auth(resident))
         assert own_list.status_code == 200
         listed = own_list.json()
-        assert listed["total"] == 5
+        assert listed["total"] == 6
         assert listed["limit"] == 50
         assert listed["offset"] == 0
         assert [item["id"] for item in listed["items"]] == [
             home_id,
             overlap_late_id,
             first_id,
+            skew_id,
             IN_USE_ID,
             EXPIRED_ID,
         ]
@@ -376,8 +427,8 @@ def test_permission_lifecycle(database_path: Path, monkeypatch: pytest.MonkeyPat
                 headers=auth(resident),
             ),
             409,
-            "cannot_cancel",
-            "The permission can no longer be cancelled.",
+            "permission_in_use",
+            "The gate has already recorded an exit on this permission, so it cannot be cancelled.",
         )
         assert permission_row(database_path, IN_USE_ID)["status"] == "in_use"
 
@@ -413,6 +464,8 @@ def test_permission_lifecycle(database_path: Path, monkeypatch: pytest.MonkeyPat
         assert all(item["status"] == "pending" for item in queue_body["items"])
         assert queue_body["items"][0]["resident_name"] == "Aisha Khan"
         assert queue_body["items"][2]["resident_name"] == "Maryam Siddiqui"
+        # Staff list expires unused approved permissions past their return for any resident.
+        assert permission_row(database_path, STAFF_EXPIRE_ID)["status"] == "expired"
 
         review = client.get(f"/api/v1/permissions/{first_id}", headers=auth(warden))
         assert review.status_code == 200
@@ -429,7 +482,7 @@ def test_permission_lifecycle(database_path: Path, monkeypatch: pytest.MonkeyPat
         approved_row = permission_row(database_path, first_id)
         assert approved_row["status"] == "approved"
         assert approved_row["decided_by"] == WARDEN_ID
-        assert approved_row["decided_at"] == "2026-09-30T13:00:02Z"
+        assert approved_row["decided_at"] == "2026-09-30T13:00:04Z"
         assert approved_row["decision_note"] is None
 
         assert_error(
@@ -440,7 +493,7 @@ def test_permission_lifecycle(database_path: Path, monkeypatch: pytest.MonkeyPat
             ),
             409,
             "not_pending",
-            "That permission is not waiting for a decision.",
+            "Only a pending permission can be approved or rejected (current status: approved).",
         )
 
         cancelled_approved = client.post(
@@ -481,6 +534,8 @@ def test_permission_lifecycle(database_path: Path, monkeypatch: pytest.MonkeyPat
 
         audits = permission_audits(database_path)
         actions = [(row["action"], row["actor_user_id"], row["entity_id"]) for row in audits]
+        assert ("permission.submitted", RESIDENT_ID, skew_id) in actions
+        assert ("permission.cancelled", RESIDENT_ID, skew_id) in actions
         assert ("permission.submitted", RESIDENT_ID, first_id) in actions
         assert ("permission.submitted", RESIDENT_ID, overlap_late_id) in actions
         assert ("permission.submitted", RESIDENT_ID, home_id) in actions
@@ -490,3 +545,4 @@ def test_permission_lifecycle(database_path: Path, monkeypatch: pytest.MonkeyPat
         assert ("permission.rejected", WARDEN_ID, home_id) in actions
         assert ("permission.approved", PROVOST_ID, OTHER_PERM) in actions
         assert ("permission.expired", None, EXPIRED_ID) in actions
+        assert ("permission.expired", None, STAFF_EXPIRE_ID) in actions

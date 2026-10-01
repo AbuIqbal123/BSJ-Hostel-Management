@@ -298,7 +298,7 @@ A permission is the warden's or the provost's decision. It is not itself the mom
 | destination_detail | Text | Empty for home going. For late-night it may be empty. | The resident types it on the late-night form | A further detail, such as Seminar Hall. |
 | address | Text | Yes for home going. Empty for late-night. | The resident types it on the home-going form | The home address. It must not be blank for home going. |
 | reason | Text | Yes | The resident types it | Both forms require it. |
-| departure_at | Instant | Yes | The resident sets it | When she plans to leave. Shown on the 12-hour clock. |
+| departure_at | Instant | Yes | The resident sets it | When she plans to leave. Must not be in the past when she submits (a few minutes of clock skew are allowed). There is no maximum how far ahead it may be. Shown on the 12-hour clock. |
 | expected_return_at | Instant | Yes | The resident sets it | Must be later than the departure. Shown on the 12-hour clock. |
 | decided_by | Identifier | Empty while waiting, and empty if the resident cancels before a decision | The warden or provost who approves or rejects | Required once that decision is recorded. |
 | decided_at | Instant | Empty in the same cases as decided_by | System, at the decision | Required once the decision is recorded. |
@@ -316,7 +316,7 @@ The short place lets the warden's card read "Home going · Lucknow" without open
 - Completed: that outing was returned.
 - Rejected, cancelled, and expired: finished. They do not start again.
 
-From waiting, the warden or provost can reject it, or the resident can cancel it. From approved, the resident can cancel it before leaving. An approved permission whose expected return has passed, and which the resident never used, becomes expired. That check happens when the permission is looked at and when guardian messages are considered. There is no separate expiry list.
+From waiting, the warden or provost can reject it, or the resident can cancel it. From approved, the resident can cancel it before leaving. An approved permission whose expected return has passed, and which the resident never used, becomes expired. That check happens whenever a permission is listed or fetched (resident or staff), and when guardian messages are considered. There is no separate expiry list. Once expired it no longer counts as waiting or approved, and the gate cannot open an outing from it.
 
 The use window runs from the departure minus the early-leave setting, through the expected return. The gate can open an outing from the permission only inside that window.
 

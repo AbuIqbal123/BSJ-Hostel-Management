@@ -897,7 +897,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** resident. Bearer access token.
 
-Caller: resident. Newest first. Includes late-night and home going.
+Caller: resident. Newest first. Includes late-night and home going. An
+approved permission whose expected return has passed, and which was never
+used, becomes `expired` when this list is read.
 
 **Parameters**
 
@@ -945,6 +947,8 @@ Caller: resident. A warden or the provost decides later. Submitting does
 not let the resident leave. The hall pass can be used for this permission
 only after it is approved and the gate scans it inside the use window.
 
+`departure_at` must not be in the past. A few minutes of clock skew are
+allowed. There is no maximum how far ahead the departure may be.
 `expected_return_at` must be after `departure_at`. Home going requires
 `short_place`, `address`, and `reason`. Late-night requires `short_place`
 and `reason`, and may include `destination_detail`. `short_place` is
@@ -1050,7 +1054,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** resident. Bearer access token.
 
-Caller: resident. Refuses another resident's permission.
+Caller: resident. Refuses another resident's permission. An approved
+permission whose expected return has passed, and which was never used,
+becomes `expired` when it is read.
 
 **Parameters**
 
@@ -1158,7 +1164,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 #### 409
 
-The permission can no longer be cancelled. Code `cannot_cancel`.
+`permission_in_use` when the gate has already recorded an exit against
+this permission. Otherwise only pending or approved may be cancelled;
+the message names the current status (`not_cancellable`).
 
 Body: [ErrorResponse](#schema-errorresponse).
 
@@ -2047,7 +2055,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** warden or provost. Bearer access token.
 
-Caller: warden or provost. Defaults to `pending`. Newest first.
+Caller: warden or provost. Defaults to `pending`. Newest first. An
+approved permission whose expected return has passed, and which was never
+used, becomes `expired` when this list is read.
 
 **Parameters**
 
@@ -2091,7 +2101,8 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** warden or provost. Bearer access token.
 
-Caller: warden or provost.
+Caller: warden or provost. An approved permission whose expected return
+has passed, and which was never used, becomes `expired` when it is read.
 
 **Parameters**
 
@@ -2226,7 +2237,8 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 #### 409
 
-Not pending. Code `not_pending`.
+Only a pending permission can be approved or rejected. The message
+names the current status. Code `not_pending`.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
@@ -3801,7 +3813,7 @@ Each JSON object used above. An operation section already shows the fields for i
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `code` | yes | string | Stable machine code. Known codes: `unauthenticated`, `forbidden`, `not_found`, `validation_error`, `duplicate_username`, `duplicate_block`, `duplicate_room`, `duplicate_destination`, `room_in_use`, `other_exists`, `already_outside`, `return_already_planned`, `open_outing_exists`, `outside_ordinary_hours`, `permission_required`, `no_outing_planned`, `permission_not_yet_valid`, `duplicate_scan`, `resident_suspended`, `unknown_hall_pass`, `not_pending`, `cannot_cancel`, `guest_not_expected`, `guest_not_in_hall`, `payment_required`, `payment_locked`. |
+| `code` | yes | string | Stable machine code. Known codes: `unauthenticated`, `forbidden`, `not_found`, `validation_error`, `duplicate_username`, `duplicate_block`, `duplicate_room`, `duplicate_destination`, `room_in_use`, `other_exists`, `already_outside`, `return_already_planned`, `open_outing_exists`, `outside_ordinary_hours`, `permission_required`, `no_outing_planned`, `permission_not_yet_valid`, `duplicate_scan`, `resident_suspended`, `unknown_hall_pass`, `not_pending`, `permission_in_use`, `not_cancellable`, `guest_not_expected`, `guest_not_in_hall`, `payment_required`, `payment_locked`. |
 | `message` | yes | string | Sentence the phone can show. Not a stack trace. |
 | `details` | no | object |  |
 

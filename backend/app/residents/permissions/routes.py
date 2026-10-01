@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query
@@ -24,6 +24,9 @@ from app.shared.auth.routes import ConnectionDep
 from app.shared.errors import ApiError
 
 router = APIRouter(prefix="/api/v1", tags=["Resident"])
+
+# Phones and the hall clock can disagree by a little; allow a short skew.
+DEPARTURE_PAST_SKEW = timedelta(minutes=5)
 
 
 class LateNightCreate(BaseModel):
@@ -114,9 +117,17 @@ def submit_permission(
     connection: ConnectionDep,
 ) -> PermissionBody:
     request = body
-    _instant(request.departure_at, field="departure_at")
-    _instant(request.expected_return_at, field="expected_return_at")
-    if request.expected_return_at <= request.departure_at:
+    departure = _instant(request.departure_at, field="departure_at")
+    expected_return = _instant(request.expected_return_at, field="expected_return_at")
+    now = clock.utc_now()
+    if departure < now - DEPARTURE_PAST_SKEW:
+        raise ApiError(
+            422,
+            "validation_error",
+            "The departure must not be in the past.",
+            field="departure_at",
+        )
+    if expected_return <= departure:
         raise ApiError(
             422,
             "validation_error",
@@ -208,27 +219,53 @@ def cancel_permission(
     ).fetchone()
     if row is None or row["resident_id"] != account.id:
         raise ApiError(404, "not_found", "That record was not found.")
+    if row["status"] == "in_use":
+        raise ApiError(
+            409,
+            "permission_in_use",
+            "The gate has already recorded an exit on this permission, so it cannot be cancelled.",
+        )
     if row["status"] not in {"pending", "approved"}:
         raise ApiError(
             409,
-            "cannot_cancel",
-            "The permission can no longer be cancelled.",
+            "not_cancellable",
+            "Only a pending or approved permission can be cancelled "
+            f"(current status: {row['status']}).",
         )
-    connection.execute(
+    updated = connection.execute(
         """
         UPDATE permissions
         SET status = 'cancelled', updated_at = ?
         WHERE id = ? AND status IN ('pending', 'approved')
+        RETURNING id, type, short_place
         """,
         (now_text, permission_id),
-    )
-    label = "late-night" if row["type"] == "late_night" else "home-going"
+    ).fetchone()
+    if updated is None:
+        current = connection.execute(
+            "SELECT status FROM permissions WHERE id = ?",
+            (permission_id,),
+        ).fetchone()
+        assert current is not None
+        if current["status"] == "in_use":
+            raise ApiError(
+                409,
+                "permission_in_use",
+                "The gate has already recorded an exit on this permission, so it cannot be cancelled.",
+            )
+        raise ApiError(
+            409,
+            "not_cancellable",
+            "Only a pending or approved permission can be cancelled "
+            f"(current status: {current['status']}).",
+        )
+    label = "late-night" if updated["type"] == "late_night" else "home-going"
     record_permission(
         connection,
         now_text,
         account.id,
         "permission.cancelled",
         permission_id,
-        f"{account.full_name} cancelled a {label} permission for {row['short_place']}.",
+        f"{account.full_name} cancelled a {label} permission for {updated['short_place']}.",
     )
     return load_permission(connection, permission_id)

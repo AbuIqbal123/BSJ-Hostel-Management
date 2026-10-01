@@ -3,7 +3,7 @@ method: GET
 url: '{{baseUrl}}/api/v1/permissions/{{permissionId}}'
 order: 6000
 description: |-
-  Caller: warden or provost.
+  Caller: warden or provost. An approved permission whose expected return has passed, and which was never used, becomes `expired` when it is read.
 scripts:
   - type: beforeRequest
     language: text/javascript

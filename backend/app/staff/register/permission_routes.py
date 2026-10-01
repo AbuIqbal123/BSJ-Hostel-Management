@@ -76,32 +76,29 @@ def decide_permission(
 ) -> PermissionReviewBody:
     now_text = clock.format_instant(clock.utc_now())
     expire_passed_permissions(connection, now_text, permission_id=permission_id)
-    connection.commit()
-    row = connection.execute(
-        """
-        SELECT id, status, type, short_place
-        FROM permissions
-        WHERE id = ?
-        """,
-        (permission_id,),
-    ).fetchone()
-    if row is None:
-        raise ApiError(404, "not_found", "That record was not found.")
-    if row["status"] != "pending":
-        raise ApiError(
-            409,
-            "not_pending",
-            "That permission is not waiting for a decision.",
-        )
     note = None if body.note is None else body.note.strip() or None
-    connection.execute(
+    row = connection.execute(
         """
         UPDATE permissions
         SET status = ?, decided_by = ?, decided_at = ?, decision_note = ?, updated_at = ?
         WHERE id = ? AND status = 'pending'
+        RETURNING id, type, short_place
         """,
         (body.decision, account.id, now_text, note, now_text, permission_id),
-    )
+    ).fetchone()
+    if row is None:
+        existing = connection.execute(
+            "SELECT status FROM permissions WHERE id = ?",
+            (permission_id,),
+        ).fetchone()
+        if existing is None:
+            raise ApiError(404, "not_found", "That record was not found.")
+        raise ApiError(
+            409,
+            "not_pending",
+            "Only a pending permission can be approved or rejected "
+            f"(current status: {existing['status']}).",
+        )
     label = "late-night" if row["type"] == "late_night" else "home-going"
     action = "permission.approved" if body.decision == "approved" else "permission.rejected"
     verb = "approved" if body.decision == "approved" else "rejected"
