@@ -32,7 +32,7 @@ Copy this block for each test and fill every field.
 | Field | Content |
 |---|---|
 | Test | `backend/tests/test_hall_created.py` |
-| Purpose | Starting the service creates the hall in `docs/database.md`. `GET /health` still only reports that the process is up. |
+| Purpose | Starting the service creates the hall in `docs/database/database.md`. `GET /health` still only reports that the process is up. |
 | Actor | System job. Service startup. |
 | Preconditions | The database file is absent. No people, rooms, permissions, outings, guest stays, guardian messages, or audit entries exist. |
 | Action | Start the service on that empty file. `GET /health` with no payload. Start the service a second time on the same file. `GET /health` again. |
@@ -136,7 +136,7 @@ Copy this block for each test and fill every field.
 | Field | Content |
 |---|---|
 | Test | `backend/app/staff/register/tests/test_presence.py` |
-| Purpose | A warden or the provost reads who is inside, outside, or late, the same counts for each block, and one resident's open outside outing (or null when she is inside). Suspended residents are left out of the counts. Guests and waiting permissions follow `docs/database.md`. |
+| Purpose | A warden or the provost reads who is inside, outside, or late, the same counts for each block, and one resident's open outside outing (or null when she is inside). Suspended residents are left out of the counts. Guests and waiting permissions follow `docs/database/database.md`. |
 | Actor | A warden. A gate or resident account is refused. The provost may call the same routes. |
 | Preconditions | The hall from `hall-created` exists. The clock is frozen at 2026-09-30T13:00:00Z. Fatima Khan is active gate staff. Sara Malik is an active warden. Halima Begum is an active provost. Active residents: Aisha Khan in B-204 (inside, with one cancelled outing, one returned outing, and one pending late-night permission), Maryam Siddiqui in B-205 (outside to the library, grace ends at 14:00), and Zara Ahmed in A-101 (outside to Shamshad Market, grace ended at 12:30, late notice sent). Noor Fatima is a suspended resident in A-102 and is inside. Guest stays: one pending for Aisha, one arrived in Aisha's block whose end date was yesterday, and one arrived in Maryam's block whose end date is tomorrow. Zara also has a pending permission. |
 | Action | `GET /api/v1/register/summary`, `GET /api/v1/register/residents`, `GET /api/v1/register/residents/{resident_id}`, and `GET /api/v1/register/late` with no token, as Fatima Khan, as Aisha Khan, then as Sara Malik. As Sara, read the summary on the empty hall before the people are stored, then after they are stored. Filter residents by `q`, `state`, and `block_id`. Read Aisha, Maryam, Zara, an unknown id, and the late list. As Halima Begum, read the summary once. |

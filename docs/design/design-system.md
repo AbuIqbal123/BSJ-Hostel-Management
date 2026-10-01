@@ -1,8 +1,9 @@
-# BSJ Hall: design principles and frontend workflows
+# BSJ Hall: design principles and visual system
 
 **Status:** lock before UI build. Not implemented UI.
 **Audience:** whoever designs or ships the React Native / Expo client.
-**Sources:** `backend/openapi.yaml`, `docs/database.md`, `docs/api.md`, `docs/system-architecture.md`, `reference/prototype/`, `reference/demo/`, proposal phone shots. Emergency screens in the prototype are **out of scope for v1** (see database: emergency alerts are not kept).
+**Workflows (screens and steps):** [`docs/design/workflows.md`](workflows.md).
+**Sources:** `backend/openapi.yaml`, `docs/database/database.md`, `docs/api/api.md`, `docs/architecture/system-architecture.md`, `reference/prototype/`, `reference/demo/`, proposal phone shots. Emergency screens in the prototype are **out of scope for v1** (see database: emergency alerts are not kept).
 
 This document is opinionated. Prefer clarity over novelty. Prefer fewer decisions over more themes.
 
@@ -91,6 +92,13 @@ Tracking (design intent): display slightly tight; body 0; mono slightly open on 
 | Title Case Everything | **Forbidden** | |
 
 Italic serif sparingly for emphasis in long lede copy, not on buttons.
+
+### Line wrapping (app-wide default)
+
+Default globally: **`text-wrap: pretty;`**. Prefer nicer line breaks and fewer orphans in body copy, helper text, cards, and list secondary lines.
+
+- **Edge case only:** override where an orphan is intentional (some short display headings). Do not scatter overrides. Default pretty; fix the rare heading exceptions.
+- **Expo / React Native:** the CSS intent applies on **web** (Expo web / React Native Web / global stylesheet). On **native iOS and Android**, `Text` does not expose `text-wrap`. Match the intent with normal wrapping (`flexShrink`, constrained width, avoid forced single-line unless ellipsis is the designed overflow), and keep heading exceptions rare and local. Prefer one global web stylesheet rule; do not re-declare pretty on every component.
 
 ---
 
@@ -228,7 +236,7 @@ WCAG: `ink` on `paper`/`surface` >= 7:1. Primary button: dark ink or white on `f
 
 ### Spacing scale
 
-`4 · 8 · 12 · 16 · 20 · 24 · 32 · 40 · 48` (logical px). Default padding in a phone screen: 20 horizontal. Card padding: 16–20. Stack gap between cards: 12–16. Section gap: 24–32.
+`4 · 8 · 12 · 16 · 20 · 24 · 32 · 40 · 48` (logical px). Default padding in a phone screen: 20 horizontal. Card padding: 16–20. Stack gap between cards: 12–16. Section gap: 24–32. Line wrapping defaults to pretty (see §2); layout should not fight that with needless nowrap.
 
 ### Corners
 
@@ -403,102 +411,39 @@ When many elements animate (list rows, chip groups, stacked cards, staggered toa
 
 ---
 
-## 7. User workflows to design next
+## 7. Product workflows
 
-Mapped from the live contract (`openapi.yaml` / `docs/api.md` / `docs/database.md`) and confirmed against `reference/demo/` + prototype shots. Actors: **resident**, **gate**, **warden**, **provost**. Emergency is **not** a v1 workflow.
-
-### 7.1 Auth
-
-| | |
-|---|---|
-| **Actors** | Anyone with a hall-issued account |
-| **Goal** | Sign in, stay signed in, change password, sign out |
-| **API** | `POST /auth/login`, `/auth/refresh`, `/auth/logout`, `GET /auth/me`, `POST /auth/change-password` |
-| **Screens / steps** | 1) Username + password (resident username = enrolment number). 2) Route by `role` from `/auth/me`. 3) Change password (settings or forced after provost reset). 4) Sign out revokes refresh. |
-| **Critical states** | Wrong password; unknown user; suspended account; expired session → re-auth; temporary password after reset |
-| **Success** | Correct shell for role with valid tokens; no public sign-up |
-
-### 7.2 Homepage / home (by role)
-
-| Role | Goal | Key screens | Critical states | Success |
-|---|---|---|---|---|
-| **Resident** | Know presence; start outing / permission / guest; open hall pass or history | `GET /me/home` hub: name, room, presence chip, open outing or active permission summary, CTAs: Plan outing, Request permission, Guest stay; tiles: Hall pass, History | Inside idle; planned ready to leave; outside with expected return + grace; pending permission; approved usable; suspended (read-only messaging) | One glance answers “where am I?” and the next action |
-| **Gate** | Ready to scan; see recent activity | Dark home: primary Scan; list from `GET /gate/activity`; entry to guests | Idle; last result flash | Thumb on Scan in <1s |
-| **Warden** | Hall pulse | Register summary counts; shortcuts to Late, Permissions waiting, Guest stays waiting | Quiet night vs busy late list | Counts match `/register/summary` |
-| **Provost** | Same as warden + office entry | Warden home + Hall office | (none) | Office reachable without burying register |
-
-### 7.3 Permissions (resident + staff)
-
-| | |
-|---|---|
-| **Actors** | Resident requests; warden or provost decide |
-| **Goal** | Late-night or home going approved before exit |
-| **API** | Resident: `/me/permissions*`. Staff: `/permissions`, `/permissions/{id}`, `/permissions/{id}/decision` |
-| **Resident steps** | List own → Request (type, place, reason, departure, expected return) → Pending detail → Approved (show when usable) / Rejected / Cancel (pending or approved unused only) |
-| **Staff steps** | Queue (default pending) → Detail → Approve or Reject with reason if required by API |
-| **Critical states** | Pending; approved unused; `in_use` (cancel forbidden); expired unused; rejected; permission_required when ordinary plan is past hours |
-| **Success** | No exit on permission until approved + gate scan inside use window (`permission_early_minutes`) |
-
-### 7.4 Register / attendance board
-
-| | |
-|---|---|
-| **Actors** | Warden, provost |
-| **Goal** | Who is inside, outside, late; drill into a resident |
-| **API** | `/register/summary`, `/register/residents`, `/register/residents/{id}`, `/register/late` |
-| **Screens** | Summary counts (hall + per block) → Filterable list (search name/room, block) → Late list → Resident record (open outing detail when outside: place, exit, expected return, grace, type, guardian told) |
-| **Critical states** | Empty late; heavy late; outside within grace vs late; suspended excluded from presence counts |
-| **Success** | Duty warden can answer “is she in?” and “who is late?” without spreadsheets |
-
-### 7.5 Guest stays
-
-| | |
-|---|---|
-| **Actors** | Resident hosts; warden/provost review + payment; gate arrival/departure |
-| **Goal** | Paid guest in hall for dining/register without a hall pass |
-| **API** | Resident `/me/guest-stays*`; staff `/guest-stays*` + payment; gate `/gate/guests*` |
-| **Resident steps** | Apply (≥ `guest_min_lead_days`, ≤ `guest_max_inclusive_days`) → Pending → Approved / Rejected → Cancel before arrival |
-| **Staff steps** | Queue → Decide → Mark paid/unpaid |
-| **Gate steps** | Expected list → Record arrival → In-hall list → Record departure |
-| **Critical states** | Waiting; approved unpaid (gate must not admit per contract: approved **and** paid); in hall; should-have-left; departed |
-| **Success** | Dining/register guest counts move only on gate arrival/departure |
-
-### 7.6 Gate: hall-pass scanning
-
-| | |
-|---|---|
-| **Actors** | Gate (also warden/provost may scan) |
-| **Goal** | Record exit or return from permanent QR; never double-undo |
-| **API** | `POST /gate/scans`, `GET /gate/activity` |
-| **Screens** | Scan CTA → Camera / viewfinder (no confirm button) → Full-screen result (exit / return / refusal) → Auto back to ready; activity list |
-| **Critical states** | Exit recorded; return recorded; already outside (duplicate window); no plan / outside ordinary hours / permission not usable; resident suspended; pass unknown |
-| **Copy** | Prefer API `message` (e.g. already outside; present same pass on return) |
-| **Success** | Correct presence flip; second scan inside `scan_duplicate_window_seconds` refused; resident uses same QR both ways |
-
-**Resident side of the same loop:** Plan ordinary outing (`POST /me/outings`) → Ready → `GET /me/hall-pass` QR → Gate scan → Home shows outside → Return scan → History lines.
-
-### 7.7 Admin / hall office (provost)
-
-| | |
-|---|---|
-| **Actors** | Provost only |
-| **Goal** | Keep the hall’s people, places, and settings accurate |
-| **API** | `/admin/settings`, `/admin/blocks`, `/admin/rooms`, `/admin/destinations`, `/admin/residents`, `/admin/staff`, password reset, hall-pass reissue, `/admin/register/export`, `/admin/sms`, `/admin/audit` |
-| **Screens** | Settings (hours, grace, seasons, guest rules, SMS templates; show 12-hour + day-month as contract) → Blocks/rooms → Destinations → Residents (create/edit, suspend, reissue pass) → Staff → Password reset → SMS log → Audit → CSV export |
-| **Critical states** | Destructive confirms (reissue pass invalidates old QR; reset revokes sessions); inactive destinations hidden from resident catalog but visible in admin |
-| **Success** | Provost can run the hall without DB tools; export downloads; audit/SMS readable |
-
-### 7.8 Explicitly not designing for v1
-
-- Emergency alert flows (prototype wf6 / proposal only).
-- Parent/guardian app.
-- Payment gateway / amounts.
-- Push notification product design (guardian SMS is backend; client local notifications optional later).
-- Multi-role users.
+Screen-by-screen flows live in **[`docs/design/workflows.md`](workflows.md)** (auth with office-issued enrolment and temporary password, role homes, permissions, register, hall-pass / gate scans, guest stays, hall office). This file keeps visual rules only. Do not duplicate workflow tables here.
 
 ---
 
-## 8. Cross-cutting UI rules from the contract
+## 8. Stress the UI (worst-case content)
+
+Design and QA principle for Expo screens **before** shipping. Try to break what we built with hostile-but-plausible content. This is not backend Locust load; it is layout, wrapping, and density under stress.
+
+### What to throw at every screen
+
+| Stress | Examples | Expect |
+|---|---|---|
+| **Lots of data** | Long register lists, many permission cards, gate activity pages, guest queues | Scroll stays smooth; pagination or virtualized lists where the API pages; stagger list enter (see §6) without delaying primary actions |
+| **Long names** | Resident full names, hall / block labels, destination "Other" text, permission reasons, guest names | Wrap with pretty breaks; two-line max then ellipsis where the row must stay dense; full string on detail or expand |
+| **Unusual identifiers** | Odd emails (staff), long usernames, enrolment forms like `24-GLLB-118`, mixed case | Mono where codes belong; never truncate enrolment in a way that confuses two people; case-insensitive identity still shows hall spelling |
+| **Long chrome** | Filter chips, badges, button labels, nav titles | Chips scroll horizontally or wrap once; primary button text stays sentence case and short; overflow does not clip the tap target |
+| **Cardinality** | Empty, one item, overloaded (dozens pending) | Honest empty copy; one-item layout does not look broken; overloaded queues remain scannable (plain list, not card-per-row) |
+| **Wrap / truncate** | Multi-line destinations, stacked badges | Default `text-wrap: pretty` (§2). Ellipsis on dense rows; tooltip (web) or press-to-expand / detail screen (native) for the full value. Do not hide critical presence or refusal text behind ellipsis |
+| **Extreme times** | Season edges, late returns, grace end, multi-day guest ranges | Use contract formats (12-hour Asia/Kolkata; day + month name + year). Layout must fit `05 September 2026, 11:59 PM` without colliding chips |
+| **Busy queues** | Gate activity burst; permissions waiting; guests expected | Count strip stays readable; pending lists sort and filter; motion never blocks the next scan or decision |
+
+### How to use this later
+
+1. Before locking a screen, seed fixtures with the table above (empty / one / many / longest strings).
+2. Check light and dark (and gate shell) at the narrowest phone width you support.
+3. Confirm reduce-motion still shows final state when stagger is stripped.
+4. Fail the screen if a long name or refusal message is unreadable or if a primary CTA is pushed off-screen.
+
+---
+
+## 9. Cross-cutting UI rules from the contract
 
 - **Clock:** Asia/Kolkata, 12-hour, unpadded hour, two-digit minutes (`7:00 PM`).
 - **Dates:** day + month name + year (`18 September 2026`); day zero-padded in formal date form per database doc.
@@ -509,7 +454,7 @@ Mapped from the live contract (`openapi.yaml` / `docs/api.md` / `docs/database.m
 
 ---
 
-## 9. Prototype inheritance
+## 10. Prototype inheritance
 
 Keep from `reference/prototype` + `reference/demo`:
 
@@ -526,15 +471,17 @@ Change vs prototype screenshots:
 
 ---
 
-## 10. Lock checklist
+## 11. Lock checklist
 
 Before UI implementation starts, agree:
 
-- [ ] Font trio via expo-font / Expo Google Fonts + case rules (§2)
+- [ ] Font trio via expo-font / Expo Google Fonts + case rules + `text-wrap: pretty` default (§2)
 - [ ] Palette tokens: light + resident/warden/provost dark + gate dark shell (§3)
 - [ ] Spacing / radius / list-vs-card / RN elevation 0-2 (§4)
 - [ ] Custom icon set + Expo app icon sizes (§5)
 - [ ] Motion / micro-interactions budget + stagger rule (§6)
+- [ ] Workflows reviewed in `docs/design/workflows.md` (§7 pointer)
+- [ ] Worst-case content fixtures agreed (§8)
 - [ ] No em dashes (U+2014) in product copy or this doc
 - [ ] Workflow priority order for first sprint (recommended: Auth → Resident home/outing/hall pass → Gate scan → Register → Permissions → Guests → Office)
 

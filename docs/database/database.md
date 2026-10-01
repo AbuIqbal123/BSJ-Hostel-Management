@@ -4,7 +4,7 @@ Version: **0.3.4**
 
 Status: agreed. The service creates these records when it starts. They match this document.
 
-This document is the source of truth for what is stored and how a record is allowed to change. It is written for the hall. The software follows it. What a person sends and receives is in [`api.md`](api.md). The picture of what is running is [`system-architecture.md`](system-architecture.md).
+This document is the source of truth for what is stored and how a record is allowed to change. It is written for the hall. The software follows it. What a person sends and receives is in [`api.md`](../api/api.md). The picture of what is running is [`system-architecture.md`](../architecture/system-architecture.md).
 
 ## Contents
 

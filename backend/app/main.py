@@ -1,7 +1,7 @@
 """API process.
 
 backend/openapi.yaml is the HTTP contract and is what /docs shows.
-docs/api.md is the same contract, rendered for reading.
+docs/api/api.md is the same contract, rendered for reading.
 A route registered on this app must already be in that file.
 Paths in the file may exist before they are implemented.
 """

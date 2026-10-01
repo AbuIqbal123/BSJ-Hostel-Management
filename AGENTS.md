@@ -6,12 +6,16 @@ Before changing API behavior, the database, or the shape of the system, follow `
 
 | Concern | File |
 |---|---|
+| Docs map by domain | `docs/README.md` |
 | Product behavior already shown | `reference/proposal/`, `reference/demo/`, `reference/prototype/` |
-| System as it stands | `docs/system-architecture.md` |
-| What the hall keeps | `docs/database.md` |
-| HTTP contract, for reading | `docs/api.md` |
+| Visual design and Expo UI rules | `docs/design/design-system.md` |
+| Product workflows (screens and steps) | `docs/design/workflows.md` |
+| System as it stands | `docs/architecture/system-architecture.md` |
+| What the hall keeps (and product rules for data) | `docs/database/database.md` |
+| HTTP contract, for reading | `docs/api/api.md` |
 | HTTP contract served at `/docs` | `backend/openapi.yaml` |
-| Test specifications | `docs/tests.md` |
+| Test specifications | `docs/tests/tests.md` |
+| Local engineering notes | `docs/engineering/` |
 
 ## Engineering rules
 
@@ -21,10 +25,10 @@ These rules apply to every change in this repository.
 
 Behavior is specified before it is implemented.
 
-- HTTP behavior lives in `backend/openapi.yaml`. The reading copy is `docs/api.md`, regenerated from that file.
-- Stored data lives in `docs/database.md`.
-- The shape of the system lives in `docs/system-architecture.md`.
-- A test's specification lives in `docs/tests.md`.
+- HTTP behavior lives in `backend/openapi.yaml`. The reading copy is `docs/api/api.md`, regenerated from that file.
+- Stored data lives in `docs/database/database.md`.
+- The shape of the system lives in `docs/architecture/system-architecture.md`.
+- A test's specification lives in `docs/tests/tests.md`.
 - Technical detail lives in the code. There is no separate technical specification.
 
 Do not implement a behavior those documents do not already describe. Update the owning document in the same change as the code. While this work is on dev, leave the API version and the database document version as they are. Do not add a database revision row for a dev change. Those version numbers start when the work moves to production.
@@ -49,11 +53,11 @@ Finish the change and the document together.
 
 | What changed | What to update |
 |---|---|
-| Stored data: a table, column, constraint, or the way a row moves | `docs/database.md` |
-| HTTP: a route, payload, response, status, error, or who may call it | `backend/openapi.yaml`, then regenerate `docs/api.md` |
-| The shape of the system: a part is added, removed, or connected | `docs/system-architecture.md` |
+| Stored data: a table, column, constraint, or the way a row moves | `docs/database/database.md` |
+| HTTP: a route, payload, response, status, error, or who may call it | `backend/openapi.yaml`, then regenerate `docs/api/api.md` |
+| The shape of the system: a part is added, removed, or connected | `docs/architecture/system-architecture.md` |
 
-A new endpoint or column updates the database document and the API document. Update the diagram when that work adds, removes, or connects a part, such as the phone app, a database the API opens, or a message that is sent. The line convention is at the top of `docs/system-architecture.md`. Schema and HTTP edits follow `.grok/skills/contract-maintenance/SKILL.md`.
+A new endpoint or column updates the database document and the API document. Update the diagram when that work adds, removes, or connects a part, such as the phone app, a database the API opens, or a message that is sent. The line convention is at the top of `docs/architecture/system-architecture.md`. Schema and HTTP edits follow `.grok/skills/contract-maintenance/SKILL.md`.
 
 ### Test-driven development
 
@@ -80,9 +84,9 @@ Group the service by business area.
 
 ### How tests are written
 
-- Prefer an end-to-end check. Use an isolated check only for a failure the end-to-end path cannot show. Write those failures in `docs/tests.md` before that isolated check.
+- Prefer an end-to-end check. Use an isolated check only for a failure the end-to-end path cannot show. Write those failures in `docs/tests/tests.md` before that isolated check.
 - An end-to-end check that records what the hall keeps leaves an artifact. A later run compares against that file.
 
 ### Test documentation
 
-Every test has an entry in `docs/tests.md`, updated in the same change as the test. The entry names the test file, the purpose, the actor, and the artifact. Use the format at the top of that file. The entry does not copy every payload when the test file already states them.
+Every test has an entry in `docs/tests/tests.md`, updated in the same change as the test. The entry names the test file, the purpose, the actor, and the artifact. Use the format at the top of that file. The entry does not copy every payload when the test file already states them.

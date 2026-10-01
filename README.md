@@ -6,9 +6,12 @@ Read these three first.
 
 | Document | What is in it |
 |---|---|
-| [`docs/system-architecture.md`](docs/system-architecture.md) | The diagram of the system as it stands |
-| [`docs/database.md`](docs/database.md) | What the hall keeps, and the rules for how it changes. Version 0.3.4. Created when the service starts |
-| [`docs/api.md`](docs/api.md) | Every endpoint: who calls it, the payload, and the response. API version 0.2.12 |
+| [`docs/README.md`](docs/README.md) | Docs map by domain (design, api, database, architecture, tests, engineering) |
+| [`docs/architecture/system-architecture.md`](docs/architecture/system-architecture.md) | The diagram of the system as it stands |
+| [`docs/database/database.md`](docs/database/database.md) | What the hall keeps, and the rules for how it changes. Version 0.3.4. Created when the service starts |
+| [`docs/api/api.md`](docs/api/api.md) | Every endpoint: who calls it, the payload, and the response. API version 0.2.12 |
+| [`docs/design/design-system.md`](docs/design/design-system.md) | Visual design lock for the Expo client |
+| [`docs/design/workflows.md`](docs/design/workflows.md) | Product workflows (auth, home, permissions, register, gate, guests) |
 
 Swagger serves the same HTTP contract at http://127.0.0.1:8000/docs from `backend/openapi.yaml`.
 
@@ -22,13 +25,13 @@ Swagger serves the same HTTP contract at http://127.0.0.1:8000/docs from `backen
 | `backend/app/staff/` | Gate, the register, and the hall office: `gate`, `register`, `office` |
 | `backend/app/dev_seed.py` | Local sign-in accounts. Not created when the service starts |
 | `backend/tests/` | Startup check for the whole hall, and the development-account check |
-| `docs/` | The diagram, what the hall keeps, the API, and the test catalog |
+| `docs/` | Domain folders: design, api, database, architecture, tests, engineering. See `docs/README.md` |
 | `reference/` | The original proposal, demo, and prototype. Not the application |
 | `AGENTS.md` | Engineering rules for changes in this repo |
 
 Docker is not part of local development. Hosting is written in code when that work starts.
 
-Secret scanning for commits is documented in [`docs/dev-pre-commit.md`](docs/dev-pre-commit.md) (free Gitleaks via pre-commit; no API key).
+Secret scanning for commits is documented in [`docs/engineering/dev-pre-commit.md`](docs/engineering/dev-pre-commit.md) (free Gitleaks via pre-commit; no API key).
 
 A change to stored data, HTTP, or the shape of the system updates the owning document in the same change. The rule is in `AGENTS.md`. Schema and HTTP edits follow `.grok/skills/contract-maintenance/SKILL.md`.
 
@@ -70,7 +73,7 @@ From `backend/`, run the checks with `.venv/bin/pytest`. A push to `dev`, and a 
 
 ## Open decisions
 
-These are in `docs/database.md` and in hall settings, because the proposal did not fix them:
+These are in `docs/database/database.md` and in hall settings, because the proposal did not fix them:
 
 - The clock time when ordinary hours end
 - How many seconds a second gate scan is ignored so it cannot undo the first
