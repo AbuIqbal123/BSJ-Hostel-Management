@@ -51,6 +51,7 @@ Then open:
 - ReDoc: http://127.0.0.1:8000/redoc
 - OpenAPI file, as served: http://127.0.0.1:8000/openapi.json
 - Health: http://127.0.0.1:8000/health
+- Ready: http://127.0.0.1:8000/ready
 
 ### Implemented routes
 
@@ -65,7 +66,7 @@ Paths in `backend/openapi.yaml` that the process serves today:
 | Guest stays (staff) | `GET /api/v1/guest-stays`, `GET /api/v1/guest-stays/{guest_stay_id}`, decision and payment under `/api/v1/guest-stays/{guest_stay_id}/*` |
 | Gate | `POST /api/v1/gate/scans`, `GET /api/v1/gate/activity`, guest arrival and departure under `/api/v1/gate/guests*` |
 | Hall office | Settings, blocks, rooms, destinations, residents, staff, password reset, audit log, SMS log, and register CSV export under `/api/v1/admin/*` |
-| Operations | `GET /health` |
+| Operations | `GET /health`, `GET /ready` |
 
 In development, `/docs` re-reads `openapi.yaml` on each load. A business route must be in that file before it is registered, or the process will not start.
 

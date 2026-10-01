@@ -49,6 +49,11 @@ class Health(BaseModel):
     status: str
 
 
+class Ready(BaseModel):
+    status: str
+    user_version: int
+
+
 def load_spec() -> dict:
     spec = yaml.safe_load(SPEC_PATH.read_text(encoding="utf-8"))
     if not isinstance(spec, dict) or not isinstance(spec.get("paths"), dict):
@@ -112,6 +117,22 @@ app.add_exception_handler(RequestValidationError, validation_error_handler)
 @app.get("/health", response_model=Health)
 def health() -> Health:
     return Health(status="ok")
+
+
+@app.get("/ready", response_model=Ready)
+def ready() -> Ready:
+    from app.shared.db import create_connection
+    from app.shared.errors import ApiError
+
+    try:
+        connection = create_connection()
+    except OSError as exc:
+        raise ApiError(503, "not_ready", "The hall database could not be opened.") from exc
+    try:
+        user_version = connection.execute("PRAGMA user_version").fetchone()[0]
+    finally:
+        connection.close()
+    return Ready(status="ready", user_version=int(user_version))
 
 
 def custom_openapi() -> dict:

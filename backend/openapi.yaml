@@ -89,6 +89,36 @@ paths:
               example:
                 status: ok
 
+  /ready:
+    get:
+      tags: [Operations]
+      operationId: ready
+      summary: Process readiness
+      description: |
+        Opens the hall database and reports `PRAGMA user_version`. Use this to
+        confirm the process can read the hall file. `GET /health` stays shallow.
+      security: []
+      responses:
+        "200":
+          description: The database opened and the schema version was read.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ready"
+              example:
+                status: ready
+                user_version: 4
+        "503":
+          description: The database could not be opened.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: not_ready
+                  message: The hall database could not be opened.
+
   /api/v1/auth/login:
     post:
       tags: [Auth]
@@ -2136,6 +2166,19 @@ components:
         status:
           type: string
           enum: [ok]
+    Ready:
+      type: object
+      additionalProperties: false
+      required: [status, user_version]
+      properties:
+        status:
+          type: string
+          enum: [ready]
+        user_version:
+          type: integer
+          minimum: 0
+          description: SQLite PRAGMA user_version after migrations.
+
 
     ErrorResponse:
       type: object
@@ -2153,7 +2196,7 @@ components:
         code:
           type: string
           description: |
-            Stable machine code. Known codes: `unauthenticated`, `forbidden`,
+            Stable machine code. Known codes: `unauthenticated`, `not_ready`, `forbidden`,
             `not_found`, `validation_error`, `duplicate_username`,
             `duplicate_block`, `duplicate_room`, `duplicate_destination`,
             `room_in_use`, `room_inactive`, `other_exists`, `already_outside`, `return_already_planned`,
