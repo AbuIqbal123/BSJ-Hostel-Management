@@ -3,7 +3,7 @@ method: POST
 url: '{{baseUrl}}/api/v1/admin/destinations'
 order: 8000
 description: |-
-  Caller: provost. Only one active destination may have `is_other` true. Returns 404 until this route is built.
+  Caller: provost. Only one active destination may have `is_other` true.
 headers:
   - key: Content-Type
     value: application/json

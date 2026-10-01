@@ -3,7 +3,7 @@ method: GET
 url: '{{baseUrl}}/api/v1/admin/destinations'
 order: 7000
 description: |-
-  Caller: provost. Includes inactive rows. Named places are alphabetical, ignoring capitals. The free-text choice is last. The resident catalog route returns active rows only. Returns 404 until this route is built.
+  Caller: provost. Includes inactive rows. Named places are alphabetical, ignoring capitals. The free-text choice is last. The resident catalog route returns active rows only.
 scripts:
   - type: beforeRequest
     language: text/javascript
