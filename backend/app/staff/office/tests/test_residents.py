@@ -299,3 +299,75 @@ def test_admin_residents(database_path: Path, monkeypatch: pytest.MonkeyPatch) -
         assert "resident.suspended" in actions
         assert "resident.reinstated" in actions
         assert actions[-1] == "hall_pass.reissued"
+
+
+def test_null_resident_fields_and_retired_room(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    expected = json.loads(ARTIFACT.read_text(encoding="utf-8"))
+    from app.main import app
+    from app.shared import clock
+
+    monkeypatch.setattr(clock, "utc_now", FrozenClock().utc_now)
+    with TestClient(app) as client:
+        issue_people(database_path)
+        connection = sqlite3.connect(database_path)
+        try:
+            connection.execute(
+                "UPDATE rooms SET is_active = 0 WHERE id = ?",
+                (ROOM_B205,),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+        provost = sign_in(client, "provost.halima", PROVOST_PHRASE)
+        headers = {"Authorization": f"Bearer {provost['access_token']}"}
+
+        cleared_name = client.patch(
+            f"/api/v1/admin/residents/{AISHA_ID}",
+            headers=headers,
+            json={"full_name": None},
+        )
+        assert_error(cleared_name, 422, "validation_error")
+        assert cleared_name.json()["error"]["message"] == "Full name is required."
+
+        kept = client.get(f"/api/v1/admin/residents/{AISHA_ID}", headers=headers)
+        assert kept.status_code == 200
+        assert kept.json()["full_name"] == "Aisha Khan"
+        assert kept.json()["course"] == "B.A. LL.B. (Hons.)"
+
+        cleared_course = client.patch(
+            f"/api/v1/admin/residents/{AISHA_ID}",
+            headers=headers,
+            json={"course": None},
+        )
+        assert cleared_course.status_code == 200
+        assert cleared_course.json()["course"] is None
+        assert cleared_course.json()["full_name"] == "Aisha Khan"
+
+        created = client.post(
+            "/api/v1/admin/residents",
+            headers=headers,
+            json={
+                **expected["create"],
+                "room_id": ROOM_B205,
+                "temporary_password": TEMP_PASSWORD,
+            },
+        )
+        assert_error(created, 409, "room_inactive")
+        assert created.json()["error"]["message"] == "That room is not in use."
+
+        moved = client.patch(
+            f"/api/v1/admin/residents/{AISHA_ID}",
+            headers=headers,
+            json={"room_id": ROOM_B205},
+        )
+        assert_error(moved, 409, "room_inactive")
+        assert moved.json()["error"]["message"] == "That room is not in use."
+
+        stayed = client.get(f"/api/v1/admin/residents/{AISHA_ID}", headers=headers)
+        assert stayed.status_code == 200
+        assert stayed.json()["room_id"] == ROOM_B204
+        assert stayed.json()["room_label"] == "B-204"
+        assert stayed.json()["full_name"] == "Aisha Khan"

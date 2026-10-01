@@ -27,6 +27,7 @@ from app.staff.office.records import (
     revoke_live_sessions,
     room_exists,
     room_has_capacity,
+    room_is_active,
 )
 from app.staff.office.routes import ProvostDep
 
@@ -34,6 +35,15 @@ router = APIRouter(prefix="/api/v1/admin", tags=["Hall office"])
 
 _DUPLICATE = "Enrolment number already in use."
 _ROOM_FULL = "This room already has as many residents as it has beds."
+_ROOM_INACTIVE = "That room is not in use."
+_NOT_CLEARABLE = {
+    "full_name",
+    "enrolment_number",
+    "room_id",
+    "guardian_name",
+    "guardian_phone",
+    "status",
+}
 
 
 @router.get("/residents", response_model=ResidentAccountPage)
@@ -61,6 +71,8 @@ def admin_create_resident(
         raise ApiError(422, "validation_error", "Required fields are missing.")
     if not room_exists(connection, body.room_id):
         raise ApiError(404, "not_found", "That record was not found.")
+    if not room_is_active(connection, body.room_id):
+        raise ApiError(409, "room_inactive", _ROOM_INACTIVE)
     if not room_has_capacity(connection, body.room_id):
         raise ApiError(422, "validation_error", _ROOM_FULL)
 
@@ -158,6 +170,13 @@ def admin_update_resident(
     changes: dict[str, object] = {}
     for field_name in body.model_fields_set:
         value = getattr(body, field_name)
+        if field_name in _NOT_CLEARABLE and value is None:
+            raise ApiError(
+                422,
+                "validation_error",
+                f"{field_name.replace('_', ' ').capitalize()} is required.",
+                field=field_name,
+            )
         if field_name in {"full_name", "enrolment_number", "guardian_name"}:
             assert isinstance(value, str)
             value = value.strip()
@@ -182,6 +201,8 @@ def admin_update_resident(
         room_id = str(changes["room_id"])
         if not room_exists(connection, room_id):
             raise ApiError(404, "not_found", "That record was not found.")
+        if not room_is_active(connection, room_id):
+            raise ApiError(409, "room_inactive", _ROOM_INACTIVE)
         if not room_has_capacity(connection, room_id, excluding_user_id=resident_id):
             raise ApiError(422, "validation_error", _ROOM_FULL)
 

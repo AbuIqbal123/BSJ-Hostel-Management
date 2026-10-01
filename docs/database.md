@@ -198,7 +198,7 @@ The hall page does not list door numbers. This document does not invent them. Th
 | bed_count | Whole number | Yes | Copied from the block's beds per room when the room is created | How many residents this room can hold. Starts at 2. |
 | is_active | Yes or no | Yes | Provost | Yes while the room can be assigned. No when it is retired. |
 
-A block cannot contain the same room number twice. A resident points at a room. The number of active residents assigned to a room, including a suspended resident who has not been moved, cannot be more than that room's bed count. Changing rooms updates the resident and writes an audit log entry. Past outings keep the place and the resident. They do not keep a copy of the old room. The register shows the room the resident has now.
+A block cannot contain the same room number twice. A resident points at a room. A resident is placed only in an active room. The number of active residents assigned to a room, including a suspended resident who has not been moved, cannot be more than that room's bed count. Changing rooms updates the resident and writes an audit log entry. Past outings keep the place and the resident. They do not keep a copy of the old room. The register shows the room the resident has now.
 
 ### Destinations
 

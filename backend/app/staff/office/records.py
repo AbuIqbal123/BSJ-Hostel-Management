@@ -666,6 +666,14 @@ def room_exists(connection: sqlite3.Connection, room_id: str) -> bool:
     return row is not None
 
 
+def room_is_active(connection: sqlite3.Connection, room_id: str) -> bool:
+    row = connection.execute(
+        "SELECT is_active FROM rooms WHERE id = ?",
+        (room_id,),
+    ).fetchone()
+    return row is not None and int(row["is_active"]) == 1
+
+
 def room_has_capacity(
     connection: sqlite3.Connection, room_id: str, *, excluding_user_id: str | None = None
 ) -> bool:
