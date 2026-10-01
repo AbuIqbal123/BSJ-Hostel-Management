@@ -250,3 +250,51 @@ def test_admin_rooms(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
             "room.updated",
             "room.updated",
         ]
+
+
+def test_room_rejects_null_fields_and_unknown_block(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.main import app
+    from app.shared import clock
+
+    monkeypatch.setattr(clock, "utc_now", FrozenClock().utc_now)
+    with TestClient(app) as client:
+        issue_people(database_path)
+        provost = sign_in(client, "provost.halima", PROVOST_PHRASE)
+        headers = {"Authorization": f"Bearer {provost}"}
+
+        for field_name, label in (
+            ("is_active", "Is active"),
+            ("number", "Number"),
+            ("bed_count", "Bed count"),
+        ):
+            response = client.patch(
+                f"/api/v1/admin/rooms/{ROOM_B204}",
+                headers=headers,
+                json={field_name: None},
+            )
+            assert response.status_code == 422
+            body = response.json()
+            assert body["error"]["code"] == "validation_error"
+            assert body["error"]["message"] == f"{label} is required."
+            assert body["error"]["details"] == {"field": field_name}
+            listed = client.get(
+                f"/api/v1/admin/rooms?block_id={BLOCK_B}",
+                headers=headers,
+            )
+            assert listed.status_code == 200
+            room = next(item for item in listed.json() if item["id"] == ROOM_B204)
+            assert room["is_active"] is True
+            assert room["number"] == "204"
+
+        missing_block = client.post(
+            "/api/v1/admin/rooms",
+            headers=headers,
+            json={
+                "block_id": "00000000-0000-4000-8000-000000000099",
+                "number": "301",
+            },
+        )
+        assert_error(missing_block, 404, "not_found")
+        assert missing_block.json()["error"]["message"] == "That record was not found."

@@ -102,6 +102,14 @@ def update_room(
     changes: dict[str, object] = {}
     for field_name in body.model_fields_set:
         value = getattr(body, field_name)
+        if value is None:
+            label = field_name.replace("_", " ").capitalize()
+            raise ApiError(
+                422,
+                "validation_error",
+                f"{label} is required.",
+                field=field_name,
+            )
         if field_name == "number":
             assert isinstance(value, str)
             value = value.strip()
