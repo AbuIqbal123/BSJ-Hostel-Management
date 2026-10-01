@@ -47,12 +47,12 @@ Copy this block for each test and fill every field.
 | Field | Content |
 |---|---|
 | Test | `backend/tests/test_ready.py` |
-| Purpose | `GET /ready` opens the hall database and returns `user_version`. `GET /health` stays shallow. |
+| Purpose | `GET /ready` opens an existing hall database and returns `user_version`. `GET /health` stays shallow and does not create a database. |
 | Actor | System job / operator. |
-| Preconditions | The hall from startup exists on the test database file. |
-| Action | `GET /health`. `GET /ready`. |
-| Expected response | Health returns 200 `{"status":"ok"}` with no hall data. Ready returns 200 with `status` `ready` and `user_version` matching the migrated schema. |
-| Failure cases | E2E; failure cases are covered by the expected response. |
+| Preconditions | The hall from startup exists on the test database file. A second path is missing, a third path is a directory, and a fourth path is a text file. |
+| Action | `GET /health`. `GET /ready` on the migrated file, then on the missing path, the directory, and the text file. `GET /health` again after the missing path. |
+| Expected response | Health returns 200 `{"status":"ok"}` with no hall data, including while the database path is missing, and that missing file is not created. Ready on the migrated file returns 200 with `status` `ready` and `user_version` matching the migrated schema. |
+| Failure cases | A missing file, a directory, or a file that is not a database returns 503 `not_ready` and says the hall database could not be opened. The missing file and its parent directory stay absent. The text file is left unchanged. |
 | Artifact | none |
 
 ### `app-secret-length` Signing key length at startup
