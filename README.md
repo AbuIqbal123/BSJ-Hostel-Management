@@ -7,10 +7,10 @@ Read these three first.
 | Document | What is in it |
 |---|---|
 | [`docs/system-architecture.md`](docs/system-architecture.md) | The diagram of the system as it stands |
-| [`docs/database.md`](docs/database.md) | What the hall keeps, and the rules for how it changes. Version 0.1.0. Created when the service starts |
-| [`docs/api.md`](docs/api.md) | Every endpoint: who calls it, the payload, and the response. API version 0.1.0 |
+| [`docs/database.md`](docs/database.md) | What the hall keeps, and the rules for how it changes. Version 0.3.4. Created when the service starts |
+| [`docs/api.md`](docs/api.md) | Every endpoint: who calls it, the payload, and the response. API version 0.2.12 |
 
-Swagger serves the same HTTP contract at http://127.0.0.1:8000/docs from `backend/openapi.yaml`. The test catalog is [`docs/tests.md`](docs/tests.md) (twenty-seven recorded checks).
+Swagger serves the same HTTP contract at http://127.0.0.1:8000/docs from `backend/openapi.yaml`. The test catalog is [`docs/tests.md`](docs/tests.md) (twenty-eight recorded checks).
 
 ## Repository
 
@@ -29,6 +29,8 @@ Swagger serves the same HTTP contract at http://127.0.0.1:8000/docs from `backen
 Docker is not part of local development. Hosting is written in code when that work starts.
 
 Secret scanning for commits is documented in [`docs/dev-pre-commit.md`](docs/dev-pre-commit.md) (free Gitleaks via pre-commit; no API key).
+
+Optional Locust load checks (not on every PR CI) are in [`docs/load.md`](docs/load.md).
 
 A change to stored data, HTTP, or the shape of the system updates the owning document in the same change. The rule is in `AGENTS.md`. Schema and HTTP edits follow `.grok/skills/contract-maintenance/SKILL.md`.
 
@@ -71,6 +73,8 @@ Paths in `backend/openapi.yaml` that the process serves today:
 In development, `/docs` re-reads `openapi.yaml` on each load. A business route must be in that file before it is registered, or the process will not start.
 
 On startup the service creates the hall in `backend/data/hostel.db` when that file is new. It does not create people. `GET /health` does not return hall data. `APP_SECRET_KEY` must be set in `backend/.env` or the process refuses to start. `SMS_DRIVER` must stay `mock` unless `ENVIRONMENT` is `production`. Any other value stops the process, so a laptop cannot send a parent SMS. Late and return guardian messages use the mock SMS path on register read and return scan (no phone network).
+
+`APP_SECRET_KEY` must be at least 32 bytes. A shorter value stops the process before it serves.
 
 From `backend/`, add the local sign-in accounts with `.venv/bin/python -m app.dev_seed`. This runs only when `ENVIRONMENT` is `development`. A second run leaves an account that is already there, including a password that was changed. The command prints the password of each account it adds. Room B-204 is created for the sample resident because the published hall page does not list door numbers.
 

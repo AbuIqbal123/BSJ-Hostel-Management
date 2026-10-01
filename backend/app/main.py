@@ -121,17 +121,26 @@ def health() -> Health:
 
 @app.get("/ready", response_model=Ready)
 def ready() -> Ready:
-    from app.shared.db import create_connection
+    import sqlite3
+
+    from app.shared.config import get_settings
     from app.shared.errors import ApiError
 
+    path = get_settings().database_path
+    if not path.is_file():
+        raise ApiError(503, "not_ready", "The hall database could not be opened.")
     try:
-        connection = create_connection()
-    except OSError as exc:
+        connection = sqlite3.connect(
+            path.resolve().as_uri() + "?mode=ro",
+            uri=True,
+            timeout=get_settings().sqlite_busy_timeout_ms / 1000,
+        )
+        try:
+            user_version = connection.execute("PRAGMA user_version").fetchone()[0]
+        finally:
+            connection.close()
+    except sqlite3.Error as exc:
         raise ApiError(503, "not_ready", "The hall database could not be opened.") from exc
-    try:
-        user_version = connection.execute("PRAGMA user_version").fetchone()[0]
-    finally:
-        connection.close()
     return Ready(status="ready", user_version=int(user_version))
 
 
