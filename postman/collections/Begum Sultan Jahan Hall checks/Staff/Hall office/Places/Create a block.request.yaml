@@ -3,7 +3,7 @@ method: POST
 url: '{{baseUrl}}/api/v1/admin/blocks'
 order: 2000
 description: |-
-  Caller: provost. `code` is the short label used in room names, such as B. The published hall has no Block-E. This is a sample body for the request. Returns 404 until this route is built.
+  Caller: provost. `code` is the short label used in room names, such as B. The published hall has no Block-E. This is a sample body for the request.
 headers:
   - key: Content-Type
     value: application/json

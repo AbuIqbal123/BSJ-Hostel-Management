@@ -130,3 +130,99 @@ def apply_settings_update(
             changes[field_name] = value
             data[field_name] = value
     return HallSettings(**data), changes
+
+
+BLOCK_COLUMNS = (
+    "id",
+    "code",
+    "name",
+    "floors",
+    "room_count",
+    "beds_per_room",
+    "is_active",
+)
+
+
+class Block(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str
+    code: str
+    name: str
+    floors: int | None
+    room_count: int
+    beds_per_room: int
+    is_active: bool
+
+
+class BlockCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    code: str = Field(min_length=1, max_length=16)
+    name: str = Field(min_length=1, max_length=80)
+    floors: int | None = Field(default=None, ge=1, le=20)
+    room_count: int = Field(ge=1, le=500)
+    beds_per_room: int = Field(ge=1, le=6)
+
+
+class BlockUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str | None = Field(default=None, min_length=1, max_length=80)
+    floors: int | None = Field(default=None, ge=1, le=20)
+    room_count: int | None = Field(default=None, ge=1, le=500)
+    beds_per_room: int | None = Field(default=None, ge=1, le=6)
+    is_active: bool | None = None
+
+
+def row_to_block(row: sqlite3.Row) -> Block:
+    return Block(
+        id=row["id"],
+        code=row["code"],
+        name=row["name"],
+        floors=row["floors"],
+        room_count=row["room_count"],
+        beds_per_room=row["beds_per_room"],
+        is_active=bool(row["is_active"]),
+    )
+
+
+def list_blocks(connection: sqlite3.Connection) -> list[Block]:
+    rows = connection.execute(
+        f"""
+        SELECT {', '.join(BLOCK_COLUMNS)}
+        FROM blocks
+        ORDER BY code COLLATE NOCASE, id
+        """
+    ).fetchall()
+    return [row_to_block(row) for row in rows]
+
+
+def load_block(connection: sqlite3.Connection, block_id: str) -> Block | None:
+    row = connection.execute(
+        f"""
+        SELECT {', '.join(BLOCK_COLUMNS)}
+        FROM blocks
+        WHERE id = ?
+        """,
+        (block_id,),
+    ).fetchone()
+    if row is None:
+        return None
+    return row_to_block(row)
+
+
+def record_block_audit(
+    connection: sqlite3.Connection,
+    occurred_at: str,
+    actor_user_id: str,
+    action: str,
+    block_id: str,
+    summary: str,
+    detail: str | None = None,
+) -> None:
+    connection.execute(
+        """
+        INSERT INTO audit_log (
+          id, occurred_at, actor_user_id, action, entity_type, entity_id, summary, detail
+        ) VALUES (?, ?, ?, ?, 'block', ?, ?, ?)
+        """,
+        (str(uuid.uuid4()), occurred_at, actor_user_id, action, block_id, summary, detail),
+    )

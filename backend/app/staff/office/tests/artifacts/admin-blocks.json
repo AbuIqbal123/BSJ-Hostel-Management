@@ -1,0 +1,11 @@
+{
+  "seed_codes": ["A", "B", "C", "D", "Utility"],
+  "create": {
+    "code": "E",
+    "name": "Block-E",
+    "floors": 4,
+    "room_count": 1,
+    "beds_per_room": 2
+  },
+  "duplicate_message": "Code already in use."
+}
