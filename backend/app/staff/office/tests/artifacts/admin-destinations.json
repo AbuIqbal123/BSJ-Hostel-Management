@@ -1,0 +1,12 @@
+{
+  "seed_names": [
+    "J.N. Medical College",
+    "Maulana Azad Library",
+    "Shamshad Market",
+    "Women's College",
+    "Other"
+  ],
+  "create_name": "City Clinic",
+  "duplicate_message": "That destination name is already in use.",
+  "other_exists_message": "Another active Other row exists."
+}

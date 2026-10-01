@@ -337,3 +337,118 @@ def record_room_audit(
         """,
         (str(uuid.uuid4()), occurred_at, actor_user_id, action, room_id, summary, detail),
     )
+
+
+DESTINATION_COLUMNS = ("id", "name", "is_other", "is_active")
+
+
+class Destination(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str
+    name: str
+    is_other: bool
+    is_active: bool
+
+
+class DestinationList(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    items: list[Destination]
+
+
+class DestinationCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=1, max_length=80)
+    is_other: bool = False
+
+
+class DestinationUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str | None = Field(default=None, min_length=1, max_length=80)
+    is_other: bool | None = None
+    is_active: bool | None = None
+
+
+def row_to_destination(row: sqlite3.Row) -> Destination:
+    return Destination(
+        id=row["id"],
+        name=row["name"],
+        is_other=bool(row["is_other"]),
+        is_active=bool(row["is_active"]),
+    )
+
+
+def list_admin_destinations(connection: sqlite3.Connection) -> DestinationList:
+    rows = connection.execute(
+        f"""
+        SELECT {', '.join(DESTINATION_COLUMNS)}
+        FROM destinations
+        ORDER BY is_other, name COLLATE NOCASE, id
+        """
+    ).fetchall()
+    return DestinationList(items=[row_to_destination(row) for row in rows])
+
+
+def load_destination(connection: sqlite3.Connection, destination_id: str) -> Destination | None:
+    row = connection.execute(
+        f"""
+        SELECT {', '.join(DESTINATION_COLUMNS)}
+        FROM destinations
+        WHERE id = ?
+        """,
+        (destination_id,),
+    ).fetchone()
+    if row is None:
+        return None
+    return row_to_destination(row)
+
+
+def active_other_exists(
+    connection: sqlite3.Connection,
+    *,
+    excluding_id: str | None = None,
+) -> bool:
+    if excluding_id is None:
+        row = connection.execute(
+            """
+            SELECT 1 FROM destinations
+            WHERE is_other = 1 AND is_active = 1
+            LIMIT 1
+            """
+        ).fetchone()
+    else:
+        row = connection.execute(
+            """
+            SELECT 1 FROM destinations
+            WHERE is_other = 1 AND is_active = 1 AND id <> ?
+            LIMIT 1
+            """,
+            (excluding_id,),
+        ).fetchone()
+    return row is not None
+
+
+def record_destination_audit(
+    connection: sqlite3.Connection,
+    occurred_at: str,
+    actor_user_id: str,
+    action: str,
+    destination_id: str,
+    summary: str,
+    detail: str | None = None,
+) -> None:
+    connection.execute(
+        """
+        INSERT INTO audit_log (
+          id, occurred_at, actor_user_id, action, entity_type, entity_id, summary, detail
+        ) VALUES (?, ?, ?, ?, 'destination', ?, ?, ?)
+        """,
+        (
+            str(uuid.uuid4()),
+            occurred_at,
+            actor_user_id,
+            action,
+            destination_id,
+            summary,
+            detail,
+        ),
+    )

@@ -3,7 +3,7 @@ method: PATCH
 url: '{{baseUrl}}/api/v1/admin/destinations/{{destinationId}}'
 order: 9000
 description: |-
-  Caller: provost. Deactivating a destination does not change the place already stored on an outing. Returns 404 until this route is built.
+  Caller: provost. Deactivating a destination does not change the place already stored on an outing.
 headers:
   - key: Content-Type
     value: application/json

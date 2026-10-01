@@ -33,6 +33,7 @@ from app.staff.gate.guest_routes import router as gate_guests_router
 from app.staff.office.routes import router as office_router
 from app.staff.office.blocks_routes import router as office_blocks_router
 from app.staff.office.rooms_routes import router as office_rooms_router
+from app.staff.office.destinations_routes import router as office_destinations_router
 
 SPEC_PATH = Path(__file__).resolve().parent.parent / "openapi.yaml"
 DOCUMENTATION_PATHS = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
@@ -91,6 +92,7 @@ app.include_router(gate_guests_router)
 app.include_router(office_router)
 app.include_router(office_blocks_router)
 app.include_router(office_rooms_router)
+app.include_router(office_destinations_router)
 app.add_exception_handler(ApiError, api_error_handler)
 app.add_exception_handler(RequestValidationError, validation_error_handler)
 
