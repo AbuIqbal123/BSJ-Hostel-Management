@@ -17,6 +17,7 @@ from app.residents.outings.records import (
     hours_refusal,
     load_outing,
     record_outing,
+    return_is_taken,
 )
 from app.shared import clock
 from app.shared.auth.routes import Account, AccountDep, ConnectionDep
@@ -492,6 +493,14 @@ def scan_hall_pass(
         int(settings["permission_early_minutes"]),
     )
     if permission is not None:
+        if return_is_taken(connection, resident_id, permission["expected_return_at"]):
+            _refuse(
+                "return_already_planned",
+                "This resident already has an outing ending at that time.",
+                full_name=full_name,
+                room_label=room_label,
+                presence=presence,
+            )
         outing = _open_permission_exit(
             connection,
             permission=permission,

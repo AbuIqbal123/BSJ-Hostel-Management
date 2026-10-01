@@ -264,3 +264,94 @@ def test_gate_scans_and_activity(
             connection.close()
         assert presence == "inside"
         assert actions == ["outing.exit", "outing.return"]
+
+
+CLASH_OUTING = "e7700000-0000-4000-8000-000000000021"
+CLASH_PERMISSION = "f8800000-0000-4000-8000-000000000021"
+CLASH_RETURN = "2026-09-30T16:00:00Z"
+# 19:30 Asia/Kolkata, after the summer ordinary end at 18:30.
+EVENING = datetime(2026, 9, 30, 14, 0, tzinfo=timezone.utc)
+
+
+def seed_clashing_return(path: Path) -> None:
+    connection = sqlite3.connect(path)
+    try:
+        connection.execute("PRAGMA foreign_keys=ON;")
+        grace = "2026-09-30T16:30:00Z"
+        hall_date = (
+            datetime.strptime(CLASH_RETURN, "%Y-%m-%dT%H:%M:%SZ")
+            .replace(tzinfo=timezone.utc)
+            .astimezone(ZoneInfo("Asia/Kolkata"))
+            .date()
+            .isoformat()
+        )
+        connection.execute(
+            """
+            INSERT INTO outings (
+              id, resident_id, permission_id, type, status, destination_id, place,
+              expected_return_at, grace_ends_at, exited_at, exit_recorded_by,
+              returned_at, return_recorded_by, created_at, updated_at, cancelled_at, hall_date
+            ) VALUES (
+              ?, ?, NULL, 'ordinary', 'planned', ?, 'Maulana Azad Library',
+              ?, ?, NULL, NULL,
+              NULL, NULL, ?, ?, NULL, ?
+            )
+            """,
+            (CLASH_OUTING, RESIDENT_ID, LIBRARY, CLASH_RETURN, grace, CREATED, CREATED, hall_date),
+        )
+        connection.execute(
+            """
+            INSERT INTO permissions (
+              id, resident_id, type, status, short_place, destination_detail, address,
+              reason, departure_at, expected_return_at, decided_by, decided_at,
+              decision_note, created_at, updated_at
+            ) VALUES (
+              ?, ?, 'late_night', 'approved', 'Women''s College', NULL, NULL,
+              'Late return the same evening.', '2026-09-30T13:00:00Z', ?,
+              ?, ?, NULL, ?, ?
+            )
+            """,
+            (
+                CLASH_PERMISSION,
+                RESIDENT_ID,
+                CLASH_RETURN,
+                WARDEN_ID,
+                CREATED,
+                CREATED,
+                CREATED,
+            ),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+
+def test_permission_exit_refuses_when_return_already_planned(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.main import app
+    from app.shared import clock
+
+    monkeypatch.setattr(clock, "utc_now", MovableClock(EVENING).utc_now)
+    with TestClient(app) as client:
+        issue_people(database_path)
+        seed_clashing_return(database_path)
+        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
+        response = client.post(
+            "/api/v1/gate/scans",
+            headers={"Authorization": f"Bearer {gate}"},
+            json={"qr_payload": QR},
+        )
+        error = assert_error(response, 409, "return_already_planned")
+        assert error["message"] == "This resident already has an outing ending at that time."
+        assert error["details"]["full_name"] == "Aisha Khan"
+        assert error["details"]["room_label"] == "B-204"
+        connection = sqlite3.connect(database_path)
+        try:
+            outside = connection.execute(
+                "SELECT COUNT(*) FROM outings WHERE resident_id = ? AND status = 'outside'",
+                (RESIDENT_ID,),
+            ).fetchone()[0]
+        finally:
+            connection.close()
+        assert outside == 0
