@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict
 
 from app.shared import clock
@@ -23,6 +23,14 @@ class HistoryEvent(BaseModel):
     place: str
     occurred_at: str
     outing_id: str
+
+
+class HistoryPage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    total: int
+    limit: int
+    offset: int
+    items: list[HistoryEvent]
 
 
 class ResidentHome(BaseModel):
@@ -73,41 +81,65 @@ def _active_permission(connection: sqlite3.Connection, resident_id: str) -> Perm
     )
 
 
-def _recent_history(connection: sqlite3.Connection, resident_id: str) -> list[HistoryEvent]:
-    rows = connection.execute(
-        """
-        SELECT event, place, occurred_at, outing_id
-        FROM (
-          SELECT
-            'exited' AS event,
-            place,
-            exited_at AS occurred_at,
-            id AS outing_id
-          FROM outings
-          WHERE resident_id = ? AND exited_at IS NOT NULL
-          UNION ALL
-          SELECT
-            'returned',
-            place,
-            returned_at,
-            id
-          FROM outings
-          WHERE resident_id = ? AND returned_at IS NOT NULL
-        )
-        ORDER BY occurred_at DESC, CASE event WHEN 'returned' THEN 0 ELSE 1 END, outing_id DESC
-        LIMIT 10
-        """,
+_HISTORY_EVENTS_SQL = """
+SELECT event, place, occurred_at, outing_id
+FROM (
+  SELECT
+    'exited' AS event,
+    place,
+    exited_at AS occurred_at,
+    id AS outing_id
+  FROM outings
+  WHERE resident_id = ? AND exited_at IS NOT NULL
+  UNION ALL
+  SELECT
+    'returned',
+    place,
+    returned_at,
+    id
+  FROM outings
+  WHERE resident_id = ? AND returned_at IS NOT NULL
+)
+"""
+
+
+def load_history(
+    connection: sqlite3.Connection,
+    resident_id: str,
+    *,
+    limit: int,
+    offset: int,
+) -> HistoryPage:
+    total = connection.execute(
+        f"SELECT COUNT(*) AS n FROM ({_HISTORY_EVENTS_SQL})",
         (resident_id, resident_id),
+    ).fetchone()["n"]
+    rows = connection.execute(
+        f"""
+        {_HISTORY_EVENTS_SQL}
+        ORDER BY occurred_at DESC, CASE event WHEN 'returned' THEN 0 ELSE 1 END, outing_id DESC
+        LIMIT ? OFFSET ?
+        """,
+        (resident_id, resident_id, limit, offset),
     ).fetchall()
-    return [
-        HistoryEvent(
-            event=row["event"],
-            place=row["place"],
-            occurred_at=row["occurred_at"],
-            outing_id=row["outing_id"],
-        )
-        for row in rows
-    ]
+    return HistoryPage(
+        total=total,
+        limit=limit,
+        offset=offset,
+        items=[
+            HistoryEvent(
+                event=row["event"],
+                place=row["place"],
+                occurred_at=row["occurred_at"],
+                outing_id=row["outing_id"],
+            )
+            for row in rows
+        ],
+    )
+
+
+def _recent_history(connection: sqlite3.Connection, resident_id: str) -> list[HistoryEvent]:
+    return load_history(connection, resident_id, limit=10, offset=0).items
 
 
 @router.get("/me/home", response_model=ResidentHome)
@@ -130,3 +162,13 @@ def resident_home(account: ResidentDep, connection: ConnectionDep) -> ResidentHo
         active_permission=_active_permission(connection, account.id),
         recent_history=_recent_history(connection, account.id),
     )
+
+
+@router.get("/me/history", response_model=HistoryPage)
+def resident_history(
+    account: ResidentDep,
+    connection: ConnectionDep,
+    limit: Annotated[int, Query(ge=1, le=500)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> HistoryPage:
+    return load_history(connection, account.id, limit=limit, offset=offset)

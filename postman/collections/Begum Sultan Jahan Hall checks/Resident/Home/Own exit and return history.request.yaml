@@ -8,7 +8,7 @@ queryParams:
   - key: offset
     value: '0'
 description: |-
-  Caller: resident. Newest first. Each outing contributes an exit line and, once returned, a return line. Returns 404 until this route is built.
+  Caller: resident. Newest first. Each outing contributes an exit line and, once returned, a return line. A gate, warden, or provost account is refused.
 scripts:
   - type: beforeRequest
     language: text/javascript
