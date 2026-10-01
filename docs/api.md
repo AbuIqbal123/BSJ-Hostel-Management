@@ -4280,7 +4280,7 @@ One of: `pending`, `upcoming`, `expected`, `in_hall`, `should_have_left`, `depar
 | `room_label` | yes | string |  |
 | `presence` | yes | `inside` or `outside` |  |
 | `state` | yes | `inside` or `outside` or `late` |  |
-| `place` | no | string or null | Place on the open outing. Empty when the resident is inside. |
+| `outside_destination` | no | string or null | Place on the open outing. Empty when the resident is inside. |
 | `expected_return_at` | no | date-time or null |  |
 | `returned_at` | no | date-time or null |  |
 

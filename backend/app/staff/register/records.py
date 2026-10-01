@@ -50,7 +50,7 @@ class RegisterRow(BaseModel):
     room_label: str
     presence: Literal["inside", "outside"]
     state: RegisterState
-    place: str | None = None
+    outside_destination: str | None = None
     expected_return_at: str | None = None
     returned_at: str | None = None
 
@@ -215,11 +215,11 @@ def load_summary(connection: sqlite3.Connection) -> RegisterSummary:
 def _row_from_resident(row: sqlite3.Row, now_text: str) -> RegisterRow:
     state = register_state(row["presence"], row["grace_ends_at"], now_text)
     if state == "inside":
-        place = None
+        outside_destination = None
         expected_return_at = None
         returned_at = None
     else:
-        place = row["place"]
+        outside_destination = row["place"]
         expected_return_at = row["expected_return_at"]
         returned_at = None
     return RegisterRow(
@@ -228,7 +228,7 @@ def _row_from_resident(row: sqlite3.Row, now_text: str) -> RegisterRow:
         room_label=row["room_label"],
         presence=row["presence"],
         state=state,
-        place=place,
+        outside_destination=outside_destination,
         expected_return_at=expected_return_at,
         returned_at=returned_at,
     )

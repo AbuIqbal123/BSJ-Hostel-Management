@@ -539,7 +539,7 @@ def expected_artifact() -> dict:
         "room_label": "B-204",
         "presence": "inside",
         "state": "inside",
-        "place": None,
+        "outside_destination": None,
         "expected_return_at": None,
         "returned_at": None,
     }
@@ -549,7 +549,7 @@ def expected_artifact() -> dict:
         "room_label": "B-205",
         "presence": "outside",
         "state": "outside",
-        "place": "Maulana Azad Library",
+        "outside_destination": "Maulana Azad Library",
         "expected_return_at": "2026-09-30T13:30:00Z",
         "returned_at": None,
     }
@@ -559,7 +559,7 @@ def expected_artifact() -> dict:
         "room_label": "A-101",
         "presence": "outside",
         "state": "late",
-        "place": "Shamshad Market",
+        "outside_destination": "Shamshad Market",
         "expected_return_at": "2026-09-30T12:00:00Z",
         "returned_at": None,
     }

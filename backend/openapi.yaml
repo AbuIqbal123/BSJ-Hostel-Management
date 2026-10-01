@@ -3001,7 +3001,7 @@ components:
           $ref: "#/components/schemas/Presence"
         state:
           $ref: "#/components/schemas/RegisterState"
-        place:
+        outside_destination:
           oneOf:
             - type: string
             - type: "null"
