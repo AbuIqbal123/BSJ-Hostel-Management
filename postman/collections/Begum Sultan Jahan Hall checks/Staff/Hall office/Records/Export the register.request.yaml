@@ -3,7 +3,7 @@ method: GET
 url: '{{baseUrl}}/api/v1/admin/register/export'
 order: 1000
 description: |-
-  Caller: provost. One CSV file. UTF-8, comma separated, header row required. Resident rows and guest rows share one header. Cells that do not apply to the row are empty. Header, in this order: `record_type,full_name,enrolment_number,room_label,block_code,course,presence,state,place,exited_at,expected_return_at,grace_ends_at,returned_at,outing_type,guardian_name,guardian_phone,guest_name,relation,host_name,host_room_label,start_date,end_date,payment_status,guest_bucket,arrived_at,departed_at` `record_type` is `resident` or `guest`. Instants are UTC. Dates are YYYY-MM-DD. This export contains guardian phone numbers and is not a warden route. `block_code` is the resident's block, or the host's block on a guest row. Returns 404 until this route is built.
+  Caller: provost. One CSV file. UTF-8, comma separated, header row required. Resident rows and guest rows share one header. Cells that do not apply to the row are empty. Header, in this order: `record_type,full_name,enrolment_number,room_label,block_code,course,presence,state,place,exited_at,expected_return_at,grace_ends_at,returned_at,outing_type,guardian_name,guardian_phone,guest_name,relation,host_name,host_room_label,start_date,end_date,payment_status,guest_bucket,arrived_at,departed_at` `record_type` is `resident` or `guest`. Instants are UTC. Dates are YYYY-MM-DD. This export contains guardian phone numbers and is not a warden route. `block_code` is the resident's block, or the host's block on a guest row.
 scripts:
   - type: beforeRequest
     language: text/javascript
