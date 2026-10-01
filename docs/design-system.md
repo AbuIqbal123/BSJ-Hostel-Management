@@ -95,6 +95,28 @@ Italic serif sparingly for emphasis in long lede copy — not on buttons.
 
 Restrained. Accessible. Role-tinted without rainbow UI.
 
+### Heritage rationale (Begum Sultan Jahan)
+
+The product is named for **Sultan Jahan Begum of Bhopal** (r. 1901–1926): education reformer, patron of women’s learning, and the first woman Chancellor of Aligarh Muslim University — the namesake of Begum Sultan Jahan Hall. Colour must feel like that lineage, not generic SaaS blue.
+
+| Source | What we take | What we refuse |
+|---|---|---|
+| **Begum as educator / AMU Chancellor** | Calm institutional green (`forest` / `leaf`) — growth, campus shade, seriousness without military camo | Neon campus “spirit” colours; sports-club rainbow |
+| **Bhopal Begum architecture (Taj-ul-Masajid)** | Warm **pink sandstone** in sun → soft gold/cream (`gold`, `gold.soft`, `paper`); **white marble** → `surface` / cool paper; dusk warmth → `gate.gold` | Literal pink UI chrome on every screen; marble-texture gimmicks |
+| **Night gate / hall security** | Deep garden ink (`gate.bg`, `ink`) — lake-city evening, not cyberpunk black | Pure `#000` void, purple neon |
+| **Dignity of a Begum’s court** | Sparse gold for attention and “ready” moments only | Gold gradients, foil, luxury-app gloss |
+
+Primary tokens stay the locked prototype forest/paper/gold set (already in `reference/prototype/styles.css`). Heritage adds **meaning and one optional sandstone accent**, not a second palette.
+
+**Optional ceremonial accent** (headers, brand mark only — never body text):
+
+| Token | Hex | Use |
+|---|---|---|
+| `sandstone` | `#C4A484` | Rare brand-mark highlight; light-mode favicon warm edge |
+| `marble` | `#F7F5F0` | Alternate paper for ceremonial splash / empty brand frames |
+
+Do not invent a “royal purple” or Mughal-pattern wallpaper. Beauty is restraint — Jony Ive reading a Begum’s library, not a theme-park palace.
+
 ### Core (light — resident, warden, provost)
 
 | Token | Hex | Role |
