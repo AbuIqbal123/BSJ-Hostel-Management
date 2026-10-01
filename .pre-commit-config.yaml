@@ -1,0 +1,9 @@
+# Free local secret scanning (no API key). See docs/dev-pre-commit.md.
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+        # The upstream hook reads the index only.
+        entry: gitleaks detect --redact --no-banner --no-git --source .
+        pass_filenames: false
