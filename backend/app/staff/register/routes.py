@@ -6,8 +6,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
+from app.shared import clock
 from app.shared.auth.routes import Account, AccountDep, ConnectionDep
 from app.shared.errors import ApiError
+from app.shared.sms import consider_late_notices
 from app.staff.register.records import (
     RegisterPage,
     RegisterState,
@@ -31,8 +33,15 @@ def staff_register_account(account: AccountDep) -> Account:
 RegisterDep = Annotated[Account, Depends(staff_register_account)]
 
 
+def _run_late_notices(connection: ConnectionDep) -> None:
+    now_text = clock.format_instant(clock.utc_now())
+    consider_late_notices(connection, now_text)
+    connection.commit()
+
+
 @router.get("/summary", response_model=RegisterSummary)
 def register_summary(_account: RegisterDep, connection: ConnectionDep) -> RegisterSummary:
+    _run_late_notices(connection)
     return load_summary(connection)
 
 
@@ -46,6 +55,7 @@ def list_register_residents(
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> RegisterPage:
+    _run_late_notices(connection)
     return list_register(
         connection,
         q=q,
@@ -62,6 +72,7 @@ def register_resident(
     _account: RegisterDep,
     connection: ConnectionDep,
 ) -> ResidentRecord:
+    _run_late_notices(connection)
     record = load_resident_record(connection, resident_id)
     if record is None:
         raise ApiError(404, "not_found", "That record was not found.")
@@ -75,4 +86,5 @@ def register_late(
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> RegisterPage:
+    _run_late_notices(connection)
     return late_list(connection, limit=limit, offset=offset)

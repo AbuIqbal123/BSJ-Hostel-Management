@@ -152,7 +152,7 @@ The season is a date. Summer starts on 1 April and winter starts on 1 October. A
 
 Late message:
 
-> {resident_name} ({room}) was expected to return by {expected_return_local} and has not yet returned. Please contact the Hall Office if you need to speak to the duty warden.
+> {resident_name} ({room}) was expected to return to {hall_name} by {expected_return_local} and has not yet returned. Please contact the Hall Office if you need to speak to the duty warden.
 
 Return message:
 
@@ -475,13 +475,11 @@ One record per attempt. An outing gets at most one late notice and one return no
 | error | Text | Empty unless the send failed | The provider or the system | Why it failed. |
 | created_at | Instant | Yes | System | When the attempt was recorded. |
 
-The check runs inside the hall's service. There is no separate queue. The check is not built yet. The record is described here so the behavior has somewhere to land.
-
-When the check is built:
+The check runs inside the hall's service. There is no separate queue. It runs when the register is read and when a return is scanned.
 
 - Look at outings that are still outside, whose grace has ended, and which have no late notice yet.
 - Fill in the late message and send it to the guardian phone. Record sent or failed.
-- When the sender is the local stand-in, do not contact a phone network. Write the record, and write the log the stand-in is required to keep.
+- When the sender is the local stand-in, do not contact a phone network. Write the record, and write the audit log entry.
 - Any environment that is not the live hall refuses to start unless the sender is the local stand-in.
 
 When a return is scanned, if a late notice was sent and no return notice exists yet, send the return message. If the late notice failed, do not send a return message that pretends the guardian was told. An on-time return writes no message.

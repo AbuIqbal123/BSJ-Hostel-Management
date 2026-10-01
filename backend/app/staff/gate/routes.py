@@ -20,6 +20,7 @@ from app.residents.outings.records import (
     return_is_taken,
 )
 from app.shared import clock
+from app.shared.sms import consider_late_notices, send_return_notice_if_due
 from app.shared.auth.routes import Account, AccountDep, ConnectionDep
 from app.shared.errors import ApiError
 from app.staff.gate.records import (
@@ -363,6 +364,8 @@ def _record_return(
         outing_id,
         f"{account.full_name} recorded a return for {full_name} from {place}.",
     )
+    consider_late_notices(connection, now_text)
+    send_return_notice_if_due(connection, outing_id=outing_id, now_text=now_text)
     connection.commit()
     return load_outing(connection, outing_id)
 

@@ -867,7 +867,7 @@ INSERT INTO hall_settings (
   7,
   1,
   45,
-  '{resident_name} ({room}) was expected to return by {expected_return_local} and has not yet returned. Please contact the Hall Office if you need to speak to the duty warden.',
+  '{resident_name} ({room}) was expected to return to {hall_name} by {expected_return_local} and has not yet returned. Please contact the Hall Office if you need to speak to the duty warden.',
   '{resident_name} ({room}) has returned to {hall_name} at {returned_at_local}. Thank you.',
   '2026-09-30T00:00:00Z'
 );
