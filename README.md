@@ -10,7 +10,7 @@ Read these three first.
 | [`docs/database.md`](docs/database.md) | What the hall keeps, and the rules for how it changes. Version 0.3.4. Created when the service starts |
 | [`docs/api.md`](docs/api.md) | Every endpoint: who calls it, the payload, and the response. API version 0.2.12 |
 
-Swagger serves the same HTTP contract at http://127.0.0.1:8000/docs from `backend/openapi.yaml`. The test catalog is [`docs/tests.md`](docs/tests.md) (twenty-eight recorded checks).
+Swagger serves the same HTTP contract at http://127.0.0.1:8000/docs from `backend/openapi.yaml`. The test catalog is [`docs/tests.md`](docs/tests.md) (thirty-one recorded checks).
 
 ## Repository
 

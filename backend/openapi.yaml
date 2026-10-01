@@ -104,7 +104,7 @@ paths:
                 $ref: "#/components/schemas/Ready"
               example:
                 status: ready
-                user_version: 4
+                user_version: 5
         "503":
           description: The database could not be opened.
           content:
