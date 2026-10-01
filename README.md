@@ -70,7 +70,7 @@ Paths in `backend/openapi.yaml` that the process serves today:
 
 In development, `/docs` re-reads `openapi.yaml` on each load. A business route must be in that file before it is registered, or the process will not start.
 
-On startup the service creates the hall in `backend/data/hostel.db` when that file is new. It does not create people. `GET /health` does not return hall data. `APP_SECRET_KEY` must be set in `backend/.env` or the process refuses to start. `SMS_DRIVER` must stay `mock` unless `ENVIRONMENT` is `production`. Any other value stops the process, so a laptop cannot send a parent SMS. Late and return guardian messages are recorded in the data model; the mock send path is not on the running path yet.
+On startup the service creates the hall in `backend/data/hostel.db` when that file is new. It does not create people. `GET /health` does not return hall data. `APP_SECRET_KEY` must be set in `backend/.env` or the process refuses to start. `SMS_DRIVER` must stay `mock` unless `ENVIRONMENT` is `production`. Any other value stops the process, so a laptop cannot send a parent SMS. Late and return guardian messages use the mock SMS path on register read and return scan (no phone network).
 
 From `backend/`, add the local sign-in accounts with `.venv/bin/python -m app.dev_seed`. This runs only when `ENVIRONMENT` is `development`. A second run leaves an account that is already there, including a password that was changed. The command prints the password of each account it adds. Room B-204 is created for the sample resident because the published hall page does not list door numbers.
 
@@ -80,7 +80,7 @@ From `backend/`, run the checks with `.venv/bin/pytest`. A push to `dev`, and a 
 
 - React Native / Expo client
 - Docker, Nginx, and the VPS
-- Live parent SMS (development stays on the mock driver; send on late/return is not wired yet)
+- Live parent SMS provider (development stays on the mock driver; late/return notices are recorded only)
 - Emergency alerts (the proposal leaves those out of the first version)
 - A payment gateway (the hall office marks a guest stay paid or unpaid)
 

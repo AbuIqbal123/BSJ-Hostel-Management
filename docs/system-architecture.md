@@ -10,7 +10,7 @@ flowchart LR
   api -->|"serves"| contract["API contract"]
   model["Data model"] --> db[("SQLite")]
   api -->|"creates the hall and keeps records"| db
-  api -.-> sms["Parent SMS"]
+  api -->|"mock late and return notices"| sms["Parent SMS"]
 ```
 
 | Arrow | Meaning |
@@ -19,6 +19,6 @@ flowchart LR
 | Hall API → API contract | In use. `/docs` reads `backend/openapi.yaml`. [`api.md`](api.md) is the same contract for reading. The Auth, Resident, Register, Permissions, Guest Stays, Gate, and Hall office paths in that file are implemented and registered. |
 | Data model → SQLite | In use. [`database.md`](database.md) is applied when the service starts. After startup the hall records exist. |
 | Hall API → SQLite | In use. The process opens the database and creates the hall when the file is new. Sign-in reads and writes people, sessions, and the audit log. Resident home, history, hall pass, destinations, ordinary outings, permissions, and guest stays read and write their tables. The register presence board reads active residents by block, open outings for lateness, waiting permissions, and guest stays for the dining and should-have-left counts. Gate scans and gate guest routes write outings and guest stays. The hall office reads and writes settings, places, accounts, audit entries, and guardian message rows for the SMS log. The process refuses to start when the signing key is empty. |
-| Hall API → Parent SMS | Guard only. Outside production the process stops unless the SMS driver is mock. Late and return notices are described in [`database.md`](database.md); the mock send path is not on the running path yet. |
+| Hall API → Parent SMS | In use with the mock driver. Outside production the process stops unless the SMS driver is mock. Reading the register (and a return scan) records late notices for outside outings past grace; a return scan records the return notice when a late notice was sent. No phone network is contacted. |
 
 The phone app, Docker, Nginx, and the VPS are absent from this picture. They are drawn here when that part exists in the project.
