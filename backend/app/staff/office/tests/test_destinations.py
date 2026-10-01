@@ -44,11 +44,21 @@ def database_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[P
     get_settings.cache_clear()
 
 
-def assert_error(response, status: int, code: str) -> None:
+def assert_error(
+    response,
+    status: int,
+    code: str,
+    message: str | None = None,
+    field: str | None = None,
+) -> None:
     assert response.status_code == status
     body = response.json()
     assert set(body) == {"error"}
     assert body["error"]["code"] == code
+    if message is not None:
+        assert body["error"]["message"] == message
+    if field is not None:
+        assert body["error"]["details"] == {"field": field}
 
 
 def issue_people(path: Path) -> None:
@@ -240,3 +250,36 @@ def test_admin_destinations(database_path: Path, monkeypatch: pytest.MonkeyPatch
             "destination.updated",
         ]
         assert other_active == 1
+
+
+def test_destination_update_rejects_null(database_path: Path) -> None:
+    from app.main import app
+
+    with TestClient(app) as client:
+        issue_people(database_path)
+        provost = sign_in(client, "provost.halima", PROVOST_PHRASE)
+        headers = {"Authorization": f"Bearer {provost}"}
+
+        listed = client.get("/api/v1/admin/destinations", headers=headers)
+        assert listed.status_code == 200
+        original = next(item for item in listed.json()["items"] if item["id"] == OTHER_ID)
+        assert original["name"] == "Other"
+        assert original["is_active"] is True
+        assert original["is_other"] is True
+
+        cases = (
+            ("name", "Name is required."),
+            ("is_active", "Is active is required."),
+            ("is_other", "Is other is required."),
+        )
+        for field, message in cases:
+            rejected = client.patch(
+                f"/api/v1/admin/destinations/{OTHER_ID}",
+                headers=headers,
+                json={field: None},
+            )
+            assert_error(rejected, 422, "validation_error", message, field)
+            again = client.get("/api/v1/admin/destinations", headers=headers)
+            assert again.status_code == 200
+            current = next(item for item in again.json()["items"] if item["id"] == OTHER_ID)
+            assert current == original

@@ -3562,6 +3562,12 @@ Another active Other row exists. Code `other_exists`.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
+#### 422
+
+The JSON is the wrong shape, or a field fails a constraint that does not depend on existing rows.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
 
 ### <a id="get-api-v1-admin-settings"></a>GET `/api/v1/admin/settings` — Hall settings
 
