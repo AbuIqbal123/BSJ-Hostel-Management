@@ -1499,7 +1499,7 @@ Body: [GuestStay](#schema-gueststay).
 | `reason` | yes | string |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
 | `payment_status` | yes | `unpaid` or `paid` |  |
-| `bucket` | yes | `pending` or `upcoming` or `expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
+| `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
 | `decided_by_name` | no | string or null | Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
 | `arrived_recorded_by_name` | no | string or null | Staff member who recorded arrival. Empty until arrival is recorded. |
@@ -1563,7 +1563,7 @@ Body: [GuestStay](#schema-gueststay).
 | `reason` | yes | string |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
 | `payment_status` | yes | `unpaid` or `paid` |  |
-| `bucket` | yes | `pending` or `upcoming` or `expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
+| `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
 | `decided_by_name` | no | string or null | Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
 | `arrived_recorded_by_name` | no | string or null | Staff member who recorded arrival. Empty until arrival is recorded. |
@@ -1627,7 +1627,7 @@ Body: [GuestStay](#schema-gueststay).
 | `reason` | yes | string |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
 | `payment_status` | yes | `unpaid` or `paid` |  |
-| `bucket` | yes | `pending` or `upcoming` or `expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
+| `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
 | `decided_by_name` | no | string or null | Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
 | `arrived_recorded_by_name` | no | string or null | Staff member who recorded arrival. Empty until arrival is recorded. |
@@ -1675,7 +1675,7 @@ the dining set and includes guests who should have left. Use
 
 | Name | In | Required | Type | Notes |
 |---|---|---|---|---|
-| `bucket` | query | no | `pending` or `upcoming` or `expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
+| `bucket` | query | no | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `limit` | query | no | integer | 1–500. default `50`. |
 | `offset` | query | no | integer | minimum 0. default `0`. |
 
@@ -1743,7 +1743,7 @@ Body: [GuestStay](#schema-gueststay).
 | `reason` | yes | string |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
 | `payment_status` | yes | `unpaid` or `paid` |  |
-| `bucket` | yes | `pending` or `upcoming` or `expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
+| `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
 | `decided_by_name` | no | string or null | Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
 | `arrived_recorded_by_name` | no | string or null | Staff member who recorded arrival. Empty until arrival is recorded. |
@@ -1817,7 +1817,7 @@ Body: [GuestStay](#schema-gueststay).
 | `reason` | yes | string |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
 | `payment_status` | yes | `unpaid` or `paid` |  |
-| `bucket` | yes | `pending` or `upcoming` or `expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
+| `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
 | `decided_by_name` | no | string or null | Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
 | `arrived_recorded_by_name` | no | string or null | Staff member who recorded arrival. Empty until arrival is recorded. |
@@ -1905,7 +1905,7 @@ Body: [GuestStay](#schema-gueststay).
 | `reason` | yes | string |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
 | `payment_status` | yes | `unpaid` or `paid` |  |
-| `bucket` | yes | `pending` or `upcoming` or `expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
+| `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
 | `decided_by_name` | no | string or null | Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
 | `arrived_recorded_by_name` | no | string or null | Staff member who recorded arrival. Empty until arrival is recorded. |
@@ -4153,7 +4153,7 @@ The `type` field selects the object:
 
 ### <a id="schema-guestbucket"></a>GuestBucket
 
-One of: `pending`, `upcoming`, `expected`, `in_hall`, `should_have_left`, `departed`, `rejected`, `cancelled`.
+One of: `pending`, `upcoming`, `expected`, `not_expected`, `in_hall`, `should_have_left`, `departed`, `rejected`, `cancelled`.
 
 ### <a id="schema-gueststaycreate"></a>GuestStayCreate
 
@@ -4181,7 +4181,7 @@ One of: `pending`, `upcoming`, `expected`, `in_hall`, `should_have_left`, `depar
 | `reason` | yes | string |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
 | `payment_status` | yes | `unpaid` or `paid` |  |
-| `bucket` | yes | `pending` or `upcoming` or `expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
+| `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
 | `decided_by_name` | no | string or null | Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
 | `arrived_recorded_by_name` | no | string or null | Staff member who recorded arrival. Empty until arrival is recorded. |
@@ -4252,7 +4252,7 @@ One of: `pending`, `upcoming`, `expected`, `in_hall`, `should_have_left`, `depar
 | `start_date` | yes | date |  |
 | `end_date` | yes | date |  |
 | `payment_status` | yes | `paid` or `unpaid` |  |
-| `bucket` | yes | `pending` or `upcoming` or `expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
+| `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 
 ### <a id="schema-gateguestlist"></a>GateGuestList
 

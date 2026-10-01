@@ -3,7 +3,7 @@ method: GET
 url: '{{baseUrl}}/api/v1/me/guest-stays/{{guestStayId}}'
 order: 3000
 description: |-
-  Caller: resident, and only for a stay they host. Returns 404 until this route is built.
+  Caller: resident, and only for a stay they host.
 scripts:
   - type: beforeRequest
     language: text/javascript

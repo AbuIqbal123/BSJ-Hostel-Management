@@ -22,6 +22,7 @@ from app.shared.migrate import migrate
 from app.shared.auth.routes import router as auth_router
 from app.residents.home.routes import router as home_router
 from app.residents.hall_pass.routes import router as hall_pass_router
+from app.residents.guests.routes import router as guests_router
 from app.residents.outings.routes import router as outings_router
 from app.residents.permissions.routes import router as permissions_router
 from app.staff.register.routes import router as register_router
@@ -73,6 +74,7 @@ app = FastAPI(lifespan=lifespan, docs_url="/docs", redoc_url="/redoc")
 app.include_router(auth_router)
 app.include_router(home_router)
 app.include_router(hall_pass_router)
+app.include_router(guests_router)
 app.include_router(outings_router)
 app.include_router(permissions_router)
 app.include_router(register_router)
