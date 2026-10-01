@@ -6,7 +6,7 @@ queryParams:
   - key: bucket
     value: expected
 description: |-
-  Caller: gate, warden, or provost. `expected` is approved, paid, not yet arrived, and the hall date is inside the stay. `in_hall` includes guests who should already have left, because departure is still recorded here. Returns 404 until this route is built.
+  Caller: gate, warden, or provost. `expected` is approved, paid, not yet arrived, and the hall date is inside the stay. `in_hall` includes guests who should already have left, because departure is still recorded here.
 scripts:
   - type: beforeRequest
     language: text/javascript

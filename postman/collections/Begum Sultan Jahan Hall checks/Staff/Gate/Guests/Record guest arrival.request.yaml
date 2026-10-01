@@ -3,7 +3,7 @@ method: POST
 url: '{{baseUrl}}/api/v1/gate/guests/{{guestStayId}}/arrival'
 order: 4000
 description: |-
-  Caller: gate, warden, or provost. The stay must be approved, paid, not yet arrived, and today's hall date must fall within the stay. Guests are not scanned. Returns 404 until this route is built.
+  Caller: gate, warden, or provost. The stay must be approved, paid, not yet arrived, and today's hall date must fall within the stay. Guests are not scanned.
 scripts:
   - type: beforeRequest
     language: text/javascript
