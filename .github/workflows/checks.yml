@@ -25,8 +25,9 @@ jobs:
       - name: Install
         run: pip install -r requirements.txt
       - name: Run checks
-        run: pytest -q
+        run: |
+          export APP_SECRET_KEY="$(python -c 'print("".join(("hall", "-test-", "signing-", "key-", "0123456789abcdef")))')"
+          pytest -q
         env:
           ENVIRONMENT: development
           SMS_DRIVER: mock
-          APP_SECRET_KEY: test-only-auth-secret
