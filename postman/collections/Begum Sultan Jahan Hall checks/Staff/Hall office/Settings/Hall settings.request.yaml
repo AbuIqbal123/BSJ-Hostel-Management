@@ -3,7 +3,7 @@ method: GET
 url: '{{baseUrl}}/api/v1/admin/settings'
 order: 1000
 description: |-
-  Caller: provost. Clock times are hall-local HH:MM. Season starts are MM-DD. Clients show both on a 12-hour clock and as a day and month. Returns 404 until this route is built.
+  Caller: provost. Clock times are hall-local HH:MM. Season starts are MM-DD. Clients show both on a 12-hour clock and as a day and month.
 scripts:
   - type: beforeRequest
     language: text/javascript
