@@ -6,14 +6,12 @@ info:
     HTTP contract for the hostel movement system. Schema version of the database
     is tracked separately in `docs/database.md` (0.3.4).
 
-    This version is the contract. Sign-in, staying signed in, signing out, the
-    current account, changing one's own password, the resident home screen, the
-    ordinary destination list, and ordinary outings respond. Planning several
-    ordinary outings, including more than one return on the same hall day,
-    reading those plans, reading the outing she is on, and cancelling one
-    chosen plan respond. The other
-    business routes are specified here and return 404 until they are built.
-    Swagger on this server is the review surface for purpose, payload, and response.
+    This version is the contract. Auth, resident phone (home, history, hall pass,
+    destinations, ordinary outings, permissions, guest stays), register, staff
+    permission queue, staff guest stays, gate scans and guests, and hall office
+    (settings, blocks, rooms, destinations, residents, staff, password reset,
+    audit, SMS log, register export) respond. Swagger on this server is the
+    review surface for purpose, payload, and response.
 
     JSON names are snake_case. Instants are UTC `YYYY-MM-DDTHH:MM:SSZ`. Calendar
     dates are hall-local `YYYY-MM-DD` in Asia/Kolkata. A time of day is `HH:MM`.

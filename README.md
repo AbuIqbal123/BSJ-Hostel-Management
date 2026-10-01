@@ -1,6 +1,6 @@
 # Begum Sultan Jahan Hall
 
-Hostel movement system for residents, wardens, gate staff, and the provost. The mobile app will be React Native. The API is FastAPI. This checkout is the local foundation: the data model, the HTTP contract, sign-in, the resident home screen, the ordinary destination list, and ordinary outings.
+Hostel movement system for residents, wardens, gate staff, and the provost. The mobile app will be React Native. The API is FastAPI. This checkout is the local foundation: the data model, the HTTP contract, and the implemented hall API under `/api/v1`.
 
 Read these three first.
 
@@ -10,7 +10,7 @@ Read these three first.
 | [`docs/database.md`](docs/database.md) | What the hall keeps, and the rules for how it changes. Version 0.3.4. Created when the service starts |
 | [`docs/api.md`](docs/api.md) | Every endpoint: who calls it, the payload, and the response. API version 0.2.12 |
 
-Swagger serves the same HTTP contract at http://127.0.0.1:8000/docs from `backend/openapi.yaml`.
+Swagger serves the same HTTP contract at http://127.0.0.1:8000/docs from `backend/openapi.yaml`. The test catalog is [`docs/tests.md`](docs/tests.md) (twenty-seven recorded checks).
 
 ## Repository
 
@@ -52,19 +52,34 @@ Then open:
 - OpenAPI file, as served: http://127.0.0.1:8000/openapi.json
 - Health: http://127.0.0.1:8000/health
 
-Sign-in is implemented: `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, `POST /api/v1/auth/logout`, `GET /api/v1/auth/me`, and `POST /api/v1/auth/change-password`. Resident home is implemented: `GET /api/v1/me/home`. The ordinary destination list is implemented: `GET /api/v1/destinations`. Ordinary outings are implemented: `POST /api/v1/me/outings`, `GET /api/v1/me/outings`, `GET /api/v1/me/outings/current`, and `POST /api/v1/me/outings/{outing_id}/cancel`. Every other path in the document is specified and returns 404 until it is built. In development, `/docs` re-reads `openapi.yaml` on each load. Business routes must be added to that file before they are registered, or the process will not start.
+### Implemented routes
 
-On startup the service creates the hall in `backend/data/hostel.db` when that file is new. It does not create people. `GET /health` does not return hall data. `APP_SECRET_KEY` must be set in `backend/.env` or the process refuses to start. `SMS_DRIVER` must stay `mock` unless `ENVIRONMENT` is `production`. Any other value stops the process, so a laptop cannot send a parent SMS.
+Paths in `backend/openapi.yaml` that the process serves today:
+
+| Area | Paths |
+|---|---|
+| Auth | `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, `POST /api/v1/auth/logout`, `GET /api/v1/auth/me`, `POST /api/v1/auth/change-password` |
+| Resident | `GET /api/v1/me/home`, `GET /api/v1/me/history`, `GET /api/v1/me/hall-pass`, `GET /api/v1/destinations`, ordinary outings under `/api/v1/me/outings*`, permissions under `/api/v1/me/permissions*`, guest stays under `/api/v1/me/guest-stays*` |
+| Register | `GET /api/v1/register/summary`, `GET /api/v1/register/residents`, `GET /api/v1/register/residents/{resident_id}`, `GET /api/v1/register/late` |
+| Permissions (staff) | `GET /api/v1/permissions`, `GET /api/v1/permissions/{permission_id}`, `POST /api/v1/permissions/{permission_id}/decision` |
+| Guest stays (staff) | `GET /api/v1/guest-stays`, `GET /api/v1/guest-stays/{guest_stay_id}`, decision and payment under `/api/v1/guest-stays/{guest_stay_id}/*` |
+| Gate | `POST /api/v1/gate/scans`, `GET /api/v1/gate/activity`, guest arrival and departure under `/api/v1/gate/guests*` |
+| Hall office | Settings, blocks, rooms, destinations, residents, staff, password reset, audit log, SMS log, and register CSV export under `/api/v1/admin/*` |
+| Operations | `GET /health` |
+
+In development, `/docs` re-reads `openapi.yaml` on each load. A business route must be in that file before it is registered, or the process will not start.
+
+On startup the service creates the hall in `backend/data/hostel.db` when that file is new. It does not create people. `GET /health` does not return hall data. `APP_SECRET_KEY` must be set in `backend/.env` or the process refuses to start. `SMS_DRIVER` must stay `mock` unless `ENVIRONMENT` is `production`. Any other value stops the process, so a laptop cannot send a parent SMS. Late and return guardian messages are recorded in the data model; the mock send path is not on the running path yet.
 
 From `backend/`, add the local sign-in accounts with `.venv/bin/python -m app.dev_seed`. This runs only when `ENVIRONMENT` is `development`. A second run leaves an account that is already there, including a password that was changed. The command prints the password of each account it adds. Room B-204 is created for the sample resident because the published hall page does not list door numbers.
 
-From `backend/`, run the checks with `.venv/bin/pytest`. A push to `dev`, and a pull request, runs the same checks on GitHub. Sign-in is `app/shared/auth/tests/test_session.py`. Startup is `tests/test_hall_created.py`. The local accounts are `tests/test_dev_seed.py`. Resident home is `app/residents/home/tests/test_home.py`. The destination list is `app/residents/outings/tests/test_destinations.py`. Ordinary outings are `app/residents/outings/tests/test_plan.py`, `test_current.py`, and `test_cancel.py`.
+From `backend/`, run the checks with `.venv/bin/pytest`. A push to `dev`, and a pull request, runs the same checks on GitHub. Every recorded check is listed in [`docs/tests.md`](docs/tests.md); each entry names its test file under `backend/app/.../tests/` or `backend/tests/`.
 
 ## What is deliberately not here
 
 - React Native / Expo client
 - Docker, Nginx, and the VPS
-- Business routes other than sign-in, resident home, the destination list, and ordinary outings
+- Live parent SMS (development stays on the mock driver; send on late/return is not wired yet)
 - Emergency alerts (the proposal leaves those out of the first version)
 - A payment gateway (the hall office marks a guest stay paid or unpaid)
 
