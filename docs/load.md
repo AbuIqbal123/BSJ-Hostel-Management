@@ -14,7 +14,7 @@ cp -n .env.example .env   # APP_SECRET_KEY ≥ 32 bytes
 export DATABASE_PATH="$(pwd)/data/load-test.db"
 rm -f "$DATABASE_PATH" "${DATABASE_PATH}-wal" "${DATABASE_PATH}-shm"
 python -m app.dev_seed
-uvicorn app.main:app --host 127.0.0.1 --port 8000
+uvicorn app.main:app --host localhost --port 8000
 ```
 
 The seed command prints each new account's phrase. Copy those into the next shell. Do not commit them. `DATABASE_PATH` above is only for the seed and the server. Locust talks to the host below and does not open the file.
@@ -27,7 +27,7 @@ export LOAD_TEST_GATE_USERNAME=...     # seeded gate username
 export LOAD_TEST_GATE_PASSWORD=...     # seeded gate phrase
 export LOAD_TEST_RESIDENT_QR=...       # seeded resident hall-pass QR payload
 
-locust -f load/locustfile.py --host http://127.0.0.1:8000
+locust -f load/locustfile.py --host http://localhost:8000
 ```
 
 Open http://127.0.0.1:8089.
@@ -54,7 +54,7 @@ Open http://127.0.0.1:8089.
 Headless example for ~500:
 
 ```bash
-locust -f load/locustfile.py --host http://127.0.0.1:8000 \
+locust -f load/locustfile.py --host http://localhost:8000 \
   --users 500 --spawn-rate 50 --run-time 5m --headless
 ```
 

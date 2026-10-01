@@ -34,7 +34,7 @@ info:
     identifier: LicenseRef-proprietary
 
 servers:
-  - url: http://127.0.0.1:8000
+  - url: http://localhost:8000
     description: Local development
   - url: https://api-dev.domain.com
     description: Development environment, mock SMS only

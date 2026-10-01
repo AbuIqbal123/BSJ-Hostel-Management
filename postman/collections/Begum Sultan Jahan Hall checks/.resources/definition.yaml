@@ -8,7 +8,7 @@ description: |-
   Every route in the HTTP contract is here, including GET /ready. Plan an ordinary outing, request a permission, or apply for a guest stay before the requests that use outingId, permissionId, or guestStayId. Those Sends save the new id.
 variables:
   - key: baseUrl
-    value: 'http://127.0.0.1:8000'
+    value: 'http://localhost:8000'
   - key: residentId
     value: b22de000-0000-4000-8000-000000000002
   - key: userId

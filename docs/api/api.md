@@ -116,7 +116,7 @@ repeat the column list. The reading copy of this contract is `docs/api/api.md`.
 
 | Server | Use |
 |---|---|
-| `http://127.0.0.1:8000` | Local development |
+| `http://localhost:8000` | Local development |
 | `https://api-dev.domain.com` | Development environment, mock SMS only |
 | `https://api.domain.com` | Production |
 
