@@ -36,7 +36,7 @@ Copy this block for each test and fill every field.
 | Actor | System job. Service startup. |
 | Preconditions | The database file is absent. No people, rooms, permissions, outings, guest stays, guardian messages, or audit entries exist. |
 | Action | Start the service on that empty file. `GET /health` with no payload. Start the service a second time on the same file. `GET /health` again. |
-| Expected response | Both calls return 200 and `{"status":"ok"}`. The body contains no hall data. The file then matches the artifact: schema version 3, one settings record (summer 6:30 AM–6:30 PM from 1 April, winter 6:30 AM–5:30 PM from 1 October, grace 30 minutes), five blocks with the published room counts and no door numbers, and the destinations in alphabetical order with Other as the only free-text choice. The other tables exist and are empty. The second start does not add another copy. |
+| Expected response | Both calls return 200 and `{"status":"ok"}`. The body contains no hall data. The file then matches the artifact: schema version 4, one settings record (summer 6:30 AM–6:30 PM from 1 April, winter 6:30 AM–5:30 PM from 1 October, grace 30 minutes), five blocks with the published room counts and no door numbers, and the destinations in alphabetical order with Other as the only free-text choice. The other tables exist and are empty. The second start does not add another copy. |
 | Failure cases | E2E; failure cases are covered by the expected response. |
 | Artifact | `backend/tests/artifacts/hall-inventory.json` |
 
