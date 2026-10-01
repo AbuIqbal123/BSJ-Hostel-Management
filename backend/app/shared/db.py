@@ -23,7 +23,8 @@ def create_connection() -> sqlite3.Connection:
     )
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA journal_mode=WAL;")
-    connection.execute(f"PRAGMA busy_timeout={int(settings.sqlite_busy_timeout_ms)};")
+    busy_timeout_ms = int(settings.sqlite_busy_timeout_ms)
+    connection.execute("PRAGMA busy_timeout=" + str(busy_timeout_ms) + ";")
     connection.execute("PRAGMA foreign_keys=ON;")
     return connection
 
