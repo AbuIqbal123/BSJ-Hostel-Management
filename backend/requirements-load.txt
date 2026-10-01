@@ -1,0 +1,2 @@
+# Optional load-test dependencies. Not installed by CI Checks.
+locust==2.42.3

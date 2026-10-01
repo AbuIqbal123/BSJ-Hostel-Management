@@ -1,5 +1,5 @@
 {
-  "user_version": 3,
+  "user_version": 5,
   "tables": [
     "audit_log",
     "blocks",
@@ -41,6 +41,19 @@
       "is_other",
       "is_active"
     ],
+    "guardian_messages": [
+      "id",
+      "outing_id",
+      "resident_id",
+      "notice_type",
+      "recipient_phone",
+      "body",
+      "driver",
+      "status",
+      "provider_reference",
+      "error",
+      "created_at"
+    ],
     "guest_stays": [
       "id",
       "host_resident_id",
@@ -62,19 +75,6 @@
       "departed_recorded_by",
       "created_at",
       "updated_at"
-    ],
-    "guardian_messages": [
-      "id",
-      "outing_id",
-      "resident_id",
-      "notice_type",
-      "recipient_phone",
-      "body",
-      "driver",
-      "status",
-      "provider_reference",
-      "error",
-      "created_at"
     ],
     "hall_settings": [
       "id",
@@ -177,17 +177,24 @@
     ]
   },
   "indexes": [
+    "audit_log_occurred_at",
     "blocks_code",
     "destinations_name",
     "destinations_one_active_other",
     "guardian_messages_one_per_type",
+    "guardian_messages_outing_id",
+    "guest_stays_host_created",
+    "guest_stays_status_arrived",
     "outings_one_outside",
     "outings_one_return",
+    "permissions_resident_created",
+    "permissions_status_created",
     "residents_enrolment_number",
     "residents_qr_token",
     "rooms_block_number",
     "rooms_label",
     "sessions_token_hash",
+    "sessions_user_id",
     "users_username"
   ],
   "hall_settings": [
@@ -207,7 +214,7 @@
       "guest_max_inclusive_days": 7,
       "guest_min_lead_days": 1,
       "scan_duplicate_window_seconds": 45,
-      "late_sms_template": "{resident_name} ({room}) was expected to return by {expected_return_local} and has not yet returned. Please contact the Hall Office if you need to speak to the duty warden.",
+      "late_sms_template": "{resident_name} ({room}) was expected to return to {hall_name} by {expected_return_local} and has not yet returned. Please contact the Hall Office if you need to speak to the duty warden.",
       "return_sms_template": "{resident_name} ({room}) has returned to {hall_name} at {returned_at_local}. Thank you.",
       "updated_at": "2026-09-30T00:00:00Z"
     }
@@ -294,8 +301,8 @@
   "rooms": [],
   "empty_tables": {
     "audit_log": 0,
-    "guest_stays": 0,
     "guardian_messages": 0,
+    "guest_stays": 0,
     "outings": 0,
     "permissions": 0,
     "residents": 0,

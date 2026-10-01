@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from app.shared.testing_env import signing_key_for_tests
+
 import json
 import sqlite3
 from collections.abc import Iterator
@@ -41,7 +43,7 @@ def database_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[P
     monkeypatch.setenv("DATABASE_PATH", str(path))
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("SMS_DRIVER", "mock")
-    monkeypatch.setenv("APP_SECRET_KEY", "test-only-auth-secret")
+    monkeypatch.setenv("APP_SECRET_KEY", signing_key_for_tests())
     from app.shared.config import get_settings
 
     get_settings.cache_clear()
@@ -355,3 +357,121 @@ def test_permission_exit_refuses_when_return_already_planned(
         finally:
             connection.close()
         assert outside == 0
+
+
+def test_tied_gate_activity_pages_do_not_skip_or_repeat(
+    database_path: Path,
+) -> None:
+    """Two exits that share a time, event, and name stay in outing-id order."""
+    from app.main import app
+    from app.shared.auth.security import hash_password
+
+    low_resident = "b22de000-0000-4000-8000-000000000031"
+    high_resident = "b22de000-0000-4000-8000-000000000032"
+    low_room = "d4400000-0000-4000-8000-000000000031"
+    high_room = "d4400000-0000-4000-8000-000000000032"
+    low_outing = "a1100000-0000-4000-8000-0000000000a1"
+    high_outing = "f1100000-0000-4000-8000-0000000000f2"
+    exited = "2026-09-30T12:00:00Z"
+    expected = "2026-09-30T12:30:00Z"
+    grace = "2026-09-30T13:00:00Z"
+    hall_date = (
+        datetime.strptime(expected, "%Y-%m-%dT%H:%M:%SZ")
+        .replace(tzinfo=timezone.utc)
+        .astimezone(ZoneInfo("Asia/Kolkata"))
+        .date()
+        .isoformat()
+    )
+
+    with TestClient(app) as client:
+        connection = sqlite3.connect(database_path)
+        try:
+            connection.execute("PRAGMA foreign_keys=ON;")
+            connection.execute(
+                """
+                INSERT INTO users (
+                  id, role, username, full_name, password_hash, status, created_at, updated_at
+                ) VALUES (?, 'gate', 'gate.fatima', 'Fatima Khan', ?, 'active', ?, ?)
+                """,
+                (GATE_ID, hash_password(GATE_PHRASE), CREATED, CREATED),
+            )
+            connection.execute(
+                "INSERT INTO staff (user_id, job_title) VALUES (?, 'Gatekeeper')",
+                (GATE_ID,),
+            )
+            # Insert the higher outing id first. Without a unique tie-break,
+            # the page follows that insertion order.
+            for room_id, number, label, resident_id, username, qr, outing_id in (
+                (high_room, "202", "B-202", high_resident, "24-GLLB-202", "bsj:v1:tie-high", high_outing),
+                (low_room, "201", "B-201", low_resident, "24-GLLB-201", "bsj:v1:tie-low", low_outing),
+            ):
+                connection.execute(
+                    """
+                    INSERT INTO rooms (id, block_id, number, label, bed_count, is_active)
+                    VALUES (?, ?, ?, ?, 2, 1)
+                    """,
+                    (room_id, BLOCK_B, number, label),
+                )
+                connection.execute(
+                    """
+                    INSERT INTO users (
+                      id, role, username, full_name, password_hash, status, created_at, updated_at
+                    ) VALUES (?, 'resident', ?, 'Amina Khan', ?, 'active', ?, ?)
+                    """,
+                    (resident_id, username, hash_password(RESIDENT_PHRASE), CREATED, CREATED),
+                )
+                connection.execute(
+                    """
+                    INSERT INTO residents (
+                      user_id, enrolment_number, course, room_id, guardian_name, guardian_phone,
+                      qr_token, presence, created_at, updated_at
+                    ) VALUES (?, ?, 'B.A. LL.B. (Hons.)', ?, 'Rashid Khan',
+                      '+919876543210', ?, 'outside', ?, ?)
+                    """,
+                    (resident_id, username, room_id, qr, CREATED, CREATED),
+                )
+                connection.execute(
+                    """
+                    INSERT INTO outings (
+                      id, resident_id, permission_id, type, status, destination_id, place,
+                      expected_return_at, grace_ends_at, exited_at, exit_recorded_by,
+                      returned_at, return_recorded_by, created_at, updated_at, cancelled_at, hall_date
+                    ) VALUES (
+                      ?, ?, NULL, 'ordinary', 'outside', ?, 'Maulana Azad Library',
+                      ?, ?, ?, ?,
+                      NULL, NULL, ?, ?, NULL, ?
+                    )
+                    """,
+                    (
+                        outing_id,
+                        resident_id,
+                        LIBRARY,
+                        expected,
+                        grace,
+                        exited,
+                        GATE_ID,
+                        CREATED,
+                        CREATED,
+                        hall_date,
+                    ),
+                )
+            connection.commit()
+        finally:
+            connection.close()
+
+        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
+        headers = {"Authorization": f"Bearer {gate}"}
+        first = client.get("/api/v1/gate/activity?limit=1&offset=0", headers=headers)
+        second = client.get("/api/v1/gate/activity?limit=1&offset=1", headers=headers)
+        assert first.status_code == 200
+        assert second.status_code == 200
+        first_page = first.json()
+        second_page = second.json()
+        assert first_page["total"] == 2
+        assert second_page["total"] == 2
+        assert [item["event"] for item in first_page["items"]] == ["exit"]
+        assert [item["event"] for item in second_page["items"]] == ["exit"]
+        assert first_page["items"][0]["subtitle"] == "B-201"
+        assert second_page["items"][0]["subtitle"] == "B-202"
+        assert first_page["items"][0]["occurred_at"] == second_page["items"][0]["occurred_at"]
+        assert first_page["items"][0]["title"] == second_page["items"][0]["title"]

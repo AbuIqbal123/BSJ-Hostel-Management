@@ -15,6 +15,7 @@ Do not edit this page by hand.
 - [How to call the API](#how-to-call-the-api)
 - [Operations](#tag-operations)
   - [GET `/health` — Process health](#get-health)
+  - [GET `/ready` — Process readiness](#get-ready)
 - [Auth](#tag-auth)
   - [POST `/api/v1/auth/login` — Sign in](#post-api-v1-auth-login)
   - [POST `/api/v1/auth/refresh` — Exchange a refresh token](#post-api-v1-auth-refresh)
@@ -89,14 +90,12 @@ Do not edit this page by hand.
 HTTP contract for the hostel movement system. Schema version of the database
 is tracked separately in `docs/database/database.md` (0.3.4).
 
-This version is the contract. Sign-in, staying signed in, signing out, the
-current account, changing one's own password, the resident home screen, the
-ordinary destination list, and ordinary outings respond. Planning several
-ordinary outings, including more than one return on the same hall day,
-reading those plans, reading the outing she is on, and cancelling one
-chosen plan respond. The other
-business routes are specified here and return 404 until they are built.
-Swagger on this server is the review surface for purpose, payload, and response.
+This version is the contract. Auth, resident phone (home, history, hall pass,
+destinations, ordinary outings, permissions, guest stays), register, staff
+permission queue, staff guest stays, gate scans and guests, and hall office
+(settings, blocks, rooms, destinations, residents, staff, password reset,
+audit, SMS log, register export) respond. Swagger on this server is the
+review surface for purpose, payload, and response.
 
 JSON names are snake_case. Instants are UTC `YYYY-MM-DDTHH:MM:SSZ`. Calendar
 dates are hall-local `YYYY-MM-DD` in Asia/Kolkata. A time of day is `HH:MM`.
@@ -132,6 +131,7 @@ Process health. No hall data.
 | Method | Path | Purpose | Who |
 |---|---|---|---|
 | GET | `/health` | [Process health](#get-health) | Anyone |
+| GET | `/ready` | [Process readiness](#get-ready) | Anyone |
 
 ### <a id="get-health"></a>GET `/health` — Process health
 
@@ -162,6 +162,55 @@ Body: [Health](#schema-health).
 ```
 
 
+### <a id="get-ready"></a>GET `/ready` — Process readiness
+
+`ready`
+
+**Who.** Anyone. No token.
+
+Opens the hall database and reports `PRAGMA user_version`. Use this to
+confirm the process can read the hall file. `GET /health` stays shallow.
+
+**Responses**
+
+#### 200
+
+The database opened and the schema version was read.
+
+Body: [Ready](#schema-ready).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `status` | yes | `ready` |  |
+| `user_version` | yes | integer | SQLite PRAGMA user_version after migrations. minimum 0. |
+
+**Example**
+
+```json
+{
+  "status": "ready",
+  "user_version": 5
+}
+```
+
+#### 503
+
+The database could not be opened.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+**Example**
+
+```json
+{
+  "error": {
+    "code": "not_ready",
+    "message": "The hall database could not be opened."
+  }
+}
+```
+
+
 ## <a id="tag-auth"></a>Auth
 
 Hall-issued accounts. No public registration and no guardian login.
@@ -184,10 +233,11 @@ Caller: anyone with a hall-issued account. A resident uses the enrolment
 number as the username. The sample body leaves the password field out of
 this repository. The field is required.
 
-A username that matches no account says that username does not exist.
-A known username with the wrong password says the username exists and
-the password is wrong. A correct password on a suspended account says
-the account is suspended and asks the caller to contact the Hall Office.
+An unknown username and a known username with the wrong password both
+return the same message, so a caller cannot tell whether the username
+exists. A correct password on a suspended account says the account is
+suspended and asks the caller to contact the Hall Office. Repeated
+attempts from the same client are limited; further attempts return 429.
 
 **Request.** Required.
 
@@ -224,30 +274,18 @@ Body: [TokenResponse](#schema-tokenresponse).
 
 #### 401
 
-Sign-in was refused. The message says whether the username does not
-exist, the password is wrong, or the account is suspended. A suspended
-account asks the caller to contact the Hall Office.
+Sign-in was refused. Unknown username and wrong password share one
+message. A suspended account asks the caller to contact the Hall Office.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
-**Username does not exist**
+**Username or password is wrong**
 
 ```json
 {
   "error": {
     "code": "unauthenticated",
-    "message": "That username does not exist."
-  }
-}
-```
-
-**Password is wrong**
-
-```json
-{
-  "error": {
-    "code": "unauthenticated",
-    "message": "That username exists, but the password is wrong."
+    "message": "Username or password is wrong."
   }
 }
 ```
@@ -259,6 +297,23 @@ Body: [ErrorResponse](#schema-errorresponse).
   "error": {
     "code": "unauthenticated",
     "message": "This account is suspended. Please contact the Hall Office."
+  }
+}
+```
+
+#### 429
+
+Too many sign-in attempts from this client in a short window.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+**Example**
+
+```json
+{
+  "error": {
+    "code": "rate_limited",
+    "message": "Too many attempts. Try again shortly."
   }
 }
 ```
@@ -278,6 +333,8 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 Issues a new access token and a new refresh token. The presented refresh
 token is revoked. A revoked, expired, or unknown token is refused.
+Repeated attempts from the same client are limited; further attempts
+return 429.
 
 **Request.** Required.
 
@@ -308,6 +365,23 @@ Body: [TokenResponse](#schema-tokenresponse).
 The access token is missing or expired, or the username and password were refused.
 
 Body: [ErrorResponse](#schema-errorresponse).
+
+#### 429
+
+Too many refresh attempts from this client in a short window.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+**Example**
+
+```json
+{
+  "error": {
+    "code": "rate_limited",
+    "message": "Too many attempts. Try again shortly."
+  }
+}
+```
 
 
 ### <a id="post-api-v1-auth-logout"></a>POST `/api/v1/auth/logout` — Sign out
@@ -3854,6 +3928,13 @@ Each JSON object used above. An operation section already shows the fields for i
 |---|---|---|---|
 | `status` | yes | `ok` |  |
 
+### <a id="schema-ready"></a>Ready
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `status` | yes | `ready` |  |
+| `user_version` | yes | integer | SQLite PRAGMA user_version after migrations. minimum 0. |
+
 ### <a id="schema-errorresponse"></a>ErrorResponse
 
 | Field | Required | Type | Notes |
@@ -3864,7 +3945,7 @@ Each JSON object used above. An operation section already shows the fields for i
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `code` | yes | string | Stable machine code. Known codes: `unauthenticated`, `forbidden`, `not_found`, `validation_error`, `duplicate_username`, `duplicate_block`, `duplicate_room`, `duplicate_destination`, `room_in_use`, `room_inactive`, `other_exists`, `already_outside`, `return_already_planned`, `open_outing_exists`, `outside_ordinary_hours`, `permission_required`, `no_outing_planned`, `permission_not_yet_valid`, `duplicate_scan`, `resident_suspended`, `unknown_hall_pass`, `not_pending`, `permission_in_use`, `not_cancellable`, `guest_not_expected`, `guest_not_in_hall`, `payment_required`, `payment_locked`. |
+| `code` | yes | string | Stable machine code. Known codes: `unauthenticated`, `rate_limited`, `not_ready`, `forbidden`, `not_found`, `validation_error`, `duplicate_username`, `duplicate_block`, `duplicate_room`, `duplicate_destination`, `room_in_use`, `room_inactive`, `other_exists`, `already_outside`, `return_already_planned`, `open_outing_exists`, `outside_ordinary_hours`, `permission_required`, `no_outing_planned`, `permission_not_yet_valid`, `duplicate_scan`, `resident_suspended`, `unknown_hall_pass`, `not_pending`, `permission_in_use`, `not_cancellable`, `guest_not_expected`, `guest_not_in_hall`, `payment_required`, `payment_locked`. |
 | `message` | yes | string | Sentence the phone can show. Not a stack trace. |
 | `details` | no | object |  |
 

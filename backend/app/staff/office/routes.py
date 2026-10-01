@@ -61,7 +61,6 @@ def _require_distinct_seasons(merged: HallSettings) -> None:
 
 
 def _require_sms_placeholders(merged: HallSettings, changes: dict[str, object]) -> None:
-    # Default late template in hall seed omits {hall_name}; OpenAPI still lists it.
     # Enforce placeholders only when a template is being changed.
     if "late_sms_template" in changes and not template_keeps_placeholders(
         merged.late_sms_template, LATE_PLACEHOLDERS

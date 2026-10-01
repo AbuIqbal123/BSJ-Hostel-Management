@@ -41,62 +41,76 @@ def normalize_qr_payload(qr_payload: str) -> str:
     return f"bsj:v1:{text}"
 
 
+_GATE_ACTIVITY_UNION = """
+SELECT event, occurred_at, title, subtitle, source_id
+FROM (
+  SELECT
+    'exit' AS event,
+    outings.exited_at AS occurred_at,
+    users.full_name AS title,
+    rooms.label AS subtitle,
+    outings.id AS source_id
+  FROM outings
+  JOIN residents ON residents.user_id = outings.resident_id
+  JOIN users ON users.id = outings.resident_id
+  JOIN rooms ON rooms.id = residents.room_id
+  WHERE outings.exited_at IS NOT NULL
+  UNION ALL
+  SELECT
+    'return',
+    outings.returned_at,
+    users.full_name,
+    rooms.label,
+    outings.id
+  FROM outings
+  JOIN residents ON residents.user_id = outings.resident_id
+  JOIN users ON users.id = outings.resident_id
+  JOIN rooms ON rooms.id = residents.room_id
+  WHERE outings.returned_at IS NOT NULL
+  UNION ALL
+  SELECT
+    'guest_arrival',
+    guest_stays.arrived_at,
+    guest_stays.guest_name,
+    host.full_name || ' · ' || rooms.label,
+    guest_stays.id
+  FROM guest_stays
+  JOIN users AS host ON host.id = guest_stays.host_resident_id
+  JOIN residents ON residents.user_id = guest_stays.host_resident_id
+  JOIN rooms ON rooms.id = residents.room_id
+  WHERE guest_stays.arrived_at IS NOT NULL
+  UNION ALL
+  SELECT
+    'guest_departure',
+    guest_stays.departed_at,
+    guest_stays.guest_name,
+    host.full_name || ' · ' || rooms.label,
+    guest_stays.id
+  FROM guest_stays
+  JOIN users AS host ON host.id = guest_stays.host_resident_id
+  JOIN residents ON residents.user_id = guest_stays.host_resident_id
+  JOIN rooms ON rooms.id = residents.room_id
+  WHERE guest_stays.departed_at IS NOT NULL
+)
+"""
+
+
 def list_gate_activity(
     connection: sqlite3.Connection,
     *,
     limit: int,
     offset: int,
 ) -> GateActivityPage:
+    total = connection.execute(
+        f"SELECT COUNT(*) AS n FROM ({_GATE_ACTIVITY_UNION})"
+    ).fetchone()["n"]
     rows = connection.execute(
-        """
-        SELECT event, occurred_at, title, subtitle
-        FROM (
-          SELECT
-            'exit' AS event,
-            outings.exited_at AS occurred_at,
-            users.full_name AS title,
-            rooms.label AS subtitle
-          FROM outings
-          JOIN residents ON residents.user_id = outings.resident_id
-          JOIN users ON users.id = outings.resident_id
-          JOIN rooms ON rooms.id = residents.room_id
-          WHERE outings.exited_at IS NOT NULL
-          UNION ALL
-          SELECT
-            'return',
-            outings.returned_at,
-            users.full_name,
-            rooms.label
-          FROM outings
-          JOIN residents ON residents.user_id = outings.resident_id
-          JOIN users ON users.id = outings.resident_id
-          JOIN rooms ON rooms.id = residents.room_id
-          WHERE outings.returned_at IS NOT NULL
-          UNION ALL
-          SELECT
-            'guest_arrival',
-            guest_stays.arrived_at,
-            guest_stays.guest_name,
-            host.full_name || ' · ' || rooms.label
-          FROM guest_stays
-          JOIN users AS host ON host.id = guest_stays.host_resident_id
-          JOIN residents ON residents.user_id = guest_stays.host_resident_id
-          JOIN rooms ON rooms.id = residents.room_id
-          WHERE guest_stays.arrived_at IS NOT NULL
-          UNION ALL
-          SELECT
-            'guest_departure',
-            guest_stays.departed_at,
-            guest_stays.guest_name,
-            host.full_name || ' · ' || rooms.label
-          FROM guest_stays
-          JOIN users AS host ON host.id = guest_stays.host_resident_id
-          JOIN residents ON residents.user_id = guest_stays.host_resident_id
-          JOIN rooms ON rooms.id = residents.room_id
-          WHERE guest_stays.departed_at IS NOT NULL
-        )
-        ORDER BY occurred_at DESC, event, title
-        """
+        f"""
+        {_GATE_ACTIVITY_UNION}
+        ORDER BY occurred_at DESC, event, title, source_id
+        LIMIT ? OFFSET ?
+        """,
+        (limit, offset),
     ).fetchall()
     items = [
         GateActivityItem(
@@ -107,10 +121,9 @@ def list_gate_activity(
         )
         for row in rows
     ]
-    total = len(items)
     return GateActivityPage(
         total=total,
         limit=limit,
         offset=offset,
-        items=items[offset : offset + limit],
+        items=items,
     )

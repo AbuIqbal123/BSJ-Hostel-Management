@@ -39,6 +39,7 @@ This document is the source of truth for what is stored and how a record is allo
 - [What the register counts](#what-the-register-counts)
 - [History that is not its own list](#history-that-is-not-its-own-list)
 - [What this version does not keep](#what-this-version-does-not-keep)
+- [Indexes](#indexes)
 - [Revisions](#revisions)
 
 ## Where this comes from
@@ -151,7 +152,7 @@ The season is a date. Summer starts on 1 April and winter starts on 1 October. A
 
 Late message:
 
-> {resident_name} ({room}) was expected to return by {expected_return_local} and has not yet returned. Please contact the Hall Office if you need to speak to the duty warden.
+> {resident_name} ({room}) was expected to return to {hall_name} by {expected_return_local} and has not yet returned. Please contact the Hall Office if you need to speak to the duty warden.
 
 Return message:
 
@@ -474,13 +475,11 @@ One record per attempt. An outing gets at most one late notice and one return no
 | error | Text | Empty unless the send failed | The provider or the system | Why it failed. |
 | created_at | Instant | Yes | System | When the attempt was recorded. |
 
-The check runs inside the hall's service. There is no separate queue. The check is not built yet. The record is described here so the behavior has somewhere to land.
-
-When the check is built:
+The check runs inside the hall's service. There is no separate queue. It runs when the register is read and when a return is scanned.
 
 - Look at outings that are still outside, whose grace has ended, and which have no late notice yet.
 - Fill in the late message and send it to the guardian phone. Record sent or failed.
-- When the sender is the local stand-in, do not contact a phone network. Write the record, and write the log the stand-in is required to keep.
+- When the sender is the local stand-in, do not contact a phone network. Write the record, and write the audit log entry.
 - Any environment that is not the live hall refuses to start unless the sender is the local stand-in.
 
 When a return is scanned, if a late notice was sent and no return notice exists yet, send the return message. If the late notice failed, do not send a return message that pretends the guardian was told. An on-time return writes no message.
@@ -589,6 +588,20 @@ A resident's own history is the same exits and returns for that resident, newest
 - A second role on one person.
 - A separate history of room changes. A room change is an audit log entry.
 - The layout of computers. This document says what is kept, not which machine holds it.
+
+## Indexes
+
+Besides the unique indexes that enforce one username, one open outside outing, and one late or return notice per outing, the hall keeps these non-unique indexes so common lists stay cheap:
+
+| Index | On | Why |
+|---|---|---|
+| permissions_status_created | permissions (status, created_at) | Staff permission queue filtered by status and sorted by created_at. |
+| permissions_resident_created | permissions (resident_id, created_at) | A resident's own permission list. |
+| guest_stays_status_arrived | guest_stays (status, arrived_at) | Staff and gate guest lists by status and arrival. |
+| guest_stays_host_created | guest_stays (host_resident_id, created_at) | A resident's own guest stays. |
+| audit_log_occurred_at | audit_log (occurred_at) | Provost audit log newest first. |
+| sessions_user_id | sessions (user_id) | Sign-out and password change revoke every live session for that person. |
+| guardian_messages_outing_id | guardian_messages (outing_id) | Register resident record looks up the late notice for the open outing. |
 
 ## Revisions
 
