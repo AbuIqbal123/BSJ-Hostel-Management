@@ -1,6 +1,6 @@
 # Begum Sultan Jahan Hall API
 
-API version: **0.1.0**
+API version: **0.2.12**
 
 This is the reading copy of [`backend/openapi.yaml`](../backend/openapi.yaml). Swagger at `/docs` serves that file. Stored data is in [`database.md`](database.md). When an endpoint changes, edit the YAML and regenerate this page from the repository root:
 
@@ -87,10 +87,7 @@ Do not edit this page by hand.
 ## How to call the API
 
 HTTP contract for the hostel movement system. Schema version of the database
-is tracked separately in `docs/database.md` (0.1.0).
-
-Pre-production hall API. Version 0.1.0 is the first version; earlier numbers
-such as 0.2.x and 0.3.x were iterative draft labels and were never released.
+is tracked separately in `docs/database.md` (0.3.4).
 
 This version is the contract. Auth, resident phone (home, history, hall pass,
 destinations, ordinary outings, permissions, guest stays), register, staff
