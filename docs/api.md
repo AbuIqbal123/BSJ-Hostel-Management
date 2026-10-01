@@ -3342,6 +3342,12 @@ The signed-in role cannot call this operation.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
+#### 404
+
+No record with that id is visible to the caller.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
 #### 409
 
 That number is already used in the block. Code `duplicate_room`.

@@ -3,7 +3,7 @@ method: POST
 url: '{{baseUrl}}/api/v1/admin/rooms'
 order: 5000
 description: |-
-  Caller: provost. `label` is stored as `{block code}-{number}`. The number is text, so `087` stays `087`. The hall page does not publish door numbers. This sample uses door 205 in Block-B. Returns 404 until this route is built.
+  Caller: provost. `label` is stored as `{block code}-{number}`. The number is text, so `087` stays `087`. The hall page does not publish door numbers. This sample uses door 205 in Block-B.
 headers:
   - key: Content-Type
     value: application/json

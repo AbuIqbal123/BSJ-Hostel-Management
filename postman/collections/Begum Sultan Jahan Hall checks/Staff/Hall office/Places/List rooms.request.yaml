@@ -6,7 +6,7 @@ queryParams:
   - key: block_id
     value: '{{blockId}}'
 description: |-
-  Caller: provost. Returns 404 until this route is built.
+  Caller: provost.
 scripts:
   - type: beforeRequest
     language: text/javascript

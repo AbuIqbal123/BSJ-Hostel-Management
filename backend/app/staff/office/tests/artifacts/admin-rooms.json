@@ -1,0 +1,8 @@
+{
+  "create_number": "205",
+  "create_label": "B-205",
+  "leading_zero_number": "087",
+  "leading_zero_label": "B-087",
+  "duplicate_message": "That number is already used in the block.",
+  "room_in_use_message": "Residents are still assigned."
+}
