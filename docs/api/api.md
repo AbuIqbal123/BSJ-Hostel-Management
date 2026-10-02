@@ -1966,7 +1966,11 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 Caller: warden or provost. Filter by derived bucket. `in_hall` here is
 the dining set and includes guests who should have left. Use
-`should_have_left` for that subset. Each item is a GuestStaySummary
+`should_have_left` for that subset. By default the list omits terminal
+buckets `cancelled` and `rejected` so the warden queue stays clean.
+Pass `include_terminal=true` to include those rows. An explicit
+`bucket=cancelled` or `bucket=rejected` still returns that subset
+without needing `include_terminal`. Each item is a GuestStaySummary
 card; open GET by id for the full GuestStay.
 
 **Parameters**
@@ -1974,6 +1978,7 @@ card; open GET by id for the full GuestStay.
 | Name | In | Required | Type | Notes |
 |---|---|---|---|---|
 | `bucket` | query | no | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
+| `include_terminal` | query | no | boolean | When false (default), omit buckets `cancelled` and `rejected` unless `bucket` is set to one of those values. When true, include terminal rows (still subject to `bucket` when set). default `False`. |
 | `limit` | query | no | integer | 1–500. default `50`. |
 | `offset` | query | no | integer | minimum 0. default `0`. |
 

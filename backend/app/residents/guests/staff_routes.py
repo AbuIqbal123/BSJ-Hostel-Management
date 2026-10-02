@@ -36,6 +36,7 @@ def list_guest_stays_staff(
     _account: RegisterDep,
     connection: ConnectionDep,
     bucket: Annotated[GuestBucket | None, Query()] = None,
+    include_terminal: Annotated[bool, Query()] = False,
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> GuestStayPageBody:
@@ -47,6 +48,7 @@ def list_guest_stays_staff(
         offset=offset,
         today=today,
         bucket=bucket,
+        include_terminal=include_terminal,
     )
 
 

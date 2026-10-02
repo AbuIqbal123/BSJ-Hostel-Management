@@ -119,6 +119,9 @@ def derive_bucket(
     return "should_have_left"
 
 
+TERMINAL_BUCKETS: frozenset[GuestBucket] = frozenset({"cancelled", "rejected"})
+
+
 def bucket_matches(filter_bucket: GuestBucket | None, actual: GuestBucket) -> bool:
     """Staff list: `in_hall` is the dining set (in_hall + should_have_left)."""
     if filter_bucket is None:
@@ -126,6 +129,23 @@ def bucket_matches(filter_bucket: GuestBucket | None, actual: GuestBucket) -> bo
     if filter_bucket == "in_hall":
         return actual in {"in_hall", "should_have_left"}
     return actual == filter_bucket
+
+
+def stay_matches_list_filters(
+    *,
+    filter_bucket: GuestBucket | None,
+    actual: GuestBucket,
+    include_terminal: bool,
+) -> bool:
+    """Apply bucket filter, then optionally drop terminal buckets for staff queue."""
+    if not bucket_matches(filter_bucket, actual):
+        return False
+    if include_terminal:
+        return True
+    if actual in TERMINAL_BUCKETS:
+        # Explicit bucket=cancelled|rejected opts in for that one terminal subset.
+        return filter_bucket in TERMINAL_BUCKETS
+    return True
 
 
 _STAY_SELECT = """
@@ -235,6 +255,7 @@ def list_guest_stays(
     offset: int,
     today: str,
     bucket: GuestBucket | None = None,
+    include_terminal: bool = True,
 ) -> GuestStayPageBody:
     where = ""
     params: list[object] = []
@@ -252,7 +273,11 @@ def list_guest_stays(
     full = [
         body
         for body in (_body_from_row(row, today) for row in rows)
-        if bucket_matches(bucket, body.bucket)
+        if stay_matches_list_filters(
+            filter_bucket=bucket,
+            actual=body.bucket,
+            include_terminal=include_terminal,
+        )
     ]
     total = len(full)
     items = [_summary_from_body(body) for body in full[offset : offset + limit]]
