@@ -22,6 +22,7 @@ Do not edit this page by hand.
   - [POST `/api/v1/auth/logout` — Sign out](#post-api-v1-auth-logout)
   - [GET `/api/v1/auth/me` — Current account](#get-api-v1-auth-me)
   - [POST `/api/v1/auth/change-password` — Change own password](#post-api-v1-auth-change-password)
+  - [POST `/api/v1/auth/onboard` — Resident self-onboard](#post-api-v1-auth-onboard)
 - [Resident](#tag-resident)
   - [GET `/api/v1/me/home` — Resident home](#get-api-v1-me-home)
   - [GET `/api/v1/me/hall-pass` — Permanent hall pass](#get-api-v1-me-hall-pass)
@@ -114,11 +115,14 @@ day, the month name, and the year. `2026-09-18T13:30:00Z` is shown as
 18 September 2026, 7:00 PM. This API returns the stored form.
 
 The caller sends an access token as `Authorization: Bearer`, except on
-`GET /health`, `POST /api/v1/auth/login`, and `POST /api/v1/auth/refresh`.
+`GET /health`, `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, and
+`POST /api/v1/auth/onboard`.
 
 Access tokens last 15 minutes. Refresh tokens last 30 days. Passwords are
-at least 10 characters and are stored as Argon2id. Accounts are issued by
-the hall office. A resident username is the enrolment number.
+at least 10 characters and are stored as Argon2id. Residents may self-onboard
+at `POST /api/v1/auth/onboard` (pending until the Hall Office assigns a room
+and activates). The provost may still create residents and must create staff.
+A resident username is the enrolment number.
 
 Stored state and lifecycles live in `docs/database/database.md`. This file does not
 repeat the column list. The reading copy of this contract is `docs/api/api.md`.
@@ -222,7 +226,7 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 ## <a id="tag-auth"></a>Auth
 
-Hall-issued accounts. No public registration and no guardian login.
+Sign-in and resident self-onboard under /api/v1/auth. Staff accounts stay office-created. No guardian login. Do not confuse with Register (presence board).
 
 | Method | Path | Purpose | Who |
 |---|---|---|---|
@@ -231,6 +235,7 @@ Hall-issued accounts. No public registration and no guardian login.
 | POST | `/api/v1/auth/logout` | [Sign out](#post-api-v1-auth-logout) | Signed-in account |
 | GET | `/api/v1/auth/me` | [Current account](#get-api-v1-auth-me) | Signed-in account |
 | POST | `/api/v1/auth/change-password` | [Change own password](#post-api-v1-auth-change-password) | Signed-in account |
+| POST | `/api/v1/auth/onboard` | [Resident self-onboard](#post-api-v1-auth-onboard) | anyone (no token) |
 
 ### <a id="post-api-v1-auth-login"></a>POST `/api/v1/auth/login` — Sign in
 
@@ -244,9 +249,11 @@ this repository. The field is required.
 
 An unknown username and a known username with the wrong password both
 return the same message, so a caller cannot tell whether the username
-exists. A correct password on a suspended account says the account is
-suspended and asks the caller to contact the Hall Office. Repeated
-attempts from the same client are limited; further attempts return 429.
+exists. A correct password on a **pending** account says the account is
+waiting for the Hall Office. A correct password on a suspended account
+says the account is suspended and asks the caller to contact the Hall
+Office. Repeated attempts from the same client are limited; further
+attempts return 429.
 
 **Request.** Required.
 
@@ -284,7 +291,8 @@ Body: [TokenResponse](#schema-tokenresponse).
 #### 401
 
 Sign-in was refused. Unknown username and wrong password share one
-message. A suspended account asks the caller to contact the Hall Office.
+message. A pending account says it is waiting for the Hall Office.
+A suspended account asks the caller to contact the Hall Office.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
@@ -295,6 +303,17 @@ Body: [ErrorResponse](#schema-errorresponse).
   "error": {
     "code": "unauthenticated",
     "message": "Username or password is wrong."
+  }
+}
+```
+
+**Account is pending activation**
+
+```json
+{
+  "error": {
+    "code": "unauthenticated",
+    "message": "Your account is waiting for the Hall Office."
   }
 }
 ```
@@ -438,7 +457,7 @@ Body: [CurrentUser](#schema-currentuser).
 | `role` | yes | `resident` or `gate` or `warden` or `provost` |  |
 | `full_name` | yes | string |  |
 | `username` | yes | string |  |
-| `status` | yes | `active` or `suspended` |  |
+| `status` | yes | `active` or `suspended` or `pending` |  |
 | `resident` | no | [ResidentSummary](#schema-residentsummary) or null |  |
 | `staff` | no | [StaffSummary](#schema-staffsummary) or null |  |
 
@@ -479,6 +498,114 @@ No body.
 The access token is missing or expired, or the username and password were refused.
 
 Body: [ErrorResponse](#schema-errorresponse).
+
+#### 422
+
+The JSON is the wrong shape, or a field fails a constraint that does not depend on existing rows.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
+### <a id="post-api-v1-auth-onboard"></a>POST `/api/v1/auth/onboard` — Resident self-onboard
+
+`onboard_resident`
+
+**Who.** anyone (no token). No token.
+
+Caller: anyone (no token). Creates a **pending** resident from the phone.
+Required fields: `full_name`, `enrolment_number`, `password`, `phone`,
+`guardian_name`, `guardian_phone`. Optional: `course`.
+
+She does not choose block or room. The Hall Office assigns a room and
+activates the account later. This call does **not** return tokens or a
+hall pass. After activation she signs in at `POST /api/v1/auth/login`.
+
+Enrolment is unique hall-wide (ignoring capitals) and becomes the
+username. Staff cannot use this path. Rate-limited like sign-in.
+
+**Request.** Required.
+
+Body: [ResidentOnboardRequest](#schema-residentonboardrequest).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `full_name` | yes | string | 1–120 characters. |
+| `enrolment_number` | yes | string | Roll / enrolment number. Becomes the username. Unique hall-wide, ignoring capitals. 1–40 characters. |
+| `password` | yes | string | First password she chooses. Stored as Argon2id. Not returned. Sample bodies in this repository omit the value; the field is required. 10–200 characters. |
+| `course` | no | string | Optional. For example B.A. LL.B. (Hons.). at most 120 characters. |
+| `phone` | yes | string | The resident's own phone in E.164 with country code. Required on self-onboard. Not the guardian phone. pattern `^\+[1-9][0-9]{7,14}$`. |
+| `guardian_name` | yes | string | Parent or guardian the hall contacts. 1–120 characters. |
+| `guardian_phone` | yes | string | E.164 with country code. Late and return SMS go here. pattern `^\+[1-9][0-9]{7,14}$`. |
+
+**Example**
+
+```json
+{
+  "full_name": "Aisha Khan",
+  "enrolment_number": "24-GLLB-118",
+  "phone": "+919811112222",
+  "guardian_name": "Rashid Khan",
+  "guardian_phone": "+919876543210"
+}
+```
+
+**Responses**
+
+#### 201
+
+Pending resident kept. No access token, refresh token, or hall pass.
+
+Body: [ResidentOnboardResponse](#schema-residentonboardresponse).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `enrolment_number` | yes | string | Stored spelling of the enrolment number. |
+| `status` | yes | `pending` |  |
+| `message` | yes | string | Waiting copy for the phone. Exact sentence for clients. |
+
+**Example**
+
+```json
+{
+  "enrolment_number": "24-GLLB-118",
+  "status": "pending",
+  "message": "Your account is waiting for the Hall Office to assign a room and activate it."
+}
+```
+
+#### 409
+
+Enrolment number already in use. Code `duplicate_enrolment`.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+**Example**
+
+```json
+{
+  "error": {
+    "code": "duplicate_enrolment",
+    "message": "That enrolment number is already registered."
+  }
+}
+```
+
+#### 429
+
+Too many onboard attempts from this client in a short window.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+**Example**
+
+```json
+{
+  "error": {
+    "code": "rate_limited",
+    "message": "Too many attempts. Try again shortly."
+  }
+}
+```
 
 #### 422
 
@@ -3327,7 +3454,7 @@ Provost only. Residents, staff, rooms, destinations, settings, export, SMS log, 
 
 **Who.** provost. Bearer access token.
 
-Caller: provost. Includes suspended residents. Does not include hall-pass tokens.
+Caller: provost. Includes pending and suspended residents. Does not include hall-pass tokens.
 
 **Parameters**
 
@@ -3457,12 +3584,12 @@ Body: [ResidentAccount](#schema-residentaccount).
 | `full_name` | yes | string |  |
 | `enrolment_number` | yes | string |  |
 | `course` | no | string or null |  |
-| `room_id` | yes | uuid |  |
-| `room_label` | yes | string |  |
+| `room_id` | yes | uuid or null | Empty while status is pending and the Hall Office has not assigned a room. Required when status is active. |
+| `room_label` | yes | string or null | Empty when room_id is empty. |
 | `phone` | no | string or null | The resident's own phone in E.164 with country code. Empty when the hall has not entered it. Optional; not the guardian phone. |
 | `guardian_name` | yes | string |  |
 | `guardian_phone` | yes | string | E.164, country code required. |
-| `status` | yes | `active` or `suspended` |  |
+| `status` | yes | `active` or `suspended` or `pending` |  |
 | `presence` | yes | `inside` or `outside` | Inside or outside the hall. Changes when a gate scan records an exit or a return. This is not sign-in. |
 
 #### 401
@@ -3494,8 +3621,10 @@ Caller: provost. Send only the fields that change. `course` and `phone`
 may be set to null to clear them. `guardian_name` and `guardian_phone`
 may be replaced and may not be cleared. A phone includes the country
 code. Changing `enrolment_number` changes the username. `status`
-suspends or reinstates the account and revokes refresh tokens on
-suspension.
+activates a pending resident (requires `room_id` on the record),
+suspends, or reinstates. Suspension revokes refresh tokens. Activating
+a pending resident issues the hall pass once; the token is not returned
+on this PATCH (use reissue if the office needs the payload again).
 
 **Parameters**
 
@@ -3516,7 +3645,7 @@ Body: [ResidentUpdate](#schema-residentupdate).
 | `phone` | no | string or null | The resident's own phone. Set to null to clear. Same E.164 pattern as guardian_phone when present. |
 | `guardian_name` | no | string | 1–120 characters. |
 | `guardian_phone` | no | string | pattern `^\+[1-9][0-9]{7,14}$`. |
-| `status` | no | `active` or `suspended` |  |
+| `status` | no | `active` or `suspended` or `pending` |  |
 
 **Responses**
 
@@ -3532,12 +3661,12 @@ Body: [ResidentAccount](#schema-residentaccount).
 | `full_name` | yes | string |  |
 | `enrolment_number` | yes | string |  |
 | `course` | no | string or null |  |
-| `room_id` | yes | uuid |  |
-| `room_label` | yes | string |  |
+| `room_id` | yes | uuid or null | Empty while status is pending and the Hall Office has not assigned a room. Required when status is active. |
+| `room_label` | yes | string or null | Empty when room_id is empty. |
 | `phone` | no | string or null | The resident's own phone in E.164 with country code. Empty when the hall has not entered it. Optional; not the guardian phone. |
 | `guardian_name` | yes | string |  |
 | `guardian_phone` | yes | string | E.164, country code required. |
-| `status` | yes | `active` or `suspended` |  |
+| `status` | yes | `active` or `suspended` or `pending` |  |
 | `presence` | yes | `inside` or `outside` | Inside or outside the hall. Changes when a gate scan records an exit or a return. This is not sign-in. |
 
 #### 401
@@ -3562,6 +3691,7 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 Enrolment number already in use. Code `duplicate_username`.
 That room is not in use. Code `room_inactive`.
+Cannot activate a pending resident without a room. Code `room_required`.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
@@ -3709,7 +3839,7 @@ Body: [StaffAccount](#schema-staffaccount).
 | `username` | yes | string |  |
 | `role` | yes | `gate` or `warden` or `provost` |  |
 | `job_title` | yes | string |  |
-| `status` | yes | `active` or `suspended` |  |
+| `status` | yes | `active` or `suspended` or `pending` |  |
 
 #### 401
 
@@ -3759,7 +3889,7 @@ Body: [StaffUpdate](#schema-staffupdate).
 |---|---|---|---|
 | `full_name` | no | string | 1–120 characters. |
 | `job_title` | no | string | 1–80 characters. |
-| `status` | no | `active` or `suspended` |  |
+| `status` | no | `active` or `suspended` or `pending` |  |
 
 **Responses**
 
@@ -3776,7 +3906,7 @@ Body: [StaffAccount](#schema-staffaccount).
 | `username` | yes | string |  |
 | `role` | yes | `gate` or `warden` or `provost` |  |
 | `job_title` | yes | string |  |
-| `status` | yes | `active` or `suspended` |  |
+| `status` | yes | `active` or `suspended` or `pending` |  |
 
 #### 401
 
@@ -4731,6 +4861,26 @@ Each JSON object used above. An operation section already shows the fields for i
 | `current_password` | yes | string | 1–200 characters. |
 | `new_password` | yes | string | 10–200 characters. |
 
+### <a id="schema-residentonboardrequest"></a>ResidentOnboardRequest
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `full_name` | yes | string | 1–120 characters. |
+| `enrolment_number` | yes | string | Roll / enrolment number. Becomes the username. Unique hall-wide, ignoring capitals. 1–40 characters. |
+| `password` | yes | string | First password she chooses. Stored as Argon2id. Not returned. Sample bodies in this repository omit the value; the field is required. 10–200 characters. |
+| `course` | no | string | Optional. For example B.A. LL.B. (Hons.). at most 120 characters. |
+| `phone` | yes | string | The resident's own phone in E.164 with country code. Required on self-onboard. Not the guardian phone. pattern `^\+[1-9][0-9]{7,14}$`. |
+| `guardian_name` | yes | string | Parent or guardian the hall contacts. 1–120 characters. |
+| `guardian_phone` | yes | string | E.164 with country code. Late and return SMS go here. pattern `^\+[1-9][0-9]{7,14}$`. |
+
+### <a id="schema-residentonboardresponse"></a>ResidentOnboardResponse
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `enrolment_number` | yes | string | Stored spelling of the enrolment number. |
+| `status` | yes | `pending` |  |
+| `message` | yes | string | Waiting copy for the phone. Exact sentence for clients. |
+
 ### <a id="schema-passwordresetrequest"></a>PasswordResetRequest
 
 | Field | Required | Type | Notes |
@@ -4755,7 +4905,7 @@ Each JSON object used above. An operation section already shows the fields for i
 | `role` | yes | `resident` or `gate` or `warden` or `provost` |  |
 | `full_name` | yes | string |  |
 | `username` | yes | string |  |
-| `status` | yes | `active` or `suspended` |  |
+| `status` | yes | `active` or `suspended` or `pending` |  |
 
 ### <a id="schema-role"></a>Role
 
@@ -4767,7 +4917,9 @@ One of: `gate`, `warden`, `provost`.
 
 ### <a id="schema-accountstatus"></a>AccountStatus
 
-One of: `active`, `suspended`.
+`pending` is a self-onboarded resident waiting for room assignment and activation. `active` may sign in. `suspended` may not.
+
+One of: `active`, `suspended`, `pending`.
 
 ### <a id="schema-currentuser"></a>CurrentUser
 
@@ -4777,7 +4929,7 @@ One of: `active`, `suspended`.
 | `role` | yes | `resident` or `gate` or `warden` or `provost` |  |
 | `full_name` | yes | string |  |
 | `username` | yes | string |  |
-| `status` | yes | `active` or `suspended` |  |
+| `status` | yes | `active` or `suspended` or `pending` |  |
 | `resident` | no | [ResidentSummary](#schema-residentsummary) or null |  |
 | `staff` | no | [StaffSummary](#schema-staffsummary) or null |  |
 
@@ -5387,12 +5539,12 @@ One of: `not_due`, `sent`, `failed`.
 | `full_name` | yes | string |  |
 | `enrolment_number` | yes | string |  |
 | `course` | no | string or null |  |
-| `room_id` | yes | uuid |  |
-| `room_label` | yes | string |  |
+| `room_id` | yes | uuid or null | Empty while status is pending and the Hall Office has not assigned a room. Required when status is active. |
+| `room_label` | yes | string or null | Empty when room_id is empty. |
 | `phone` | no | string or null | The resident's own phone in E.164 with country code. Empty when the hall has not entered it. Optional; not the guardian phone. |
 | `guardian_name` | yes | string |  |
 | `guardian_phone` | yes | string | E.164, country code required. |
-| `status` | yes | `active` or `suspended` |  |
+| `status` | yes | `active` or `suspended` or `pending` |  |
 | `presence` | yes | `inside` or `outside` | Inside or outside the hall. Changes when a gate scan records an exit or a return. This is not sign-in. |
 
 ### <a id="schema-residentaccountpage"></a>ResidentAccountPage
@@ -5435,7 +5587,7 @@ One of: `not_due`, `sent`, `failed`.
 | `phone` | no | string or null | The resident's own phone. Set to null to clear. Same E.164 pattern as guardian_phone when present. |
 | `guardian_name` | no | string | 1–120 characters. |
 | `guardian_phone` | no | string | pattern `^\+[1-9][0-9]{7,14}$`. |
-| `status` | no | `active` or `suspended` |  |
+| `status` | no | `active` or `suspended` or `pending` |  |
 
 ### <a id="schema-staffaccount"></a>StaffAccount
 
@@ -5446,7 +5598,7 @@ One of: `not_due`, `sent`, `failed`.
 | `username` | yes | string |  |
 | `role` | yes | `gate` or `warden` or `provost` |  |
 | `job_title` | yes | string |  |
-| `status` | yes | `active` or `suspended` |  |
+| `status` | yes | `active` or `suspended` or `pending` |  |
 
 ### <a id="schema-staffpage"></a>StaffPage
 
@@ -5473,7 +5625,7 @@ One of: `not_due`, `sent`, `failed`.
 |---|---|---|---|
 | `full_name` | no | string | 1–120 characters. |
 | `job_title` | no | string | 1–80 characters. |
-| `status` | no | `active` or `suspended` |  |
+| `status` | no | `active` or `suspended` or `pending` |  |
 
 ### <a id="schema-block"></a>Block
 
