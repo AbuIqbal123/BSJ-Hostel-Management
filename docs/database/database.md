@@ -401,8 +401,8 @@ Guests are not accounts and have no hall pass.
 | host_resident_id | Identifier | Yes | The signed-in resident | The resident who applied. |
 | guest_name | Text | Yes | The resident types it | The guest's name. |
 | relation | Text | Yes | The resident types it | Such as Cousin. |
-| start_date | Date | Yes | The resident sets it | First day, included. Shown as 18 September 2026. |
-| end_date | Date | Yes | The resident sets it | Last day, included. On or after the start date. |
+| guest_start_date | Date | Yes | The resident sets it | First day, included. Shown as 18 September 2026. |
+| guest_end_date | Date | Yes | The resident sets it | Last day, included. On or after the start date. |
 | reason | Text | Yes | The resident types it | Why the guest is coming. |
 | status | Choice | Yes | System | Waiting, approved, rejected, cancelled, or departed. |
 | payment_status | Choice | Yes | System starts it as unpaid. A warden or the provost marks it paid. | Unpaid or paid. |

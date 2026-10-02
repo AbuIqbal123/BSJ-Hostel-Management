@@ -1,5 +1,5 @@
 {
-  "user_version": 5,
+  "user_version": 6,
   "tables": [
     "audit_log",
     "blocks",
@@ -59,8 +59,8 @@
       "host_resident_id",
       "guest_name",
       "relation",
-      "start_date",
-      "end_date",
+      "guest_start_date",
+      "guest_end_date",
       "reason",
       "status",
       "payment_status",

@@ -35,17 +35,17 @@ class GuestStayBody(BaseModel):
     host_room_label: str
     guest_name: str
     relation: str
-    start_date: str
-    end_date: str
+    guest_start_date: str
+    guest_end_date: str
     inclusive_days: int
     reason: str
     status: GuestStatus
     payment_status: PaymentStatus
     bucket: GuestBucket
     decision_note: str | None = None
-    decided_by_name: str | None = None
-    arrived_recorded_by_name: str | None = None
-    departed_recorded_by_name: str | None = None
+    decided_by: str | None = None
+    arrived_recorded_by: str | None = None
+    departed_recorded_by: str | None = None
     arrived_at: str | None = None
     departed_at: str | None = None
     created_at: str
@@ -59,8 +59,8 @@ class GuestStaySummaryBody(BaseModel):
     guest_name: str
     host_name: str
     host_room_label: str
-    start_date: str
-    end_date: str
+    guest_start_date: str
+    guest_end_date: str
     status: GuestStatus
     payment_status: PaymentStatus
     bucket: GuestBucket
@@ -135,15 +135,15 @@ SELECT
   rooms.label AS host_room_label,
   guest_stays.guest_name,
   guest_stays.relation,
-  guest_stays.start_date,
-  guest_stays.end_date,
+  guest_stays.guest_start_date,
+  guest_stays.guest_end_date,
   guest_stays.reason,
   guest_stays.status,
   guest_stays.payment_status,
   guest_stays.decision_note,
-  decider.full_name AS decided_by_name,
-  arriver.full_name AS arrived_recorded_by_name,
-  departer.full_name AS departed_recorded_by_name,
+  guest_stays.decided_by,
+  guest_stays.arrived_recorded_by,
+  guest_stays.departed_recorded_by,
   guest_stays.arrived_at,
   guest_stays.departed_at,
   guest_stays.created_at
@@ -151,15 +151,12 @@ FROM guest_stays
 JOIN users AS host ON host.id = guest_stays.host_resident_id
 JOIN residents ON residents.user_id = guest_stays.host_resident_id
 JOIN rooms ON rooms.id = residents.room_id
-LEFT JOIN users AS decider ON decider.id = guest_stays.decided_by
-LEFT JOIN users AS arriver ON arriver.id = guest_stays.arrived_recorded_by
-LEFT JOIN users AS departer ON departer.id = guest_stays.departed_recorded_by
 """
 
 
 def _body_from_row(row: sqlite3.Row, today: str) -> GuestStayBody:
-    start = row["start_date"]
-    end = row["end_date"]
+    start = row["guest_start_date"]
+    end = row["guest_end_date"]
     return GuestStayBody(
         id=row["id"],
         host_resident_id=row["host_resident_id"],
@@ -167,8 +164,8 @@ def _body_from_row(row: sqlite3.Row, today: str) -> GuestStayBody:
         host_room_label=row["host_room_label"],
         guest_name=row["guest_name"],
         relation=row["relation"],
-        start_date=start,
-        end_date=end,
+        guest_start_date=start,
+        guest_end_date=end,
         inclusive_days=inclusive_days(start, end),
         reason=row["reason"],
         status=row["status"],
@@ -183,9 +180,9 @@ def _body_from_row(row: sqlite3.Row, today: str) -> GuestStayBody:
             today=today,
         ),
         decision_note=row["decision_note"],
-        decided_by_name=row["decided_by_name"],
-        arrived_recorded_by_name=row["arrived_recorded_by_name"],
-        departed_recorded_by_name=row["departed_recorded_by_name"],
+        decided_by=row["decided_by"],
+        arrived_recorded_by=row["arrived_recorded_by"],
+        departed_recorded_by=row["departed_recorded_by"],
         arrived_at=row["arrived_at"],
         departed_at=row["departed_at"],
         created_at=row["created_at"],
@@ -198,8 +195,8 @@ def _summary_from_body(body: GuestStayBody) -> GuestStaySummaryBody:
         guest_name=body.guest_name,
         host_name=body.host_name,
         host_room_label=body.host_room_label,
-        start_date=body.start_date,
-        end_date=body.end_date,
+        guest_start_date=body.guest_start_date,
+        guest_end_date=body.guest_end_date,
         status=body.status,
         payment_status=body.payment_status,
         bucket=body.bucket,

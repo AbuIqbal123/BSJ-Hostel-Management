@@ -191,7 +191,7 @@ Body: [Ready](#schema-ready).
 ```json
 {
   "status": "ready",
-  "user_version": 5
+  "user_version": 6
 }
 ```
 
@@ -1631,8 +1631,8 @@ Body: [GuestStayCreate](#schema-gueststaycreate).
 |---|---|---|---|
 | `guest_name` | yes | string | 1–120 characters. |
 | `relation` | yes | string | 1–80 characters. |
-| `start_date` | yes | date |  |
-| `end_date` | yes | date |  |
+| `guest_start_date` | yes | date |  |
+| `guest_end_date` | yes | date |  |
 | `reason` | yes | string | 1–500 characters. |
 
 **Example**
@@ -1641,8 +1641,8 @@ Body: [GuestStayCreate](#schema-gueststaycreate).
 {
   "guest_name": "Zara Ahmed",
   "relation": "Cousin",
-  "start_date": "2026-09-18",
-  "end_date": "2026-09-21",
+  "guest_start_date": "2026-09-18",
+  "guest_end_date": "2026-09-21",
   "reason": "Family wedding in Aligarh. Staying with Aisha, B-204."
 }
 ```
@@ -1663,17 +1663,17 @@ Body: [GuestStay](#schema-gueststay).
 | `host_room_label` | yes | string |  |
 | `guest_name` | yes | string |  |
 | `relation` | yes | string |  |
-| `start_date` | yes | date |  |
-| `end_date` | yes | date |  |
+| `guest_start_date` | yes | date |  |
+| `guest_end_date` | yes | date |  |
 | `inclusive_days` | yes | integer |  |
 | `reason` | yes | string |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
 | `payment_status` | yes | `unpaid` or `paid` |  |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
-| `decided_by_name` | no | string or null | Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
-| `arrived_recorded_by_name` | no | string or null | Staff member who recorded arrival. Empty until arrival is recorded. |
-| `departed_recorded_by_name` | no | string or null | Staff member who recorded departure. Empty until departure is recorded. |
+| `decided_by` | no | uuid or null | UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
+| `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
 | `departed_at` | no | date-time or null |  |
 | `created_at` | yes | date-time |  |
@@ -1727,17 +1727,17 @@ Body: [GuestStay](#schema-gueststay).
 | `host_room_label` | yes | string |  |
 | `guest_name` | yes | string |  |
 | `relation` | yes | string |  |
-| `start_date` | yes | date |  |
-| `end_date` | yes | date |  |
+| `guest_start_date` | yes | date |  |
+| `guest_end_date` | yes | date |  |
 | `inclusive_days` | yes | integer |  |
 | `reason` | yes | string |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
 | `payment_status` | yes | `unpaid` or `paid` |  |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
-| `decided_by_name` | no | string or null | Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
-| `arrived_recorded_by_name` | no | string or null | Staff member who recorded arrival. Empty until arrival is recorded. |
-| `departed_recorded_by_name` | no | string or null | Staff member who recorded departure. Empty until departure is recorded. |
+| `decided_by` | no | uuid or null | UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
+| `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
 | `departed_at` | no | date-time or null |  |
 | `created_at` | yes | date-time |  |
@@ -1791,17 +1791,17 @@ Body: [GuestStay](#schema-gueststay).
 | `host_room_label` | yes | string |  |
 | `guest_name` | yes | string |  |
 | `relation` | yes | string |  |
-| `start_date` | yes | date |  |
-| `end_date` | yes | date |  |
+| `guest_start_date` | yes | date |  |
+| `guest_end_date` | yes | date |  |
 | `inclusive_days` | yes | integer |  |
 | `reason` | yes | string |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
 | `payment_status` | yes | `unpaid` or `paid` |  |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
-| `decided_by_name` | no | string or null | Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
-| `arrived_recorded_by_name` | no | string or null | Staff member who recorded arrival. Empty until arrival is recorded. |
-| `departed_recorded_by_name` | no | string or null | Staff member who recorded departure. Empty until departure is recorded. |
+| `decided_by` | no | uuid or null | UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
+| `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
 | `departed_at` | no | date-time or null |  |
 | `created_at` | yes | date-time |  |
@@ -1908,17 +1908,17 @@ Body: [GuestStay](#schema-gueststay).
 | `host_room_label` | yes | string |  |
 | `guest_name` | yes | string |  |
 | `relation` | yes | string |  |
-| `start_date` | yes | date |  |
-| `end_date` | yes | date |  |
+| `guest_start_date` | yes | date |  |
+| `guest_end_date` | yes | date |  |
 | `inclusive_days` | yes | integer |  |
 | `reason` | yes | string |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
 | `payment_status` | yes | `unpaid` or `paid` |  |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
-| `decided_by_name` | no | string or null | Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
-| `arrived_recorded_by_name` | no | string or null | Staff member who recorded arrival. Empty until arrival is recorded. |
-| `departed_recorded_by_name` | no | string or null | Staff member who recorded departure. Empty until departure is recorded. |
+| `decided_by` | no | uuid or null | UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
+| `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
 | `departed_at` | no | date-time or null |  |
 | `created_at` | yes | date-time |  |
@@ -1982,17 +1982,17 @@ Body: [GuestStay](#schema-gueststay).
 | `host_room_label` | yes | string |  |
 | `guest_name` | yes | string |  |
 | `relation` | yes | string |  |
-| `start_date` | yes | date |  |
-| `end_date` | yes | date |  |
+| `guest_start_date` | yes | date |  |
+| `guest_end_date` | yes | date |  |
 | `inclusive_days` | yes | integer |  |
 | `reason` | yes | string |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
 | `payment_status` | yes | `unpaid` or `paid` |  |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
-| `decided_by_name` | no | string or null | Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
-| `arrived_recorded_by_name` | no | string or null | Staff member who recorded arrival. Empty until arrival is recorded. |
-| `departed_recorded_by_name` | no | string or null | Staff member who recorded departure. Empty until departure is recorded. |
+| `decided_by` | no | uuid or null | UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
+| `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
 | `departed_at` | no | date-time or null |  |
 | `created_at` | yes | date-time |  |
@@ -2070,17 +2070,17 @@ Body: [GuestStay](#schema-gueststay).
 | `host_room_label` | yes | string |  |
 | `guest_name` | yes | string |  |
 | `relation` | yes | string |  |
-| `start_date` | yes | date |  |
-| `end_date` | yes | date |  |
+| `guest_start_date` | yes | date |  |
+| `guest_end_date` | yes | date |  |
 | `inclusive_days` | yes | integer |  |
 | `reason` | yes | string |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
 | `payment_status` | yes | `unpaid` or `paid` |  |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
-| `decided_by_name` | no | string or null | Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
-| `arrived_recorded_by_name` | no | string or null | Staff member who recorded arrival. Empty until arrival is recorded. |
-| `departed_recorded_by_name` | no | string or null | Staff member who recorded departure. Empty until departure is recorded. |
+| `decided_by` | no | uuid or null | UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
+| `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
 | `departed_at` | no | date-time or null |  |
 | `created_at` | yes | date-time |  |
@@ -3894,7 +3894,7 @@ to the row are empty.
 
 Header, in this order:
 
-`record_type,full_name,enrolment_number,room_label,block_code,course,presence,state,place,exited_at,expected_return_at,grace_ends_at,returned_at,outing_type,guardian_name,guardian_phone,guest_name,relation,host_name,host_room_label,start_date,end_date,payment_status,guest_bucket,arrived_at,departed_at`
+`record_type,full_name,enrolment_number,room_label,block_code,course,presence,state,place,exited_at,expected_return_at,grace_ends_at,returned_at,outing_type,guardian_name,guardian_phone,guest_name,relation,host_name,host_room_label,guest_start_date,guest_end_date,payment_status,guest_bucket,arrived_at,departed_at`
 
 `record_type` is `resident` or `guest`. Instants are UTC. Dates are
 YYYY-MM-DD. This export contains guardian phone numbers and is not a
@@ -4387,8 +4387,8 @@ One of: `pending`, `upcoming`, `expected`, `not_expected`, `in_hall`, `should_ha
 |---|---|---|---|
 | `guest_name` | yes | string | 1–120 characters. |
 | `relation` | yes | string | 1–80 characters. |
-| `start_date` | yes | date |  |
-| `end_date` | yes | date |  |
+| `guest_start_date` | yes | date |  |
+| `guest_end_date` | yes | date |  |
 | `reason` | yes | string | 1–500 characters. |
 
 ### <a id="schema-gueststay"></a>GuestStay
@@ -4401,17 +4401,17 @@ One of: `pending`, `upcoming`, `expected`, `not_expected`, `in_hall`, `should_ha
 | `host_room_label` | yes | string |  |
 | `guest_name` | yes | string |  |
 | `relation` | yes | string |  |
-| `start_date` | yes | date |  |
-| `end_date` | yes | date |  |
+| `guest_start_date` | yes | date |  |
+| `guest_end_date` | yes | date |  |
 | `inclusive_days` | yes | integer |  |
 | `reason` | yes | string |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
 | `payment_status` | yes | `unpaid` or `paid` |  |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
-| `decided_by_name` | no | string or null | Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
-| `arrived_recorded_by_name` | no | string or null | Staff member who recorded arrival. Empty until arrival is recorded. |
-| `departed_recorded_by_name` | no | string or null | Staff member who recorded departure. Empty until departure is recorded. |
+| `decided_by` | no | uuid or null | UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
+| `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
 | `departed_at` | no | date-time or null |  |
 | `created_at` | yes | date-time |  |
@@ -4419,8 +4419,8 @@ One of: `pending`, `upcoming`, `expected`, `not_expected`, `in_hall`, `should_ha
 ### <a id="schema-gueststaysummary"></a>GuestStaySummary
 
 Card fields for guest-stay list rows. Full stay detail (reason, decision
-note, recorder names, arrival/departure instants) is on GuestStay via
-GET by id.
+note, decided_by / recorder staff ids, arrival/departure instants) is on
+GuestStay via GET by id.
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
@@ -4428,8 +4428,8 @@ GET by id.
 | `guest_name` | yes | string |  |
 | `host_name` | yes | string |  |
 | `host_room_label` | yes | string |  |
-| `start_date` | yes | date |  |
-| `end_date` | yes | date |  |
+| `guest_start_date` | yes | date |  |
+| `guest_end_date` | yes | date |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
 | `payment_status` | yes | `unpaid` or `paid` |  |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
@@ -4493,8 +4493,8 @@ GET by id.
 | `guest_name` | yes | string |  |
 | `host_name` | yes | string |  |
 | `host_room_label` | yes | string |  |
-| `start_date` | yes | date |  |
-| `end_date` | yes | date |  |
+| `guest_start_date` | yes | date |  |
+| `guest_end_date` | yes | date |  |
 | `payment_status` | yes | `paid` or `unpaid` |  |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 

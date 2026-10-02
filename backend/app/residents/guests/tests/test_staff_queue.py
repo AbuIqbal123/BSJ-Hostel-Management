@@ -290,7 +290,7 @@ def seed_stays(path: Path) -> None:
         connection.executemany(
             """
             INSERT INTO guest_stays (
-              id, host_resident_id, guest_name, relation, start_date, end_date, reason,
+              id, host_resident_id, guest_name, relation, guest_start_date, guest_end_date, reason,
               status, payment_status, payment_marked_by, payment_marked_at,
               decided_by, decided_at, decision_note,
               arrived_at, arrived_recorded_by, departed_at, departed_recorded_by,
@@ -366,8 +366,8 @@ def test_guest_stays_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch)
             "guest_name",
             "host_name",
             "host_room_label",
-            "start_date",
-            "end_date",
+            "guest_start_date",
+            "guest_end_date",
             "status",
             "payment_status",
             "bucket",
@@ -413,7 +413,7 @@ def test_guest_stays_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch)
         assert approved.json()["status"] == expected["approved_empty_note"]["status"]
         assert approved.json()["payment_status"] == expected["approved_empty_note"]["payment_status"]
         assert approved.json()["decision_note"] is None
-        assert approved.json()["decided_by_name"] == "Sara Malik"
+        assert approved.json()["decided_by"] == WARDEN_ID
         assert approved.json()["bucket"] == expected["approved_empty_note"]["bucket"]
 
         assert_error(
@@ -462,7 +462,7 @@ def test_guest_stays_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch)
             connection.execute(
                 """
                 INSERT INTO guest_stays (
-                  id, host_resident_id, guest_name, relation, start_date, end_date, reason,
+                  id, host_resident_id, guest_name, relation, guest_start_date, guest_end_date, reason,
                   status, payment_status, created_at, updated_at
                 ) VALUES (?, ?, 'Pay First', 'Cousin', '2026-10-15', '2026-10-16', 'Pay then decide.',
                   'pending', 'unpaid', '2026-09-30T13:00:00Z', '2026-09-30T13:00:00Z')

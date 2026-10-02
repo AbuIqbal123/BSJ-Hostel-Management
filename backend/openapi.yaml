@@ -104,7 +104,7 @@ paths:
                 $ref: "#/components/schemas/Ready"
               example:
                 status: ready
-                user_version: 5
+                user_version: 6
         "503":
           description: The database could not be opened.
           content:
@@ -743,8 +743,8 @@ paths:
             example:
               guest_name: Zara Ahmed
               relation: Cousin
-              start_date: "2026-09-18"
-              end_date: "2026-09-21"
+              guest_start_date: "2026-09-18"
+              guest_end_date: "2026-09-21"
               reason: Family wedding in Aligarh. Staying with Aisha, B-204.
       responses:
         "201":
@@ -2031,7 +2031,7 @@ paths:
 
         Header, in this order:
 
-        `record_type,full_name,enrolment_number,room_label,block_code,course,presence,state,place,exited_at,expected_return_at,grace_ends_at,returned_at,outing_type,guardian_name,guardian_phone,guest_name,relation,host_name,host_room_label,start_date,end_date,payment_status,guest_bucket,arrived_at,departed_at`
+        `record_type,full_name,enrolment_number,room_label,block_code,course,presence,state,place,exited_at,expected_return_at,grace_ends_at,returned_at,outing_type,guardian_name,guardian_phone,guest_name,relation,host_name,host_room_label,guest_start_date,guest_end_date,payment_status,guest_bucket,arrived_at,departed_at`
 
         `record_type` is `resident` or `guest`. Instants are UTC. Dates are
         YYYY-MM-DD. This export contains guardian phone numbers and is not a
@@ -2892,7 +2892,7 @@ components:
     GuestStayCreate:
       type: object
       additionalProperties: false
-      required: [guest_name, relation, start_date, end_date, reason]
+      required: [guest_name, relation, guest_start_date, guest_end_date, reason]
       properties:
         guest_name:
           type: string
@@ -2902,10 +2902,10 @@ components:
           type: string
           minLength: 1
           maxLength: 80
-        start_date:
+        guest_start_date:
           type: string
           format: date
-        end_date:
+        guest_end_date:
           type: string
           format: date
         reason:
@@ -2923,8 +2923,8 @@ components:
         - host_room_label
         - guest_name
         - relation
-        - start_date
-        - end_date
+        - guest_start_date
+        - guest_end_date
         - inclusive_days
         - reason
         - status
@@ -2946,10 +2946,10 @@ components:
           type: string
         relation:
           type: string
-        start_date:
+        guest_start_date:
           type: string
           format: date
-        end_date:
+        guest_end_date:
           type: string
           format: date
         inclusive_days:
@@ -2968,21 +2968,24 @@ components:
           oneOf:
             - type: string
             - type: "null"
-        decided_by_name:
+        decided_by:
           oneOf:
             - type: string
+              format: uuid
             - type: "null"
-          description: Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects.
-        arrived_recorded_by_name:
+          description: UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects.
+        arrived_recorded_by:
           oneOf:
             - type: string
+              format: uuid
             - type: "null"
-          description: Staff member who recorded arrival. Empty until arrival is recorded.
-        departed_recorded_by_name:
+          description: UUID of the staff member who recorded arrival. Empty until arrival is recorded.
+        departed_recorded_by:
           oneOf:
             - type: string
+              format: uuid
             - type: "null"
-          description: Staff member who recorded departure. Empty until departure is recorded.
+          description: UUID of the staff member who recorded departure. Empty until departure is recorded.
         arrived_at:
           oneOf:
             - type: string
@@ -3002,15 +3005,15 @@ components:
       additionalProperties: false
       description: |
         Card fields for guest-stay list rows. Full stay detail (reason, decision
-        note, recorder names, arrival/departure instants) is on GuestStay via
-        GET by id.
+        note, decided_by / recorder staff ids, arrival/departure instants) is on
+        GuestStay via GET by id.
       required:
         - id
         - guest_name
         - host_name
         - host_room_label
-        - start_date
-        - end_date
+        - guest_start_date
+        - guest_end_date
         - status
         - payment_status
         - bucket
@@ -3024,10 +3027,10 @@ components:
           type: string
         host_room_label:
           type: string
-        start_date:
+        guest_start_date:
           type: string
           format: date
-        end_date:
+        guest_end_date:
           type: string
           format: date
         status:
@@ -3128,7 +3131,7 @@ components:
     GateGuestCard:
       type: object
       additionalProperties: false
-      required: [id, guest_name, host_name, host_room_label, start_date, end_date, payment_status, bucket]
+      required: [id, guest_name, host_name, host_room_label, guest_start_date, guest_end_date, payment_status, bucket]
       properties:
         id:
           type: string
@@ -3139,10 +3142,10 @@ components:
           type: string
         host_room_label:
           type: string
-        start_date:
+        guest_start_date:
           type: string
           format: date
-        end_date:
+        guest_end_date:
           type: string
           format: date
         payment_status:

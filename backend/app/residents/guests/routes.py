@@ -35,8 +35,8 @@ class GuestStayCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     guest_name: str = Field(min_length=1, max_length=120)
     relation: str = Field(min_length=1, max_length=80)
-    start_date: str
-    end_date: str
+    guest_start_date: str
+    guest_end_date: str
     reason: str = Field(min_length=1, max_length=500)
 
 
@@ -87,8 +87,8 @@ def submit_guest_stay(
     account: ResidentDep,
     connection: ConnectionDep,
 ) -> GuestStayBody:
-    start = _parse_date(body.start_date, field="start_date")
-    end = _parse_date(body.end_date, field="end_date")
+    start = _parse_date(body.guest_start_date, field="guest_start_date")
+    end = _parse_date(body.guest_end_date, field="guest_end_date")
     if end < start:
         raise ApiError(
             422,
@@ -123,7 +123,7 @@ def submit_guest_stay(
     connection.execute(
         """
         INSERT INTO guest_stays (
-          id, host_resident_id, guest_name, relation, start_date, end_date, reason,
+          id, host_resident_id, guest_name, relation, guest_start_date, guest_end_date, reason,
           status, payment_status, payment_marked_by, payment_marked_at,
           decided_by, decided_at, decision_note,
           arrived_at, arrived_recorded_by, departed_at, departed_recorded_by,
