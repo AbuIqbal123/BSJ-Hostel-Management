@@ -15,7 +15,7 @@ from app.residents.permissions.records import (
     PermissionPageBody,
     PermissionStatus,
     expire_passed_permissions,
-    list_reviews,
+    list_own,
     load_permission,
     record_permission,
 )
@@ -97,7 +97,7 @@ def list_own_permissions(
     offset: Annotated[int, Query(ge=0)] = 0,
     status: Annotated[PermissionStatus | None, Query()] = None,
 ) -> PermissionPageBody:
-    return list_reviews(
+    return list_own(
         connection,
         resident_id=account.id,
         status=status,

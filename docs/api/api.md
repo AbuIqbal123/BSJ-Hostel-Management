@@ -1020,9 +1020,11 @@ Late-night and home-going permissions. Resident requests under /api/v1/me/permis
 
 **Who.** resident. Bearer access token.
 
-Caller: resident. Newest first. Includes late-night and home going. Does
-not expire passed permissions; call POST /api/v1/me/expire-passed first
-when the phone needs a fresh status.
+Caller: resident. Newest first. Includes late-night and home going. Each
+item is a Permission (no resident_id, resident_name, or room_label — the
+caller already is that resident). Does not expire passed permissions;
+call POST /api/v1/me/expire-passed first when the phone needs a fresh
+status.
 
 **Parameters**
 
@@ -1045,7 +1047,7 @@ Body: [PermissionPage](#schema-permissionpage).
 | `total` | yes | integer | minimum 0. |
 | `limit` | yes | integer |  |
 | `offset` | yes | integer |  |
-| `items` | yes | list of [PermissionReview](#schema-permissionreview) |  |
+| `items` | yes | list of [Permission](#schema-permission) | Resident own-list cards. No resident_id/name/room on each row. |
 
 #### 401
 
@@ -1307,7 +1309,8 @@ Caller: warden or provost. Defaults to `pending`. Ordered by
 oldest first. Optional filters narrow the page: `block_id` is the block
 of the resident's current room; `type` is late-night or home going;
 `created_from` and `created_to` are inclusive UTC bounds on
-`created_at`. Does not expire passed permissions; call
+`created_at`. Each item is a PermissionReview (includes resident
+identity). Does not expire passed permissions; call
 POST /api/v1/permissions/expire-passed first when the queue needs a
 fresh status.
 
@@ -1330,14 +1333,14 @@ fresh status.
 
 Permission page.
 
-Body: [PermissionPage](#schema-permissionpage).
+Body: [PermissionReviewPage](#schema-permissionreviewpage).
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `total` | yes | integer | minimum 0. |
 | `limit` | yes | integer |  |
 | `offset` | yes | integer |  |
-| `items` | yes | list of [PermissionReview](#schema-permissionreview) |  |
+| `items` | yes | list of [PermissionReview](#schema-permissionreview) | Staff queue rows, including host resident identity. |
 
 #### 401
 
@@ -4342,7 +4345,16 @@ The `type` field selects the object:
 | `total` | yes | integer | minimum 0. |
 | `limit` | yes | integer |  |
 | `offset` | yes | integer |  |
-| `items` | yes | list of [PermissionReview](#schema-permissionreview) |  |
+| `items` | yes | list of [Permission](#schema-permission) | Resident own-list cards. No resident_id/name/room on each row. |
+
+### <a id="schema-permissionreviewpage"></a>PermissionReviewPage
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `total` | yes | integer | minimum 0. |
+| `limit` | yes | integer |  |
+| `offset` | yes | integer |  |
+| `items` | yes | list of [PermissionReview](#schema-permissionreview) | Staff queue rows, including host resident identity. |
 
 ### <a id="schema-decisionrequest"></a>DecisionRequest
 

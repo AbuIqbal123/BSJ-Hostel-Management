@@ -400,9 +400,9 @@ def test_permission_lifecycle(database_path: Path, monkeypatch: pytest.MonkeyPat
             IN_USE_ID,
             EXPIRED_ID,
         ]
-        assert listed["items"][0]["resident_name"] == "Aisha Khan"
-        assert listed["items"][0]["room_label"] == "B-204"
-        assert listed["items"][0]["resident_id"] == RESIDENT_ID
+        assert "resident_id" not in listed["items"][0]
+        assert "resident_name" not in listed["items"][0]
+        assert "room_label" not in listed["items"][0]
         assert listed["items"][-1]["status"] == "expired"
 
         got = client.get(f"/api/v1/me/permissions/{first_id}", headers=auth(resident))

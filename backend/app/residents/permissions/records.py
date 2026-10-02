@@ -50,6 +50,14 @@ class PermissionPageBody(BaseModel):
     total: int
     limit: int
     offset: int
+    items: list[PermissionBody]
+
+
+class PermissionReviewPageBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    total: int
+    limit: int
+    offset: int
     items: list[PermissionReviewBody]
 
 
@@ -202,7 +210,7 @@ def list_reviews(
     created_from: str | None = None,
     created_to: str | None = None,
     order: Literal["newest", "oldest"] = "newest",
-) -> PermissionPageBody:
+) -> PermissionReviewPageBody:
     clauses: list[str] = []
     params: list[str] = []
     if resident_id is not None:
@@ -246,9 +254,48 @@ def list_reviews(
         """,
         [*params, limit, offset],
     ).fetchall()
-    return PermissionPageBody(
+    return PermissionReviewPageBody(
         total=total,
         limit=limit,
         offset=offset,
         items=[review_from_row(row) for row in rows],
+    )
+
+
+def list_own(
+    connection: sqlite3.Connection,
+    *,
+    resident_id: str,
+    status: str | None,
+    limit: int,
+    offset: int,
+) -> PermissionPageBody:
+    page = list_reviews(
+        connection,
+        resident_id=resident_id,
+        status=status,
+        limit=limit,
+        offset=offset,
+    )
+    return PermissionPageBody(
+        total=page.total,
+        limit=page.limit,
+        offset=page.offset,
+        items=[
+            PermissionBody(
+                id=item.id,
+                type=item.type,
+                status=item.status,
+                short_place=item.short_place,
+                destination_detail=item.destination_detail,
+                address=item.address,
+                reason=item.reason,
+                departure_at=item.departure_at,
+                expected_return_at=item.expected_return_at,
+                decision_note=item.decision_note,
+                decided_at=item.decided_at,
+                created_at=item.created_at,
+            )
+            for item in page.items
+        ],
     )
