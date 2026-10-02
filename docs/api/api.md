@@ -1,6 +1,6 @@
 # Begum Sultan Jahan Hall API
 
-API version: **0.2.12**
+API version: **0.2.17**
 
 This is the reading copy of [`backend/openapi.yaml`](../../backend/openapi.yaml). Swagger at `/docs` serves that file. Stored data is in [`database.md`](../database/database.md). When an endpoint changes, edit the YAML and regenerate this page from the repository root:
 
@@ -2293,6 +2293,16 @@ the plan the gate would use and shows the pass again.
 While the resident is outside, a scan records the return. Nothing else
 is filled in.
 
+The 200 body is a discriminated union on `outcome`. Shared envelope
+fields are only `outcome`, `full_name`, `room_label`, and `message`.
+`recorded_at` is not on the envelope: it sits inside the nested variant.
+On `exit_recorded` the nest is `outing` (outing fields plus
+`recorded_at`). On `return_recorded` the nest is `return_record`
+(`recorded_at`, `on_time`, `returned_at`, `return_recorded_by_name`,
+`is_late`). Exit has no `return_record`; return has no `outing`.
+The JSON key is `return_record` (not `return`) so OpenAPI and Python
+clients avoid the reserved word.
+
 A second scan inside `scan_duplicate_window_seconds` of the previous
 exit or return for that resident is refused, so one presentation at the
 gate cannot undo itself. The refusal for a fresh exit uses the gate
@@ -2321,17 +2331,27 @@ Body: [ScanRequest](#schema-scanrequest).
 
 Exit recorded, or return recorded.
 
-Body: [ScanResult](#schema-scanresult).
+One of: [ScanExitResult](#schema-scanexitresult), [ScanReturnResult](#schema-scanreturnresult).
+
+**ScanExitResult**
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `outcome` | yes | `exit_recorded` or `return_recorded` |  |
+| `outcome` | yes | `exit_recorded` |  |
 | `full_name` | yes | string |  |
 | `room_label` | yes | string |  |
-| `recorded_at` | yes | date-time |  |
 | `message` | yes | string |  |
-| `on_time` | no | boolean or null | Present on a return. True when the return is at or before grace. |
-| `outing` | yes | [Outing](#schema-outing) |  |
+| `outing` | yes | [ScanExitOuting](#schema-scanexitouting) |  |
+
+**ScanReturnResult**
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `outcome` | yes | `return_recorded` |  |
+| `full_name` | yes | string |  |
+| `room_label` | yes | string |  |
+| `message` | yes | string |  |
+| `return_record` | yes | [ScanReturnRecord](#schema-scanreturnrecord) | Nested return payload. Named `return_record` (not `return`) so OpenAPI and Python clients avoid the reserved word. |
 
 **exit**
 
@@ -2340,8 +2360,23 @@ Body: [ScanResult](#schema-scanresult).
   "outcome": "exit_recorded",
   "full_name": "Aisha Khan",
   "room_label": "B-204",
-  "recorded_at": "2026-09-13T12:42:00Z",
-  "message": "The resident is now outside."
+  "message": "The resident is now outside.",
+  "outing": {
+    "id": "e7700000-0000-4000-8000-000000000011",
+    "permission_id": null,
+    "type": "ordinary",
+    "status": "outside",
+    "place": "Library",
+    "expected_return_at": "2026-09-13T13:00:00Z",
+    "grace_ends_at": "2026-09-13T13:15:00Z",
+    "exited_at": "2026-09-13T12:42:00Z",
+    "exit_recorded_by_name": "Fatima Khan",
+    "returned_at": null,
+    "return_recorded_by_name": null,
+    "is_late": false,
+    "created_at": "2026-09-13T12:30:00Z",
+    "recorded_at": "2026-09-13T12:42:00Z"
+  }
 }
 ```
 
@@ -2352,9 +2387,14 @@ Body: [ScanResult](#schema-scanresult).
   "outcome": "return_recorded",
   "full_name": "Aisha Khan",
   "room_label": "B-204",
-  "recorded_at": "2026-09-13T13:24:00Z",
   "message": "On time. Status is now inside.",
-  "on_time": true
+  "return_record": {
+    "recorded_at": "2026-09-13T13:24:00Z",
+    "on_time": true,
+    "returned_at": "2026-09-13T13:24:00Z",
+    "return_recorded_by_name": "Fatima Khan",
+    "is_late": false
+  }
 }
 ```
 
@@ -4699,17 +4739,66 @@ empty; any stored note is cleared with `payment_marked_by` and
 |---|---|---|---|
 | `qr_payload` | yes | string | Raw QR text, either `bsj:v1:{token}` or the token alone. 1–300 characters. |
 
-### <a id="schema-scanresult"></a>ScanResult
+### <a id="schema-scanexitouting"></a>ScanExitOuting
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `outcome` | yes | `exit_recorded` or `return_recorded` |  |
+| `id` | yes | uuid |  |
+| `permission_id` | no | uuid or null | Empty for an ordinary outing. Set when the exit used a permission. |
+| `type` | yes | `ordinary` or `late_night` or `home_going` |  |
+| `status` | yes | `planned` or `outside` or `returned` or `cancelled` |  |
+| `place` | yes | string | List name, the words typed for Other, or the permission's short place. |
+| `expected_return_at` | yes | date-time | UTC instant. Clients show India time on a 12-hour clock. |
+| `grace_ends_at` | yes | date-time |  |
+| `exited_at` | no | date-time or null | Empty only while an ordinary outing is still planned. Required once the resident has left. |
+| `exit_recorded_by_name` | no | string or null | Staff member who scanned the exit. Empty only while exited_at is empty. |
+| `returned_at` | no | date-time or null | Empty until the return scan. Required once the resident has returned. |
+| `return_recorded_by_name` | no | string or null | Staff member who scanned the return. Empty only while returned_at is empty. |
+| `is_late` | yes | boolean |  |
+| `created_at` | yes | date-time |  |
+| `recorded_at` | yes | date-time | When this exit was recorded at the gate (UTC). |
+
+### <a id="schema-scanreturnrecord"></a>ScanReturnRecord
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `recorded_at` | yes | date-time | When this return was recorded at the gate (UTC). |
+| `on_time` | yes | boolean | True when the return is at or before grace; otherwise false. |
+| `returned_at` | yes | date-time |  |
+| `return_recorded_by_name` | yes | string | Staff member who scanned the return. |
+| `is_late` | yes | boolean | True when the return is after grace (`not on_time`). |
+
+### <a id="schema-scanexitresult"></a>ScanExitResult
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `outcome` | yes | `exit_recorded` |  |
 | `full_name` | yes | string |  |
 | `room_label` | yes | string |  |
-| `recorded_at` | yes | date-time |  |
 | `message` | yes | string |  |
-| `on_time` | no | boolean or null | Present on a return. True when the return is at or before grace. |
-| `outing` | yes | [Outing](#schema-outing) |  |
+| `outing` | yes | [ScanExitOuting](#schema-scanexitouting) |  |
+
+### <a id="schema-scanreturnresult"></a>ScanReturnResult
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `outcome` | yes | `return_recorded` |  |
+| `full_name` | yes | string |  |
+| `room_label` | yes | string |  |
+| `message` | yes | string |  |
+| `return_record` | yes | [ScanReturnRecord](#schema-scanreturnrecord) | Nested return payload. Named `return_record` (not `return`) so OpenAPI and Python clients avoid the reserved word. |
+
+### <a id="schema-scanresult"></a>ScanResult
+
+Discriminated union on `outcome`. Shared envelope fields are only
+`outcome`, `full_name`, `room_label`, and `message`. Variant nests are
+mutually exclusive: `outing` on exit, `return_record` on return.
+`recorded_at` lives inside each nest, not on the envelope.
+
+The `type` field selects the object:
+
+- `exit_recorded` → [ScanExitResult](#schema-scanexitresult)
+- `return_recorded` → [ScanReturnResult](#schema-scanreturnresult)
 
 ### <a id="schema-gateactivityitem"></a>GateActivityItem
 

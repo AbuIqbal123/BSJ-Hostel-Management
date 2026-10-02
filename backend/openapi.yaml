@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Begum Sultan Jahan Hall API
-  version: 0.2.12
+  version: 0.2.17
   description: |
     HTTP contract for the hostel movement system. Schema version of the database
     is tracked separately in `docs/database/database.md` (0.3.4).
@@ -900,6 +900,16 @@ paths:
         While the resident is outside, a scan records the return. Nothing else
         is filled in.
 
+        The 200 body is a discriminated union on `outcome`. Shared envelope
+        fields are only `outcome`, `full_name`, `room_label`, and `message`.
+        `recorded_at` is not on the envelope: it sits inside the nested variant.
+        On `exit_recorded` the nest is `outing` (outing fields plus
+        `recorded_at`). On `return_recorded` the nest is `return_record`
+        (`recorded_at`, `on_time`, `returned_at`, `return_recorded_by_name`,
+        `is_late`). Exit has no `return_record`; return has no `outing`.
+        The JSON key is `return_record` (not `return`) so OpenAPI and Python
+        clients avoid the reserved word.
+
         A second scan inside `scan_duplicate_window_seconds` of the previous
         exit or return for that resident is refused, so one presentation at the
         gate cannot undo itself. The refusal for a fresh exit uses the gate
@@ -926,16 +936,34 @@ paths:
                     outcome: exit_recorded
                     full_name: Aisha Khan
                     room_label: B-204
-                    recorded_at: "2026-09-13T12:42:00Z"
                     message: The resident is now outside.
+                    outing:
+                      id: e7700000-0000-4000-8000-000000000011
+                      permission_id: null
+                      type: ordinary
+                      status: outside
+                      place: Library
+                      expected_return_at: "2026-09-13T13:00:00Z"
+                      grace_ends_at: "2026-09-13T13:15:00Z"
+                      exited_at: "2026-09-13T12:42:00Z"
+                      exit_recorded_by_name: Fatima Khan
+                      returned_at: null
+                      return_recorded_by_name: null
+                      is_late: false
+                      created_at: "2026-09-13T12:30:00Z"
+                      recorded_at: "2026-09-13T12:42:00Z"
                 return:
                   value:
                     outcome: return_recorded
                     full_name: Aisha Khan
                     room_label: B-204
-                    recorded_at: "2026-09-13T13:24:00Z"
                     message: On time. Status is now inside.
-                    on_time: true
+                    return_record:
+                      recorded_at: "2026-09-13T13:24:00Z"
+                      on_time: true
+                      returned_at: "2026-09-13T13:24:00Z"
+                      return_recorded_by_name: Fatima Khan
+                      is_late: false
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -3271,30 +3299,90 @@ components:
           maxLength: 300
           description: Raw QR text, either `bsj:v1:{token}` or the token alone.
 
-    ScanResult:
+    ScanExitOuting:
+      allOf:
+        - $ref: "#/components/schemas/Outing"
+        - type: object
+          required: [recorded_at]
+          properties:
+            recorded_at:
+              type: string
+              format: date-time
+              description: When this exit was recorded at the gate (UTC).
+
+    ScanReturnRecord:
       type: object
       additionalProperties: false
-      required: [outcome, full_name, room_label, recorded_at, message, outing]
+      required: [recorded_at, on_time, returned_at, return_recorded_by_name, is_late]
+      properties:
+        recorded_at:
+          type: string
+          format: date-time
+          description: When this return was recorded at the gate (UTC).
+        on_time:
+          type: boolean
+          description: True when the return is at or before grace; otherwise false.
+        returned_at:
+          type: string
+          format: date-time
+        return_recorded_by_name:
+          type: string
+          description: Staff member who scanned the return.
+        is_late:
+          type: boolean
+          description: True when the return is after grace (`not on_time`).
+
+    ScanExitResult:
+      type: object
+      additionalProperties: false
+      required: [outcome, full_name, room_label, message, outing]
       properties:
         outcome:
           type: string
-          enum: [exit_recorded, return_recorded]
+          const: exit_recorded
         full_name:
           type: string
         room_label:
           type: string
-        recorded_at:
-          type: string
-          format: date-time
         message:
           type: string
-        on_time:
-          oneOf:
-            - type: boolean
-            - type: "null"
-          description: Present on a return. True when the return is at or before grace.
         outing:
-          $ref: "#/components/schemas/Outing"
+          $ref: "#/components/schemas/ScanExitOuting"
+
+    ScanReturnResult:
+      type: object
+      additionalProperties: false
+      required: [outcome, full_name, room_label, message, return_record]
+      properties:
+        outcome:
+          type: string
+          const: return_recorded
+        full_name:
+          type: string
+        room_label:
+          type: string
+        message:
+          type: string
+        return_record:
+          $ref: "#/components/schemas/ScanReturnRecord"
+          description: |
+            Nested return payload. Named `return_record` (not `return`) so
+            OpenAPI and Python clients avoid the reserved word.
+
+    ScanResult:
+      oneOf:
+        - $ref: "#/components/schemas/ScanExitResult"
+        - $ref: "#/components/schemas/ScanReturnResult"
+      discriminator:
+        propertyName: outcome
+        mapping:
+          exit_recorded: "#/components/schemas/ScanExitResult"
+          return_recorded: "#/components/schemas/ScanReturnResult"
+      description: |
+        Discriminated union on `outcome`. Shared envelope fields are only
+        `outcome`, `full_name`, `room_label`, and `message`. Variant nests are
+        mutually exclusive: `outing` on exit, `return_record` on return.
+        `recorded_at` lives inside each nest, not on the envelope.
 
     GateActivityItem:
       type: object
