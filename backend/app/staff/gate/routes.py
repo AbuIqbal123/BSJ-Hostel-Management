@@ -44,7 +44,7 @@ class ScanExitOuting(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: str
     permission_id: str | None
-    type: Literal["ordinary", "late_night", "home_going"]
+    outing_type: Literal["ordinary", "late_night", "home_going"]
     status: Literal["planned", "outside", "returned", "cancelled"]
     place: str
     expected_return_at: str

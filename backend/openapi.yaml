@@ -944,7 +944,7 @@ paths:
                     outing:
                       id: e7700000-0000-4000-8000-000000000011
                       permission_id: null
-                      type: ordinary
+                      outing_type: ordinary
                       status: outside
                       place: Library
                       expected_return_at: "2026-09-13T13:00:00Z"
@@ -3402,7 +3402,7 @@ components:
         `return_timeliness`, which is only on a return.
       required:
         - id
-        - type
+        - outing_type
         - status
         - place
         - expected_return_at
@@ -3419,7 +3419,7 @@ components:
             - type: string
               format: uuid
             - type: "null"
-        type:
+        outing_type:
           $ref: "#/components/schemas/OutingType"
         status:
           $ref: "#/components/schemas/OutingStatus"

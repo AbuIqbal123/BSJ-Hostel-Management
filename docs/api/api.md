@@ -2370,7 +2370,7 @@ One of: [ScanExitResult](#schema-scanexitresult), [ScanReturnResult](#schema-sca
   "outing": {
     "id": "e7700000-0000-4000-8000-000000000011",
     "permission_id": null,
-    "type": "ordinary",
+    "outing_type": "ordinary",
     "status": "outside",
     "place": "Library",
     "expected_return_at": "2026-09-13T13:00:00Z",
@@ -4869,7 +4869,7 @@ Outing). Includes outing `lateness` (`on_time` or `late`). Omits
 |---|---|---|---|
 | `id` | yes | uuid |  |
 | `permission_id` | no | uuid or null |  |
-| `type` | yes | `ordinary` or `late_night` or `home_going` |  |
+| `outing_type` | yes | `ordinary` or `late_night` or `home_going` |  |
 | `status` | yes | `planned` or `outside` or `returned` or `cancelled` | Outing lifecycle status (typically `outside` on exit). |
 | `place` | yes | string |  |
 | `expected_return_at` | yes | date-time |  |
