@@ -1,8 +1,8 @@
 # Test catalog
 
-Document version: **0.4.48**
+Document version: **0.4.49**
 
-Status: thirty-one recorded tests. Startup creates the hall. Mock late and return guardian notices are recorded on register read and return scan. `GET /ready` opens the database and reports user_version beside shallow `/health`. The signing key must be at least 32 bytes. Sign-in keeps a session. Sign-in and refresh attempts are rate-limited. A development command adds local accounts. Resident home reads the resident's own screen. The destination list shows the active ordinary-outing choices, with Other last. A resident can plan an ordinary outing before the gate scan. She can read the outing that is still planned or outside. She can cancel that plan before the gate scan. A warden or the provost can read the register presence board: hall and block counts, the resident list with filters, one resident's record, and the late list. A resident can submit, list, read, and cancel late-night and home-going permissions. A warden or the provost can read the permission queue and decide a pending request. The staff permission queue sorts by created_at (newest default) and accepts optional filters for block, type, and created_at date range. A resident can read her own exit and return history as a paginated list. A resident can read her permanent hall-pass QR payload. A resident can apply for, list, read, edit, and cancel her own guest stays. A warden or the provost can list guest stays by bucket (terminal cancelled/rejected omitted by default; `include_terminal=true` opts them back in), decide a pending stay, and mark payment before arrival. Gate staff can scan a hall pass to record an exit or return, and read recent gate activity. Gate staff can list expected and in-hall guests (optional `payment_status` filter) and record guest arrival and departure. The provost can read and update hall settings. The provost can list, create, and update blocks. The provost can list, create, and update rooms. The provost can list, create, and update destinations. The provost can list, create, and update residents and reissue a hall pass. The provost can list, create, and update staff accounts. The provost can reset a user password. The provost can read the audit log. The provost can read the SMS log. The provost can export the register as CSV.
+Status: thirty-two recorded tests. Startup creates the hall. Mock late and return guardian notices are recorded on register read and return scan. `GET /ready` opens the database and reports user_version beside shallow `/health`. The signing key must be at least 32 bytes. Sign-in keeps a session. Sign-in and refresh attempts are rate-limited. A development command adds local accounts. Resident home reads the resident's own screen. The destination list shows the active ordinary-outing choices, with Other last. A resident can plan an ordinary outing before the gate scan. She can read the outing that is still planned or outside. She can cancel that plan before the gate scan. A warden or the provost can read the register presence board: hall and block counts, the resident list with filters, one resident's record, and the late list. A resident can submit, list, read, and cancel late-night and home-going permissions. A warden or the provost can read the permission queue and decide a pending request. The staff permission queue sorts by created_at (newest default) and accepts optional filters for block, type, and created_at date range. A resident can read her own exit and return history as a paginated list. A resident can read her permanent hall-pass QR payload. A resident can apply for, list, read, edit, and cancel her own guest stays. A warden or the provost can list guest stays by bucket (terminal cancelled/rejected omitted by default; `include_terminal=true` opts them back in), decide a pending stay, and mark payment before arrival. Gate staff can scan a hall pass to record an exit or return, and read recent gate activity. Gate staff can list expected and in-hall guests (optional `payment_status` filter) and record guest arrival and departure. Gate staff can read guest dining occupancy counts for the gate home strip. The provost can read and update hall settings. The provost can list, create, and update blocks. The provost can list, create, and update rooms. The provost can list, create, and update destinations. The provost can list, create, and update residents and reissue a hall pass. The provost can list, create, and update staff accounts. The provost can reset a user password. The provost can read the audit log. The provost can read the SMS log. The provost can export the register as CSV.
 
 Each test has an entry here and a file next to the business area it covers. Write the failing check for one behavior, see it fail, then make it pass. Update the entry in that same change. The entry names the test file. It does not copy every payload when the test already states them. A migration is not part of this loop unless the stored records change. Bump this document when the format or a recorded test changes.
 
@@ -313,6 +313,21 @@ Copy this block for each test and fill every field.
 | Failure cases | E2E; failure cases are covered by the expected response. |
 | Artifact | `backend/app/staff/gate/tests/artifacts/gate-guests.json` |
 
+
+
+
+### `gate-occupancy` Guest dining occupancy at the gate
+
+| Field | Content |
+|---|---|
+| Test | `backend/app/staff/gate/tests/test_occupancy.py` |
+| Purpose | Gate (or warden/provost) reads hall-wide guest dining occupancy: guests still in the hall, and the subset who should already have left, without calling arrival/departure or the full register summary. |
+| Actor | Gate staff. Warden may read. Resident is refused. |
+| Preconditions | The hall from `hall-created` exists. Clock frozen at 2026-09-30T12:00:00Z. Fatima Khan is gate staff. Sara Malik is warden. Aisha Khan and Maryam Siddiqui are residents with rooms. Seeded stays: in-hall within dates, should-have-left dining, expected (not arrived), unpaid, and departed. |
+| Action | `GET /api/v1/gate/occupancy` with no token, as Aisha, as Fatima, then as Sara. |
+| Expected response | No token returns 401. Resident returns 403. Gate and warden return 200 with `guests_in_hall_count` 2 and `guests_should_have_left_count` 1 matching the artifact. |
+| Failure cases | E2E; failure cases are covered by the expected response. |
+| Artifact | `backend/app/staff/gate/tests/artifacts/gate-occupancy.json` |
 
 
 ### `admin-settings` Hall settings read and update

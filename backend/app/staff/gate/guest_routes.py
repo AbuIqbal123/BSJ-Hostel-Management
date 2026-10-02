@@ -1,4 +1,4 @@
-"""Gate guest lists, arrival, and departure."""
+"""Gate guest lists, occupancy, arrival, and departure."""
 
 from __future__ import annotations
 
@@ -40,6 +40,12 @@ class GateGuestList(BaseModel):
     items: list[GateGuestCard]
 
 
+class GateOccupancy(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    guests_in_hall_count: int
+    guests_should_have_left_count: int
+
+
 class GuestMovementResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
     guest_name: str
@@ -47,6 +53,31 @@ class GuestMovementResult(BaseModel):
     host_room_label: str
     recorded_at: str
     message: str
+
+
+def guests_in_hall_count(connection: sqlite3.Connection) -> int:
+    row = connection.execute(
+        """
+        SELECT COUNT(*) AS n
+        FROM guest_stays
+        WHERE arrived_at IS NOT NULL AND departed_at IS NULL
+        """
+    ).fetchone()
+    return int(row["n"])
+
+
+def guests_should_have_left_count(connection: sqlite3.Connection, today: str) -> int:
+    row = connection.execute(
+        """
+        SELECT COUNT(*) AS n
+        FROM guest_stays
+        WHERE arrived_at IS NOT NULL
+          AND departed_at IS NULL
+          AND guest_end_date < ?
+        """,
+        (today,),
+    ).fetchone()
+    return int(row["n"])
 
 
 def _host_fields(connection: sqlite3.Connection, guest_stay_id: str) -> sqlite3.Row | None:
@@ -71,6 +102,18 @@ def _host_fields(connection: sqlite3.Connection, guest_stay_id: str) -> sqlite3.
         """,
         (guest_stay_id,),
     ).fetchone()
+
+
+@router.get("/occupancy", response_model=GateOccupancy)
+def gate_occupancy(
+    _account: GateDep,
+    connection: ConnectionDep,
+) -> GateOccupancy:
+    today = hall_today(connection, clock.utc_now())
+    return GateOccupancy(
+        guests_in_hall_count=guests_in_hall_count(connection),
+        guests_should_have_left_count=guests_should_have_left_count(connection, today),
+    )
 
 
 @router.get("/guests", response_model=GateGuestList)

@@ -54,6 +54,7 @@ Do not edit this page by hand.
 - [Gate](#tag-gate)
   - [POST `/api/v1/gate/scans` — Scan a hall pass](#post-api-v1-gate-scans)
   - [GET `/api/v1/gate/activity` — Recent gate activity](#get-api-v1-gate-activity)
+  - [GET `/api/v1/gate/occupancy` — Guest dining occupancy at the gate](#get-api-v1-gate-occupancy)
   - [GET `/api/v1/gate/guests` — Guests for the gate](#get-api-v1-gate-guests)
   - [POST `/api/v1/gate/guests/{guest_stay_id}/arrival` — Record guest arrival](#post-api-v1-gate-guests-guest_stay_id-arrival)
   - [POST `/api/v1/gate/guests/{guest_stay_id}/departure` — Record guest departure](#post-api-v1-gate-guests-guest_stay_id-departure)
@@ -95,7 +96,7 @@ is tracked separately in `docs/database/database.md` (0.3.4).
 
 This version is the contract. Auth, resident phone (home, history, hall pass,
 destinations, ordinary outings, permissions, guest stays), register, staff
-permission queue, staff guest stays, gate scans and guests, and hall office
+permission queue, staff guest stays, gate scans, guests, and occupancy, and hall office
 (settings, blocks, rooms, destinations, residents, staff, password reset,
 audit, SMS log, register export) respond. Swagger on this server is the
 review surface for purpose, payload, and response.
@@ -2262,6 +2263,7 @@ Scan the permanent hall pass, and record guest arrival and departure. Guests hav
 |---|---|---|---|
 | POST | `/api/v1/gate/scans` | [Scan a hall pass](#post-api-v1-gate-scans) | gate, warden, or provost |
 | GET | `/api/v1/gate/activity` | [Recent gate activity](#get-api-v1-gate-activity) | gate, warden, or provost |
+| GET | `/api/v1/gate/occupancy` | [Guest dining occupancy at the gate](#get-api-v1-gate-occupancy) | gate, warden, or provost |
 | GET | `/api/v1/gate/guests` | [Guests for the gate](#get-api-v1-gate-guests) | gate, warden, or provost |
 | POST | `/api/v1/gate/guests/{guest_stay_id}/arrival` | [Record guest arrival](#post-api-v1-gate-guests-guest_stay_id-arrival) | gate, warden, or provost |
 | POST | `/api/v1/gate/guests/{guest_stay_id}/departure` | [Record guest departure](#post-api-v1-gate-guests-guest_stay_id-departure) | gate, warden, or provost |
@@ -2447,6 +2449,54 @@ Body: [GateActivityPage](#schema-gateactivitypage).
       "subtitle": "A-118"
     }
   ]
+}
+```
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
+### <a id="get-api-v1-gate-occupancy"></a>GET `/api/v1/gate/occupancy` — Guest dining occupancy at the gate
+
+`gate_occupancy`
+
+**Who.** gate, warden, or provost. Bearer access token.
+
+Caller: gate, warden, or provost. Hall-wide guest dining counts for the
+gate home strip. `guests_in_hall_count` is every stay that has arrived
+and has not departed (includes should-have-left).
+`guests_should_have_left_count` is the subset whose hall date is after
+`guest_end_date`. This is not the full register presence board; use
+`GET /api/v1/register/summary` for resident inside/outside/late counts.
+
+**Responses**
+
+#### 200
+
+Dining occupancy counts.
+
+Body: [GateOccupancy](#schema-gateoccupancy).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `guests_in_hall_count` | yes | integer | Dining count: arrived_at IS NOT NULL AND departed_at IS NULL (includes should-have-left). minimum 0. |
+| `guests_should_have_left_count` | yes | integer | Subset of dining where the hall date is after guest_end_date. minimum 0. |
+
+**Example**
+
+```json
+{
+  "guests_in_hall_count": 2,
+  "guests_should_have_left_count": 1
 }
 ```
 
@@ -4654,6 +4704,13 @@ empty; any stored note is cleared with `payment_marked_by` and
 | `limit` | yes | integer |  |
 | `offset` | yes | integer |  |
 | `items` | yes | list of [GateActivityItem](#schema-gateactivityitem) |  |
+
+### <a id="schema-gateoccupancy"></a>GateOccupancy
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `guests_in_hall_count` | yes | integer | Dining count: arrived_at IS NOT NULL AND departed_at IS NULL (includes should-have-left). minimum 0. |
+| `guests_should_have_left_count` | yes | integer | Subset of dining where the hall date is after guest_end_date. minimum 0. |
 
 ### <a id="schema-gateguestcard"></a>GateGuestCard
 
