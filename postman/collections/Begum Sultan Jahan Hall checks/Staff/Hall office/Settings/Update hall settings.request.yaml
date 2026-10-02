@@ -3,7 +3,7 @@ method: PATCH
 url: '{{baseUrl}}/api/v1/admin/settings'
 order: 2000
 description: |-
-  Caller: provost. Send only the fields that change. Summer hours, winter hours, and the two season start dates are always set. Changing grace does not rewrite outings that already have a `grace_ends_at`. SMS templates keep the placeholders listed on `HallSettings`. A time of day is sent as HH:MM. A season start is sent as MM-DD.
+  Caller: provost. Send only the fields that change. Ordinary outing windows and the two season start dates are always set. Changing grace does not rewrite outings that already have a `grace_ends_at`. SMS templates are on GET/PATCH /api/v1/admin/notifications. A time of day is sent as HH:MM. A season start is sent as MM-DD.
 headers:
   - key: Content-Type
     value: application/json

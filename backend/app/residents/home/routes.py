@@ -69,7 +69,7 @@ def _active_permission(connection: sqlite3.Connection, resident_id: str) -> Perm
         return None
     return PermissionBody(
         id=row["id"],
-        type=row["type"],
+        permission_type=row["type"],
         status=row["status"],
         short_place=row["short_place"],
         destination_detail=row["destination_detail"],

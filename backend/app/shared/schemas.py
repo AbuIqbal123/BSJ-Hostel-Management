@@ -18,8 +18,8 @@ class Destination(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: str
     name: str
-    is_other: bool
-    is_active: bool
+    source: Literal["preset", "custom"]
+    status: Literal["active", "inactive"]
 
 
 class DestinationList(BaseModel):

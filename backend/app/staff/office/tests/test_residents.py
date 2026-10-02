@@ -149,6 +149,7 @@ def test_admin_residents(database_path: Path, monkeypatch: pytest.MonkeyPatch) -
         assert listed.status_code == 200
         assert listed.json()["total"] == 1
         assert listed.json()["items"][0]["id"] == AISHA_ID
+        assert listed.json()["items"][0]["phone"] is None
         assert "hall_pass" not in listed.json()["items"][0]
         assert "qr" not in json.dumps(listed.json()).lower()
 
@@ -169,6 +170,7 @@ def test_admin_residents(database_path: Path, monkeypatch: pytest.MonkeyPatch) -
         assert body["account"]["room_label"] == "B-205"
         assert body["account"]["status"] == "active"
         assert body["account"]["presence"] == "inside"
+        assert body["account"]["phone"] == expected["create"]["phone"]
         assert body["hall_pass"]["qr_payload"].startswith("bsj:v1:")
         assert body["hall_pass"]["full_name"] == "Maryam Siddiqui"
         assert body["hall_pass"]["room_label"] == "B-205"
@@ -198,6 +200,7 @@ def test_admin_residents(database_path: Path, monkeypatch: pytest.MonkeyPatch) -
         got = client.get(f"/api/v1/admin/residents/{maryam_id}", headers=headers)
         assert got.status_code == 200
         assert got.json()["id"] == maryam_id
+        assert got.json()["phone"] == expected["create"]["phone"]
         assert "qr" not in json.dumps(got.json()).lower()
 
         assert_error(
@@ -338,6 +341,7 @@ def test_null_resident_fields_and_retired_room(
         assert kept.status_code == 200
         assert kept.json()["full_name"] == "Aisha Khan"
         assert kept.json()["course"] == "B.A. LL.B. (Hons.)"
+        assert kept.json()["phone"] is None
 
         cleared_course = client.patch(
             f"/api/v1/admin/residents/{AISHA_ID}",
@@ -347,6 +351,23 @@ def test_null_resident_fields_and_retired_room(
         assert cleared_course.status_code == 200
         assert cleared_course.json()["course"] is None
         assert cleared_course.json()["full_name"] == "Aisha Khan"
+
+        set_phone = client.patch(
+            f"/api/v1/admin/residents/{AISHA_ID}",
+            headers=headers,
+            json={"phone": expected["create"]["phone"]},
+        )
+        assert set_phone.status_code == 200
+        assert set_phone.json()["phone"] == expected["create"]["phone"]
+
+        cleared_phone = client.patch(
+            f"/api/v1/admin/residents/{AISHA_ID}",
+            headers=headers,
+            json={"phone": None},
+        )
+        assert cleared_phone.status_code == 200
+        assert cleared_phone.json()["phone"] is None
+        assert cleared_phone.json()["full_name"] == "Aisha Khan"
 
         created = client.post(
             "/api/v1/admin/residents",

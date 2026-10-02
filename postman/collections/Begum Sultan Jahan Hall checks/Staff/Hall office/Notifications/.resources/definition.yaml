@@ -1,0 +1,5 @@
+$kind: collection
+name: Notifications
+order: 4500
+description: |-
+  Provost only. Late and return guardian SMS templates. Bearer uses {{token_provost}}.

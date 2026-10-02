@@ -1,4 +1,4 @@
-"""Gate guest lists, arrival, and departure."""
+"""Gate guest lists, occupancy, arrival, and departure."""
 
 from __future__ import annotations
 
@@ -29,8 +29,8 @@ class GateGuestCard(BaseModel):
     guest_name: str
     host_name: str
     host_room_label: str
-    start_date: str
-    end_date: str
+    guest_start_date: str
+    guest_end_date: str
     payment_status: Literal["unpaid", "paid"]
     bucket: str
 
@@ -40,14 +40,32 @@ class GateGuestList(BaseModel):
     items: list[GateGuestCard]
 
 
-class GuestMovementResult(BaseModel):
+class GateOccupancy(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    guests_in_hall_count: int
+    guests_should_have_left_count: int
+
+
+class GuestArrivalResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
     guest_name: str
     host_name: str
     host_room_label: str
     recorded_at: str
+    recorded_by: str
+    arrival_time: str
     message: str
-    guests_in_hall_count: int
+
+
+class GuestDepartureResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    guest_name: str
+    host_name: str
+    host_room_label: str
+    recorded_at: str
+    recorded_by: str
+    departure_time: str
+    message: str
 
 
 def guests_in_hall_count(connection: sqlite3.Connection) -> int:
@@ -61,6 +79,20 @@ def guests_in_hall_count(connection: sqlite3.Connection) -> int:
     return int(row["n"])
 
 
+def guests_should_have_left_count(connection: sqlite3.Connection, today: str) -> int:
+    row = connection.execute(
+        """
+        SELECT COUNT(*) AS n
+        FROM guest_stays
+        WHERE arrived_at IS NOT NULL
+          AND departed_at IS NULL
+          AND guest_end_date < ?
+        """,
+        (today,),
+    ).fetchone()
+    return int(row["n"])
+
+
 def _host_fields(connection: sqlite3.Connection, guest_stay_id: str) -> sqlite3.Row | None:
     return connection.execute(
         """
@@ -69,8 +101,8 @@ def _host_fields(connection: sqlite3.Connection, guest_stay_id: str) -> sqlite3.
           guest_stays.guest_name,
           guest_stays.status,
           guest_stays.payment_status,
-          guest_stays.start_date,
-          guest_stays.end_date,
+          guest_stays.guest_start_date,
+          guest_stays.guest_end_date,
           guest_stays.arrived_at,
           guest_stays.departed_at,
           host.full_name AS host_name,
@@ -85,11 +117,24 @@ def _host_fields(connection: sqlite3.Connection, guest_stay_id: str) -> sqlite3.
     ).fetchone()
 
 
+@router.get("/occupancy", response_model=GateOccupancy)
+def gate_occupancy(
+    _account: GateDep,
+    connection: ConnectionDep,
+) -> GateOccupancy:
+    today = hall_today(connection, clock.utc_now())
+    return GateOccupancy(
+        guests_in_hall_count=guests_in_hall_count(connection),
+        guests_should_have_left_count=guests_should_have_left_count(connection, today),
+    )
+
+
 @router.get("/guests", response_model=GateGuestList)
 def gate_guests(
     _account: GateDep,
     connection: ConnectionDep,
     bucket: Annotated[GateGuestBucket, Query()],
+    payment_status: Annotated[Literal["paid", "unpaid"] | None, Query()] = None,
 ) -> GateGuestList:
     today = hall_today(connection, clock.utc_now())
     rows = connection.execute(
@@ -99,8 +144,8 @@ def gate_guests(
           guest_stays.guest_name,
           guest_stays.status,
           guest_stays.payment_status,
-          guest_stays.start_date,
-          guest_stays.end_date,
+          guest_stays.guest_start_date,
+          guest_stays.guest_end_date,
           guest_stays.arrived_at,
           guest_stays.departed_at,
           host.full_name AS host_name,
@@ -110,7 +155,7 @@ def gate_guests(
         JOIN residents ON residents.user_id = guest_stays.host_resident_id
         JOIN rooms ON rooms.id = residents.room_id
         WHERE guest_stays.status = 'approved'
-        ORDER BY guest_stays.start_date, guest_stays.guest_name, guest_stays.id
+        ORDER BY guest_stays.guest_start_date, guest_stays.guest_name, guest_stays.id
         """
     ).fetchall()
     items: list[GateGuestCard] = []
@@ -118,17 +163,17 @@ def gate_guests(
         derived = derive_bucket(
             status=row["status"],
             payment_status=row["payment_status"],
-            start_date=row["start_date"],
-            end_date=row["end_date"],
+            start_date=row["guest_start_date"],
+            end_date=row["guest_end_date"],
             arrived_at=row["arrived_at"],
             departed_at=row["departed_at"],
             today=today,
         )
         if bucket == "expected":
+            # Timing only: approved stay within dates, not yet arrived.
             if not (
-                row["payment_status"] == "paid"
-                and row["arrived_at"] is None
-                and row["start_date"] <= today <= row["end_date"]
+                row["arrived_at"] is None
+                and row["guest_start_date"] <= today <= row["guest_end_date"]
             ):
                 continue
             card_bucket = "expected"
@@ -137,14 +182,16 @@ def gate_guests(
             if row["arrived_at"] is None or row["departed_at"] is not None:
                 continue
             card_bucket = derived
+        if payment_status is not None and row["payment_status"] != payment_status:
+            continue
         items.append(
             GateGuestCard(
                 id=row["id"],
                 guest_name=row["guest_name"],
                 host_name=row["host_name"],
                 host_room_label=row["host_room_label"],
-                start_date=row["start_date"],
-                end_date=row["end_date"],
+                guest_start_date=row["guest_start_date"],
+                guest_end_date=row["guest_end_date"],
                 payment_status=row["payment_status"],
                 bucket=card_bucket,
             )
@@ -152,12 +199,12 @@ def gate_guests(
     return GateGuestList(items=items)
 
 
-@router.post("/guests/{guest_stay_id}/arrival", response_model=GuestMovementResult)
+@router.post("/guests/{guest_stay_id}/arrival", response_model=GuestArrivalResult)
 def record_guest_arrival(
     guest_stay_id: str,
     account: GateDep,
     connection: ConnectionDep,
-) -> GuestMovementResult:
+) -> GuestArrivalResult:
     row = _host_fields(connection, guest_stay_id)
     if row is None:
         raise ApiError(404, "not_found", "That record was not found.")
@@ -168,7 +215,7 @@ def record_guest_arrival(
             "guest_not_expected",
             "That guest is not expected for arrival today.",
         )
-    if not (row["start_date"] <= today <= row["end_date"]):
+    if not (row["guest_start_date"] <= today <= row["guest_end_date"]):
         raise ApiError(
             409,
             "guest_not_expected",
@@ -211,26 +258,27 @@ def record_guest_arrival(
         guest_stay_id,
         f"{account.full_name} recorded arrival for {updated['guest_name']}.",
     )
-    return GuestMovementResult(
+    return GuestArrivalResult(
         guest_name=row["guest_name"],
         host_name=row["host_name"],
         host_room_label=row["host_room_label"],
         recorded_at=now_text,
+        recorded_by=account.full_name,
+        arrival_time=now_text,
         message="The guest is now in the hall.",
-        guests_in_hall_count=guests_in_hall_count(connection),
     )
 
 
-@router.post("/guests/{guest_stay_id}/departure", response_model=GuestMovementResult)
+@router.post("/guests/{guest_stay_id}/departure", response_model=GuestDepartureResult)
 def record_guest_departure(
     guest_stay_id: str,
     account: GateDep,
     connection: ConnectionDep,
-) -> GuestMovementResult:
+) -> GuestDepartureResult:
     row = _host_fields(connection, guest_stay_id)
     if row is None:
         raise ApiError(404, "not_found", "That record was not found.")
-    if row["arrived_at"] is None or row["departed_at"] is not None or row["status"] != "approved":
+    if row["arrived_at"] is None or row["departed_at"] is not None or row["status"] not in {"approved", "pending"}:
         raise ApiError(
             409,
             "guest_not_in_hall",
@@ -246,7 +294,7 @@ def record_guest_departure(
           departed_recorded_by = ?,
           updated_at = ?
         WHERE id = ?
-          AND status = 'approved'
+          AND status IN ('approved', 'pending')
           AND arrived_at IS NOT NULL
           AND departed_at IS NULL
         RETURNING id, guest_name
@@ -267,11 +315,12 @@ def record_guest_departure(
         guest_stay_id,
         f"{account.full_name} recorded departure for {updated['guest_name']}.",
     )
-    return GuestMovementResult(
+    return GuestDepartureResult(
         guest_name=row["guest_name"],
         host_name=row["host_name"],
         host_room_label=row["host_room_label"],
         recorded_at=now_text,
+        recorded_by=account.full_name,
+        departure_time=now_text,
         message="The guest has left the hall.",
-        guests_in_hall_count=guests_in_hall_count(connection),
     )

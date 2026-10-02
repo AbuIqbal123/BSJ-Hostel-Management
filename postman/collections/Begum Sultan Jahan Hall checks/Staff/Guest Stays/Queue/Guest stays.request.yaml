@@ -3,9 +3,16 @@ method: GET
 url: '{{baseUrl}}/api/v1/guest-stays?limit=50&offset=0'
 order: 8000
 queryParams:
+  - key: bucket
+    value: ''
+    description: Optional derived bucket filter. Left off so Press Send does not send an empty bucket.
+    disabled: true
+  - key: include_terminal
+    value: 'false'
+    description: When false (default), omit cancelled and rejected. Set true to include them.
   - key: limit
     value: '50'
   - key: offset
     value: '0'
 description: |-
-  Caller: warden or provost. Filter by derived bucket. `in_hall` here is the dining set and includes guests who should have left. Use `should_have_left` for that subset.
+  Caller: warden or provost. Filter by derived bucket. `in_hall` here is the dining set and includes guests who should have left. Use `should_have_left` for that subset. By default omits terminal buckets `cancelled` and `rejected`; pass `include_terminal=true` to include them. Explicit `bucket=cancelled` or `bucket=rejected` still returns that subset.

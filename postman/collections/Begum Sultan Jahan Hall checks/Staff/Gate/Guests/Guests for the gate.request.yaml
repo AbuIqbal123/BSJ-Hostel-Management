@@ -5,5 +5,9 @@ order: 3000
 queryParams:
   - key: bucket
     value: expected
+  - key: payment_status
+    value: ''
+    description: Optional. paid or unpaid. Left off so Press Send does not send an empty value.
+    disabled: true
 description: |-
-  Caller: gate, warden, or provost. `expected` is approved, paid, not yet arrived, and the hall date is inside the stay. `in_hall` includes guests who should already have left, because departure is still recorded here.
+  Caller: gate, warden, or provost. Buckets are timing-based. `expected` is approved, not yet arrived, and the hall date is inside the stay. `in_hall` includes guests who should already have left. Optional `payment_status` (`paid` or `unpaid`) filters payment; omit for every guest in the bucket.

@@ -24,6 +24,7 @@ Organised by domain. Prefer these folders over dumping new files at the `docs/` 
 | [`architecture/system-architecture.md`](architecture/system-architecture.md) | Diagram and parts in use |
 | [`tests/tests.md`](tests/tests.md) | Every test entry |
 | [`engineering/dev-pre-commit.md`](engineering/dev-pre-commit.md) | Gitleaks via pre-commit |
+| [`engineering/open-questions.md`](engineering/open-questions.md) | Deferred product and engineering decisions |
 | [`security/pre-ship-checklist.md`](security/pre-ship-checklist.md) | Don't ship until you check this |
 | [`load.md`](load.md) | Optional Locust notes. Not part of the recorded catalog |
 

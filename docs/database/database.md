@@ -123,7 +123,7 @@ Other writing rules:
 
 There is one settings record for the hall.
 
-Ordinary hours are the window in which an ordinary outing may start and in which its expected return must fall. The window has a start and an end. Summer and winter each have their own window. There is no separate limit on how many hours an ordinary outing may last. If the resident needs to be out after the end of the window, she asks for late-night permission. If she needs to stay away overnight, she asks for home going.
+Ordinary outing hours are the window in which an ordinary outing may start and in which its expected return must fall. The window has a start and an end. Summer and winter each have their own window. There is no separate limit on how many hours an ordinary outing may last. If the resident needs to be out after the end of the window, she asks for late-night permission. If she needs to stay away overnight, she asks for home going.
 
 The clock times below are the hall's published times. SOP 06 and SOP 07 both say summer is 6:30 AM to 6:30 PM and winter is 6:30 AM to 5:30 PM. SOP 05 prints 5:30 AM as the start. This record follows SOP 06 and SOP 07, which agree with each other.
 
@@ -136,19 +136,19 @@ The season is a date. Summer starts on 1 April and winter starts on 1 October. A
 | university_name | Text | Yes | Set with the record | Aligarh Muslim University. |
 | timezone | Text | Yes | Set with the record | `Asia/Kolkata`. |
 | grace_minutes | Whole number | Yes | The hall confirmed 30. The provost can change it later. | Minutes after the expected return before a guardian can be told. Taken when the outing is created. A later change does not rewrite an outing already open. Whole minutes from 0 to 180. |
-| summer_hours_start | Time of day | Yes | SOP 06 and SOP 07 | Shown as 6:30 AM. Kept as `06:30`. |
-| summer_hours_end | Time of day | Yes | SOP 06 and SOP 07 | Shown as 6:30 PM. Kept as `18:30`. The end is after the start. |
-| winter_hours_start | Time of day | Yes | SOP 06 and SOP 07 | Shown as 6:30 AM. Kept as `06:30`. |
-| winter_hours_end | Time of day | Yes | SOP 06 and SOP 07 | Shown as 5:30 PM. Kept as `17:30`. The end is after the start. |
+| summer_outing_start | Time of day | Yes | SOP 06 and SOP 07 | Shown as 6:30 AM. Kept as `06:30`. |
+| summer_outing_end | Time of day | Yes | SOP 06 and SOP 07 | Shown as 6:30 PM. Kept as `18:30`. The end is after the start. |
+| winter_outing_start | Time of day | Yes | SOP 06 and SOP 07 | Shown as 6:30 AM. Kept as `06:30`. |
+| winter_outing_end | Time of day | Yes | SOP 06 and SOP 07 | Shown as 5:30 PM. Kept as `17:30`. The end is after the start. |
 | summer_season_start | Month and day | Yes | AMU University Health Services | 1 April. Kept as `04-01`. Summer runs from this day through the day before winter starts. |
 | winter_season_start | Month and day | Yes | AMU University Health Services | 1 October. Kept as `10-01`. Winter runs from this day through the day before summer starts, across the new year. |
-| permission_early_minutes | Whole number | Yes | Still open. Default 30. | How early a resident may leave on an approved permission. Whole minutes from 0 to 180. |
+| permission_lead_minutes | Whole number | Yes | Still open. Default 30. | Minutes before a permission's start when a resident may leave. Whole minutes from 0 to 180. |
 | guest_max_inclusive_days | Whole number | Yes | The hall confirmed 7. | Longest guest stay, counting the first and last day. Whole days from 1 to 30. |
 | guest_min_lead_days | Whole number | Yes | The hall confirmed 1. | How many hall days must pass before a guest stay may start. Whole days from 0 to 14. Today cannot be the start date. |
 | scan_duplicate_window_seconds | Whole number | Yes | Still open. Default 45. | How long a second scan of the same resident is ignored. Whole seconds from 0 to 600. |
-| late_sms_template | Text | Yes | The message below | The late message. |
-| return_sms_template | Text | Yes | The message below | The return message. |
-| updated_at | Instant | Yes | System, whenever these settings change | Shown in the 12-hour form. |
+| late_sms_template | Text | Yes | The message below | Late guardian SMS template. Stored on this settings row; read and updated only through GET/PATCH `/api/v1/admin/notifications` (not hall settings). |
+| return_sms_template | Text | Yes | The message below | Return guardian SMS template. Stored on this settings row; read and updated only through GET/PATCH `/api/v1/admin/notifications` (not hall settings). |
+| updated_at | Instant | Yes | System, whenever these settings change | Shown in the 12-hour form. Updated when either hall settings or notification templates change. |
 
 Late message:
 
@@ -184,7 +184,7 @@ That is 206 rooms and 412 beds. The session 2025–26 roll of 506 resident stude
 | floors | Whole number | Yes for A, B, C, and D. Empty for Utility until the hall publishes it. | The hall page | A, B, C, and D start at 4. |
 | room_count | Whole number | Yes | The hall page, then the provost if the published inventory changes | How many rooms this block has. Starts at the counts in the table above. The rooms on file for this block must match this number once the inventory is entered. |
 | beds_per_room | Whole number | Yes | The hall page, "Capacity of Room: 02" | Starts at 2. |
-| is_active | Yes or no | Yes | Provost | Yes while the hall uses this block. No when it is retired. |
+| is_active | Yes or no | Yes | Provost | Yes while the hall uses this block. No when it is retired. HTTP `status` is `active` or `inactive`. |
 
 ### Rooms
 
@@ -197,7 +197,7 @@ The hall page does not list door numbers. This document does not invent them. Th
 | number | Text | Yes | Provost, from the door | Such as `204` or `087`. |
 | label | Text | Yes | System, from the block code, a hyphen, and the number | Such as `B-204` or `Utility-12`. No two rooms share a label. |
 | bed_count | Whole number | Yes | Copied from the block's beds per room when the room is created | How many residents this room can hold. Starts at 2. |
-| is_active | Yes or no | Yes | Provost | Yes while the room can be assigned. No when it is retired. |
+| is_active | Yes or no | Yes | Provost | Yes while the room can be assigned. No when it is retired. HTTP `status` is `active` or `inactive`. |
 
 A block cannot contain the same room number twice. A resident points at a room. A resident is placed only in an active room. The number of active residents assigned to a room, including a suspended resident who has not been moved, cannot be more than that room's bed count. Changing rooms updates the resident and writes an audit log entry. Past outings keep the place and the resident. They do not keep a copy of the old room. The register shows the room the resident has now.
 
@@ -209,8 +209,8 @@ The list behind the ordinary-outing choices. The screen shows the active named p
 |---|---|---|---|---|
 | id | Identifier | Yes | System | Identifies this destination. |
 | name | Text | Yes | Provost. The first list is below. | Unique. Named places are compared in alphabetical order for display, ignoring capitals. The free-text choice is shown last. |
-| is_other | Yes or no | Yes | Provost | Yes for the single free-text choice. No for a named place. |
-| is_active | Yes or no | Yes | Provost | Yes while it can be chosen. No when it is retired. |
+| is_other | Yes or no | Yes | Provost | Yes for the single free-text choice. No for a named place. HTTP `source` is `custom` or `preset`. |
+| is_active | Yes or no | Yes | Provost | Yes while it can be chosen. No when it is retired. HTTP `status` is `active` or `inactive`. |
 
 The first list is created with the records. The provost can add, rename, or retire entries afterwards. Shown A to Z, with the free-text choice last, the first list reads:
 
@@ -248,12 +248,15 @@ A resident profile exists only for a person whose role is resident. It uses that
 
 The guardian is the parent or other guardian the hall can reach. Both the name and the phone are required. The resident does not type them. The provost enters them from the hall's record when the account is created, and can correct them later.
 
+The resident's own phone is separate from the guardian phone. The hall has not yet confirmed that every resident must have one on file, so the field may be empty. When present, it uses the same country-code form as the guardian phone. Late and return messages still go only to the guardian phone.
+
 | Detail | Kept as | Required | Where it comes from | Rule |
 |---|---|---|---|---|
 | user_id | Identifier | Yes | The person's id | One profile for that person. |
 | enrolment_number | Text | Yes | Provost. Same value as the username. | Unique, ignoring capitals. Shown on the warden record, for example `24-GLLB-118`. |
 | course | Text | Empty if the hall has not entered it | Provost | For example `B.A. LL.B. (Hons.)`. |
 | room_id | Identifier | Yes | Provost | The room the resident lives in. |
+| phone | Phone | Empty if the hall has not entered it | Provost | The resident's own number. Country code required when set. Not used for guardian late or return messages. |
 | guardian_name | Text | Yes | Provost, from the hall's record of the parent or guardian | The person the hall contacts about this resident. |
 | guardian_phone | Phone | Yes | Provost, from that same record | Country code required. Late and return messages go to this number. |
 | qr_token | Text | Yes | System, when the account is created, and again when the provost issues a new hall pass | The hall-pass code. Unique. |
@@ -293,7 +296,7 @@ A permission is the warden's or the provost's decision. It is not itself the mom
 |---|---|---|---|---|
 | id | Identifier | Yes | System | Identifies this permission. |
 | resident_id | Identifier | Yes | The signed-in resident | The resident who asked. |
-| type | Choice | Yes | The form the resident chose | Late-night, or home going. |
+| type | Choice | Yes | The form the resident chose | Late-night, or home going. HTTP name is `permission_type`. |
 | status | Choice | Yes | System, as the lifecycle moves | See the lifecycle below. |
 | short_place | Text | Yes | The resident types it on the permission form | The short place the warden's card shows, such as Women's College or Lucknow. It is not chosen from the ordinary destination list. |
 | destination_detail | Text | Empty for home going. For late-night it may be empty. | The resident types it on the late-night form | A further detail, such as Seminar Hall. |
@@ -325,7 +328,7 @@ A resident may hold more than one permission. She may also plan several ordinary
 
 ## Outings
 
-Ordinary, late-night, and home going are kept as one outing record. The type says which it is. The gate, the register, lateness, and the message to the guardian all follow that one record. A resident may have several planned ordinary outings, including a morning return and an afternoon return on the same hall day. She has at most one outing that is outside, and at most one planned or outside outing for a given expected return.
+Ordinary, late-night, and home going are kept as one outing record. The outing type says which it is. The gate, the register, lateness, and the message to the guardian all follow that one record. A resident may have several planned ordinary outings, including a morning return and an afternoon return on the same hall day. She has at most one outing that is outside, and at most one planned or outside outing for a given expected return.
 
 An exit is not a finished fact until it has a time and the staff member who recorded it. A return is not a finished fact until it has a time and the staff member who recorded it. Those fields are empty only before that step. A planned ordinary outing is the only outing that exists before an exit.
 
@@ -333,8 +336,8 @@ An exit is not a finished fact until it has a time and the staff member who reco
 |---|---|---|---|---|
 | id | Identifier | Yes | System | Identifies this outing. |
 | resident_id | Identifier | Yes | The resident | The resident. |
-| permission_id | Identifier | Empty for an ordinary outing. Yes for late-night and home going. | The approved permission the scan uses | The permission's type must match the outing type. |
-| type | Choice | Yes | Ordinary, from the resident's plan. Late-night or home going, from the permission. | Ordinary, late-night, or home going. |
+| permission_id | Identifier | Empty for an ordinary outing. Yes for late-night and home going. | The approved permission the scan uses | The permission's stored `type` must match the outing's stored `type`. HTTP names are `permission_type` and `outing_type`. |
+| type | Choice | Yes | Ordinary, from the resident's plan. Late-night or home going, from the permission. | Ordinary, late-night, or home going. HTTP name is `outing_type`. |
 | status | Choice | Yes | System | Planned, outside, returned, or cancelled. |
 | destination_id | Identifier | Empty when the place is not from the list | The list entry the resident chose | For an ordinary outing chosen from the list. Empty for Other, and empty for a permission outing. |
 | place | Text | Yes | The list name, the words the resident typed for Other, or the permission's short place | The place as it should be remembered. Renaming the list later does not change this. |
@@ -401,14 +404,15 @@ Guests are not accounts and have no hall pass.
 | host_resident_id | Identifier | Yes | The signed-in resident | The resident who applied. |
 | guest_name | Text | Yes | The resident types it | The guest's name. |
 | relation | Text | Yes | The resident types it | Such as Cousin. |
-| start_date | Date | Yes | The resident sets it | First day, included. Shown as 18 September 2026. |
-| end_date | Date | Yes | The resident sets it | Last day, included. On or after the start date. |
+| guest_start_date | Date | Yes | The resident sets it | First day, included. Shown as 18 September 2026. |
+| guest_end_date | Date | Yes | The resident sets it | Last day, included. On or after the start date. |
 | reason | Text | Yes | The resident types it | Why the guest is coming. |
 | status | Choice | Yes | System | Waiting, approved, rejected, cancelled, or departed. |
 | payment_status | Choice | Yes | System starts it as unpaid. A warden or the provost marks it paid. | Unpaid or paid. |
 | payment_marked_by | Identifier | Yes when paid. Empty when unpaid. | The warden or provost who marked it | Required together with the time when the stay is paid. |
 | payment_marked_at | Instant | Yes when paid. Empty when unpaid. | System, when payment is marked | |
-| decided_by | Identifier | Empty while waiting, and empty if the resident cancels before a decision. Yes once approved or rejected. | The warden or provost who decided | The audit of the decision. A waiting stay has no decision yet, so the field is empty until then. |
+| payment_note | Text | Yes when paid. Empty when unpaid. | The warden or provost types it when marking paid | Off-system payment proof (transaction reference, who collected cash, screenshot mention, and similar). At most 500 characters. Cleared when marked unpaid. |
+| decided_by | Identifier | Empty while waiting, empty if the resident cancels before a decision, and empty after the resident edits (which returns the stay to waiting). Yes once approved or rejected. | The warden or provost who decided | The audit of the decision. A waiting stay has no decision yet, so the field is empty until then. |
 | decided_at | Instant | Empty in the same cases as decided_by. Yes once approved or rejected. | System, at the decision | |
 | decision_note | Text | Empty if they write nothing | The warden or provost may type it | Optional. |
 | arrived_at | Instant | Yes once arrival is recorded. Empty before that. | The gate scan, or the gate, warden, or provost recording the arrival | |
@@ -418,25 +422,28 @@ Guests are not accounts and have no hall pass.
 | created_at | Instant | Yes | System | When the resident applied. |
 | updated_at | Instant | Yes | System | When it last changed. |
 
-The length of the stay counts the start date and the end date. It must be at least 1 day and at most the hall's maximum. The start date must be at least the lead time after today's hall date. With the confirmed defaults, the start is tomorrow or later, and the stay is at most 7 days.
+The length of the stay counts the start date and the end date. It must be at least 1 day and at most the hall's maximum. Before arrival, the start date must be at least the lead time after today's hall date. With the confirmed defaults, a new stay starts tomorrow or later, and the stay is at most 7 days. After arrival, a date edit may keep a start date that has already begun.
 
 The state and the times agree:
 
-- Waiting, rejected, and cancelled: no arrival and no departure. Rejected has a decision and a staff member. Cancelled by the resident before a decision has neither.
+- Waiting: no decision. Usually no arrival and no departure. After the resident edits dates while the guest is already in the hall, waiting may keep the arrival time (and payment) until staff approve again; departure is still empty.
+- Rejected and cancelled: no arrival and no departure. Rejected has a decision and a staff member. Cancelled by the resident has neither.
 - Approved: a decision and a staff member are recorded, and the guest has not departed. Arrival may still be empty, or already recorded.
-- Departed: arrival and departure are both recorded, each with a staff member, and departure is at or after arrival.
+- Departed: arrival and departure are both recorded, each with a staff member, and departure is at or after arrival. The decision may be empty when departure was recorded while a post-arrival edit was still waiting.
 
 ### Guest lifecycle
 
-- From waiting, the warden or provost approves or rejects, or the resident cancels.
+- From waiting, the warden or provost approves or rejects, or the resident cancels, or the resident edits the application (stays waiting; decision fields stay empty).
+- From approved before arrival, the resident may edit name, relation, dates, and reason. The stay returns to waiting, the decision is cleared, and payment is left as it was; staff must approve again.
+- From approved after arrival and before departure, the resident may edit only the stay dates. Name, relation, and reason stay as they are. The stay returns to waiting for re-approval while the guest remains in the hall; payment and arrival stay as they are. Staff may only approve again (not reject) while arrival is recorded.
 - Approved is the stay that can be in the hall. Arrival is a time on that stay, not a new state.
-- Departure moves an approved stay to departed.
+- Departure moves an approved stay to departed. Gate may also record departure while a post-arrival date edit is still waiting, so the guest is not trapped in the hall.
 
-Payment is a separate act by a warden or the provost. It can be marked before or after approval, and not after departure. Marking it unpaid again is allowed only before arrival. Marking it unpaid clears the payment staff member and the payment time.
+Payment is a separate act by a warden or the provost. It can be marked before or after approval, and not after departure. Marking it unpaid again is allowed only before arrival. Marking it paid requires a payment note (off-system proof). Marking it unpaid clears the payment staff member, the payment time, and the payment note.
 
 Arrival is allowed only when the stay is approved, payment is paid, arrival is still empty, and today's hall date falls on the start date, the end date, or a day between them.
 
-Departure is allowed when the stay is approved, the guest has arrived, and departure is still empty. The stay then becomes departed.
+Departure is allowed when the guest has arrived, departure is still empty, and the stay is approved or waiting after a post-arrival date edit. The stay then becomes departed. A departure during that waiting period leaves the decision empty, because the edit cleared it.
 
 ### Guest lists
 
@@ -453,9 +460,9 @@ These are worked out when someone looks. They are not stored.
 | Departed | The stay is departed. |
 | Rejected or cancelled | That stored outcome. |
 
-The dining count, guests in hall, is every stay that has arrived and has not departed. That includes guests who should have left. The guest stays on the dining count until the gate records departure.
+The dining count, guests in hall, is every stay that has arrived and has not departed. That includes guests who should have left, and a stay that is waiting again after a post-arrival edit. The guest stays on the dining count until the gate records departure. `GET /api/v1/gate/occupancy` returns that dining count and the should-have-left subset (arrived, not departed, and today's hall date is after the end date).
 
-The gate's expected list is Expected today. The gate's departure list is In the hall plus Should have left.
+The gate's expected list is every approved stay that has not arrived and whose dates include today's hall date, whether paid or unpaid. A `payment_status` filter on that list keeps only paid or only unpaid. Arrival still requires paid, so an unpaid guest on that list cannot be recorded in until payment is marked. The gate's departure list is In the hall plus Should have left. The derived bucket Expected today, used on the staff guest-stay queue, still requires paid.
 
 ## Messages to the parent or guardian
 
@@ -530,6 +537,7 @@ This is the audit log: the record of who did what. Each entry is one action that
 | Permission expired | permission.expired |
 | Guest stay submitted | guest_stay.submitted |
 | Guest stay cancelled | guest_stay.cancelled |
+| Guest stay edited | guest_stay.edited |
 | Guest stay approved | guest_stay.approved |
 | Guest stay rejected | guest_stay.rejected |
 | Guest payment marked | guest_stay.payment_marked |
@@ -582,7 +590,7 @@ A resident's own history is the same exits and returns for that resident, newest
 
 - Emergency alerts, duty phone numbers, or a second emergency contact besides the guardian.
 - Phone notifications. Text messages to the guardian are kept above. What the resident's or the staff member's own phone notifies, and when, is not a record in this document.
-- A payment amount, a receipt, or card collection. The office only marks a guest stay paid or unpaid.
+- A payment amount, a receipt file, or card collection. The office marks a guest stay paid or unpaid and may type a free-text payment note for off-system proof. File upload of payment evidence is not kept yet.
 - Parent or guardian accounts.
 - More than one outside outing, or two planned or outside outings with the same expected return.
 - A second role on one person.

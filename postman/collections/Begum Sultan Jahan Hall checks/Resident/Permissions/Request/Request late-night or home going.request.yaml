@@ -11,7 +11,7 @@ body:
   type: json
   content: |-
     {
-      "type": "late_night",
+      "permission_type": "late_night",
       "short_place": "Women's College",
       "destination_detail": "Seminar Hall",
       "reason": "Faculty seminar ends at 9:00 PM. Requesting late return to hall.",

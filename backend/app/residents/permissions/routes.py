@@ -31,7 +31,7 @@ DEPARTURE_PAST_SKEW = timedelta(minutes=5)
 
 class LateNightCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    type: Literal["late_night"]
+    permission_type: Literal["late_night"]
     short_place: str = Field(min_length=1, max_length=120)
     destination_detail: str | None = Field(default=None, min_length=1, max_length=120)
     reason: str = Field(min_length=1, max_length=500)
@@ -41,7 +41,7 @@ class LateNightCreate(BaseModel):
 
 class HomeGoingCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    type: Literal["home_going"]
+    permission_type: Literal["home_going"]
     short_place: str = Field(min_length=1, max_length=120)
     address: str = Field(min_length=1, max_length=300)
     reason: str = Field(min_length=1, max_length=500)
@@ -51,7 +51,7 @@ class HomeGoingCreate(BaseModel):
 
 PermissionCreate = Annotated[
     LateNightCreate | HomeGoingCreate,
-    Field(discriminator="type"),
+    Field(discriminator="permission_type"),
 ]
 
 
@@ -134,7 +134,7 @@ def submit_permission(
     now_text = clock.format_instant(clock.utc_now())
     expire_passed_permissions(connection, now_text, resident_id=account.id)
     permission_id = str(uuid.uuid4())
-    if request.type == "late_night":
+    if request.permission_type == "late_night":
         destination_detail = _optional_text(request.destination_detail)
         address = None
         label = "late-night"
@@ -157,7 +157,7 @@ def submit_permission(
         (
             permission_id,
             account.id,
-            request.type,
+            request.permission_type,
             short_place,
             destination_detail,
             address,

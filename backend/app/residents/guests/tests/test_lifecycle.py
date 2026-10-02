@@ -1,4 +1,4 @@
-"""Resident guest stay apply, list, read, and cancel."""
+"""Resident guest stay apply, list, read, edit, and cancel."""
 
 from __future__ import annotations
 
@@ -123,7 +123,7 @@ def seed_staff_shaped_stays(path: Path) -> None:
         connection.execute(
             """
             INSERT INTO guest_stays (
-              id, host_resident_id, guest_name, relation, start_date, end_date, reason,
+              id, host_resident_id, guest_name, relation, guest_start_date, guest_end_date, reason,
               status, payment_status, payment_marked_by, payment_marked_at,
               decided_by, decided_at, decision_note,
               arrived_at, arrived_recorded_by, departed_at, departed_recorded_by,
@@ -183,7 +183,7 @@ def seed_expected_boundary_stays(path: Path) -> None:
         connection.execute(
             """
             INSERT INTO guest_stays (
-              id, host_resident_id, guest_name, relation, start_date, end_date, reason,
+              id, host_resident_id, guest_name, relation, guest_start_date, guest_end_date, reason,
               status, payment_status, payment_marked_by, payment_marked_at,
               decided_by, decided_at, decision_note,
               arrived_at, arrived_recorded_by, departed_at, departed_recorded_by,
@@ -267,15 +267,15 @@ def test_guest_stays_resident(database_path: Path, monkeypatch: pytest.MonkeyPat
         payload = {
             "guest_name": "Zara Ahmed",
             "relation": "Cousin",
-            "start_date": "2026-10-02",
-            "end_date": "2026-10-05",
+            "guest_start_date": "2026-10-02",
+            "guest_end_date": "2026-10-05",
             "reason": "Family wedding in Aligarh. Staying with Aisha, B-204.",
         }
         assert_error(
             client.post(
                 "/api/v1/me/guest-stays",
                 headers=headers,
-                json={**payload, "start_date": "2026-09-30", "end_date": "2026-10-01"},
+                json={**payload, "guest_start_date": "2026-09-30", "guest_end_date": "2026-10-01"},
             ),
             422,
             "validation_error",
@@ -284,7 +284,7 @@ def test_guest_stays_resident(database_path: Path, monkeypatch: pytest.MonkeyPat
             client.post(
                 "/api/v1/me/guest-stays",
                 headers=headers,
-                json={**payload, "start_date": "2026-10-05", "end_date": "2026-10-02"},
+                json={**payload, "guest_start_date": "2026-10-05", "guest_end_date": "2026-10-02"},
             ),
             422,
             "validation_error",
@@ -293,7 +293,7 @@ def test_guest_stays_resident(database_path: Path, monkeypatch: pytest.MonkeyPat
             client.post(
                 "/api/v1/me/guest-stays",
                 headers=headers,
-                json={**payload, "start_date": "2026-10-01", "end_date": "2026-10-08"},
+                json={**payload, "guest_start_date": "2026-10-01", "guest_end_date": "2026-10-08"},
             ),
             422,
             "validation_error",
@@ -324,8 +324,8 @@ def test_guest_stays_resident(database_path: Path, monkeypatch: pytest.MonkeyPat
             "guest_name",
             "host_name",
             "host_room_label",
-            "start_date",
-            "end_date",
+            "guest_start_date",
+            "guest_end_date",
             "status",
             "payment_status",
             "bucket",
@@ -335,10 +335,11 @@ def test_guest_stays_resident(database_path: Path, monkeypatch: pytest.MonkeyPat
             "relation",
             "inclusive_days",
             "reason",
+            "payment_note",
             "decision_note",
-            "decided_by_name",
-            "arrived_recorded_by_name",
-            "departed_recorded_by_name",
+            "decided_by",
+            "arrived_recorded_by",
+            "departed_recorded_by",
             "arrived_at",
             "departed_at",
             "created_at",
@@ -375,13 +376,98 @@ def test_guest_stays_resident(database_path: Path, monkeypatch: pytest.MonkeyPat
             "not_cancellable",
         )
 
+        # Pre-arrival edit of approved stay → pending, decision cleared, payment unchanged.
+        edited_approved = client.patch(
+            f"/api/v1/me/guest-stays/{APPROVED_STAY}",
+            headers=headers,
+            json={
+                "guest_name": "Approved Guest Edited",
+                "relation": "Aunt",
+                "guest_start_date": "2026-10-11",
+                "guest_end_date": "2026-10-13",
+                "reason": "Visit revised.",
+            },
+        )
+        assert edited_approved.status_code == 200
+        body_edit = edited_approved.json()
+        assert body_edit["status"] == "pending"
+        assert body_edit["bucket"] == "pending"
+        assert body_edit["guest_name"] == "Approved Guest Edited"
+        assert body_edit["guest_start_date"] == "2026-10-11"
+        assert body_edit["guest_end_date"] == "2026-10-13"
+        assert body_edit["decided_by"] is None
+        assert body_edit["payment_status"] == "unpaid"
+
+        # Post-arrival: dates only; name locked; pending with arrival kept.
+        assert_error(
+            client.patch(
+                f"/api/v1/me/guest-stays/{ARRIVED_STAY}",
+                headers=headers,
+                json={
+                    "guest_name": "Should Fail",
+                    "relation": "Sister",
+                    "guest_start_date": "2026-09-29",
+                    "guest_end_date": "2026-10-03",
+                    "reason": "Visit.",
+                },
+            ),
+            422,
+            "validation_error",
+        )
+        edited_arrived = client.patch(
+            f"/api/v1/me/guest-stays/{ARRIVED_STAY}",
+            headers=headers,
+            json={"guest_end_date": "2026-10-03"},
+        )
+        assert edited_arrived.status_code == 200
+        arrived_body = edited_arrived.json()
+        assert arrived_body["status"] == "pending"
+        assert arrived_body["guest_end_date"] == "2026-10-03"
+        assert arrived_body["guest_name"] == "Arrived Guest"
+        assert arrived_body["arrived_at"] is not None
+        assert arrived_body["decided_by"] is None
+        assert arrived_body["payment_status"] == "paid"
+
+        assert_error(
+            client.patch(
+                f"/api/v1/me/guest-stays/{REJECTED_STAY}",
+                headers=headers,
+                json={
+                    "guest_name": "X",
+                    "relation": "Y",
+                    "guest_start_date": "2026-10-06",
+                    "guest_end_date": "2026-10-07",
+                    "reason": "Z",
+                },
+            ),
+            409,
+            "not_editable",
+        )
+        assert_error(
+            client.patch(
+                f"/api/v1/me/guest-stays/{OTHER_STAY}",
+                headers=headers,
+                json={
+                    "guest_name": "X",
+                    "relation": "Y",
+                    "guest_start_date": "2026-10-03",
+                    "guest_end_date": "2026-10-04",
+                    "reason": "Z",
+                },
+            ),
+            404,
+            "not_found",
+            "That record was not found.",
+        )
+
+        # Cancel the stay we just returned to pending (still before arrival).
         approved_cancel = client.post(
             f"/api/v1/me/guest-stays/{APPROVED_STAY}/cancel",
             headers=headers,
         )
         assert approved_cancel.status_code == 200
         assert approved_cancel.json()["status"] == "cancelled"
-        assert approved_cancel.json()["decided_by_name"] is None
+        assert approved_cancel.json()["decided_by"] is None
 
         assert_error(
             client.post(f"/api/v1/me/guest-stays/{ARRIVED_STAY}/cancel", headers=headers),
@@ -401,8 +487,8 @@ def test_guest_stays_resident(database_path: Path, monkeypatch: pytest.MonkeyPat
             json={
                 "guest_name": "Second Guest",
                 "relation": "Friend",
-                "start_date": "2026-10-03",
-                "end_date": "2026-10-03",
+                "guest_start_date": "2026-10-03",
+                "guest_end_date": "2026-10-03",
                 "reason": "A one-day visit.",
             },
         )
@@ -429,6 +515,8 @@ def test_guest_stays_resident(database_path: Path, monkeypatch: pytest.MonkeyPat
             "auth.login",
             "guest_stay.submitted",
             "guest_stay.cancelled",
+            "guest_stay.edited",
+            "guest_stay.edited",
             "guest_stay.cancelled",
             "guest_stay.submitted",
         ]

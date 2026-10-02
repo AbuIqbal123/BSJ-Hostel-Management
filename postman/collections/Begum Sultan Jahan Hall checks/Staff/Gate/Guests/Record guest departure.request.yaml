@@ -3,4 +3,4 @@ method: POST
 url: '{{baseUrl}}/api/v1/gate/guests/{{guestStayId}}/departure'
 order: 5000
 description: |-
-  Caller: gate, warden, or provost. The guest must currently be in the hall. Closes the stay. The dining count drops, including when the end date has already passed.
+  Caller: gate, warden, or provost. The guest must currently be in the hall. Closes the stay. Departure is still recorded when the end date has already passed.

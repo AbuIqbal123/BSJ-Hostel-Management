@@ -17,16 +17,19 @@ SETTINGS_COLUMNS = (
     "university_name",
     "timezone",
     "grace_minutes",
-    "summer_hours_start",
-    "summer_hours_end",
-    "winter_hours_start",
-    "winter_hours_end",
+    "summer_outing_start",
+    "summer_outing_end",
+    "winter_outing_start",
+    "winter_outing_end",
     "summer_season_start",
     "winter_season_start",
-    "permission_early_minutes",
+    "permission_lead_minutes",
     "guest_max_inclusive_days",
     "guest_min_lead_days",
     "scan_duplicate_window_seconds",
+)
+
+NOTIFICATIONS_COLUMNS = (
     "late_sms_template",
     "return_sms_template",
 )
@@ -54,18 +57,16 @@ class HallSettings(BaseModel):
     university_name: str
     timezone: str
     grace_minutes: int
-    summer_hours_start: str
-    summer_hours_end: str
-    winter_hours_start: str
-    winter_hours_end: str
+    summer_outing_start: str
+    summer_outing_end: str
+    winter_outing_start: str
+    winter_outing_end: str
     summer_season_start: str
     winter_season_start: str
-    permission_early_minutes: int
+    permission_lead_minutes: int
     guest_max_inclusive_days: int
     guest_min_lead_days: int
     scan_duplicate_window_seconds: int
-    late_sms_template: str
-    return_sms_template: str
 
 
 class HallSettingsUpdate(BaseModel):
@@ -73,16 +74,26 @@ class HallSettingsUpdate(BaseModel):
     hall_name: str | None = Field(default=None, min_length=1, max_length=160)
     university_name: str | None = Field(default=None, min_length=1, max_length=160)
     grace_minutes: int | None = Field(default=None, ge=0, le=180)
-    summer_hours_start: str | None = Field(default=None, pattern=HHMM)
-    summer_hours_end: str | None = Field(default=None, pattern=HHMM)
-    winter_hours_start: str | None = Field(default=None, pattern=HHMM)
-    winter_hours_end: str | None = Field(default=None, pattern=HHMM)
+    summer_outing_start: str | None = Field(default=None, pattern=HHMM)
+    summer_outing_end: str | None = Field(default=None, pattern=HHMM)
+    winter_outing_start: str | None = Field(default=None, pattern=HHMM)
+    winter_outing_end: str | None = Field(default=None, pattern=HHMM)
     summer_season_start: str | None = Field(default=None, pattern=MMDD)
     winter_season_start: str | None = Field(default=None, pattern=MMDD)
-    permission_early_minutes: int | None = Field(default=None, ge=0, le=180)
+    permission_lead_minutes: int | None = Field(default=None, ge=0, le=180)
     guest_max_inclusive_days: int | None = Field(default=None, ge=1, le=30)
     guest_min_lead_days: int | None = Field(default=None, ge=0, le=14)
     scan_duplicate_window_seconds: int | None = Field(default=None, ge=0, le=600)
+
+
+class HallNotifications(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    late_sms_template: str
+    return_sms_template: str
+
+
+class HallNotificationsUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     late_sms_template: str | None = Field(default=None, min_length=1)
     return_sms_template: str | None = Field(default=None, min_length=1)
 
@@ -93,6 +104,14 @@ def load_settings(connection: sqlite3.Connection) -> HallSettings:
     ).fetchone()
     assert row is not None
     return HallSettings(**{key: row[key] for key in SETTINGS_COLUMNS})
+
+
+def load_notifications(connection: sqlite3.Connection) -> HallNotifications:
+    row = connection.execute(
+        f"SELECT {', '.join(NOTIFICATIONS_COLUMNS)} FROM hall_settings WHERE id = 'hall'"
+    ).fetchone()
+    assert row is not None
+    return HallNotifications(**{key: row[key] for key in NOTIFICATIONS_COLUMNS})
 
 
 def template_keeps_placeholders(template: str, required: tuple[str, ...]) -> bool:
@@ -116,14 +135,15 @@ def record_settings_updated(
     )
 
 
-def apply_settings_update(
-    current: HallSettings,
-    patch: HallSettingsUpdate,
-) -> tuple[HallSettings, dict[str, object]]:
-    """Return merged settings and the changed field map (new values only)."""
+
+def _apply_patch(
+    data: dict[str, object],
+    patch_fields_set: set[str],
+    patch: object,
+) -> tuple[dict[str, object], dict[str, object]]:
     changes: dict[str, object] = {}
-    data = current.model_dump()
-    for field_name in patch.model_fields_set:
+    merged = dict(data)
+    for field_name in patch_fields_set:
         value = getattr(patch, field_name)
         if value is None:
             continue
@@ -131,10 +151,28 @@ def apply_settings_update(
             value = value.strip()
             if not value:
                 continue
-        if data[field_name] != value:
+        if merged[field_name] != value:
             changes[field_name] = value
-            data[field_name] = value
-    return HallSettings(**data), changes
+            merged[field_name] = value
+    return merged, changes
+
+
+def apply_settings_update(
+    current: HallSettings,
+    patch: HallSettingsUpdate,
+) -> tuple[HallSettings, dict[str, object]]:
+    """Return merged settings and the changed field map (new values only)."""
+    merged, changes = _apply_patch(current.model_dump(), patch.model_fields_set, patch)
+    return HallSettings(**merged), changes
+
+
+def apply_notifications_update(
+    current: HallNotifications,
+    patch: HallNotificationsUpdate,
+) -> tuple[HallNotifications, dict[str, object]]:
+    """Return merged notification templates and the changed field map."""
+    merged, changes = _apply_patch(current.model_dump(), patch.model_fields_set, patch)
+    return HallNotifications(**merged), changes
 
 
 BLOCK_COLUMNS = (
@@ -156,7 +194,7 @@ class Block(BaseModel):
     floors: int | None
     room_count: int
     beds_per_room: int
-    is_active: bool
+    status: Literal["active", "inactive"]
 
 
 class BlockCreate(BaseModel):
@@ -174,7 +212,7 @@ class BlockUpdate(BaseModel):
     floors: int | None = Field(default=None, ge=1, le=20)
     room_count: int | None = Field(default=None, ge=1, le=500)
     beds_per_room: int | None = Field(default=None, ge=1, le=6)
-    is_active: bool | None = None
+    status: Literal["active", "inactive"] | None = None
 
 
 def row_to_block(row: sqlite3.Row) -> Block:
@@ -185,7 +223,7 @@ def row_to_block(row: sqlite3.Row) -> Block:
         floors=row["floors"],
         room_count=row["room_count"],
         beds_per_room=row["beds_per_room"],
-        is_active=bool(row["is_active"]),
+        status="active" if row["is_active"] else "inactive",
     )
 
 
@@ -250,7 +288,7 @@ class Room(BaseModel):
     number: str
     label: str
     bed_count: int
-    is_active: bool
+    status: Literal["active", "inactive"]
 
 
 class RoomCreate(BaseModel):
@@ -263,7 +301,7 @@ class RoomUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     number: str | None = Field(default=None, min_length=1, max_length=12)
     bed_count: int | None = Field(default=None, ge=1, le=6)
-    is_active: bool | None = None
+    status: Literal["active", "inactive"] | None = None
 
 
 def row_to_room(row: sqlite3.Row) -> Room:
@@ -273,7 +311,7 @@ def row_to_room(row: sqlite3.Row) -> Room:
         number=row["number"],
         label=row["label"],
         bed_count=row["bed_count"],
-        is_active=bool(row["is_active"]),
+        status="active" if row["is_active"] else "inactive",
     )
 
 
@@ -350,22 +388,22 @@ DESTINATION_COLUMNS = ("id", "name", "is_other", "is_active")
 class DestinationCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str = Field(min_length=1, max_length=80)
-    is_other: bool = False
+    source: Literal["preset", "custom"] = "preset"
 
 
 class DestinationUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str | None = Field(default=None, min_length=1, max_length=80)
-    is_other: bool | None = None
-    is_active: bool | None = None
+    source: Literal["preset", "custom"] | None = None
+    status: Literal["active", "inactive"] | None = None
 
 
 def row_to_destination(row: sqlite3.Row) -> Destination:
     return Destination(
         id=row["id"],
         name=row["name"],
-        is_other=bool(row["is_other"]),
-        is_active=bool(row["is_active"]),
+        source="custom" if row["is_other"] else "preset",
+        status="active" if row["is_active"] else "inactive",
     )
 
 
@@ -458,6 +496,7 @@ class ResidentAccount(BaseModel):
     course: str | None = None
     room_id: str
     room_label: str
+    phone: str | None = None
     guardian_name: str
     guardian_phone: str
     status: AccountStatus
@@ -478,6 +517,7 @@ class ResidentCreate(BaseModel):
     enrolment_number: str = Field(min_length=1, max_length=40)
     course: str | None = Field(default=None, max_length=120)
     room_id: str
+    phone: str | None = Field(default=None, pattern=r"^\+[1-9][0-9]{7,14}$")
     guardian_name: str = Field(min_length=1, max_length=120)
     guardian_phone: str = Field(pattern=r"^\+[1-9][0-9]{7,14}$")
     temporary_password: str = Field(min_length=10, max_length=200)
@@ -495,6 +535,7 @@ class ResidentUpdate(BaseModel):
     enrolment_number: str | None = Field(default=None, min_length=1, max_length=40)
     course: str | None = Field(default=None, max_length=120)
     room_id: str | None = None
+    phone: str | None = Field(default=None, pattern=r"^\+[1-9][0-9]{7,14}$")
     guardian_name: str | None = Field(default=None, min_length=1, max_length=120)
     guardian_phone: str | None = Field(default=None, pattern=r"^\+[1-9][0-9]{7,14}$")
     status: AccountStatus | None = None
@@ -508,6 +549,7 @@ def row_to_resident_account(row: sqlite3.Row) -> ResidentAccount:
         course=row["course"],
         room_id=row["room_id"],
         room_label=row["room_label"],
+        phone=row["phone"],
         guardian_name=row["guardian_name"],
         guardian_phone=row["guardian_phone"],
         status=row["status"],
@@ -524,6 +566,7 @@ SELECT
   residents.course,
   residents.room_id,
   rooms.label AS room_label,
+  residents.phone,
   residents.guardian_name,
   residents.guardian_phone,
   residents.presence

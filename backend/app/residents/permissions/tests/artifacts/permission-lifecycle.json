@@ -1,6 +1,6 @@
 {
   "late_night": {
-    "type": "late_night",
+    "permission_type": "late_night",
     "status": "pending",
     "short_place": "Women's College",
     "destination_detail": "Seminar Hall",
@@ -13,7 +13,7 @@
     "created_at": "2026-09-30T13:00:02Z"
   },
   "overlap_late": {
-    "type": "late_night",
+    "permission_type": "late_night",
     "status": "pending",
     "short_place": "J.N. Medical College",
     "destination_detail": null,
@@ -26,7 +26,7 @@
     "created_at": "2026-09-30T13:00:03Z"
   },
   "home_going": {
-    "type": "home_going",
+    "permission_type": "home_going",
     "status": "pending",
     "short_place": "Lucknow",
     "destination_detail": null,
@@ -39,7 +39,7 @@
     "created_at": "2026-09-30T13:00:04Z"
   },
   "cancelled_pending": {
-    "type": "late_night",
+    "permission_type": "late_night",
     "status": "cancelled",
     "short_place": "J.N. Medical College",
     "destination_detail": null,
@@ -52,7 +52,7 @@
     "created_at": "2026-09-30T13:00:03Z"
   },
   "review_pending": {
-    "type": "late_night",
+    "permission_type": "late_night",
     "status": "pending",
     "short_place": "Women's College",
     "destination_detail": "Seminar Hall",
@@ -69,7 +69,7 @@
     "decided_by_name": null
   },
   "approved": {
-    "type": "late_night",
+    "permission_type": "late_night",
     "status": "approved",
     "short_place": "Women's College",
     "destination_detail": "Seminar Hall",
@@ -86,7 +86,7 @@
     "decided_by_name": "Sara Malik"
   },
   "cancelled_approved": {
-    "type": "late_night",
+    "permission_type": "late_night",
     "status": "cancelled",
     "short_place": "Women's College",
     "destination_detail": "Seminar Hall",
@@ -99,7 +99,7 @@
     "created_at": "2026-09-30T13:00:02Z"
   },
   "rejected": {
-    "type": "home_going",
+    "permission_type": "home_going",
     "status": "rejected",
     "short_place": "Lucknow",
     "destination_detail": null,
@@ -116,7 +116,7 @@
     "decided_by_name": "Sara Malik"
   },
   "expired": {
-    "type": "home_going",
+    "permission_type": "home_going",
     "status": "expired",
     "short_place": "Lucknow",
     "destination_detail": null,
