@@ -418,7 +418,7 @@ When many elements animate (list rows, chip groups, stacked cards, staggered toa
 
 ## 7. Product workflows
 
-Screen-by-screen flows live in **[`docs/design/workflows.md`](workflows.md)** (auth with an office-issued enrolment and password, role homes, permissions, register, hall-pass / gate scans, guest stays, hall office). This file keeps visual rules only. Do not duplicate workflow tables here.
+Screen-by-screen flows live in **[`docs/design/workflows.md`](workflows.md)** (auth with resident self-onboard plus office-provisioned accounts, role homes, permissions, register, hall-pass / gate scans, guest stays, hall office). This file keeps visual rules only. Do not duplicate workflow tables here.
 
 ---
 
