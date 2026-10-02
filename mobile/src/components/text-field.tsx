@@ -19,6 +19,8 @@ type TextFieldProps = {
   onSubmitEditing?: () => void;
   onFocus?: () => void;
   onBlur?: () => void;
+  /** When false, keep the idle border even while focused (e.g. during raise). */
+  showOutline?: boolean;
 };
 
 export const TextField = memo(function TextField({
@@ -36,17 +38,19 @@ export const TextField = memo(function TextField({
   onSubmitEditing,
   onFocus,
   onBlur,
+  showOutline = true,
 }: TextFieldProps) {
   const colors = useHallColors();
   const [focused, setFocused] = useState(false);
   const labelStyle = useMemo(() => [text.label, { color: colors.inkSoft }], [colors]);
   const inputStyle = useMemo(() => [styles.input, text.field, { color: colors.ink }], [colors]);
+  const painted = focused && showOutline;
   const shellStyle = useMemo(
     () => [
       styles.shell,
-      { backgroundColor: colors.surface, borderColor: focused ? colors.forest : colors.line },
+      { backgroundColor: colors.surface, borderColor: painted ? colors.forest : colors.line },
     ],
-    [colors, focused],
+    [colors, painted],
   );
   const showFocus = useCallback(() => {
     setFocused(true);

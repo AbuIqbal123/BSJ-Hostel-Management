@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Redirect, router } from "expo-router";
 import {
   Keyboard,
+  LayoutAnimation,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -23,6 +25,8 @@ import { text } from "@/theme/text";
 const blockLift = 47;
 // Clearance between the sign-in button and the top of the keyboard.
 const keyboardGap = 16;
+// Android keyboard events often report duration 0; match a short ease.
+const fallbackMotionMs = 250;
 
 export default function SignInScreen() {
   const colors = useHallColors();
@@ -41,8 +45,11 @@ export default function SignInScreen() {
   const keyboardUpRef = useRef(false);
   const focusCount = useRef(0);
   const hideTicket = useRef(0);
+  const outlineTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tryLowerRef = useRef<(event?: KeyboardEvent) => void>(() => {});
   const [pad, setPad] = useState<number | null>(null);
   const [keyboardUp, setKeyboardUp] = useState(false);
+  const [outlineReady, setOutlineReady] = useState(false);
 
   const syncResting = useCallback((canvasHeight: number, blockHeight: number) => {
     // Wait until the canvas has stretched past the block. An early content-sized
@@ -91,21 +98,84 @@ export default function SignInScreen() {
 
   const onFieldBlur = useCallback(() => {
     focusCount.current = Math.max(0, focusCount.current - 1);
+    if (focusCount.current > 0) {
+      return;
+    }
+    // Hide can race ahead of blur and bail while focusCount was still > 0.
+    // Retry lower once focus has actually cleared.
+    const ticket = hideTicket.current;
+    requestAnimationFrame(() => {
+      if (ticket !== hideTicket.current) {
+        return;
+      }
+      tryLowerRef.current();
+    });
   }, []);
 
   useEffect(() => {
-    if (Platform.OS !== "ios") {
-      return;
-    }
+    const motionMs = (event?: KeyboardEvent) => {
+      const duration = event?.duration ?? 0;
+      return duration > 0 ? duration : fallbackMotionMs;
+    };
 
-    const place = (next: number, event: KeyboardEvent) => {
+    const clearOutlineTimer = () => {
+      if (outlineTimer.current == null) {
+        return;
+      }
+      clearTimeout(outlineTimer.current);
+      outlineTimer.current = null;
+    };
+
+    const syncMotion = (event?: KeyboardEvent) => {
+      const duration = event?.duration ?? 0;
+      if (duration > 0 && event) {
+        Keyboard.scheduleLayoutAnimation(event);
+        return;
+      }
+      LayoutAnimation.configureNext({
+        duration: fallbackMotionMs,
+        update: { type: LayoutAnimation.Types.easeInEaseOut },
+      });
+    };
+
+    const place = (next: number, event?: KeyboardEvent) => {
       if (next === padRef.current) {
         return;
       }
       padRef.current = next;
-      Keyboard.scheduleLayoutAnimation(event);
+      syncMotion(event);
       setPad(next);
     };
+
+    const armOutline = (event?: KeyboardEvent) => {
+      clearOutlineTimer();
+      setOutlineReady(false);
+      outlineTimer.current = setTimeout(() => {
+        outlineTimer.current = null;
+        setOutlineReady(true);
+      }, motionMs(event));
+    };
+
+    const tryLower = (event?: KeyboardEvent) => {
+      if (!keyboardUpRef.current) {
+        return;
+      }
+      if (focusCount.current > 0 || Keyboard.isVisible()) {
+        return;
+      }
+      clearOutlineTimer();
+      setOutlineReady(false);
+      keyboardUpRef.current = false;
+      setKeyboardUp(false);
+      if (restingPad.current <= 0) {
+        padRef.current = null;
+        syncMotion(event);
+        setPad(null);
+        return;
+      }
+      place(restingPad.current, event);
+    };
+    tryLowerRef.current = tryLower;
 
     const raiseFrom = (event: KeyboardEvent, bottom: number) => {
       const next = Math.max(
@@ -116,6 +186,7 @@ export default function SignInScreen() {
       if (first) {
         keyboardUpRef.current = true;
         setKeyboardUp(true);
+        armOutline(event);
       } else if (next <= (padRef.current ?? 0)) {
         return;
       }
@@ -154,34 +225,37 @@ export default function SignInScreen() {
 
     const onHide = (event: KeyboardEvent) => {
       const ticket = ++hideTicket.current;
+      const attempt = () => {
+        if (ticket !== hideTicket.current) {
+          return;
+        }
+        tryLower(event);
+      };
       requestAnimationFrame(() => {
         if (ticket !== hideTicket.current) {
           return;
         }
+        // Blur often lands just after hide — retry once so the block settles.
         if (focusCount.current > 0 || Keyboard.isVisible()) {
+          setTimeout(attempt, 64);
           return;
         }
-        if (!keyboardUpRef.current) {
-          return;
-        }
-        keyboardUpRef.current = false;
-        setKeyboardUp(false);
-        if (restingPad.current <= 0) {
-          padRef.current = null;
-          Keyboard.scheduleLayoutAnimation(event);
-          setPad(null);
-          return;
-        }
-        place(restingPad.current, event);
+        tryLower(event);
       });
     };
 
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
     const subscriptions = [
-      Keyboard.addListener("keyboardWillShow", onShow),
-      Keyboard.addListener("keyboardWillChangeFrame", onFrame),
-      Keyboard.addListener("keyboardWillHide", onHide),
+      Keyboard.addListener(showEvent, onShow),
+      Keyboard.addListener(hideEvent, onHide),
     ];
+    if (Platform.OS === "ios") {
+      subscriptions.push(Keyboard.addListener("keyboardWillChangeFrame", onFrame));
+    }
+
     return () => {
+      clearOutlineTimer();
       subscriptions.forEach((subscription) => subscription.remove());
     };
   }, []);
@@ -236,7 +310,13 @@ export default function SignInScreen() {
         style={[styles.canvas, pad == null && styles.resting]}
         onLayout={onCanvasLayout}
       >
+        <Pressable
+          accessible={false}
+          style={StyleSheet.absoluteFill}
+          onPress={Keyboard.dismiss}
+        />
         <View
+          pointerEvents="box-none"
           style={pad == null ? styles.block : [styles.block, styles.pinned, { bottom: pad }]}
           onLayout={onBlockLayout}
         >
@@ -256,6 +336,7 @@ export default function SignInScreen() {
               onSubmitEditing={focusPassword}
               onFocus={onFieldFocus}
               onBlur={onFieldBlur}
+              showOutline={outlineReady}
             />
             <TextField
               inputRef={passwordRef}
@@ -269,6 +350,7 @@ export default function SignInScreen() {
               onSubmitEditing={submit}
               onFocus={onFieldFocus}
               onBlur={onFieldBlur}
+              showOutline={outlineReady}
             />
             <View>
               <HallButton label="Sign in" onPress={submit} />
