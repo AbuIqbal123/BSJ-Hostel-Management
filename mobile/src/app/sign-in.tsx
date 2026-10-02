@@ -93,6 +93,16 @@ export default function SignInScreen() {
     passwordRef.current?.focus();
   }, []);
 
+  const onUsername = useCallback((value: string) => {
+    setUsername(value);
+    setError(null);
+  }, []);
+
+  const onPassword = useCallback((value: string) => {
+    setPassword(value);
+    setError(null);
+  }, []);
+
   const submit = useCallback(async () => {
     if (pendingRef.current) {
       return;
@@ -118,6 +128,9 @@ export default function SignInScreen() {
       keyboardDismissMode="interactive"
       keyboardShouldPersistTaps="handled"
       contentInsetAdjustmentBehavior="never"
+      bounces={false}
+      overScrollMode="never"
+      showsVerticalScrollIndicator={false}
     >
       <View style={styles.center}>
         <View style={styles.block}>
@@ -129,7 +142,7 @@ export default function SignInScreen() {
             <TextField
               label="Username"
               value={username}
-              onChangeText={setUsername}
+              onChangeText={onUsername}
               autoComplete="username"
               textContentType="username"
               returnKeyType="next"
@@ -140,7 +153,7 @@ export default function SignInScreen() {
               inputRef={passwordRef}
               label="Password"
               value={password}
-              onChangeText={setPassword}
+              onChangeText={onPassword}
               secureTextEntry
               autoComplete="password"
               textContentType="password"

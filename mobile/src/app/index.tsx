@@ -1,5 +1,5 @@
 import { Redirect } from "expo-router";
-import { Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HallMark } from "@/components/hall-mark";
@@ -21,16 +21,14 @@ export default function OpeningScreen() {
 
   return (
     <View
-      style={{
-        flex: 1,
-        backgroundColor: colors.paper,
-        justifyContent: "center",
-        alignItems: "center",
-        paddingTop: insets.top,
-        paddingBottom: insets.bottom,
-        paddingHorizontal: 32,
-        gap: 16,
-      }}
+      style={[
+        styles.screen,
+        {
+          backgroundColor: colors.paper,
+          paddingTop: insets.top,
+          paddingBottom: insets.bottom,
+        },
+      ]}
     >
       <HallMark />
       <Text style={[text.hallName, { color: colors.ink }]}>Begum Sultan Jahan Hall</Text>
@@ -38,3 +36,13 @@ export default function OpeningScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+    gap: 16,
+  },
+});

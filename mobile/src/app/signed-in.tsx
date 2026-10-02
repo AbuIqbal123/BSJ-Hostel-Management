@@ -1,5 +1,5 @@
 import { Redirect, router } from "expo-router";
-import { ScrollView, Text } from "react-native";
+import { ScrollView, StyleSheet, Text } from "react-native";
 
 import { HallButton } from "@/components/hall-button";
 import { roleLabel, useSession } from "@/session";
@@ -17,8 +17,9 @@ export default function SignedInScreen() {
   return (
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={{ padding: 24, gap: 16 }}
+      contentContainerStyle={styles.content}
       style={{ backgroundColor: colors.paper }}
+      showsVerticalScrollIndicator={false}
     >
       <Text selectable style={[text.name, { color: colors.ink }]}>
         {user.full_name}
@@ -36,3 +37,10 @@ export default function SignedInScreen() {
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  content: {
+    padding: 24,
+    gap: 16,
+  },
+});
