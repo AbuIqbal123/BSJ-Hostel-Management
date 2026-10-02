@@ -1454,6 +1454,124 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /api/v1/guest-stays/{guest_stay_id}/payment/evidence:
+    post:
+      tags: [Guest Stays]
+      operationId: upload_guest_payment_evidence
+      summary: Upload guest payment evidence
+      description: |
+        Caller: warden or provost. Optional file proof that payment was taken
+        off-system (receipt photo or PDF). Uploading is never required to mark
+        a stay paid. Allowed while payment is still mutable (pending or approved,
+        before arrival), whether the stay is unpaid or already paid. Replaces any
+        previous evidence file. Multipart field name is `evidence`. Allowed types:
+        `image/jpeg`, `image/png`, `application/pdf`. Maximum size 5 MiB. Stored
+        name is UUID-based under the hall payment-evidence directory; clients
+        never receive filesystem absolute paths.
+      parameters:
+        - $ref: "#/components/parameters/GuestStayId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [evidence]
+              properties:
+                evidence:
+                  type: string
+                  format: binary
+                  description: Receipt image (JPEG/PNG) or PDF, at most 5 MiB.
+      responses:
+        "200":
+          description: Evidence stored. Full GuestStay with evidence metadata (no binary).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuestStay"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: The guest has already arrived or the stay is closed. Code `payment_locked`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Missing file, disallowed type/extension, or over size limit. Code `validation_error`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    get:
+      tags: [Guest Stays]
+      operationId: download_guest_payment_evidence
+      summary: Download guest payment evidence
+      description: |
+        Caller: warden or provost. Returns the stored evidence file when one
+        exists. Auth required; absolute paths are never exposed.
+      parameters:
+        - $ref: "#/components/parameters/GuestStayId"
+      responses:
+        "200":
+          description: The evidence file bytes.
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: Stay not found, or no evidence on this stay. Code `not_found`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      tags: [Guest Stays]
+      operationId: clear_guest_payment_evidence
+      summary: Clear guest payment evidence
+      description: |
+        Caller: warden or provost. Removes stored evidence without changing
+        payment_status. Allowed while payment is still mutable. Marking unpaid
+        also clears evidence.
+      parameters:
+        - $ref: "#/components/parameters/GuestStayId"
+      responses:
+        "200":
+          description: Evidence cleared. Full GuestStay.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuestStay"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: The guest has already arrived or the stay is closed. Code `payment_locked`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /api/v1/admin/residents:
     get:
       tags: [Hall office]
@@ -2993,6 +3111,33 @@ components:
             - type: string
               format: date-time
             - type: "null"
+        payment_evidence_original_name:
+          oneOf:
+            - type: string
+            - type: "null"
+          description: |
+            Original client filename when optional payment evidence was uploaded.
+            Empty when no evidence is stored. Never a filesystem path.
+        payment_evidence_content_type:
+          oneOf:
+            - type: string
+            - type: "null"
+          description: |
+            Stored content type when evidence exists (`image/jpeg`, `image/png`,
+            or `application/pdf`). Empty when no evidence is stored.
+        payment_evidence_uploaded_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: "null"
+          description: UTC instant when evidence was last uploaded. Empty when none.
+        payment_evidence_uploaded_by_name:
+          oneOf:
+            - type: string
+            - type: "null"
+          description: |
+            Display name of the warden or provost who uploaded the evidence.
+            Empty when no evidence is stored.
         created_at:
           type: string
           format: date-time

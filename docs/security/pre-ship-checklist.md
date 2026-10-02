@@ -26,7 +26,7 @@ Map each item to this hall before shipping. Prefer server-side enforcement over 
 | 12 | **Hide detailed errors.** | Clients get contract-shaped errors, not stack traces or SQL. Log detail server-side only. |
 | 13 | **Validate inputs server-side.** | OpenAPI + server validation for lengths, enums, dates, and roles. Client validation is UX only. |
 | 14 | **Sanitize user content.** | Treat names, reasons, destinations, SMS template text as untrusted when shown or exported. No HTML/script injection into web views. |
-| 15 | **Secure file uploads.** | CSV export is download, not upload. If uploads appear later: type/size limits, no executable content, auth required. |
+| 15 | **Secure file uploads.** | Guest payment evidence: `POST /api/v1/guest-stays/{id}/payment/evidence` (warden/provost only). Multipart field `evidence`; allowlist `image/jpeg`, `image/png`, `application/pdf`; max 5 MiB; UUID stored names under `PAYMENT_EVIDENCE_DIR` (never user-controlled paths); no absolute paths in API responses. Optional — never required to mark paid. CSV export remains download-only. |
 | 16 | **Prevent SQL and NoSQL injection.** | Parameterized queries / ORM only. No string-built SQL from user input. |
 | 17 | **Rate-limit login and signup.** | Rate-limit `POST /api/v1/auth/login` and `POST /api/v1/auth/refresh`. There is no public signup; keep it that way. A bad username and a wrong password stay one sentence, so enumeration stays hard. |
 | 18 | **Check Git history for secrets.** | Run Gitleaks / pre-commit (`docs/engineering/dev-pre-commit.md`) before release. Scrub history if anything slipped. |

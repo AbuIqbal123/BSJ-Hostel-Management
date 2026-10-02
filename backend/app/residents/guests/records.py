@@ -46,6 +46,10 @@ class GuestStayBody(BaseModel):
     decided_by_name: str | None = None
     arrived_recorded_by_name: str | None = None
     departed_recorded_by_name: str | None = None
+    payment_evidence_original_name: str | None = None
+    payment_evidence_content_type: str | None = None
+    payment_evidence_uploaded_at: str | None = None
+    payment_evidence_uploaded_by_name: str | None = None
     arrived_at: str | None = None
     departed_at: str | None = None
     created_at: str
@@ -144,6 +148,10 @@ SELECT
   decider.full_name AS decided_by_name,
   arriver.full_name AS arrived_recorded_by_name,
   departer.full_name AS departed_recorded_by_name,
+  guest_stays.payment_evidence_original_name,
+  guest_stays.payment_evidence_content_type,
+  guest_stays.payment_evidence_uploaded_at,
+  evidence_uploader.full_name AS payment_evidence_uploaded_by_name,
   guest_stays.arrived_at,
   guest_stays.departed_at,
   guest_stays.created_at
@@ -154,6 +162,7 @@ JOIN rooms ON rooms.id = residents.room_id
 LEFT JOIN users AS decider ON decider.id = guest_stays.decided_by
 LEFT JOIN users AS arriver ON arriver.id = guest_stays.arrived_recorded_by
 LEFT JOIN users AS departer ON departer.id = guest_stays.departed_recorded_by
+LEFT JOIN users AS evidence_uploader ON evidence_uploader.id = guest_stays.payment_evidence_uploaded_by
 """
 
 
@@ -186,6 +195,10 @@ def _body_from_row(row: sqlite3.Row, today: str) -> GuestStayBody:
         decided_by_name=row["decided_by_name"],
         arrived_recorded_by_name=row["arrived_recorded_by_name"],
         departed_recorded_by_name=row["departed_recorded_by_name"],
+        payment_evidence_original_name=row["payment_evidence_original_name"],
+        payment_evidence_content_type=row["payment_evidence_content_type"],
+        payment_evidence_uploaded_at=row["payment_evidence_uploaded_at"],
+        payment_evidence_uploaded_by_name=row["payment_evidence_uploaded_by_name"],
         arrived_at=row["arrived_at"],
         departed_at=row["departed_at"],
         created_at=row["created_at"],

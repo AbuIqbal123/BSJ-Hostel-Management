@@ -50,6 +50,9 @@ Do not edit this page by hand.
   - [GET `/api/v1/guest-stays/{guest_stay_id}` — Guest stay for review](#get-api-v1-guest-stays-guest_stay_id)
   - [POST `/api/v1/guest-stays/{guest_stay_id}/decision` — Approve or reject a guest stay](#post-api-v1-guest-stays-guest_stay_id-decision)
   - [POST `/api/v1/guest-stays/{guest_stay_id}/payment` — Mark guest payment](#post-api-v1-guest-stays-guest_stay_id-payment)
+  - [POST `/api/v1/guest-stays/{guest_stay_id}/payment/evidence` — Upload guest payment evidence](#post-api-v1-guest-stays-guest_stay_id-payment-evidence)
+  - [GET `/api/v1/guest-stays/{guest_stay_id}/payment/evidence` — Download guest payment evidence](#get-api-v1-guest-stays-guest_stay_id-payment-evidence)
+  - [DELETE `/api/v1/guest-stays/{guest_stay_id}/payment/evidence` — Clear guest payment evidence](#delete-api-v1-guest-stays-guest_stay_id-payment-evidence)
 - [Gate](#tag-gate)
   - [POST `/api/v1/gate/scans` — Scan a hall pass](#post-api-v1-gate-scans)
   - [GET `/api/v1/gate/activity` — Recent gate activity](#get-api-v1-gate-activity)
@@ -1566,6 +1569,9 @@ Guest applications. Resident applies under /api/v1/me/guest-stays; warden or pro
 | GET | `/api/v1/guest-stays/{guest_stay_id}` | [Guest stay for review](#get-api-v1-guest-stays-guest_stay_id) | warden or provost |
 | POST | `/api/v1/guest-stays/{guest_stay_id}/decision` | [Approve or reject a guest stay](#post-api-v1-guest-stays-guest_stay_id-decision) | warden or provost |
 | POST | `/api/v1/guest-stays/{guest_stay_id}/payment` | [Mark guest payment](#post-api-v1-guest-stays-guest_stay_id-payment) | warden or provost |
+| POST | `/api/v1/guest-stays/{guest_stay_id}/payment/evidence` | [Upload guest payment evidence](#post-api-v1-guest-stays-guest_stay_id-payment-evidence) | warden or provost |
+| GET | `/api/v1/guest-stays/{guest_stay_id}/payment/evidence` | [Download guest payment evidence](#get-api-v1-guest-stays-guest_stay_id-payment-evidence) | warden or provost |
+| DELETE | `/api/v1/guest-stays/{guest_stay_id}/payment/evidence` | [Clear guest payment evidence](#delete-api-v1-guest-stays-guest_stay_id-payment-evidence) | warden or provost |
 
 ### <a id="get-api-v1-me-guest-stays"></a>GET `/api/v1/me/guest-stays` — Own guest applications
 
@@ -1676,6 +1682,10 @@ Body: [GuestStay](#schema-gueststay).
 | `departed_recorded_by_name` | no | string or null | Staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
 | `departed_at` | no | date-time or null |  |
+| `payment_evidence_original_name` | no | string or null | Original client filename when optional payment evidence was uploaded. Empty when no evidence is stored. Never a filesystem path. |
+| `payment_evidence_content_type` | no | string or null | Stored content type when evidence exists (`image/jpeg`, `image/png`, or `application/pdf`). Empty when no evidence is stored. |
+| `payment_evidence_uploaded_at` | no | date-time or null | UTC instant when evidence was last uploaded. Empty when none. |
+| `payment_evidence_uploaded_by_name` | no | string or null | Display name of the warden or provost who uploaded the evidence. Empty when no evidence is stored. |
 | `created_at` | yes | date-time |  |
 
 #### 401
@@ -1740,6 +1750,10 @@ Body: [GuestStay](#schema-gueststay).
 | `departed_recorded_by_name` | no | string or null | Staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
 | `departed_at` | no | date-time or null |  |
+| `payment_evidence_original_name` | no | string or null | Original client filename when optional payment evidence was uploaded. Empty when no evidence is stored. Never a filesystem path. |
+| `payment_evidence_content_type` | no | string or null | Stored content type when evidence exists (`image/jpeg`, `image/png`, or `application/pdf`). Empty when no evidence is stored. |
+| `payment_evidence_uploaded_at` | no | date-time or null | UTC instant when evidence was last uploaded. Empty when none. |
+| `payment_evidence_uploaded_by_name` | no | string or null | Display name of the warden or provost who uploaded the evidence. Empty when no evidence is stored. |
 | `created_at` | yes | date-time |  |
 
 #### 401
@@ -1804,6 +1818,10 @@ Body: [GuestStay](#schema-gueststay).
 | `departed_recorded_by_name` | no | string or null | Staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
 | `departed_at` | no | date-time or null |  |
+| `payment_evidence_original_name` | no | string or null | Original client filename when optional payment evidence was uploaded. Empty when no evidence is stored. Never a filesystem path. |
+| `payment_evidence_content_type` | no | string or null | Stored content type when evidence exists (`image/jpeg`, `image/png`, or `application/pdf`). Empty when no evidence is stored. |
+| `payment_evidence_uploaded_at` | no | date-time or null | UTC instant when evidence was last uploaded. Empty when none. |
+| `payment_evidence_uploaded_by_name` | no | string or null | Display name of the warden or provost who uploaded the evidence. Empty when no evidence is stored. |
 | `created_at` | yes | date-time |  |
 
 #### 401
@@ -1921,6 +1939,10 @@ Body: [GuestStay](#schema-gueststay).
 | `departed_recorded_by_name` | no | string or null | Staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
 | `departed_at` | no | date-time or null |  |
+| `payment_evidence_original_name` | no | string or null | Original client filename when optional payment evidence was uploaded. Empty when no evidence is stored. Never a filesystem path. |
+| `payment_evidence_content_type` | no | string or null | Stored content type when evidence exists (`image/jpeg`, `image/png`, or `application/pdf`). Empty when no evidence is stored. |
+| `payment_evidence_uploaded_at` | no | date-time or null | UTC instant when evidence was last uploaded. Empty when none. |
+| `payment_evidence_uploaded_by_name` | no | string or null | Display name of the warden or provost who uploaded the evidence. Empty when no evidence is stored. |
 | `created_at` | yes | date-time |  |
 
 #### 401
@@ -1995,6 +2017,10 @@ Body: [GuestStay](#schema-gueststay).
 | `departed_recorded_by_name` | no | string or null | Staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
 | `departed_at` | no | date-time or null |  |
+| `payment_evidence_original_name` | no | string or null | Original client filename when optional payment evidence was uploaded. Empty when no evidence is stored. Never a filesystem path. |
+| `payment_evidence_content_type` | no | string or null | Stored content type when evidence exists (`image/jpeg`, `image/png`, or `application/pdf`). Empty when no evidence is stored. |
+| `payment_evidence_uploaded_at` | no | date-time or null | UTC instant when evidence was last uploaded. Empty when none. |
+| `payment_evidence_uploaded_by_name` | no | string or null | Display name of the warden or provost who uploaded the evidence. Empty when no evidence is stored. |
 | `created_at` | yes | date-time |  |
 
 #### 401
@@ -2083,6 +2109,225 @@ Body: [GuestStay](#schema-gueststay).
 | `departed_recorded_by_name` | no | string or null | Staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
 | `departed_at` | no | date-time or null |  |
+| `payment_evidence_original_name` | no | string or null | Original client filename when optional payment evidence was uploaded. Empty when no evidence is stored. Never a filesystem path. |
+| `payment_evidence_content_type` | no | string or null | Stored content type when evidence exists (`image/jpeg`, `image/png`, or `application/pdf`). Empty when no evidence is stored. |
+| `payment_evidence_uploaded_at` | no | date-time or null | UTC instant when evidence was last uploaded. Empty when none. |
+| `payment_evidence_uploaded_by_name` | no | string or null | Display name of the warden or provost who uploaded the evidence. Empty when no evidence is stored. |
+| `created_at` | yes | date-time |  |
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 404
+
+No record with that id is visible to the caller.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 409
+
+The guest has already arrived or the stay is closed. Code `payment_locked`.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
+### <a id="post-api-v1-guest-stays-guest_stay_id-payment-evidence"></a>POST `/api/v1/guest-stays/{guest_stay_id}/payment/evidence` — Upload guest payment evidence
+
+`upload_guest_payment_evidence`
+
+**Who.** warden or provost. Bearer access token.
+
+Caller: warden or provost. Optional file proof that payment was taken
+off-system (receipt photo or PDF). Uploading is never required to mark
+a stay paid. Allowed while payment is still mutable (pending or approved,
+before arrival), whether the stay is unpaid or already paid. Replaces any
+previous evidence file. Multipart field name is `evidence`. Allowed types:
+`image/jpeg`, `image/png`, `application/pdf`. Maximum size 5 MiB. Stored
+name is UUID-based under the hall payment-evidence directory; clients
+never receive filesystem absolute paths.
+
+**Parameters**
+
+| Name | In | Required | Type | Notes |
+|---|---|---|---|---|
+| `guest_stay_id` | path | yes | uuid |  |
+
+**Request.** Required.
+
+Body: object.
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `evidence` | yes | binary | Receipt image (JPEG/PNG) or PDF, at most 5 MiB. |
+
+**Responses**
+
+#### 200
+
+Evidence stored. Full GuestStay with evidence metadata (no binary).
+
+Body: [GuestStay](#schema-gueststay).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `id` | yes | uuid |  |
+| `host_resident_id` | yes | uuid |  |
+| `host_name` | yes | string |  |
+| `host_room_label` | yes | string |  |
+| `guest_name` | yes | string |  |
+| `relation` | yes | string |  |
+| `start_date` | yes | date |  |
+| `end_date` | yes | date |  |
+| `inclusive_days` | yes | integer |  |
+| `reason` | yes | string |  |
+| `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
+| `payment_status` | yes | `unpaid` or `paid` |  |
+| `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
+| `decision_note` | no | string or null |  |
+| `decided_by_name` | no | string or null | Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `arrived_recorded_by_name` | no | string or null | Staff member who recorded arrival. Empty until arrival is recorded. |
+| `departed_recorded_by_name` | no | string or null | Staff member who recorded departure. Empty until departure is recorded. |
+| `arrived_at` | no | date-time or null |  |
+| `departed_at` | no | date-time or null |  |
+| `payment_evidence_original_name` | no | string or null | Original client filename when optional payment evidence was uploaded. Empty when no evidence is stored. Never a filesystem path. |
+| `payment_evidence_content_type` | no | string or null | Stored content type when evidence exists (`image/jpeg`, `image/png`, or `application/pdf`). Empty when no evidence is stored. |
+| `payment_evidence_uploaded_at` | no | date-time or null | UTC instant when evidence was last uploaded. Empty when none. |
+| `payment_evidence_uploaded_by_name` | no | string or null | Display name of the warden or provost who uploaded the evidence. Empty when no evidence is stored. |
+| `created_at` | yes | date-time |  |
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 404
+
+No record with that id is visible to the caller.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 409
+
+The guest has already arrived or the stay is closed. Code `payment_locked`.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 422
+
+Missing file, disallowed type/extension, or over size limit. Code `validation_error`.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
+### <a id="get-api-v1-guest-stays-guest_stay_id-payment-evidence"></a>GET `/api/v1/guest-stays/{guest_stay_id}/payment/evidence` — Download guest payment evidence
+
+`download_guest_payment_evidence`
+
+**Who.** warden or provost. Bearer access token.
+
+Caller: warden or provost. Returns the stored evidence file when one
+exists. Auth required; absolute paths are never exposed.
+
+**Parameters**
+
+| Name | In | Required | Type | Notes |
+|---|---|---|---|---|
+| `guest_stay_id` | path | yes | uuid |  |
+
+**Responses**
+
+#### 200
+
+The evidence file bytes.
+
+Body: binary.
+
+No fields.
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 404
+
+Stay not found, or no evidence on this stay. Code `not_found`.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
+### <a id="delete-api-v1-guest-stays-guest_stay_id-payment-evidence"></a>DELETE `/api/v1/guest-stays/{guest_stay_id}/payment/evidence` — Clear guest payment evidence
+
+`clear_guest_payment_evidence`
+
+**Who.** warden or provost. Bearer access token.
+
+Caller: warden or provost. Removes stored evidence without changing
+payment_status. Allowed while payment is still mutable. Marking unpaid
+also clears evidence.
+
+**Parameters**
+
+| Name | In | Required | Type | Notes |
+|---|---|---|---|---|
+| `guest_stay_id` | path | yes | uuid |  |
+
+**Responses**
+
+#### 200
+
+Evidence cleared. Full GuestStay.
+
+Body: [GuestStay](#schema-gueststay).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `id` | yes | uuid |  |
+| `host_resident_id` | yes | uuid |  |
+| `host_name` | yes | string |  |
+| `host_room_label` | yes | string |  |
+| `guest_name` | yes | string |  |
+| `relation` | yes | string |  |
+| `start_date` | yes | date |  |
+| `end_date` | yes | date |  |
+| `inclusive_days` | yes | integer |  |
+| `reason` | yes | string |  |
+| `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
+| `payment_status` | yes | `unpaid` or `paid` |  |
+| `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
+| `decision_note` | no | string or null |  |
+| `decided_by_name` | no | string or null | Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `arrived_recorded_by_name` | no | string or null | Staff member who recorded arrival. Empty until arrival is recorded. |
+| `departed_recorded_by_name` | no | string or null | Staff member who recorded departure. Empty until departure is recorded. |
+| `arrived_at` | no | date-time or null |  |
+| `departed_at` | no | date-time or null |  |
+| `payment_evidence_original_name` | no | string or null | Original client filename when optional payment evidence was uploaded. Empty when no evidence is stored. Never a filesystem path. |
+| `payment_evidence_content_type` | no | string or null | Stored content type when evidence exists (`image/jpeg`, `image/png`, or `application/pdf`). Empty when no evidence is stored. |
+| `payment_evidence_uploaded_at` | no | date-time or null | UTC instant when evidence was last uploaded. Empty when none. |
+| `payment_evidence_uploaded_by_name` | no | string or null | Display name of the warden or provost who uploaded the evidence. Empty when no evidence is stored. |
 | `created_at` | yes | date-time |  |
 
 #### 401
@@ -4414,6 +4659,10 @@ One of: `pending`, `upcoming`, `expected`, `not_expected`, `in_hall`, `should_ha
 | `departed_recorded_by_name` | no | string or null | Staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
 | `departed_at` | no | date-time or null |  |
+| `payment_evidence_original_name` | no | string or null | Original client filename when optional payment evidence was uploaded. Empty when no evidence is stored. Never a filesystem path. |
+| `payment_evidence_content_type` | no | string or null | Stored content type when evidence exists (`image/jpeg`, `image/png`, or `application/pdf`). Empty when no evidence is stored. |
+| `payment_evidence_uploaded_at` | no | date-time or null | UTC instant when evidence was last uploaded. Empty when none. |
+| `payment_evidence_uploaded_by_name` | no | string or null | Display name of the warden or provost who uploaded the evidence. Empty when no evidence is stored. |
 | `created_at` | yes | date-time |  |
 
 ### <a id="schema-gueststaysummary"></a>GuestStaySummary

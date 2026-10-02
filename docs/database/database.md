@@ -408,6 +408,11 @@ Guests are not accounts and have no hall pass.
 | payment_status | Choice | Yes | System starts it as unpaid. A warden or the provost marks it paid. | Unpaid or paid. |
 | payment_marked_by | Identifier | Yes when paid. Empty when unpaid. | The warden or provost who marked it | Required together with the time when the stay is paid. |
 | payment_marked_at | Instant | Yes when paid. Empty when unpaid. | System, when payment is marked | |
+| payment_evidence_path | Text | Empty when no file. | System, relative path under the hall payment-evidence directory | Optional receipt file (JPEG, PNG, or PDF). Never required to mark paid. Cleared when payment is marked unpaid, or when staff clear evidence. |
+| payment_evidence_original_name | Text | Empty when no file. | The original client filename | For display only. Empty together with the path. |
+| payment_evidence_content_type | Text | Empty when no file. | System, from the allowlist | `image/jpeg`, `image/png`, or `application/pdf`. |
+| payment_evidence_uploaded_at | Instant | Empty when no file. | System, when the file is stored | |
+| payment_evidence_uploaded_by | Identifier | Empty when no file. | The warden or provost who uploaded it | Required together with the path when evidence exists. |
 | decided_by | Identifier | Empty while waiting, and empty if the resident cancels before a decision. Yes once approved or rejected. | The warden or provost who decided | The audit of the decision. A waiting stay has no decision yet, so the field is empty until then. |
 | decided_at | Instant | Empty in the same cases as decided_by. Yes once approved or rejected. | System, at the decision | |
 | decision_note | Text | Empty if they write nothing | The warden or provost may type it | Optional. |
@@ -432,7 +437,7 @@ The state and the times agree:
 - Approved is the stay that can be in the hall. Arrival is a time on that stay, not a new state.
 - Departure moves an approved stay to departed.
 
-Payment is a separate act by a warden or the provost. It can be marked before or after approval, and not after departure. Marking it unpaid again is allowed only before arrival. Marking it unpaid clears the payment staff member and the payment time.
+Payment is a separate act by a warden or the provost. It can be marked before or after approval, and not after departure. Marking it unpaid again is allowed only before arrival. Marking it unpaid clears the payment staff member, the payment time, and any optional payment evidence file. Optional payment evidence (a JPEG, PNG, or PDF under 5 MiB) may be uploaded before or after marking paid, while the stay is still pending or approved and the guest has not arrived. Uploading evidence never marks the stay paid and is never required to mark paid. Clearing evidence leaves payment_status unchanged.
 
 Arrival is allowed only when the stay is approved, payment is paid, arrival is still empty, and today's hall date falls on the start date, the end date, or a day between them.
 
@@ -533,6 +538,8 @@ This is the audit log: the record of who did what. Each entry is one action that
 | Guest stay approved | guest_stay.approved |
 | Guest stay rejected | guest_stay.rejected |
 | Guest payment marked | guest_stay.payment_marked |
+| Guest payment evidence uploaded | guest_stay.payment_evidence_uploaded |
+| Guest payment evidence cleared | guest_stay.payment_evidence_cleared |
 | Guest arrived | guest_stay.arrived |
 | Guest departed | guest_stay.departed |
 | Late guardian message | sms.late_notice |
@@ -550,7 +557,7 @@ A warden or the provost approves or rejects a permission and a guest stay, sees 
 |---|---|---|---|---|
 | Own outing, own permission, own guest application, own hall pass | Yes | | | |
 | Scan a hall pass, record a guest's arrival and departure | | Yes | Yes | Yes |
-| Register, late list, waiting decisions, mark a guest paid | | | Yes | Yes |
+| Register, late list, waiting decisions, mark a guest paid, upload or clear optional payment evidence | | | Yes | Yes |
 | Export the register | | | | Yes |
 | Create and edit residents, staff, rooms, blocks, destinations, and settings | | | | Yes |
 | Issue a new hall pass, reset a password | | | | Yes |
@@ -582,7 +589,7 @@ A resident's own history is the same exits and returns for that resident, newest
 
 - Emergency alerts, duty phone numbers, or a second emergency contact besides the guardian.
 - Phone notifications. Text messages to the guardian are kept above. What the resident's or the staff member's own phone notifies, and when, is not a record in this document.
-- A payment amount, a receipt, or card collection. The office only marks a guest stay paid or unpaid.
+- A payment amount or card collection. The office marks a guest stay paid or unpaid and may optionally keep a JPEG, PNG, or PDF receipt file as payment evidence. Amounts and card rails are not kept.
 - Parent or guardian accounts.
 - More than one outside outing, or two planned or outside outings with the same expected return.
 - A second role on one person.
