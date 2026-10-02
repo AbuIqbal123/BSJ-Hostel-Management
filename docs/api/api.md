@@ -2528,7 +2528,7 @@ not scanned.
 
 #### 200
 
-Arrival recorded. The response includes the new dining count.
+Arrival recorded.
 
 Body: [GuestMovementResult](#schema-guestmovementresult).
 
@@ -2539,7 +2539,6 @@ Body: [GuestMovementResult](#schema-guestmovementresult).
 | `host_room_label` | yes | string |  |
 | `recorded_at` | yes | date-time |  |
 | `message` | yes | string |  |
-| `guests_in_hall_count` | yes | integer | minimum 0. |
 
 **Example**
 
@@ -2549,8 +2548,7 @@ Body: [GuestMovementResult](#schema-guestmovementresult).
   "host_name": "Aisha Khan",
   "host_room_label": "B-204",
   "recorded_at": "2026-09-18T10:11:00Z",
-  "message": "The guest is now in the hall.",
-  "guests_in_hall_count": 6
+  "message": "The guest is now in the hall."
 }
 ```
 
@@ -2586,7 +2584,7 @@ Body: [ErrorResponse](#schema-errorresponse).
 **Who.** gate, warden, or provost. Bearer access token.
 
 Caller: gate, warden, or provost. The guest must currently be in the hall.
-Closes the stay. The dining count drops, including when the end date has
+Closes the stay. Departure is still recorded when the end date has
 already passed.
 
 **Parameters**
@@ -2610,7 +2608,6 @@ Body: [GuestMovementResult](#schema-guestmovementresult).
 | `host_room_label` | yes | string |  |
 | `recorded_at` | yes | date-time |  |
 | `message` | yes | string |  |
-| `guests_in_hall_count` | yes | integer | minimum 0. |
 
 #### 401
 
@@ -4686,7 +4683,6 @@ empty; any stored note is cleared with `payment_marked_by` and
 | `host_room_label` | yes | string |  |
 | `recorded_at` | yes | date-time |  |
 | `message` | yes | string |  |
-| `guests_in_hall_count` | yes | integer | minimum 0. |
 
 ### <a id="schema-registersummary"></a>RegisterSummary
 

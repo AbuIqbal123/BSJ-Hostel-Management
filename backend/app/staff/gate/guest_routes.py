@@ -47,18 +47,6 @@ class GuestMovementResult(BaseModel):
     host_room_label: str
     recorded_at: str
     message: str
-    guests_in_hall_count: int
-
-
-def guests_in_hall_count(connection: sqlite3.Connection) -> int:
-    row = connection.execute(
-        """
-        SELECT COUNT(*) AS n
-        FROM guest_stays
-        WHERE arrived_at IS NOT NULL AND departed_at IS NULL
-        """
-    ).fetchone()
-    return int(row["n"])
 
 
 def _host_fields(connection: sqlite3.Connection, guest_stay_id: str) -> sqlite3.Row | None:
@@ -220,7 +208,6 @@ def record_guest_arrival(
         host_room_label=row["host_room_label"],
         recorded_at=now_text,
         message="The guest is now in the hall.",
-        guests_in_hall_count=guests_in_hall_count(connection),
     )
 
 
@@ -276,5 +263,4 @@ def record_guest_departure(
         host_room_label=row["host_room_label"],
         recorded_at=now_text,
         message="The guest has left the hall.",
-        guests_in_hall_count=guests_in_hall_count(connection),
     )
