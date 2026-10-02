@@ -40,8 +40,17 @@ class GuestStayCreate(BaseModel):
     reason: str = Field(min_length=1, max_length=500)
 
 
+class GuestStayUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    guest_name: str | None = Field(default=None, min_length=1, max_length=120)
+    relation: str | None = Field(default=None, min_length=1, max_length=80)
+    guest_start_date: str | None = None
+    guest_end_date: str | None = None
+    reason: str | None = Field(default=None, min_length=1, max_length=500)
+
+
 def _parse_date(value: str, *, field: str) -> str:
-    if not _DATE.match(value):
+    if not isinstance(value, str) or not _DATE.match(value):
         raise ApiError(
             422,
             "validation_error",
@@ -62,6 +71,39 @@ def _parse_date(value: str, *, field: str) -> str:
             f"Use a calendar date for {field}, such as 2026-10-02.",
         )
     return value
+
+
+def _validate_stay_window(
+    connection,
+    *,
+    start: str,
+    end: str,
+    require_lead: bool,
+) -> None:
+    if end < start:
+        raise ApiError(
+            422,
+            "validation_error",
+            "The end date must be on or after the start date.",
+        )
+    settings = guest_settings(connection)
+    today = hall_today(connection, clock.utc_now())
+    if require_lead:
+        earliest = earliest_start_date(today, int(settings["guest_min_lead_days"]))
+        if start < earliest:
+            raise ApiError(
+                422,
+                "validation_error",
+                "The start date must be at least the hall lead time after today's hall date.",
+            )
+    days = inclusive_days(start, end)
+    maximum = int(settings["guest_max_inclusive_days"])
+    if days < 1 or days > maximum:
+        raise ApiError(
+            422,
+            "validation_error",
+            f"A guest stay must last from 1 to {maximum} days, counting the first and last day.",
+        )
 
 
 @router.get("/me/guest-stays", response_model=GuestStayPageBody)
@@ -171,6 +213,158 @@ def get_own_guest_stay(
     )
     if stay is None:
         raise ApiError(404, "not_found", "That record was not found.")
+    return stay
+
+
+@router.patch("/me/guest-stays/{guest_stay_id}", response_model=GuestStayBody)
+def edit_guest_stay(
+    guest_stay_id: str,
+    body: GuestStayUpdate,
+    account: ResidentDep,
+    connection: ConnectionDep,
+) -> GuestStayBody:
+    today = hall_today(connection, clock.utc_now())
+    row = connection.execute(
+        """
+        SELECT
+          id, host_resident_id, status, guest_name, relation, guest_start_date, guest_end_date,
+          reason, payment_status, arrived_at, departed_at
+        FROM guest_stays
+        WHERE id = ?
+        """,
+        (guest_stay_id,),
+    ).fetchone()
+    if row is None or row["host_resident_id"] != account.id:
+        raise ApiError(404, "not_found", "That record was not found.")
+    if row["departed_at"] is not None or row["status"] in {"departed", "rejected", "cancelled"}:
+        raise ApiError(
+            409,
+            "not_editable",
+            "Only a pending or approved guest stay can be edited "
+            f"(current status: {row['status']}).",
+        )
+    if row["status"] not in {"pending", "approved"}:
+        raise ApiError(
+            409,
+            "not_editable",
+            "Only a pending or approved guest stay can be edited "
+            f"(current status: {row['status']}).",
+        )
+
+    provided = body.model_fields_set
+    if not provided:
+        raise ApiError(422, "validation_error", "Send at least one field to edit.")
+
+    arrived = row["arrived_at"] is not None
+    if arrived:
+        locked = {"guest_name", "relation", "reason"} & provided
+        if locked:
+            raise ApiError(
+                422,
+                "validation_error",
+                "After the guest has arrived, only guest_start_date and guest_end_date may be edited.",
+            )
+        if not ({"guest_start_date", "guest_end_date"} & provided):
+            raise ApiError(
+                422,
+                "validation_error",
+                "After the guest has arrived, only guest_start_date and guest_end_date may be edited.",
+            )
+        guest_name = row["guest_name"]
+        relation = row["relation"]
+        reason = row["reason"]
+        start = (
+            _parse_date(body.guest_start_date, field="guest_start_date")
+            if "guest_start_date" in provided
+            else row["guest_start_date"]
+        )
+        end = (
+            _parse_date(body.guest_end_date, field="guest_end_date")
+            if "guest_end_date" in provided
+            else row["guest_end_date"]
+        )
+        _validate_stay_window(connection, start=start, end=end, require_lead=False)
+    else:
+        required = {"guest_name", "relation", "guest_start_date", "guest_end_date", "reason"}
+        missing = required - provided
+        if missing:
+            raise ApiError(
+                422,
+                "validation_error",
+                "Before arrival, send guest_name, relation, guest_start_date, guest_end_date, and reason.",
+            )
+        guest_name = (body.guest_name or "").strip()
+        relation = (body.relation or "").strip()
+        reason = (body.reason or "").strip()
+        if not guest_name or not relation or not reason:
+            raise ApiError(
+                422,
+                "validation_error",
+                "Guest name, relation, and reason are required.",
+            )
+        start = _parse_date(body.guest_start_date or "", field="guest_start_date")
+        end = _parse_date(body.guest_end_date or "", field="guest_end_date")
+        _validate_stay_window(connection, start=start, end=end, require_lead=True)
+
+    now_text = clock.format_instant(clock.utc_now())
+    updated = connection.execute(
+        """
+        UPDATE guest_stays
+        SET
+          guest_name = ?,
+          relation = ?,
+          guest_start_date = ?,
+          guest_end_date = ?,
+          reason = ?,
+          status = 'pending',
+          decided_by = NULL,
+          decided_at = NULL,
+          decision_note = NULL,
+          updated_at = ?
+        WHERE id = ?
+          AND host_resident_id = ?
+          AND status IN ('pending', 'approved')
+          AND departed_at IS NULL
+        RETURNING id, guest_name
+        """,
+        (
+            guest_name,
+            relation,
+            start,
+            end,
+            reason,
+            now_text,
+            guest_stay_id,
+            account.id,
+        ),
+    ).fetchone()
+    if updated is None:
+        current = connection.execute(
+            "SELECT status, departed_at FROM guest_stays WHERE id = ?",
+            (guest_stay_id,),
+        ).fetchone()
+        assert current is not None
+        raise ApiError(
+            409,
+            "not_editable",
+            "Only a pending or approved guest stay can be edited "
+            f"(current status: {current['status']}).",
+        )
+    record_guest_stay(
+        connection,
+        now_text,
+        account.id,
+        "guest_stay.edited",
+        guest_stay_id,
+        f"{account.full_name} edited a guest stay for {updated['guest_name']}.",
+    )
+    stay = load_guest_stay(
+        connection,
+        guest_stay_id,
+        host_resident_id=account.id,
+        today=today,
+    )
+    assert stay is not None
     return stay
 
 

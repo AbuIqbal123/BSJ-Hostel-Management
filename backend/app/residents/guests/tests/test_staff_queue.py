@@ -509,6 +509,60 @@ def test_guest_stays_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch)
             "payment_locked",
         )
 
+        # Post-arrival date edit by resident → pending; staff re-approves; reject refused.
+        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        resident_headers = {"Authorization": f"Bearer {resident}"}
+        # IN_HALL is hosted by Aisha
+        date_edit = client.patch(
+            f"/api/v1/me/guest-stays/{IN_HALL}",
+            headers=resident_headers,
+            json={"guest_end_date": "2026-10-05"},
+        )
+        assert date_edit.status_code == 200
+        assert date_edit.json()["status"] == "pending"
+        assert date_edit.json()["arrived_at"] is not None
+        assert_error(
+            client.post(
+                f"/api/v1/guest-stays/{IN_HALL}/decision",
+                headers=headers,
+                json={"decision": "rejected", "note": "No"},
+            ),
+            409,
+            "not_pending",
+        )
+        reapproved = client.post(
+            f"/api/v1/guest-stays/{IN_HALL}/decision",
+            headers=headers,
+            json={"decision": "approved", "note": ""},
+        )
+        assert reapproved.status_code == 200
+        assert reapproved.json()["status"] == "approved"
+        assert reapproved.json()["arrived_at"] is not None
+        assert reapproved.json()["decided_by"] == WARDEN_ID
+
+        # A second date edit returns the stay to pending. Gate can still record
+        # departure so the guest is not held for re-approval.
+        second_edit = client.patch(
+            f"/api/v1/me/guest-stays/{IN_HALL}",
+            headers=resident_headers,
+            json={"guest_end_date": "2026-10-04"},
+        )
+        assert second_edit.status_code == 200
+        assert second_edit.json()["status"] == "pending"
+        assert second_edit.json()["decided_by"] is None
+        gate_token = sign_in(client, "gate.fatima", GATE_PHRASE)
+        left = client.post(
+            f"/api/v1/gate/guests/{IN_HALL}/departure",
+            headers={"Authorization": f"Bearer {gate_token}"},
+        )
+        assert left.status_code == 200
+        assert left.json()["message"] == "The guest has left the hall."
+        after_leave = client.get(f"/api/v1/guest-stays/{IN_HALL}", headers=headers)
+        assert after_leave.status_code == 200
+        assert after_leave.json()["status"] == "departed"
+        assert after_leave.json()["decided_by"] is None
+        assert after_leave.json()["departed_at"] is not None
+
         provost = sign_in(client, "provost.halima", PROVOST_PHRASE)
         provost_headers = {"Authorization": f"Bearer {provost}"}
         provost_list = client.get(
@@ -538,4 +592,8 @@ def test_guest_stays_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch)
             "guest_stay.payment_marked",
             "guest_stay.payment_marked",
             "guest_stay.payment_marked",
+            "guest_stay.edited",
+            "guest_stay.approved",
+            "guest_stay.edited",
+            "guest_stay.departed",
         ]

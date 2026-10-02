@@ -54,8 +54,9 @@ tags:
       warden or provost queue and decisions under /api/v1/permissions.
   - name: Guest Stays
     description: >
-      Guest applications. Resident applies under /api/v1/me/guest-stays; warden or
-      provost review under /api/v1/guest-stays. Gate arrival and departure stay under Gate.
+      Guest applications. Resident applies and edits under /api/v1/me/guest-stays;
+      warden or provost review under /api/v1/guest-stays. A resident edit returns the
+      stay to pending so staff must approve again. Gate arrival and departure stay under Gate.
   - name: Gate
     description: Scan the permanent hall pass, and record guest arrival and departure. Guests have no hall pass.
   - name: Register
@@ -104,7 +105,7 @@ paths:
                 $ref: "#/components/schemas/Ready"
               example:
                 status: ready
-                user_version: 6
+                user_version: 7
         "503":
           description: The database could not be opened.
           content:
@@ -781,6 +782,70 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Guest Stays]
+      operationId: edit_guest_stay
+      summary: Edit own guest stay
+      description: |
+        Caller: resident, and only for a stay they host.
+
+        Before arrival (`pending` or `approved`, and arrival not yet recorded):
+        send all of `guest_name`, `relation`, `guest_start_date`, `guest_end_date`, and
+        `reason` (full replace of those fields). Status, payment, arrival, and
+        departure are not editable here.
+
+        After arrival and before departure: only `guest_start_date` and/or `guest_end_date`
+        may change. `guest_name`, `relation`, and `reason` are locked once the
+        guest has arrived.
+
+        Not editable when the stay is `departed`, `rejected`, or `cancelled`
+        (409 `not_editable`).
+
+        Every successful edit returns the stay to `pending`, clears
+        `decided_by`, `decided_at`, and `decision_note`, and leaves
+        `payment_status` unchanged. A warden or the provost must approve
+        again — including when the stay was already approved, and including a
+        date change after the guest has arrived. Staff see the stay back in
+        the pending queue.
+      parameters:
+        - $ref: "#/components/parameters/GuestStayId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GuestStayUpdate"
+            example:
+              guest_name: Zara Ahmed
+              relation: Cousin
+              guest_start_date: "2026-10-02"
+              guest_end_date: "2026-10-06"
+              reason: Family wedding in Aligarh. Staying with Aisha, B-204.
+      responses:
+        "200":
+          description: |
+            Guest stay updated and returned to pending. Decision fields are
+            cleared; payment_status is unchanged.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuestStay"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: |
+            The stay cannot be edited (departed, rejected, cancelled, or
+            otherwise closed). Code `not_editable`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
 
   /api/v1/me/guest-stays/{guest_stay_id}/cancel:
     post:
@@ -1385,8 +1450,11 @@ paths:
       operationId: decide_guest_stay
       summary: Approve or reject a guest stay
       description: |
-        Caller: warden or provost. Only while `pending`. Approval does not mark
-        payment and does not record arrival.
+        Caller: warden or provost. Only while `pending`. A resident edit returns
+        an approved stay (and a post-arrival date change) to pending, so staff
+        must decide again. When the guest has already arrived, only `approved`
+        is allowed — reject is refused (the guest is in the hall). Approval does
+        not mark payment and does not clear or set arrival.
       parameters:
         - $ref: "#/components/parameters/GuestStayId"
       requestBody:
@@ -2277,7 +2345,7 @@ components:
             `outside_ordinary_hours`, `permission_required`, `no_outing_planned`,
             `permission_not_yet_valid`,
             `duplicate_scan`, `resident_suspended`, `unknown_hall_pass`,
-            `not_pending`, `permission_in_use`, `not_cancellable`, `guest_not_expected`, `guest_not_in_hall`,
+            `not_pending`, `permission_in_use`, `not_cancellable`, `not_editable`, `guest_not_expected`, `guest_not_in_hall`,
             `payment_required`, `payment_locked`.
         message:
           type: string
@@ -2893,6 +2961,37 @@ components:
       type: object
       additionalProperties: false
       required: [guest_name, relation, guest_start_date, guest_end_date, reason]
+      properties:
+        guest_name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        relation:
+          type: string
+          minLength: 1
+          maxLength: 80
+        guest_start_date:
+          type: string
+          format: date
+        guest_end_date:
+          type: string
+          format: date
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+
+    GuestStayUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      description: |
+        Editable fields for PATCH own guest stay. Before arrival, send all five
+        fields (full replace of name, relation, dates, and reason). After arrival
+        and before departure, only `guest_start_date` and/or `guest_end_date` may be present —
+        name, relation, and reason are locked. Every successful edit returns
+        status to pending and clears the decision so a warden or the provost must
+        approve again; payment_status is left unchanged.
       properties:
         guest_name:
           type: string

@@ -71,6 +71,29 @@ def decide_guest_stay(
 ) -> GuestStayBody:
     now_text = clock.format_instant(clock.utc_now())
     note = None if body.note is None else body.note.strip() or None
+    existing = connection.execute(
+        """
+        SELECT id, status, arrived_at, departed_at, guest_name
+        FROM guest_stays
+        WHERE id = ?
+        """,
+        (guest_stay_id,),
+    ).fetchone()
+    if existing is None:
+        raise ApiError(404, "not_found", "That record was not found.")
+    if existing["status"] != "pending" or existing["departed_at"] is not None:
+        raise ApiError(
+            409,
+            "not_pending",
+            "Only a pending guest stay can be approved or rejected "
+            f"(current status: {existing['status']}).",
+        )
+    if existing["arrived_at"] is not None and body.decision == "rejected":
+        raise ApiError(
+            409,
+            "not_pending",
+            "A guest stay cannot be rejected after the guest has arrived.",
+        )
     row = connection.execute(
         """
         UPDATE guest_stays
@@ -80,18 +103,12 @@ def decide_guest_stay(
           decided_at = ?,
           decision_note = ?,
           updated_at = ?
-        WHERE id = ? AND status = 'pending' AND arrived_at IS NULL AND departed_at IS NULL
+        WHERE id = ? AND status = 'pending' AND departed_at IS NULL
         RETURNING id, guest_name
         """,
         (body.decision, account.id, now_text, note, now_text, guest_stay_id),
     ).fetchone()
     if row is None:
-        existing = connection.execute(
-            "SELECT status FROM guest_stays WHERE id = ?",
-            (guest_stay_id,),
-        ).fetchone()
-        if existing is None:
-            raise ApiError(404, "not_found", "That record was not found.")
         raise ApiError(
             409,
             "not_pending",
