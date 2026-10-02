@@ -1124,21 +1124,26 @@ paths:
       description: |
         Caller: gate, warden, or provost. The stay must be approved, paid, not
         yet arrived, and today's hall date must fall within the stay. Guests are
-        not scanned.
+        not scanned. Empty POST body; no client-supplied time.
+        `arrival_time` equals `recorded_at` (same server clock tick).
       parameters:
         - $ref: "#/components/parameters/GuestStayId"
       responses:
         "200":
-          description: Arrival recorded.
+          description: |
+            Arrival recorded.
+            `arrival_time` equals `recorded_at` (same server clock tick; no client-supplied time).
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GuestMovementResult"
+                $ref: "#/components/schemas/GuestArrivalResult"
               example:
                 guest_name: Zara Ahmed
                 host_name: Aisha Khan
                 host_room_label: B-204
                 recorded_at: "2026-09-18T10:11:00Z"
+                recorded_by: Fatima Khan
+                arrival_time: "2026-09-18T10:11:00Z"
                 message: The guest is now in the hall.
         "401":
           $ref: "#/components/responses/Unauthorized"
@@ -1161,16 +1166,27 @@ paths:
       description: |
         Caller: gate, warden, or provost. The guest must currently be in the hall.
         Closes the stay. Departure is still recorded when the end date has
-        already passed.
+        already passed. Empty POST body; no client-supplied time.
+        `departure_time` equals `recorded_at` (same server clock tick).
       parameters:
         - $ref: "#/components/parameters/GuestStayId"
       responses:
         "200":
-          description: Departure recorded.
+          description: |
+            Departure recorded.
+            `departure_time` equals `recorded_at` (same server clock tick; no client-supplied time).
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GuestMovementResult"
+                $ref: "#/components/schemas/GuestDepartureResult"
+              example:
+                guest_name: Zara Ahmed
+                host_name: Aisha Khan
+                host_room_label: B-204
+                recorded_at: "2026-09-18T10:11:00Z"
+                recorded_by: Fatima Khan
+                departure_time: "2026-09-18T10:11:00Z"
+                message: The guest has left the hall.
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -3558,10 +3574,15 @@ components:
           items:
             $ref: "#/components/schemas/GateGuestCard"
 
-    GuestMovementResult:
+    GuestArrivalResult:
       type: object
       additionalProperties: false
-      required: [guest_name, host_name, host_room_label, recorded_at, message]
+      description: |
+        Gate flash after recording arrival. Human labels for the screen.
+        `arrival_time` and `recorded_at` are distinct field names but must be
+        equal: both are the same server UTC instant written to `arrived_at` and
+        the audit/write timestamp. No client-supplied time in this release.
+      required: [guest_name, host_name, host_room_label, recorded_at, recorded_by, arrival_time, message]
       properties:
         guest_name:
           type: string
@@ -3572,6 +3593,48 @@ components:
         recorded_at:
           type: string
           format: date-time
+          description: When the API wrote the arrival record and audit entry.
+        recorded_by:
+          type: string
+          description: Full display name of the staff member who recorded the arrival.
+        arrival_time:
+          type: string
+          format: date-time
+          description: |
+            When the guest entered the hall (stored `arrived_at`).
+            Must equal `recorded_at` (same clock tick; no independent second timestamp).
+        message:
+          type: string
+
+    GuestDepartureResult:
+      type: object
+      additionalProperties: false
+      description: |
+        Gate flash after recording departure. Human labels for the screen.
+        `departure_time` and `recorded_at` are distinct field names but must be
+        equal: both are the same server UTC instant written to `departed_at` and
+        the audit/write timestamp. No client-supplied time in this release.
+      required: [guest_name, host_name, host_room_label, recorded_at, recorded_by, departure_time, message]
+      properties:
+        guest_name:
+          type: string
+        host_name:
+          type: string
+        host_room_label:
+          type: string
+        recorded_at:
+          type: string
+          format: date-time
+          description: When the API wrote the departure record and audit entry.
+        recorded_by:
+          type: string
+          description: Full display name of the staff member who recorded the departure.
+        departure_time:
+          type: string
+          format: date-time
+          description: |
+            When the guest left the hall (stored `departed_at`).
+            Must equal `recorded_at` (same clock tick; no independent second timestamp).
         message:
           type: string
 

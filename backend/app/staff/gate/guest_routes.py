@@ -46,12 +46,25 @@ class GateOccupancy(BaseModel):
     guests_should_have_left_count: int
 
 
-class GuestMovementResult(BaseModel):
+class GuestArrivalResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
     guest_name: str
     host_name: str
     host_room_label: str
     recorded_at: str
+    recorded_by: str
+    arrival_time: str
+    message: str
+
+
+class GuestDepartureResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    guest_name: str
+    host_name: str
+    host_room_label: str
+    recorded_at: str
+    recorded_by: str
+    departure_time: str
     message: str
 
 
@@ -186,12 +199,12 @@ def gate_guests(
     return GateGuestList(items=items)
 
 
-@router.post("/guests/{guest_stay_id}/arrival", response_model=GuestMovementResult)
+@router.post("/guests/{guest_stay_id}/arrival", response_model=GuestArrivalResult)
 def record_guest_arrival(
     guest_stay_id: str,
     account: GateDep,
     connection: ConnectionDep,
-) -> GuestMovementResult:
+) -> GuestArrivalResult:
     row = _host_fields(connection, guest_stay_id)
     if row is None:
         raise ApiError(404, "not_found", "That record was not found.")
@@ -245,21 +258,23 @@ def record_guest_arrival(
         guest_stay_id,
         f"{account.full_name} recorded arrival for {updated['guest_name']}.",
     )
-    return GuestMovementResult(
+    return GuestArrivalResult(
         guest_name=row["guest_name"],
         host_name=row["host_name"],
         host_room_label=row["host_room_label"],
         recorded_at=now_text,
+        recorded_by=account.full_name,
+        arrival_time=now_text,
         message="The guest is now in the hall.",
     )
 
 
-@router.post("/guests/{guest_stay_id}/departure", response_model=GuestMovementResult)
+@router.post("/guests/{guest_stay_id}/departure", response_model=GuestDepartureResult)
 def record_guest_departure(
     guest_stay_id: str,
     account: GateDep,
     connection: ConnectionDep,
-) -> GuestMovementResult:
+) -> GuestDepartureResult:
     row = _host_fields(connection, guest_stay_id)
     if row is None:
         raise ApiError(404, "not_found", "That record was not found.")
@@ -300,10 +315,12 @@ def record_guest_departure(
         guest_stay_id,
         f"{account.full_name} recorded departure for {updated['guest_name']}.",
     )
-    return GuestMovementResult(
+    return GuestDepartureResult(
         guest_name=row["guest_name"],
         host_name=row["host_name"],
         host_room_label=row["host_room_label"],
         recorded_at=now_text,
+        recorded_by=account.full_name,
+        departure_time=now_text,
         message="The guest has left the hall.",
     )
