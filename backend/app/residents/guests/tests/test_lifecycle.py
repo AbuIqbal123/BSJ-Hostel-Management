@@ -319,7 +319,35 @@ def test_guest_stays_resident(database_path: Path, monkeypatch: pytest.MonkeyPat
             REJECTED_STAY,
             ARRIVED_STAY,
         ]
-        assert all(item["host_resident_id"] == RESIDENT_ID for item in page["items"])
+        summary_keys = {
+            "id",
+            "guest_name",
+            "host_name",
+            "host_room_label",
+            "start_date",
+            "end_date",
+            "status",
+            "payment_status",
+            "bucket",
+        }
+        detail_only = {
+            "host_resident_id",
+            "relation",
+            "inclusive_days",
+            "reason",
+            "decision_note",
+            "decided_by_name",
+            "arrived_recorded_by_name",
+            "departed_recorded_by_name",
+            "arrived_at",
+            "departed_at",
+            "created_at",
+        }
+        for item in page["items"]:
+            assert set(item) == summary_keys
+            assert not (detail_only & set(item))
+            assert item["host_name"] == "Aisha Khan"
+            assert item["host_room_label"] == "B-204"
         assert all(item["id"] != OTHER_STAY for item in page["items"])
 
         got = client.get(f"/api/v1/me/guest-stays/{stay_id}", headers=headers)
