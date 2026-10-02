@@ -204,11 +204,17 @@ def test_gate_scans_and_activity(
         assert exit_body["message"] == expected["exit_message"]
         assert exit_body["full_name"] == "Aisha Khan"
         assert exit_body["room_label"] == "B-204"
+        assert "recorded_at" not in exit_body
+        assert "on_time" not in exit_body
+        assert "return_record" not in exit_body
+        assert set(exit_body) == {"outcome", "full_name", "room_label", "message", "outing"}
         assert exit_body["outing"]["id"] == OUTING_ID
         assert exit_body["outing"]["status"] == "outside"
         assert exit_body["outing"]["exited_at"] == "2026-09-30T12:00:00Z"
         assert exit_body["outing"]["exit_recorded_by_name"] == "Fatima Khan"
-        assert exit_body["on_time"] is None
+        assert exit_body["outing"]["recorded_at"] == "2026-09-30T12:00:00Z"
+        assert "is_late" not in exit_body["outing"]
+        assert "on_time" not in exit_body["outing"]
 
         dup = assert_error(
             client.post("/api/v1/gate/scans", headers=headers, json={"qr_payload": QR}),
@@ -225,10 +231,23 @@ def test_gate_scans_and_activity(
         ret_body = returned.json()
         assert ret_body["outcome"] == "return_recorded"
         assert ret_body["message"] == expected["return_message"]
-        assert ret_body["on_time"] is True
-        assert ret_body["outing"]["status"] == "returned"
-        assert ret_body["outing"]["returned_at"] == "2026-09-30T12:01:00Z"
-        assert ret_body["outing"]["return_recorded_by_name"] == "Fatima Khan"
+        assert "recorded_at" not in ret_body
+        assert "on_time" not in ret_body
+        assert "outing" not in ret_body
+        assert set(ret_body) == {"outcome", "full_name", "room_label", "message", "return_record"}
+        rr = ret_body["return_record"]
+        # expected 12:30Z, grace 13:00Z, returned 12:01Z → on_time
+        assert rr["status"] == "on_time"
+        assert rr["returned_at"] == "2026-09-30T12:01:00Z"
+        assert rr["return_recorded_by_name"] == "Fatima Khan"
+        assert rr["recorded_at"] == "2026-09-30T12:01:00Z"
+        assert "is_late" not in rr
+        assert set(rr) == {
+            "recorded_at",
+            "status",
+            "returned_at",
+            "return_recorded_by_name",
+        }
 
         activity = client.get("/api/v1/gate/activity", headers=headers)
         assert activity.status_code == 200
