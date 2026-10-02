@@ -22,7 +22,6 @@ class SmsMessage(BaseModel):
     notice_type: Literal["late_notice", "return_notice"]
     recipient_phone: str
     body: str
-    driver: Literal["mock", "dlt"]
     status: Literal["sent", "failed"]
     created_at: str
 
@@ -53,7 +52,6 @@ def list_sms(
           guardian_messages.notice_type,
           guardian_messages.recipient_phone,
           guardian_messages.body,
-          guardian_messages.driver,
           guardian_messages.status,
           guardian_messages.created_at
         FROM guardian_messages
@@ -72,7 +70,6 @@ def list_sms(
             notice_type=row["notice_type"],
             recipient_phone=row["recipient_phone"],
             body=row["body"],
-            driver=row["driver"],
             status=row["status"],
             created_at=row["created_at"],
         )

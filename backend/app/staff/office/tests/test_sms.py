@@ -173,7 +173,7 @@ def test_admin_sms(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> None
         assert types == expected["notice_types_newest_first"]
         assert body["items"][0]["resident_name"] == expected["resident_name"]
         assert body["items"][0]["outing_id"] == OUTING_ID
-        assert body["items"][0]["driver"] == "mock"
+        assert "driver" not in body["items"][0]
         assert body["items"][0]["status"] == "sent"
 
         page = client.get("/api/v1/admin/sms?limit=1&offset=1", headers=headers)

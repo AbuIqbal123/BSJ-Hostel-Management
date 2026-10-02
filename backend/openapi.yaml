@@ -3782,7 +3782,9 @@ components:
     SmsMessage:
       type: object
       additionalProperties: false
-      required: [id, outing_id, resident_id, notice_type, recipient_phone, body, driver, status, created_at]
+      description: |
+        Provost SMS log row. Transport vendor is not part of the public contract.
+      required: [id, outing_id, resident_id, notice_type, recipient_phone, body, status, created_at]
       properties:
         id:
           type: string
@@ -3806,9 +3808,6 @@ components:
         body:
           type: string
           description: Filled message. Times are described for display as 12-hour; this body is the text that was sent.
-        driver:
-          type: string
-          enum: [mock, dlt]
         status:
           type: string
           enum: [sent, failed]
