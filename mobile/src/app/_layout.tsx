@@ -39,6 +39,9 @@ export default function RootLayout() {
           headerTintColor: colors.ink,
           contentStyle: { backgroundColor: colors.paper },
           headerTitleStyle: { fontFamily: "SourceSans3_600SemiBold", color: colors.ink },
+          // Auth gate: fade avoids a push slide on boot / replace.
+          animation: "fade",
+          animationDuration: 220,
         }}
       >
         <Stack.Screen name="index" options={{ headerShown: false }} />

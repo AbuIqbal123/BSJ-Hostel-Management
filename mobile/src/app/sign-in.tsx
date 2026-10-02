@@ -35,7 +35,9 @@ export default function SignInScreen() {
   const buttonAnchor = useRef<View>(null);
   const restingButtonBottom = useRef<number | null>(null);
   const shiftRef = useRef(0);
+  const keyboardUpRef = useRef(false);
   const [keyboardShift, setKeyboardShift] = useState(0);
+  const [keyboardUp, setKeyboardUp] = useState(false);
 
   const rememberButton = useCallback(() => {
     if (restingButtonBottom.current != null) {
@@ -61,16 +63,19 @@ export default function SignInScreen() {
       const apply = (bottom: number) => {
         const keyboardTop = event.endCoordinates.screenY;
         const shift = Math.min(360, Math.max(0, Math.round(bottom + keyboardGap - keyboardTop)));
-        if (shift === shiftRef.current) {
+        const up = event.endCoordinates.height > 0;
+        if (shift === shiftRef.current && up === keyboardUpRef.current) {
           return;
         }
         shiftRef.current = shift;
+        keyboardUpRef.current = up;
         const duration = event.duration > 10 ? event.duration : 10;
         LayoutAnimation.configureNext({
           duration,
           update: { duration, type: event.easing },
         });
         setKeyboardShift(shift);
+        setKeyboardUp(up);
       };
       const known = restingButtonBottom.current;
       if (known != null) {
@@ -91,6 +96,16 @@ export default function SignInScreen() {
 
   const focusPassword = useCallback(() => {
     passwordRef.current?.focus();
+  }, []);
+
+  const onUsername = useCallback((value: string) => {
+    setUsername(value);
+    setError(null);
+  }, []);
+
+  const onPassword = useCallback((value: string) => {
+    setPassword(value);
+    setError(null);
   }, []);
 
   const submit = useCallback(async () => {
@@ -118,6 +133,11 @@ export default function SignInScreen() {
       keyboardDismissMode="interactive"
       keyboardShouldPersistTaps="handled"
       contentInsetAdjustmentBehavior="never"
+      // The form never overflows, so a drag can dismiss the keyboard only
+      // while bounce is on. Keep it off once the keyboard is down.
+      bounces={keyboardUp}
+      overScrollMode={keyboardUp ? "always" : "never"}
+      showsVerticalScrollIndicator={false}
     >
       <View style={styles.center}>
         <View style={styles.block}>
@@ -129,7 +149,7 @@ export default function SignInScreen() {
             <TextField
               label="Username"
               value={username}
-              onChangeText={setUsername}
+              onChangeText={onUsername}
               autoComplete="username"
               textContentType="username"
               returnKeyType="next"
@@ -140,7 +160,7 @@ export default function SignInScreen() {
               inputRef={passwordRef}
               label="Password"
               value={password}
-              onChangeText={setPassword}
+              onChangeText={onPassword}
               secureTextEntry
               autoComplete="password"
               textContentType="password"
