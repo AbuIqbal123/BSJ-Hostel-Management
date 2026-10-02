@@ -38,19 +38,31 @@ class ScanRequest(BaseModel):
     qr_payload: str = Field(min_length=1, max_length=300)
 
 
-class ScanExitOuting(OutingBody):
-    """Outing fields plus when the exit was recorded at the gate."""
+class ScanExitOuting(BaseModel):
+    """Exit nest: outing movement fields plus recorded_at; no booleans."""
 
+    model_config = ConfigDict(extra="forbid")
+    id: str
+    permission_id: str | None
+    type: Literal["ordinary", "late_night", "home_going"]
+    status: Literal["planned", "outside", "returned", "cancelled"]
+    place: str
+    expected_return_at: str
+    grace_ends_at: str
+    exited_at: str | None
+    exit_recorded_by_name: str | None
+    returned_at: str | None
+    return_recorded_by_name: str | None
+    created_at: str
     recorded_at: str
 
 
 class ScanReturnRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
     recorded_at: str
-    on_time: bool
+    status: Literal["on_time", "within_grace", "late"]
     returned_at: str
     return_recorded_by_name: str
-    is_late: bool
 
 
 class ScanExitResult(BaseModel):
@@ -72,6 +84,22 @@ class ScanReturnResult(BaseModel):
 
 
 ScanResult = ScanExitResult | ScanReturnResult
+
+
+def _return_timeliness(
+    returned_at: str, expected_return_at: str, grace_ends_at: str
+) -> Literal["on_time", "within_grace", "late"]:
+    if returned_at <= expected_return_at:
+        return "on_time"
+    if returned_at <= grace_ends_at:
+        return "within_grace"
+    return "late"
+
+
+def _exit_outing(outing: OutingBody, recorded_at: str) -> ScanExitOuting:
+    data = outing.model_dump()
+    data.pop("is_late", None)
+    return ScanExitOuting(**data, recorded_at=recorded_at)
 
 
 def gate_account(account: AccountDep) -> Account:
@@ -476,11 +504,13 @@ def scan_hall_pass(
             full_name=full_name,
             place=open_row["place"],
         )
-        on_time = now_text <= outing.grace_ends_at
+        timeliness = _return_timeliness(
+            now_text, outing.expected_return_at, outing.grace_ends_at
+        )
         message = (
-            "On time. Status is now inside."
-            if on_time
-            else "Late. Status is now inside."
+            "Late. Status is now inside."
+            if timeliness == "late"
+            else "On time. Status is now inside."
         )
         return ScanReturnResult(
             full_name=full_name,
@@ -488,10 +518,9 @@ def scan_hall_pass(
             message=message,
             return_record=ScanReturnRecord(
                 recorded_at=now_text,
-                on_time=on_time,
+                status=timeliness,
                 returned_at=now_text,
                 return_recorded_by_name=account.full_name,
-                is_late=not on_time,
             ),
         )
 
@@ -511,7 +540,7 @@ def scan_hall_pass(
             full_name=full_name,
             room_label=room_label,
             message="The resident is now outside.",
-            outing=ScanExitOuting(**outing.model_dump(), recorded_at=now_text),
+            outing=_exit_outing(outing, now_text),
         )
 
     permission, permission_refusal = _usable_permission(
@@ -542,7 +571,7 @@ def scan_hall_pass(
             full_name=full_name,
             room_label=room_label,
             message="The resident is now outside.",
-            outing=ScanExitOuting(**outing.model_dump(), recorded_at=now_text),
+            outing=_exit_outing(outing, now_text),
         )
 
     if permission_refusal == "permission_not_yet_valid":

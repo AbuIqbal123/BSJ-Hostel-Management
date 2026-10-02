@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Begum Sultan Jahan Hall API
-  version: 0.2.17
+  version: 0.2.12
   description: |
     HTTP contract for the hostel movement system. Schema version of the database
     is tracked separately in `docs/database/database.md` (0.3.4).
@@ -903,12 +903,16 @@ paths:
         The 200 body is a discriminated union on `outcome`. Shared envelope
         fields are only `outcome`, `full_name`, `room_label`, and `message`.
         `recorded_at` is not on the envelope: it sits inside the nested variant.
-        On `exit_recorded` the nest is `outing` (outing fields plus
-        `recorded_at`). On `return_recorded` the nest is `return_record`
-        (`recorded_at`, `on_time`, `returned_at`, `return_recorded_by_name`,
-        `is_late`). Exit has no `return_record`; return has no `outing`.
-        The JSON key is `return_record` (not `return`) so OpenAPI and Python
-        clients avoid the reserved word.
+        On `exit_recorded` the nest is `outing` (outing movement fields plus
+        `recorded_at`). Exit has no timeliness field — lateness does not apply
+        until return. On `return_recorded` the nest is `return_record`
+        (`recorded_at`, `status`, `returned_at`, `return_recorded_by_name`).
+        Return `status` is `on_time` (at or before expected return),
+        `within_grace` (after expected return, at or before grace), or `late`
+        (after grace). No booleans on the scan response. Exit has no
+        `return_record`; return has no `outing`. The JSON key is
+        `return_record` (not `return`) so OpenAPI and Python clients avoid the
+        reserved word.
 
         A second scan inside `scan_duplicate_window_seconds` of the previous
         exit or return for that resident is refused, so one presentation at the
@@ -949,7 +953,6 @@ paths:
                       exit_recorded_by_name: Fatima Khan
                       returned_at: null
                       return_recorded_by_name: null
-                      is_late: false
                       created_at: "2026-09-13T12:30:00Z"
                       recorded_at: "2026-09-13T12:42:00Z"
                 return:
@@ -960,10 +963,9 @@ paths:
                     message: On time. Status is now inside.
                     return_record:
                       recorded_at: "2026-09-13T13:24:00Z"
-                      on_time: true
+                      status: on_time
                       returned_at: "2026-09-13T13:24:00Z"
                       return_recorded_by_name: Fatima Khan
-                      is_late: false
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -3299,38 +3301,97 @@ components:
           maxLength: 300
           description: Raw QR text, either `bsj:v1:{token}` or the token alone.
 
+    ScanReturnTimeliness:
+      type: string
+      enum: [on_time, within_grace, late]
+      description: |
+        How the return sits against expected return and grace.
+        `on_time`: at or before `expected_return_at`.
+        `within_grace`: after expected return, at or before `grace_ends_at`.
+        `late`: after `grace_ends_at`.
+
     ScanExitOuting:
-      allOf:
-        - $ref: "#/components/schemas/Outing"
-        - type: object
-          required: [recorded_at]
-          properties:
-            recorded_at:
-              type: string
+      type: object
+      additionalProperties: false
+      description: |
+        Exit nest for the scan response. Explicit property list (not allOf
+        Outing) so the scan contract omits `is_late` and has no timeliness
+        `status` — lateness does not apply on exit. Global `Outing.is_late`
+        remains on resident outing APIs outside this response.
+      required:
+        - id
+        - type
+        - status
+        - place
+        - expected_return_at
+        - grace_ends_at
+        - created_at
+        - recorded_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        permission_id:
+          oneOf:
+            - type: string
+              format: uuid
+            - type: "null"
+        type:
+          $ref: "#/components/schemas/OutingType"
+        status:
+          $ref: "#/components/schemas/OutingStatus"
+          description: Outing lifecycle status (typically `outside` on exit).
+        place:
+          type: string
+        expected_return_at:
+          type: string
+          format: date-time
+        grace_ends_at:
+          type: string
+          format: date-time
+        exited_at:
+          oneOf:
+            - type: string
               format: date-time
-              description: When this exit was recorded at the gate (UTC).
+            - type: "null"
+        exit_recorded_by_name:
+          oneOf:
+            - type: string
+            - type: "null"
+        returned_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: "null"
+        return_recorded_by_name:
+          oneOf:
+            - type: string
+            - type: "null"
+        created_at:
+          type: string
+          format: date-time
+        recorded_at:
+          type: string
+          format: date-time
+          description: When this exit was recorded at the gate (UTC).
 
     ScanReturnRecord:
       type: object
       additionalProperties: false
-      required: [recorded_at, on_time, returned_at, return_recorded_by_name, is_late]
+      required: [recorded_at, status, returned_at, return_recorded_by_name]
       properties:
         recorded_at:
           type: string
           format: date-time
           description: When this return was recorded at the gate (UTC).
-        on_time:
-          type: boolean
-          description: True when the return is at or before grace; otherwise false.
+        status:
+          $ref: "#/components/schemas/ScanReturnTimeliness"
         returned_at:
           type: string
           format: date-time
         return_recorded_by_name:
           type: string
           description: Staff member who scanned the return.
-        is_late:
-          type: boolean
-          description: True when the return is after grace (`not on_time`).
 
     ScanExitResult:
       type: object
@@ -3382,7 +3443,9 @@ components:
         Discriminated union on `outcome`. Shared envelope fields are only
         `outcome`, `full_name`, `room_label`, and `message`. Variant nests are
         mutually exclusive: `outing` on exit, `return_record` on return.
-        `recorded_at` lives inside each nest, not on the envelope.
+        `recorded_at` lives inside each nest, not on the envelope. No boolean
+        timeliness fields: return uses `return_record.status`
+        (`on_time` | `within_grace` | `late`); exit has no timeliness field.
 
     GateActivityItem:
       type: object
