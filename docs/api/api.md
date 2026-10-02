@@ -2469,15 +2469,19 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** gate, warden, or provost. Bearer access token.
 
-Caller: gate, warden, or provost. `expected` is approved, paid, not yet
-arrived, and the hall date is inside the stay. `in_hall` includes guests
-who should already have left, because departure is still recorded here.
+Caller: gate, warden, or provost. Buckets are timing-based. `expected` is
+approved, not yet arrived, and the hall date is inside the stay.
+`in_hall` includes guests who should already have left, because departure
+is still recorded here. Optional `payment_status` is a separate axis
+(`paid` or `unpaid`); omit it to return every guest that matches the
+bucket.
 
 **Parameters**
 
 | Name | In | Required | Type | Notes |
 |---|---|---|---|---|
 | `bucket` | query | yes | `expected` or `in_hall` |  |
+| `payment_status` | query | no | `paid` or `unpaid` | When set, keep only guests with that payment status. Omit to include both paid and unpaid for the chosen bucket. |
 
 **Responses**
 

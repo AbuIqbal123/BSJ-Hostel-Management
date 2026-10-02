@@ -90,6 +90,7 @@ def gate_guests(
     _account: GateDep,
     connection: ConnectionDep,
     bucket: Annotated[GateGuestBucket, Query()],
+    payment_status: Annotated[Literal["paid", "unpaid"] | None, Query()] = None,
 ) -> GateGuestList:
     today = hall_today(connection, clock.utc_now())
     rows = connection.execute(
@@ -125,9 +126,9 @@ def gate_guests(
             today=today,
         )
         if bucket == "expected":
+            # Timing only: approved stay within dates, not yet arrived.
             if not (
-                row["payment_status"] == "paid"
-                and row["arrived_at"] is None
+                row["arrived_at"] is None
                 and row["guest_start_date"] <= today <= row["guest_end_date"]
             ):
                 continue
@@ -137,6 +138,8 @@ def gate_guests(
             if row["arrived_at"] is None or row["departed_at"] is not None:
                 continue
             card_bucket = derived
+        if payment_status is not None and row["payment_status"] != payment_status:
+            continue
         items.append(
             GateGuestCard(
                 id=row["id"],
