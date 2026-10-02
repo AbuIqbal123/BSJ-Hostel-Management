@@ -3,7 +3,7 @@ method: GET
 url: '{{baseUrl}}/api/v1/auth/me'
 order: 200
 description: |-
-  Signs in as Halima Begum and then returns her account. The response names her as the provost.
+  Send Sign in as Provost first. This request uses the collection variable token_provost. The response names her as the provost.
 scripts:
   - type: afterResponse
     language: text/javascript

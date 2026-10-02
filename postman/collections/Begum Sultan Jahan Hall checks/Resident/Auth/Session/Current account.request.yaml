@@ -3,7 +3,7 @@ method: GET
 url: '{{baseUrl}}/api/v1/auth/me'
 order: 200
 description: |-
-  Signs in as Aisha Khan and then returns her account. The response includes room B-204 and that she is inside.
+  Send Sign in as Resident first. This request uses the collection variable token_resident. The response includes room B-204 and that she is inside.
 scripts:
   - type: afterResponse
     language: text/javascript
