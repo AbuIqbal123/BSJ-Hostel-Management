@@ -63,6 +63,7 @@ The rules in this document are the contract. The room inventory is taken from th
 - A guest stay is applied for by the host resident at least one day before the start date, for at most 7 days counting the first and last day. 18 September 2026 through 21 September 2026 is 4 days. Payment is marked at the hall office, not collected in the app. Guests have no hall pass. Gate staff record arrival and departure from a list. A guest stays on the dining count until departure is recorded, including when the end date has passed.
 - Emergency alerts are not in this version. An alert must not approve leave or change whether a resident is outside.
 - Parents and guardians do not use the app. A text message is the only channel to them.
+- A resident may self-onboard with her enrolment number, a password she chooses, her own phone, and guardian name and phone. The account starts **pending**. The Hall Office assigns a room and activates it. Until then she cannot sign in to the resident shell, has no hall pass, and is not counted on the register. Staff (gate, warden, provost) are never self-onboarded.
 - Every time a person sees is India time, on a 12-hour clock. Every date a person sees is the day, the month name, and the year.
 
 ## Still for the hall to decide
@@ -74,7 +75,7 @@ These are stored as settings so the hall can set them later without reshaping th
 | How long a second scan is ignored | 45 seconds | A second scan in this gap must not undo the movement. A later scan of a resident who is outside records the return. |
 | How early a permission may be used | 30 minutes before the stated departure | How early a resident may scan out on an approved permission. |
 
-Sign-in is a hall-issued username and password. A resident's username is her enrolment number. There is no public sign-up and no parent or guardian login.
+Sign-in uses the enrolment number (resident) or a hall-issued username (staff), and a password. Residents may self-onboard; the account stays pending until the Hall Office assigns a room and activates it. Staff accounts are office-created only. There is no parent or guardian login.
 
 ## How a value is kept and how it is shown
 
@@ -199,7 +200,7 @@ The hall page does not list door numbers. This document does not invent them. Th
 | bed_count | Whole number | Yes | Copied from the block's beds per room when the room is created | How many residents this room can hold. Starts at 2. |
 | is_active | Yes or no | Yes | Provost | Yes while the room can be assigned. No when it is retired. HTTP `status` is `active` or `inactive`. |
 
-A block cannot contain the same room number twice. A resident points at a room. A resident is placed only in an active room. The number of active residents assigned to a room, including a suspended resident who has not been moved, cannot be more than that room's bed count. Changing rooms updates the resident and writes an audit log entry. Past outings keep the place and the resident. They do not keep a copy of the old room. The register shows the room the resident has now.
+A block cannot contain the same room number twice. A resident points at a room when she has one. A resident is placed only in an active room. The number of active residents assigned to a room, including a suspended resident who has not been moved, cannot be more than that room's bed count. Pending residents have no room and do not count toward beds. Changing rooms updates the resident and writes an audit log entry. Past outings keep the place and the resident. They do not keep a copy of the old room. The register shows the room the resident has now.
 
 ### Destinations
 
@@ -231,40 +232,42 @@ At most one active destination is the free-text choice.
 | Detail | Kept as | Required | Where it comes from | Rule |
 |---|---|---|---|---|
 | id | Identifier | Yes | System | Identifies this person. |
-| role | Choice | Yes | Provost, when the account is created | One of resident, gate, warden, provost. What the person may do comes from this role. The table is under Who can do what. |
-| username | Text | Yes | Provost. For a resident, the enrolment number. | Unique, ignoring capitals. |
-| full_name | Text | Yes | Provost | The name people see. |
-| password_hash | Protected value | Yes | System, from the password the provost sets, using Argon2id | Never the password itself. |
-| status | Choice | Yes | System starts it as active. Provost suspends or reinstates. | Active, or suspended. |
+| role | Choice | Yes | Provost for staff and office-created residents. System sets resident on self-onboard. | One of resident, gate, warden, provost. What the person may do comes from this role. The table is under Who can do what. |
+| username | Text | Yes | Provost for staff and office-created residents. Self-onboard uses the enrolment number. | Unique, ignoring capitals. |
+| full_name | Text | Yes | Provost, or the resident on self-onboard | The name people see. |
+| password_hash | Protected value | Yes | System, from the password she chooses on self-onboard, or the temporary password the provost sets, using Argon2id | Never the password itself. |
+| status | Choice | Yes | Self-onboard starts **pending**. Office-created residents and staff start **active**. Provost activates pending, or suspends or reinstates. | Active, suspended, or pending. |
 | created_at | Instant | Yes | System | When the account was created. |
 | updated_at | Instant | Yes | System | When the account last changed. |
 | last_login_at | Instant | Empty until the first sign-in | System, at each successful sign-in | When this person last signed in. |
 
 A suspended person cannot sign in and cannot be scanned out or in. The account stays.
 
+A **pending** person cannot sign in (the API says the account is waiting for the Hall Office). She has no usable hall pass and is not on the register. Pending applies only to residents created by self-onboard.
+
 ### Residents
 
-A resident profile exists only for a person whose role is resident. It uses that person's id. The enrolment number is the same as the username.
+A resident profile exists only for a person whose role is resident. It uses that person's id. The enrolment number is the same as the username. Enrolment uniqueness is hall-wide (ignoring capitals), whether the row came from self-onboard or the office.
 
-The guardian is the parent or other guardian the hall can reach. Both the name and the phone are required. The resident does not type them. The provost enters them from the hall's record when the account is created, and can correct them later.
+The guardian is the parent or other guardian the hall can reach. Both the name and the phone are required. On self-onboard the resident types them. On office create the provost enters them from the hall's record. The provost can correct them later on either path.
 
-The resident's own phone is separate from the guardian phone. The hall has not yet confirmed that every resident must have one on file, so the field may be empty. When present, it uses the same country-code form as the guardian phone. Late and return messages still go only to the guardian phone.
+The resident's own phone is separate from the guardian phone. Self-onboard requires it. Office create may leave it empty until the hall collects it. When present, it uses the same country-code form as the guardian phone. Late and return messages still go only to the guardian phone.
 
 | Detail | Kept as | Required | Where it comes from | Rule |
 |---|---|---|---|---|
 | user_id | Identifier | Yes | The person's id | One profile for that person. |
-| enrolment_number | Text | Yes | Provost. Same value as the username. | Unique, ignoring capitals. Shown on the warden record, for example `24-GLLB-118`. |
-| course | Text | Empty if the hall has not entered it | Provost | For example `B.A. LL.B. (Hons.)`. |
-| room_id | Identifier | Yes | Provost | The room the resident lives in. |
-| phone | Phone | Empty if the hall has not entered it | Provost | The resident's own number. Country code required when set. Not used for guardian late or return messages. |
-| guardian_name | Text | Yes | Provost, from the hall's record of the parent or guardian | The person the hall contacts about this resident. |
-| guardian_phone | Phone | Yes | Provost, from that same record | Country code required. Late and return messages go to this number. |
-| qr_token | Text | Yes | System, when the account is created, and again when the provost issues a new hall pass | The hall-pass code. Unique. |
-| presence | Choice | Yes | System. Starts as inside. Changes when a gate scan records an exit or a return. | Inside or outside. This is presence in the hall, not sign-in. |
+| enrolment_number | Text | Yes | Self-onboard, or provost. Same value as the username. | Unique, ignoring capitals. Shown on the warden record, for example `24-GLLB-118`. |
+| course | Text | Empty if not entered | Self-onboard (optional) or provost | For example `B.A. LL.B. (Hons.)`. |
+| room_id | Identifier | Empty while pending. Yes when active. | Provost, when activating or creating at the office | The room the resident lives in. A pending self-onboard has no room until the office assigns one. An active resident always has a room. |
+| phone | Phone | Yes on self-onboard. Empty allowed on office create until collected. | Self-onboard, or provost | The resident's own number. Country code required when set. Not used for guardian late or return messages. |
+| guardian_name | Text | Yes | Self-onboard, or provost from the hall's record | The person the hall contacts about this resident. |
+| guardian_phone | Phone | Yes | Self-onboard, or provost from that same record | Country code required. Late and return messages go to this number. |
+| qr_token | Text | Empty while pending. Yes when active. | System, when the account is activated (or created active at the office), and again when the provost issues a new hall pass | The hall-pass code. Unique when set. Pending residents have no code. |
+| presence | Choice | Yes | System. Starts as inside. Changes when a gate scan records an exit or a return. | Inside or outside. This is presence in the hall, not sign-in. Pending residents stay inside and are not scanned. |
 | created_at | Instant | Yes | System | When the profile was created. |
 | updated_at | Instant | Yes | System | When it last changed. |
 
-The hall pass stays the same from outing to outing. It changes only when the provost issues a new one. The provost does that on the resident's record, for example after a lost phone or because someone else has seen the code. The provost does not type the new code. The system makes a new random code, puts it in place of the old one at that moment, and writes an audit log entry. The old code stops working immediately. The resident's phone shows the new code the next time it loads the pass.
+Activating a pending resident requires a room. At that moment the system sets status to active, stores the room, and issues the first hall-pass code. The hall pass then stays the same from outing to outing. It changes only when the provost issues a new one. The provost does that on the resident's record, for example after a lost phone or because someone else has seen the code. The provost does not type the new code. The system makes a new random code, puts it in place of the old one at that moment, and writes an audit log entry. The old code stops working immediately. The resident's phone shows the new code the next time it loads the pass.
 
 ### Staff
 
@@ -517,8 +520,10 @@ This is the audit log: the record of who did what. Each entry is one action that
 |---|---|
 | Signed in | auth.login |
 | Signed out | auth.logout |
+| Resident self-onboarded | auth.onboard |
 | Resident created | resident.created |
 | Resident updated | resident.updated |
+| Resident activated | resident.activated |
 | Resident suspended | resident.suspended |
 | Resident reinstated | resident.reinstated |
 | Hall pass reissued | hall_pass.reissued |
@@ -559,21 +564,22 @@ What a person may do comes from her or his role.
 
 Gate staff scan a hall pass and record a guest's arrival and departure. They do not approve a permission, they do not approve a guest stay, and they do not change residents, rooms, or settings. Their screens are the scan result, recent gate activity, and the guest lists.
 
-A warden or the provost approves or rejects a permission and a guest stay, sees the register and the late list, and marks a guest paid. The provost also creates and edits residents, staff, rooms, destinations, and settings, issues a new hall pass, resets a password, exports the register, and reads guardian messages and the audit log.
+A warden or the provost approves or rejects a permission and a guest stay, sees the register and the late list, and marks a guest paid. The provost also creates and edits residents, activates pending self-onboarded residents (room required), creates staff, rooms, destinations, and settings, issues a new hall pass, resets a password, exports the register, and reads guardian messages and the audit log.
 
 | Action | Resident | Gate | Warden | Provost |
 |---|---|---|---|---|
-| Own outing, own permission, own guest application, own hall pass | Yes | | | |
+| Self-onboard (pending account) | Yes | | | |
+| Own outing, own permission, own guest application, own hall pass | Yes (active only) | | | |
 | Scan a hall pass, record a guest's arrival and departure | | Yes | Yes | Yes |
 | Register, late list, waiting decisions, mark a guest paid, upload or clear optional payment evidence | | | Yes | Yes |
 | Export the register | | | | Yes |
-| Create and edit residents, staff, rooms, blocks, destinations, and settings | | | | Yes |
+| Create and edit residents, activate pending residents, create staff, rooms, blocks, destinations, and settings | | | | Yes |
 | Issue a new hall pass, reset a password | | | | Yes |
 | Read guardian messages and the audit log | | | | Yes |
 
 ## What the register counts
 
-The same counts are kept for the whole hall and, separately, for each block. A resident counts in the block of the room she is assigned to now. A guest counts in the block of the host's room. A permission waiting counts in the resident's block.
+The same counts are kept for the whole hall and, separately, for each block. A resident counts in the block of the room she is assigned to now. Pending residents have no room and are left out of these counts. A guest counts in the block of the host's room. A permission waiting counts in the resident's block.
 
 | Count | Who is included |
 |---|---|
@@ -585,7 +591,7 @@ The same counts are kept for the whole hall and, separately, for each block. A r
 | Should have left | The guest list of that name. |
 | Guest stays waiting | Guest stays still waiting. |
 
-The whole-hall figure is the sum of the blocks. Suspended residents stay in the account list and are left out of the inside and outside counts.
+The whole-hall figure is the sum of the blocks. Suspended and pending residents stay in the account list and are left out of the inside and outside counts.
 
 ## History that is not its own list
 
@@ -617,6 +623,10 @@ Besides the unique indexes that enforce one username, one open outside outing, a
 | audit_log_occurred_at | audit_log (occurred_at) | Provost audit log newest first. |
 | sessions_user_id | sessions (user_id) | Sign-out and password change revoke every live session for that person. |
 | guardian_messages_outing_id | guardian_messages (outing_id) | Register resident record looks up the late notice for the open outing. |
+
+## Implementation note (dev)
+
+Self-onboard and pending status are specified here and in the HTTP contract. A schema migration is not shipped in this stack. When handlers land, the next free migration number after `0011_guest_stay_payment_evidence.sql` is `0012_…` (confirm against `backend/app/shared/migrations/` on `dev` at that time). Leave this document's version at **0.3.4** until production.
 
 ## Revisions
 
