@@ -298,8 +298,10 @@ paths:
                 recent_history:
                   - event: returned
                     place: Maulana Azad Library
-                    occurred_at: "2026-09-12T15:16:00Z"
                     outing_id: 00000000-0000-4000-8000-000000000001
+                    exited_at: null
+                    returned_at: "2026-09-12T15:16:00Z"
+                    recorded_by: Fatima Khan
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -346,6 +348,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HistoryPage"
+              example:
+                total: 2
+                limit: 50
+                offset: 0
+                items:
+                  - event: returned
+                    place: Maulana Azad Library
+                    outing_id: 00000000-0000-4000-8000-000000000001
+                    exited_at: null
+                    returned_at: "2026-09-12T15:16:00Z"
+                    recorded_by: Fatima Khan
+                  - event: exited
+                    place: Maulana Azad Library
+                    outing_id: 00000000-0000-4000-8000-000000000001
+                    exited_at: "2026-09-12T14:00:00Z"
+                    returned_at: null
+                    recorded_by: Fatima Khan
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2493,7 +2512,7 @@ components:
     HistoryEvent:
       type: object
       additionalProperties: false
-      required: [event, place, occurred_at, outing_id]
+      required: [event, place, outing_id, exited_at, returned_at, recorded_by]
       properties:
         event:
           type: string
@@ -2501,12 +2520,26 @@ components:
         place:
           type: string
           description: Place remembered on the outing.
-        occurred_at:
-          type: string
-          format: date-time
         outing_id:
           type: string
           format: uuid
+        exited_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: "null"
+          description: Set when event is exited; null when event is returned.
+        returned_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: "null"
+          description: Set when event is returned; null when event is exited.
+        recorded_by:
+          type: string
+          description: >
+            Display name of the staff member who recorded that exit or return
+            (from outings.exit_recorded_by or outings.return_recorded_by).
 
     HistoryPage:
       allOf:

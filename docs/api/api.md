@@ -540,8 +540,10 @@ Body: [ResidentHome](#schema-residenthome).
     {
       "event": "returned",
       "place": "Maulana Azad Library",
-      "occurred_at": "2026-09-12T15:16:00Z",
-      "outing_id": "00000000-0000-4000-8000-000000000001"
+      "outing_id": "00000000-0000-4000-8000-000000000001",
+      "exited_at": null,
+      "returned_at": "2026-09-12T15:16:00Z",
+      "recorded_by": "Fatima Khan"
     }
   ]
 }
@@ -636,6 +638,34 @@ Body: [HistoryPage](#schema-historypage).
 | `limit` | yes | integer |  |
 | `offset` | yes | integer |  |
 | `items` | yes | list of [HistoryEvent](#schema-historyevent) |  |
+
+**Example**
+
+```json
+{
+  "total": 2,
+  "limit": 50,
+  "offset": 0,
+  "items": [
+    {
+      "event": "returned",
+      "place": "Maulana Azad Library",
+      "outing_id": "00000000-0000-4000-8000-000000000001",
+      "exited_at": null,
+      "returned_at": "2026-09-12T15:16:00Z",
+      "recorded_by": "Fatima Khan"
+    },
+    {
+      "event": "exited",
+      "place": "Maulana Azad Library",
+      "outing_id": "00000000-0000-4000-8000-000000000001",
+      "exited_at": "2026-09-12T14:00:00Z",
+      "returned_at": null,
+      "recorded_by": "Fatima Khan"
+    }
+  ]
+}
+```
 
 #### 401
 
@@ -4171,8 +4201,10 @@ One of: `inside`, `outside`, `late`.
 |---|---|---|---|
 | `event` | yes | `exited` or `returned` |  |
 | `place` | yes | string | Place remembered on the outing. |
-| `occurred_at` | yes | date-time |  |
 | `outing_id` | yes | uuid |  |
+| `exited_at` | yes | date-time or null | Set when event is exited; null when event is returned. |
+| `returned_at` | yes | date-time or null | Set when event is returned; null when event is exited. |
+| `recorded_by` | yes | string | Display name of the staff member who recorded that exit or return (from outings.exit_recorded_by or outings.return_recorded_by). |
 
 ### <a id="schema-historypage"></a>HistoryPage
 
