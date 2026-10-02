@@ -373,24 +373,24 @@ paths:
                 items:
                   - id: 1285f918-cd9c-5ef8-9c04-58a69285211c
                     name: J.N. Medical College
-                    is_other: false
-                    is_active: true
+                    kind: named
+                    status: active
                   - id: fc2da7c5-8d65-5680-8034-d8acb69745eb
                     name: Maulana Azad Library
-                    is_other: false
-                    is_active: true
+                    kind: named
+                    status: active
                   - id: 924e5c75-e9b6-57a9-bb04-720028253526
                     name: Shamshad Market
-                    is_other: false
-                    is_active: true
+                    kind: named
+                    status: active
                   - id: df29c4b7-63c5-525d-a9ec-798a980c64c8
                     name: Women's College
-                    is_other: false
-                    is_active: true
+                    kind: named
+                    status: active
                   - id: f2008ef3-a1df-5ff0-b936-3466d0914781
                     name: Other
-                    is_other: true
-                    is_active: true
+                    kind: other
+                    status: active
         "401":
           $ref: "#/components/responses/Unauthorized"
 
@@ -903,11 +903,11 @@ paths:
         The 200 body is a discriminated union on `outcome`. Shared envelope
         fields are only `outcome`, `full_name`, `room_label`, and `message`.
         `recorded_at` is not on the envelope: it sits inside the nested variant.
-        On `exit_recorded` the nest is `outing` (outing movement fields plus
-        `recorded_at`). Exit has no timeliness field — lateness does not apply
-        until return. On `return_recorded` the nest is `return_record`
-        (`recorded_at`, `status`, `returned_at`, `return_recorded_by_name`).
-        Return `status` is `on_time` (at or before expected return),
+        On `exit_recorded` the nest is `outing` (outing movement fields, including
+        `lateness` `on_time` or `late`, plus `recorded_at`). Exit has no
+        `return_timeliness`. On `return_recorded` the nest is `return_record`
+        (`recorded_at`, `return_timeliness`, `returned_at`, `return_recorded_by_name`).
+        `return_timeliness` is `on_time` (at or before expected return),
         `within_grace` (after expected return, at or before grace), or `late`
         (after grace). No booleans on the scan response. Exit has no
         `return_record`; return has no `outing`. The JSON key is
@@ -963,7 +963,7 @@ paths:
                     message: On time. Status is now inside.
                     return_record:
                       recorded_at: "2026-09-13T13:24:00Z"
-                      status: on_time
+                      return_timeliness: on_time
                       returned_at: "2026-09-13T13:24:00Z"
                       return_recorded_by_name: Fatima Khan
         "401":
@@ -1962,7 +1962,7 @@ paths:
       tags: [Hall office]
       operationId: update_block
       summary: Update a block
-      description: "Caller: provost. Deactivate with `is_active` false. Rooms in the block remain."
+      description: "Caller: provost. Deactivate with `status` `inactive`. Rooms in the block remain."
       parameters:
         - $ref: "#/components/parameters/BlockId"
       requestBody:
@@ -2103,7 +2103,7 @@ paths:
       operationId: create_destination
       summary: Create a destination
       description: |
-        Caller: provost. Only one active destination may have `is_other` true.
+        Caller: provost. Only one active destination may have `kind` `other`.
       requestBody:
         required: true
         content:
@@ -2762,7 +2762,7 @@ components:
     Destination:
       type: object
       additionalProperties: false
-      required: [id, name, is_other, is_active]
+      required: [id, name, kind, status]
       properties:
         id:
           type: string
@@ -2770,10 +2770,14 @@ components:
         name:
           type: string
           description: Named places are shown alphabetical by this name, ignoring capitals. The free-text choice is last.
-        is_other:
-          type: boolean
-        is_active:
-          type: boolean
+        kind:
+          type: string
+          enum: [named, other]
+          description: "`named` for a fixed place. `other` for the single free-text choice."
+        status:
+          type: string
+          enum: [active, inactive]
+          description: "`active` while it can be chosen. `inactive` when retired."
 
     DestinationList:
       type: object
@@ -2794,9 +2798,10 @@ components:
           type: string
           minLength: 1
           maxLength: 80
-        is_other:
-          type: boolean
-          default: false
+        kind:
+          type: string
+          enum: [named, other]
+          default: named
 
     DestinationUpdate:
       type: object
@@ -2806,10 +2811,12 @@ components:
           type: string
           minLength: 1
           maxLength: 80
-        is_other:
-          type: boolean
-        is_active:
-          type: boolean
+        kind:
+          type: string
+          enum: [named, other]
+        status:
+          type: string
+          enum: [active, inactive]
 
     PlanOutingRequest:
       type: object
@@ -2847,7 +2854,7 @@ components:
         - place
         - expected_return_at
         - grace_ends_at
-        - is_late
+        - lateness
         - created_at
       properties:
         id:
@@ -2895,8 +2902,12 @@ components:
             - type: string
             - type: "null"
           description: Staff member who scanned the return. Empty only while returned_at is empty.
-        is_late:
-          type: boolean
+        lateness:
+          type: string
+          enum: [on_time, late]
+          description: |
+            For a planned or outside outing, `late` when now is after `grace_ends_at`;
+            otherwise `on_time`. Returned and cancelled outings keep the value at read time.
         created_at:
           type: string
           format: date-time
@@ -3379,9 +3390,8 @@ components:
       additionalProperties: false
       description: |
         Exit nest for the scan response. Explicit property list (not allOf
-        Outing) so the scan contract omits `is_late` and has no timeliness
-        `status` — lateness does not apply on exit. Global `Outing.is_late`
-        remains on resident outing APIs outside this response.
+        Outing). Includes outing `lateness` (`on_time` or `late`). Omits
+        `return_timeliness`, which is only on a return.
       required:
         - id
         - type
@@ -3389,6 +3399,7 @@ components:
         - place
         - expected_return_at
         - grace_ends_at
+        - lateness
         - created_at
         - recorded_at
       properties:
@@ -3431,6 +3442,12 @@ components:
           oneOf:
             - type: string
             - type: "null"
+        lateness:
+          type: string
+          enum: [on_time, late]
+          description: |
+            For a planned or outside outing, `late` when now is after `grace_ends_at`;
+            otherwise `on_time`. Returned and cancelled outings keep the value at read time.
         created_at:
           type: string
           format: date-time
@@ -3442,13 +3459,13 @@ components:
     ScanReturnRecord:
       type: object
       additionalProperties: false
-      required: [recorded_at, status, returned_at, return_recorded_by_name]
+      required: [recorded_at, return_timeliness, returned_at, return_recorded_by_name]
       properties:
         recorded_at:
           type: string
           format: date-time
           description: When this return was recorded at the gate (UTC).
-        status:
+        return_timeliness:
           $ref: "#/components/schemas/ScanReturnTimeliness"
         returned_at:
           type: string
@@ -3508,8 +3525,9 @@ components:
         `outcome`, `full_name`, `room_label`, and `message`. Variant nests are
         mutually exclusive: `outing` on exit, `return_record` on return.
         `recorded_at` lives inside each nest, not on the envelope. No boolean
-        timeliness fields: return uses `return_record.status`
-        (`on_time` | `within_grace` | `late`); exit has no timeliness field.
+        timeliness fields: return uses `return_record.return_timeliness`
+        (`on_time` | `within_grace` | `late`). Exit outing includes `lateness`
+        and omits `return_timeliness`.
 
     GateActivityItem:
       type: object
@@ -4028,7 +4046,7 @@ components:
     Block:
       type: object
       additionalProperties: false
-      required: [id, code, name, floors, room_count, beds_per_room, is_active]
+      required: [id, code, name, floors, room_count, beds_per_room, status]
       properties:
         id:
           type: string
@@ -4050,8 +4068,10 @@ components:
         beds_per_room:
           type: integer
           description: The hall page states a room capacity of 2.
-        is_active:
-          type: boolean
+        status:
+          type: string
+          enum: [active, inactive]
+          description: "`active` while the hall uses this block. `inactive` when retired."
 
     BlockCreate:
       type: object
@@ -4103,13 +4123,14 @@ components:
           type: integer
           minimum: 1
           maximum: 6
-        is_active:
-          type: boolean
+        status:
+          type: string
+          enum: [active, inactive]
 
     Room:
       type: object
       additionalProperties: false
-      required: [id, block_id, number, label, bed_count, is_active]
+      required: [id, block_id, number, label, bed_count, status]
       properties:
         id:
           type: string
@@ -4126,8 +4147,10 @@ components:
         bed_count:
           type: integer
           description: Copied from the block when the room is created. Active residents assigned here, including a suspended resident who has not moved, cannot exceed this.
-        is_active:
-          type: boolean
+        status:
+          type: string
+          enum: [active, inactive]
+          description: "`active` while the room can be assigned. `inactive` when retired."
 
     RoomCreate:
       type: object
@@ -4154,8 +4177,9 @@ components:
           type: integer
           minimum: 1
           maximum: 6
-        is_active:
-          type: boolean
+        status:
+          type: string
+          enum: [active, inactive]
 
     HallSettings:
       type: object

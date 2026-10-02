@@ -10,7 +10,7 @@
     "exit_recorded_by_name": null,
     "returned_at": null,
     "return_recorded_by_name": null,
-    "is_late": false,
+    "lateness": "on_time",
     "created_at": "2026-09-30T08:00:00Z"
   }
 }

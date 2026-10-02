@@ -53,6 +53,7 @@ class ScanExitOuting(BaseModel):
     exit_recorded_by_name: str | None
     returned_at: str | None
     return_recorded_by_name: str | None
+    lateness: Literal["on_time", "late"]
     created_at: str
     recorded_at: str
 
@@ -60,7 +61,7 @@ class ScanExitOuting(BaseModel):
 class ScanReturnRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
     recorded_at: str
-    status: Literal["on_time", "within_grace", "late"]
+    return_timeliness: Literal["on_time", "within_grace", "late"]
     returned_at: str
     return_recorded_by_name: str
 
@@ -518,7 +519,7 @@ def scan_hall_pass(
             message=message,
             return_record=ScanReturnRecord(
                 recorded_at=now_text,
-                status=timeliness,
+                return_timeliness=timeliness,
                 returned_at=now_text,
                 return_recorded_by_name=account.full_name,
             ),

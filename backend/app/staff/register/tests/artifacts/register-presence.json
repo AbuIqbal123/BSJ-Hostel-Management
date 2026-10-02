@@ -278,7 +278,7 @@
       "exit_recorded_by_name": "Fatima Khan",
       "returned_at": null,
       "return_recorded_by_name": null,
-      "is_late": false,
+      "lateness": "on_time",
       "created_at": "2026-09-30T09:00:00Z"
     },
     "guardian_name": "Yusuf Siddiqui",
@@ -304,7 +304,7 @@
       "exit_recorded_by_name": "Fatima Khan",
       "returned_at": null,
       "return_recorded_by_name": null,
-      "is_late": true,
+      "lateness": "late",
       "created_at": "2026-09-30T07:30:00Z"
     },
     "guardian_name": "Imran Ahmed",

@@ -147,7 +147,7 @@ def test_admin_blocks(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
         assert codes == expected["seed_codes"]
         block_b = next(item for item in listed.json() if item["id"] == BLOCK_B)
         assert block_b["name"] == "Block-B"
-        assert block_b["is_active"] is True
+        assert block_b["status"] == "active"
         utility = next(item for item in listed.json() if item["code"] == "Utility")
         assert utility["floors"] is None
 
@@ -163,7 +163,7 @@ def test_admin_blocks(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
         assert body["floors"] == 4
         assert body["room_count"] == 1
         assert body["beds_per_room"] == 2
-        assert body["is_active"] is True
+        assert body["status"] == "active"
         assert "id" in body
         new_id = body["id"]
 
@@ -198,11 +198,11 @@ def test_admin_blocks(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
         updated = client.patch(
             f"/api/v1/admin/blocks/{BLOCK_B}",
             headers=headers,
-            json={"name": "Block B West", "is_active": False, "room_count": 60},
+            json={"name": "Block B West", "status": "inactive", "room_count": 60},
         )
         assert updated.status_code == 200
         assert updated.json()["name"] == "Block B West"
-        assert updated.json()["is_active"] is False
+        assert updated.json()["status"] == "inactive"
         assert updated.json()["room_count"] == 60
         assert updated.json()["code"] == "B"
 
@@ -211,7 +211,7 @@ def test_admin_blocks(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
         after_codes = [item["code"] for item in after.json()]
         assert after_codes == ["A", "B", "C", "D", "E", "Utility"]
         inactive_b = next(item for item in after.json() if item["id"] == BLOCK_B)
-        assert inactive_b["is_active"] is False
+        assert inactive_b["status"] == "inactive"
 
         clear_floors = client.patch(
             f"/api/v1/admin/blocks/{new_id}",
@@ -258,13 +258,13 @@ def test_block_patch_rejects_null_except_floors(
         listed = client.get("/api/v1/admin/blocks", headers=headers)
         assert listed.status_code == 200
         block_b = next(item for item in listed.json() if item["id"] == BLOCK_B)
-        assert block_b["is_active"] is True
+        assert block_b["status"] == "active"
         assert block_b["floors"] == 4
         assert block_b["name"] == "Block-B"
         assert block_b["room_count"] == 58
 
         refused = (
-            ("is_active", "Is active is required."),
+            ("status", "Status is required."),
             ("name", "Name is required."),
             ("room_count", "Room count is required."),
         )
@@ -282,7 +282,7 @@ def test_block_patch_rejects_null_except_floors(
         after = client.get("/api/v1/admin/blocks", headers=headers)
         assert after.status_code == 200
         stayed = next(item for item in after.json() if item["id"] == BLOCK_B)
-        assert stayed["is_active"] is True
+        assert stayed["status"] == "active"
         assert stayed["name"] == "Block-B"
         assert stayed["room_count"] == 58
         assert stayed["floors"] == 4
@@ -294,4 +294,4 @@ def test_block_patch_rejects_null_except_floors(
         )
         assert cleared.status_code == 200
         assert cleared.json()["floors"] is None
-        assert cleared.json()["is_active"] is True
+        assert cleared.json()["status"] == "active"

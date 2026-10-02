@@ -184,7 +184,7 @@ That is 206 rooms and 412 beds. The session 2025–26 roll of 506 resident stude
 | floors | Whole number | Yes for A, B, C, and D. Empty for Utility until the hall publishes it. | The hall page | A, B, C, and D start at 4. |
 | room_count | Whole number | Yes | The hall page, then the provost if the published inventory changes | How many rooms this block has. Starts at the counts in the table above. The rooms on file for this block must match this number once the inventory is entered. |
 | beds_per_room | Whole number | Yes | The hall page, "Capacity of Room: 02" | Starts at 2. |
-| is_active | Yes or no | Yes | Provost | Yes while the hall uses this block. No when it is retired. |
+| status | Text | Yes | Provost | `active` while the hall uses this block. `inactive` when it is retired. |
 
 ### Rooms
 
@@ -197,7 +197,7 @@ The hall page does not list door numbers. This document does not invent them. Th
 | number | Text | Yes | Provost, from the door | Such as `204` or `087`. |
 | label | Text | Yes | System, from the block code, a hyphen, and the number | Such as `B-204` or `Utility-12`. No two rooms share a label. |
 | bed_count | Whole number | Yes | Copied from the block's beds per room when the room is created | How many residents this room can hold. Starts at 2. |
-| is_active | Yes or no | Yes | Provost | Yes while the room can be assigned. No when it is retired. |
+| status | Text | Yes | Provost | `active` while the room can be assigned. `inactive` when it is retired. |
 
 A block cannot contain the same room number twice. A resident points at a room. A resident is placed only in an active room. The number of active residents assigned to a room, including a suspended resident who has not been moved, cannot be more than that room's bed count. Changing rooms updates the resident and writes an audit log entry. Past outings keep the place and the resident. They do not keep a copy of the old room. The register shows the room the resident has now.
 
@@ -209,8 +209,8 @@ The list behind the ordinary-outing choices. The screen shows the active named p
 |---|---|---|---|---|
 | id | Identifier | Yes | System | Identifies this destination. |
 | name | Text | Yes | Provost. The first list is below. | Unique. Named places are compared in alphabetical order for display, ignoring capitals. The free-text choice is shown last. |
-| is_other | Yes or no | Yes | Provost | Yes for the single free-text choice. No for a named place. |
-| is_active | Yes or no | Yes | Provost | Yes while it can be chosen. No when it is retired. |
+| kind | Text | Yes | Provost | `named` for a fixed place. `other` for the single free-text choice. |
+| status | Text | Yes | Provost | `active` while it can be chosen. `inactive` when it is retired. |
 
 The first list is created with the records. The provost can add, rename, or retire entries afterwards. Shown A to Z, with the free-text choice last, the first list reads:
 

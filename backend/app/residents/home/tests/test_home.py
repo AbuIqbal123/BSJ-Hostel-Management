@@ -384,7 +384,7 @@ def test_resident_home(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
         finally:
             connection.close()
         on_grace = client.get("/api/v1/me/home", headers=headers).json()
-        assert on_grace["current_outing"]["is_late"] is False
+        assert on_grace["current_outing"]["lateness"] == "on_time"
         assert on_grace["current_outing"]["grace_ends_at"] == NOW
 
         connection = sqlite3.connect(database_path)
@@ -396,7 +396,7 @@ def test_resident_home(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
             )
             connection.commit()
             after_grace = client.get("/api/v1/me/home", headers=headers).json()
-            assert after_grace["current_outing"]["is_late"] is True
+            assert after_grace["current_outing"]["lateness"] == "late"
             audit = [
                 row[0]
                 for row in connection.execute(

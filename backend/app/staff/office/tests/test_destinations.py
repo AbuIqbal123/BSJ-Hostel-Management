@@ -157,7 +157,7 @@ def test_admin_destinations(database_path: Path, monkeypatch: pytest.MonkeyPatch
         assert listed.status_code == 200
         names = [item["name"] for item in listed.json()["items"]]
         assert names == expected["seed_names"]
-        assert listed.json()["items"][-1]["is_other"] is True
+        assert listed.json()["items"][-1]["kind"] == "other"
 
         created = client.post(
             "/api/v1/admin/destinations",
@@ -167,8 +167,8 @@ def test_admin_destinations(database_path: Path, monkeypatch: pytest.MonkeyPatch
         assert created.status_code == 201
         body = created.json()
         assert body["name"] == "City Clinic"
-        assert body["is_other"] is False
-        assert body["is_active"] is True
+        assert body["kind"] == "named"
+        assert body["status"] == "active"
         city_id = body["id"]
 
         dup = client.post(
@@ -182,7 +182,7 @@ def test_admin_destinations(database_path: Path, monkeypatch: pytest.MonkeyPatch
         second_other = client.post(
             "/api/v1/admin/destinations",
             headers=headers,
-            json={"name": "Free text", "is_other": True},
+            json={"name": "Free text", "kind": "other"},
         )
         assert_error(second_other, 409, "other_exists")
         assert second_other.json()["error"]["message"] == expected["other_exists_message"]
@@ -191,7 +191,7 @@ def test_admin_destinations(database_path: Path, monkeypatch: pytest.MonkeyPatch
             client.patch(
                 "/api/v1/admin/destinations/00000000-0000-4000-8000-000000000099",
                 headers=headers,
-                json={"is_active": False},
+                json={"status": "inactive"},
             ),
             404,
             "not_found",
@@ -200,22 +200,22 @@ def test_admin_destinations(database_path: Path, monkeypatch: pytest.MonkeyPatch
         deactivated = client.patch(
             f"/api/v1/admin/destinations/{LIBRARY}",
             headers=headers,
-            json={"is_active": False},
+            json={"status": "inactive"},
         )
         assert deactivated.status_code == 200
-        assert deactivated.json()["is_active"] is False
+        assert deactivated.json()["status"] == "inactive"
 
         after = client.get("/api/v1/admin/destinations", headers=headers)
         after_names = [item["name"] for item in after.json()["items"]]
         assert "City Clinic" in after_names
         assert "Maulana Azad Library" in after_names
         library = next(item for item in after.json()["items"] if item["id"] == LIBRARY)
-        assert library["is_active"] is False
+        assert library["status"] == "inactive"
 
         flag_other = client.patch(
             f"/api/v1/admin/destinations/{city_id}",
             headers=headers,
-            json={"is_other": True},
+            json={"kind": "other"},
         )
         assert_error(flag_other, 409, "other_exists")
         assert flag_other.json()["error"]["message"] == expected["other_exists_message"]
@@ -266,13 +266,13 @@ def test_destination_update_rejects_null(database_path: Path) -> None:
         assert listed.status_code == 200
         original = next(item for item in listed.json()["items"] if item["id"] == OTHER_ID)
         assert original["name"] == "Other"
-        assert original["is_active"] is True
-        assert original["is_other"] is True
+        assert original["status"] == "active"
+        assert original["kind"] == "other"
 
         cases = (
             ("name", "Name is required."),
-            ("is_active", "Is active is required."),
-            ("is_other", "Is other is required."),
+            ("status", "Status is required."),
+            ("kind", "Kind is required."),
         )
         for field, message in cases:
             rejected = client.patch(

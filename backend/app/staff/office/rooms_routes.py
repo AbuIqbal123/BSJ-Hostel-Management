@@ -126,7 +126,7 @@ def update_room(
     if not changes:
         return current
 
-    if changes.get("is_active") is False and residents_in_room(connection, room_id) > 0:
+    if changes.get("status") == "inactive" and residents_in_room(connection, room_id) > 0:
         raise ApiError(
             409,
             "room_in_use",
@@ -151,9 +151,9 @@ def update_room(
     assignments: list[str] = []
     values: list[object] = []
     for key, value in changes.items():
-        if key == "is_active":
+        if key == "status":
             assignments.append("is_active = ?")
-            values.append(1 if value else 0)
+            values.append(1 if value == "active" else 0)
         else:
             assignments.append(f"{key} = ?")
             values.append(value)
