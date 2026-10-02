@@ -39,6 +39,7 @@ IN_HALL = "bb100000-0000-4000-8000-0000000000b4"
 SHOULD_LEFT = "bb100000-0000-4000-8000-0000000000b5"
 DEPARTED = "bb100000-0000-4000-8000-0000000000b6"
 REJECTED = "bb100000-0000-4000-8000-0000000000b7"
+CANCELLED = "bb100000-0000-4000-8000-0000000000b9"
 
 
 class FrozenClock:
@@ -286,6 +287,28 @@ def seed_stays(path: Path) -> None:
                 None,
                 "2026-09-30T08:00:00Z",
             ),
+            # cancelled
+            (
+                CANCELLED,
+                RESIDENT_ID,
+                "Cancelled Guest",
+                "Aunt",
+                "2026-10-06",
+                "2026-10-07",
+                "Changed plans.",
+                "cancelled",
+                "unpaid",
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                "2026-09-30T07:00:00Z",
+            ),
         )
         connection.executemany(
             """
@@ -355,6 +378,41 @@ def test_guest_stays_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch)
 
         warden = sign_in(client, "warden.sara", WARDEN_PHRASE)
         headers = {"Authorization": f"Bearer {warden}"}
+
+        default_list = client.get("/api/v1/guest-stays", headers=headers)
+        assert default_list.status_code == 200
+        default_ids = {item["id"] for item in default_list.json()["items"]}
+        assert REJECTED not in default_ids
+        assert CANCELLED not in default_ids
+        assert {
+            PENDING_A,
+            PENDING_B,
+            UPCOMING,
+            IN_HALL,
+            SHOULD_LEFT,
+            DEPARTED,
+        }.issubset(default_ids)
+
+        with_terminal = client.get(
+            "/api/v1/guest-stays?include_terminal=true",
+            headers=headers,
+        )
+        assert with_terminal.status_code == 200
+        terminal_ids = {item["id"] for item in with_terminal.json()["items"]}
+        assert REJECTED in terminal_ids
+        assert CANCELLED in terminal_ids
+
+        rejected_only = client.get(
+            "/api/v1/guest-stays?bucket=rejected",
+            headers=headers,
+        )
+        assert [item["id"] for item in rejected_only.json()["items"]] == [REJECTED]
+
+        cancelled_only = client.get(
+            "/api/v1/guest-stays?bucket=cancelled",
+            headers=headers,
+        )
+        assert [item["id"] for item in cancelled_only.json()["items"]] == [CANCELLED]
 
         pending = client.get("/api/v1/guest-stays?bucket=pending", headers=headers)
         assert pending.status_code == 200

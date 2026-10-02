@@ -1400,7 +1400,11 @@ paths:
       description: |
         Caller: warden or provost. Filter by derived bucket. `in_hall` here is
         the dining set and includes guests who should have left. Use
-        `should_have_left` for that subset. Each item is a GuestStaySummary
+        `should_have_left` for that subset. By default the list omits terminal
+        buckets `cancelled` and `rejected` so the warden queue stays clean.
+        Pass `include_terminal=true` to include those rows. An explicit
+        `bucket=cancelled` or `bucket=rejected` still returns that subset
+        without needing `include_terminal`. Each item is a GuestStaySummary
         card; open GET by id for the full GuestStay.
       parameters:
         - name: bucket
@@ -1408,6 +1412,16 @@ paths:
           required: false
           schema:
             $ref: "#/components/schemas/GuestBucket"
+        - name: include_terminal
+          in: query
+          required: false
+          description: |
+            When false (default), omit buckets `cancelled` and `rejected`
+            unless `bucket` is set to one of those values. When true, include
+            terminal rows (still subject to `bucket` when set).
+          schema:
+            type: boolean
+            default: false
         - $ref: "#/components/parameters/Limit"
         - $ref: "#/components/parameters/Offset"
       responses:
