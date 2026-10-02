@@ -37,8 +37,8 @@ CSV_HEADER = [
     "relation",
     "host_name",
     "host_room_label",
-    "start_date",
-    "end_date",
+    "guest_start_date",
+    "guest_end_date",
     "payment_status",
     "guest_bucket",
     "arrived_at",
@@ -130,8 +130,8 @@ def build_register_csv(connection: sqlite3.Connection) -> str:
         SELECT
           guest_stays.guest_name,
           guest_stays.relation,
-          guest_stays.start_date,
-          guest_stays.end_date,
+          guest_stays.guest_start_date,
+          guest_stays.guest_end_date,
           guest_stays.status,
           guest_stays.payment_status,
           guest_stays.arrived_at,
@@ -144,15 +144,15 @@ def build_register_csv(connection: sqlite3.Connection) -> str:
         JOIN residents ON residents.user_id = guest_stays.host_resident_id
         JOIN rooms ON rooms.id = residents.room_id
         JOIN blocks ON blocks.id = rooms.block_id
-        ORDER BY guest_stays.start_date, guest_stays.guest_name, guest_stays.id
+        ORDER BY guest_stays.guest_start_date, guest_stays.guest_name, guest_stays.id
         """
     ).fetchall()
     for row in guests:
         bucket = derive_bucket(
             status=row["status"],
             payment_status=row["payment_status"],
-            start_date=row["start_date"],
-            end_date=row["end_date"],
+            start_date=row["guest_start_date"],
+            end_date=row["guest_end_date"],
             arrived_at=row["arrived_at"],
             departed_at=row["departed_at"],
             today=today,
@@ -166,8 +166,8 @@ def build_register_csv(connection: sqlite3.Connection) -> str:
                 "relation": row["relation"],
                 "host_name": row["host_name"],
                 "host_room_label": row["host_room_label"],
-                "start_date": row["start_date"],
-                "end_date": row["end_date"],
+                "guest_start_date": row["guest_start_date"],
+                "guest_end_date": row["guest_end_date"],
                 "payment_status": row["payment_status"],
                 "guest_bucket": bucket,
                 "arrived_at": row["arrived_at"] or "",

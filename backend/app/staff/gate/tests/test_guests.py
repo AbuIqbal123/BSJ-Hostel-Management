@@ -232,7 +232,7 @@ def seed_stays(path: Path) -> None:
         connection.executemany(
             """
             INSERT INTO guest_stays (
-              id, host_resident_id, guest_name, relation, start_date, end_date, reason,
+              id, host_resident_id, guest_name, relation, guest_start_date, guest_end_date, reason,
               status, payment_status, payment_marked_by, payment_marked_at,
               decided_by, decided_at, decision_note,
               arrived_at, arrived_recorded_by, departed_at, departed_recorded_by,
