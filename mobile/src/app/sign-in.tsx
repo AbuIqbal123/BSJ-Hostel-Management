@@ -134,7 +134,10 @@ export default function SignInScreen() {
       }
       LayoutAnimation.configureNext({
         duration: fallbackMotionMs,
-        update: { type: LayoutAnimation.Types.easeInEaseOut },
+        update: {
+          duration: fallbackMotionMs,
+          type: LayoutAnimation.Types.easeInEaseOut,
+        },
       });
     };
 
@@ -160,7 +163,13 @@ export default function SignInScreen() {
       if (!keyboardUpRef.current) {
         return;
       }
-      if (focusCount.current > 0 || Keyboard.isVisible()) {
+      if (focusCount.current > 0) {
+        return;
+      }
+      // Hide events own the synced lower. A blur-only call must wait until the
+      // keyboard is gone so it does not steal WillHide's scheduleLayoutAnimation
+      // with a fallback LayoutAnimation.
+      if (event == null && Keyboard.isVisible()) {
         return;
       }
       clearOutlineTimer();
@@ -188,6 +197,8 @@ export default function SignInScreen() {
         setKeyboardUp(true);
         armOutline(event);
       } else if (next <= (padRef.current ?? 0)) {
+        // Keep the highest pad while raised (field switches). Lowering is owned
+        // by tryLower + scheduleLayoutAnimation on hide.
         return;
       }
       place(next, event);
@@ -231,17 +242,22 @@ export default function SignInScreen() {
         }
         tryLower(event);
       };
-      requestAnimationFrame(() => {
-        if (ticket !== hideTicket.current) {
-          return;
-        }
-        // Blur often lands just after hide — retry once so the block settles.
-        if (focusCount.current > 0 || Keyboard.isVisible()) {
-          setTimeout(attempt, 64);
-          return;
-        }
-        tryLower(event);
-      });
+      // Lower immediately with the hide event so scheduleLayoutAnimation matches
+      // the keyboard. Retry once if blur is still in flight.
+      if (focusCount.current > 0) {
+        requestAnimationFrame(() => {
+          if (ticket !== hideTicket.current) {
+            return;
+          }
+          if (focusCount.current > 0) {
+            setTimeout(attempt, 64);
+            return;
+          }
+          attempt();
+        });
+        return;
+      }
+      attempt();
     };
 
     const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
@@ -262,6 +278,33 @@ export default function SignInScreen() {
 
   const focusPassword = useCallback(() => {
     passwordRef.current?.focus();
+  }, []);
+
+  // Tap-away (not swipe): blur first so focusCount clears, then dismiss, then
+  // race tryLower in case hide/blur ordering would leave the block raised.
+  const onTapAway = useCallback(() => {
+    const focused = TextInput.State.currentlyFocusedInput();
+    if (focused != null) {
+      TextInput.State.blurTextInput(focused);
+    }
+    Keyboard.dismiss();
+    const ticket = hideTicket.current;
+    const attempt = () => {
+      if (ticket !== hideTicket.current) {
+        return;
+      }
+      tryLowerRef.current();
+    };
+    requestAnimationFrame(() => {
+      if (ticket !== hideTicket.current) {
+        return;
+      }
+      if (focusCount.current > 0 || Keyboard.isVisible()) {
+        setTimeout(attempt, 64);
+        return;
+      }
+      tryLowerRef.current();
+    });
   }, []);
 
   const onUsername = useCallback((value: string) => {
@@ -313,7 +356,7 @@ export default function SignInScreen() {
         <Pressable
           accessible={false}
           style={StyleSheet.absoluteFill}
-          onPress={Keyboard.dismiss}
+          onPress={onTapAway}
         />
         <View
           pointerEvents="box-none"
