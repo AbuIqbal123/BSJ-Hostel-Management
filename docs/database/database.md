@@ -459,7 +459,7 @@ These are worked out when someone looks. They are not stored.
 
 The dining count, guests in hall, is every stay that has arrived and has not departed. That includes guests who should have left. The guest stays on the dining count until the gate records departure.
 
-The gate's expected list is Expected today. The gate's departure list is In the hall plus Should have left.
+The gate's expected list is every approved stay that has not arrived and whose dates include today's hall date, whether paid or unpaid. A `payment_status` filter on that list keeps only paid or only unpaid. Arrival still requires paid, so an unpaid guest on that list cannot be recorded in until payment is marked. The gate's departure list is In the hall plus Should have left. The derived bucket Expected today, used on the staff guest-stay queue, still requires paid.
 
 ## Messages to the parent or guardian
 
