@@ -105,7 +105,7 @@ paths:
                 $ref: "#/components/schemas/Ready"
               example:
                 status: ready
-                user_version: 9
+                user_version: 10
         "503":
           description: The database could not be opened.
           content:
@@ -1734,11 +1734,12 @@ paths:
       operationId: admin_update_resident
       summary: Update a resident
       description: |
-        Caller: provost. Send only the fields that change. `course` may be set
-        to null to clear it. `guardian_name` and `guardian_phone` may be
-        replaced and may not be cleared. A phone includes the country code.
-        Changing `enrolment_number` changes the username. `status` suspends or
-        reinstates the account and revokes refresh tokens on suspension.
+        Caller: provost. Send only the fields that change. `course` and `phone`
+        may be set to null to clear them. `guardian_name` and `guardian_phone`
+        may be replaced and may not be cleared. A phone includes the country
+        code. Changing `enrolment_number` changes the username. `status`
+        suspends or reinstates the account and revokes refresh tokens on
+        suspension.
       parameters:
         - $ref: "#/components/parameters/ResidentId"
       requestBody:
@@ -3886,6 +3887,14 @@ components:
           format: uuid
         room_label:
           type: string
+        phone:
+          oneOf:
+            - type: string
+            - type: "null"
+          description: >
+            The resident's own phone in E.164 with country code. Empty when the
+            hall has not entered it. Optional; not the guardian phone.
+          example: "+919811112222"
         guardian_name:
           type: string
         guardian_phone:
@@ -3927,6 +3936,13 @@ components:
         room_id:
           type: string
           format: uuid
+        phone:
+          type: string
+          description: >
+            The resident's own phone in E.164 with country code. Optional. Omit
+            when the hall has not collected it.
+          pattern: "^\\+[1-9][0-9]{7,14}$"
+          example: "+919811112222"
         guardian_name:
           type: string
           minLength: 1
@@ -3971,6 +3987,15 @@ components:
         room_id:
           type: string
           format: uuid
+        phone:
+          oneOf:
+            - type: string
+              pattern: "^\\+[1-9][0-9]{7,14}$"
+            - type: "null"
+          description: >
+            The resident's own phone. Set to null to clear. Same E.164 pattern
+            as guardian_phone when present.
+          example: "+919811112222"
         guardian_name:
           type: string
           minLength: 1

@@ -248,12 +248,15 @@ A resident profile exists only for a person whose role is resident. It uses that
 
 The guardian is the parent or other guardian the hall can reach. Both the name and the phone are required. The resident does not type them. The provost enters them from the hall's record when the account is created, and can correct them later.
 
+The resident's own phone is separate from the guardian phone. The hall has not yet confirmed that every resident must have one on file, so the field may be empty. When present, it uses the same country-code form as the guardian phone. Late and return messages still go only to the guardian phone.
+
 | Detail | Kept as | Required | Where it comes from | Rule |
 |---|---|---|---|---|
 | user_id | Identifier | Yes | The person's id | One profile for that person. |
 | enrolment_number | Text | Yes | Provost. Same value as the username. | Unique, ignoring capitals. Shown on the warden record, for example `24-GLLB-118`. |
 | course | Text | Empty if the hall has not entered it | Provost | For example `B.A. LL.B. (Hons.)`. |
 | room_id | Identifier | Yes | Provost | The room the resident lives in. |
+| phone | Phone | Empty if the hall has not entered it | Provost | The resident's own number. Country code required when set. Not used for guardian late or return messages. |
 | guardian_name | Text | Yes | Provost, from the hall's record of the parent or guardian | The person the hall contacts about this resident. |
 | guardian_phone | Phone | Yes | Provost, from that same record | Country code required. Late and return messages go to this number. |
 | qr_token | Text | Yes | System, when the account is created, and again when the provost issues a new hall pass | The hall-pass code. Unique. |

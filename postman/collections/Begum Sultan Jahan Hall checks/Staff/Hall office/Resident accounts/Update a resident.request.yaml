@@ -3,7 +3,7 @@ method: PATCH
 url: '{{baseUrl}}/api/v1/admin/residents/{{residentId}}'
 order: 4000
 description: |-
-  Caller: provost. Send only the fields that change. `course` may be set to null to clear it. `guardian_name` and `guardian_phone` may be replaced and may not be cleared. A phone includes the country code. Changing `enrolment_number` changes the username. `status` suspends or reinstates the account and revokes refresh tokens on suspension.
+  Caller: provost. Send only the fields that change. `course` and `phone` may be set to null to clear them. `guardian_name` and `guardian_phone` may be replaced and may not be cleared. A phone includes the country code. Changing `enrolment_number` changes the username. `status` suspends or reinstates the account and revokes refresh tokens on suspension.
 headers:
   - key: Content-Type
     value: application/json
@@ -11,5 +11,6 @@ body:
   type: json
   content: |-
     {
-      "course": "B.A. LL.B. (Hons.)"
+      "course": "B.A. LL.B. (Hons.)",
+      "phone": "+919811112222"
     }

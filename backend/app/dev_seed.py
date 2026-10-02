@@ -44,6 +44,7 @@ class DevAccount:
     status: str
     job_title: str | None = None
     course: str | None = None
+    phone: str | None = None
     guardian_name: str | None = None
     guardian_phone: str | None = None
 
@@ -66,6 +67,7 @@ ACCOUNTS = (
         RESIDENT_PHRASE,
         "active",
         course="B.A. LL.B. (Hons.)",
+        phone="+919811112222",
         guardian_name="Rashid Khan",
         guardian_phone="+919876543210",
     ),
@@ -153,15 +155,16 @@ def seed() -> list[str]:
                 connection.execute(
                     """
                     INSERT INTO residents (
-                      user_id, enrolment_number, course, room_id, guardian_name,
+                      user_id, enrolment_number, course, room_id, phone, guardian_name,
                       guardian_phone, qr_token, presence, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'inside', ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'inside', ?, ?)
                     """,
                     (
                         account.id,
                         account.username,
                         account.course,
                         room_id,
+                        account.phone,
                         account.guardian_name,
                         account.guardian_phone,
                         RESIDENT_QR,

@@ -67,6 +67,7 @@ def admin_create_resident(
     enrolment = body.enrolment_number.strip()
     guardian_name = body.guardian_name.strip()
     course = None if body.course is None else body.course.strip() or None
+    phone = None if body.phone is None else body.phone
     if not full_name or not enrolment or not guardian_name:
         raise ApiError(422, "validation_error", "Required fields are missing.")
     if not room_exists(connection, body.room_id):
@@ -98,15 +99,16 @@ def admin_create_resident(
         connection.execute(
             """
             INSERT INTO residents (
-              user_id, enrolment_number, course, room_id, guardian_name, guardian_phone,
+              user_id, enrolment_number, course, room_id, phone, guardian_name, guardian_phone,
               qr_token, presence, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'inside', ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'inside', ?, ?)
             """,
             (
                 user_id,
                 enrolment,
                 course,
                 body.room_id,
+                phone,
                 guardian_name,
                 body.guardian_phone,
                 qr_payload,
@@ -235,6 +237,9 @@ def admin_update_resident(
     if "guardian_phone" in changes:
         resident_sets.append("guardian_phone = ?")
         resident_values.append(changes["guardian_phone"])
+    if "phone" in changes:
+        resident_sets.append("phone = ?")
+        resident_values.append(changes["phone"])
 
     try:
         if user_sets:

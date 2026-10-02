@@ -65,7 +65,7 @@ def read_public(path: Path) -> dict:
             dict(row)
             for row in connection.execute(
                 """
-                SELECT user_id, enrolment_number, course, room_id, guardian_name,
+                SELECT user_id, enrolment_number, course, room_id, phone, guardian_name,
                        guardian_phone, presence, created_at, updated_at
                 FROM residents
                 ORDER BY enrolment_number
