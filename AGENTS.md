@@ -48,6 +48,10 @@ OpenAPI tags are grouped by URL prefix. Postman collection folders use the same 
 
 Other tags (Operations, Resident, Hall office) follow the same idea: one tag owns a clear path family. When you add a route, put it under the tag for its prefix. When you add or move a Postman request, put it in the matching folder. Do not put permission or guest-stay routes under Register.
 
+### Response field names
+
+Response JSON uses explicit domain names so clients do not guess presentation. Prefer `guest_name`, `host_name`, `host_room_label`, `resident_name`, `room_label`, and the same style elsewhere. Do not use generic presentation fields such as `title` or `subtitle` on response schemas. Gate activity is the known exception being removed on a separate PR; new schemas must not add those names.
+
 ### Documents that stay current
 
 Finish the change and the document together.
