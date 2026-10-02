@@ -984,15 +984,35 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GateActivityPage"
-              example:
-                total: 3
-                limit: 50
-                offset: 0
-                items:
-                  - event: exit
-                    occurred_at: "2026-09-13T14:39:00Z"
-                    title: Zoya Siddiqui
-                    subtitle: A-118
+              examples:
+                resident_exit:
+                  summary: Resident exit
+                  value:
+                    total: 3
+                    limit: 50
+                    offset: 0
+                    items:
+                      - event: exit
+                        occurred_at: "2026-09-13T14:39:00Z"
+                        resident_name: Zoya Siddiqui
+                        room_label: A-118
+                        guest_name: null
+                        host_name: null
+                        host_room_label: null
+                guest_arrival:
+                  summary: Guest arrival
+                  value:
+                    total: 3
+                    limit: 50
+                    offset: 0
+                    items:
+                      - event: guest_arrival
+                        occurred_at: "2026-09-18T10:11:00Z"
+                        resident_name: null
+                        room_label: null
+                        guest_name: Fatima Begum
+                        host_name: Aisha Khan
+                        host_room_label: B-204
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -3279,7 +3299,15 @@ components:
     GateActivityItem:
       type: object
       additionalProperties: false
-      required: [event, occurred_at, title, subtitle]
+      description: |
+        One gate activity line. Always has `event` and `occurred_at`. The five
+        name/room fields are always present and nullable. Invariant: for
+        `exit` or `return`, `resident_name` and `room_label` are strings and
+        `guest_name`, `host_name`, and `host_room_label` are null. For
+        `guest_arrival` or `guest_departure`, `guest_name`, `host_name`, and
+        `host_room_label` are strings and `resident_name` and `room_label`
+        are null.
+      required: [event, occurred_at, resident_name, room_label, guest_name, host_name, host_room_label]
       properties:
         event:
           type: string
@@ -3288,12 +3316,31 @@ components:
         occurred_at:
           type: string
           format: date-time
-        title:
-          type: string
-          description: Resident or guest name.
-        subtitle:
-          type: string
-          description: Room label, or host and room for a guest.
+        resident_name:
+          oneOf:
+            - type: string
+            - type: "null"
+          description: Resident display name for exit/return. Null for guest lines.
+        room_label:
+          oneOf:
+            - type: string
+            - type: "null"
+          description: Resident room label for exit/return. Null for guest lines.
+        guest_name:
+          oneOf:
+            - type: string
+            - type: "null"
+          description: Guest display name for guest arrival/departure. Null for resident lines.
+        host_name:
+          oneOf:
+            - type: string
+            - type: "null"
+          description: Host resident display name for guest lines. Null for resident lines.
+        host_room_label:
+          oneOf:
+            - type: string
+            - type: "null"
+          description: Host room label for guest lines. Null for resident lines.
 
     GateActivityPage:
       allOf:

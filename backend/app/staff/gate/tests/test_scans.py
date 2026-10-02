@@ -235,8 +235,12 @@ def test_gate_scans_and_activity(
         page = activity.json()
         assert page["total"] == 2
         assert [item["event"] for item in page["items"]] == expected["activity_events"]
-        assert page["items"][0]["title"] == "Aisha Khan"
-        assert page["items"][0]["subtitle"] == "B-204"
+        first = page["items"][0]
+        assert first["resident_name"] == "Aisha Khan"
+        assert first["room_label"] == "B-204"
+        assert first["guest_name"] is None
+        assert first["host_name"] is None
+        assert first["host_room_label"] is None
 
         warden = sign_in(client, "warden.sara", WARDEN_PHRASE)
         warden_activity = client.get(
@@ -471,7 +475,9 @@ def test_tied_gate_activity_pages_do_not_skip_or_repeat(
         assert second_page["total"] == 2
         assert [item["event"] for item in first_page["items"]] == ["exit"]
         assert [item["event"] for item in second_page["items"]] == ["exit"]
-        assert first_page["items"][0]["subtitle"] == "B-201"
-        assert second_page["items"][0]["subtitle"] == "B-202"
+        assert first_page["items"][0]["room_label"] == "B-201"
+        assert second_page["items"][0]["room_label"] == "B-202"
         assert first_page["items"][0]["occurred_at"] == second_page["items"][0]["occurred_at"]
-        assert first_page["items"][0]["title"] == second_page["items"][0]["title"]
+        assert first_page["items"][0]["resident_name"] == second_page["items"][0]["resident_name"]
+        assert first_page["items"][0]["guest_name"] is None
+        assert second_page["items"][0]["guest_name"] is None

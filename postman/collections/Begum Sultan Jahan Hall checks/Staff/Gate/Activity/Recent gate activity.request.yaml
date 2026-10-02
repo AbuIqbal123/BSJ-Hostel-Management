@@ -8,4 +8,12 @@ queryParams:
   - key: offset
     value: '0'
 description: |-
-  Caller: gate, warden, or provost. Newest first. Lines are resident exits, resident returns, guest arrivals, and guest departures.
+  Caller: gate, warden, or provost. Newest first. Lines are resident exits,
+  resident returns, guest arrivals, and guest departures.
+
+  Each item has `event`, `occurred_at`, and five nullable name/room fields.
+  Resident exit/return: `resident_name` and `room_label` are set;
+  `guest_name`, `host_name`, and `host_room_label` are null. Guest
+  arrival/departure: `guest_name`, `host_name`, and `host_room_label` are
+  set; `resident_name` and `room_label` are null. `title` and `subtitle`
+  are gone.
