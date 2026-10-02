@@ -25,7 +25,7 @@ PermissionStatus = Literal[
 class PermissionBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: str
-    type: PermissionType
+    permission_type: PermissionType
     status: PermissionStatus
     short_place: str
     destination_detail: str | None
@@ -94,7 +94,7 @@ LEFT JOIN users AS decider ON decider.id = permissions.decided_by
 def permission_from_row(row: sqlite3.Row) -> PermissionBody:
     return PermissionBody(
         id=row["id"],
-        type=row["type"],
+        permission_type=row["type"],
         status=row["status"],
         short_place=row["short_place"],
         destination_detail=row["destination_detail"],
@@ -284,7 +284,7 @@ def list_own(
         items=[
             PermissionBody(
                 id=item.id,
-                type=item.type,
+                permission_type=item.permission_type,
                 status=item.status,
                 short_place=item.short_place,
                 destination_detail=item.destination_detail,

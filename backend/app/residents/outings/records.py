@@ -17,7 +17,7 @@ class OutingBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: str
     permission_id: str | None
-    type: Literal["ordinary", "late_night", "home_going"]
+    outing_type: Literal["ordinary", "late_night", "home_going"]
     status: Literal["planned", "outside", "returned", "cancelled"]
     place: str
     expected_return_at: str
@@ -26,21 +26,21 @@ class OutingBody(BaseModel):
     exit_recorded_by_name: str | None
     returned_at: str | None
     return_recorded_by_name: str | None
-    is_late: bool
+    lateness: Literal["on_time", "late"]
     created_at: str
 
 
-def is_late(status: str, grace_ends_at: str) -> bool:
-    if status != "outside":
-        return False
-    return clock.format_instant(clock.utc_now()) > grace_ends_at
+def outing_lateness(status: str, grace_ends_at: str) -> Literal["on_time", "late"]:
+    if status == "outside" and clock.format_instant(clock.utc_now()) > grace_ends_at:
+        return "late"
+    return "on_time"
 
 
 def outing_from_row(row: sqlite3.Row) -> OutingBody:
     return OutingBody(
         id=row["id"],
         permission_id=row["permission_id"],
-        type=row["type"],
+        outing_type=row["type"],
         status=row["status"],
         place=row["place"],
         expected_return_at=row["expected_return_at"],
@@ -49,7 +49,7 @@ def outing_from_row(row: sqlite3.Row) -> OutingBody:
         exit_recorded_by_name=row["exit_recorded_by_name"],
         returned_at=row["returned_at"],
         return_recorded_by_name=row["return_recorded_by_name"],
-        is_late=is_late(row["status"], row["grace_ends_at"]),
+        lateness=outing_lateness(row["status"], row["grace_ends_at"]),
         created_at=row["created_at"],
     )
 

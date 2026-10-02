@@ -3,7 +3,7 @@ method: PATCH
 url: '{{baseUrl}}/api/v1/admin/blocks/{{blockId}}'
 order: 3000
 description: |-
-  Caller: provost. Deactivate with `is_active` false. Rooms in the block remain.
+  Caller: provost. Deactivate with `status` `inactive`. Rooms in the block remain.
 headers:
   - key: Content-Type
     value: application/json

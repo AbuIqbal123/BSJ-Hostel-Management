@@ -685,32 +685,32 @@ Body: [DestinationList](#schema-destinationlist).
     {
       "id": "1285f918-cd9c-5ef8-9c04-58a69285211c",
       "name": "J.N. Medical College",
-      "is_other": false,
-      "is_active": true
+      "source": "preset",
+      "status": "active"
     },
     {
       "id": "fc2da7c5-8d65-5680-8034-d8acb69745eb",
       "name": "Maulana Azad Library",
-      "is_other": false,
-      "is_active": true
+      "source": "preset",
+      "status": "active"
     },
     {
       "id": "924e5c75-e9b6-57a9-bb04-720028253526",
       "name": "Shamshad Market",
-      "is_other": false,
-      "is_active": true
+      "source": "preset",
+      "status": "active"
     },
     {
       "id": "df29c4b7-63c5-525d-a9ec-798a980c64c8",
       "name": "Women's College",
-      "is_other": false,
-      "is_active": true
+      "source": "preset",
+      "status": "active"
     },
     {
       "id": "f2008ef3-a1df-5ff0-b936-3466d0914781",
       "name": "Other",
-      "is_other": true,
-      "is_active": true
+      "source": "custom",
+      "status": "active"
     }
   ]
 }
@@ -830,7 +830,7 @@ Body: [Outing](#schema-outing).
 |---|---|---|---|
 | `id` | yes | uuid |  |
 | `permission_id` | no | uuid or null | Empty for an ordinary outing. Set when the exit used a permission. |
-| `type` | yes | `ordinary` or `late_night` or `home_going` |  |
+| `outing_type` | yes | `ordinary` or `late_night` or `home_going` |  |
 | `status` | yes | `planned` or `outside` or `returned` or `cancelled` |  |
 | `place` | yes | string | List name, the words typed for Other, or the permission's short place. |
 | `expected_return_at` | yes | date-time | UTC instant. Clients show India time on a 12-hour clock. |
@@ -839,7 +839,7 @@ Body: [Outing](#schema-outing).
 | `exit_recorded_by_name` | no | string or null | Staff member who scanned the exit. Empty only while exited_at is empty. |
 | `returned_at` | no | date-time or null | Empty until the return scan. Required once the resident has returned. |
 | `return_recorded_by_name` | no | string or null | Staff member who scanned the return. Empty only while returned_at is empty. |
-| `is_late` | yes | boolean |  |
+| `lateness` | yes | `on_time` or `late` | For a planned or outside outing, `late` when now is after `grace_ends_at`; otherwise `on_time`. Returned and cancelled outings keep the value at read time. |
 | `created_at` | yes | date-time |  |
 
 #### 401
@@ -939,7 +939,7 @@ Body: [Outing](#schema-outing).
 |---|---|---|---|
 | `id` | yes | uuid |  |
 | `permission_id` | no | uuid or null | Empty for an ordinary outing. Set when the exit used a permission. |
-| `type` | yes | `ordinary` or `late_night` or `home_going` |  |
+| `outing_type` | yes | `ordinary` or `late_night` or `home_going` |  |
 | `status` | yes | `planned` or `outside` or `returned` or `cancelled` |  |
 | `place` | yes | string | List name, the words typed for Other, or the permission's short place. |
 | `expected_return_at` | yes | date-time | UTC instant. Clients show India time on a 12-hour clock. |
@@ -948,7 +948,7 @@ Body: [Outing](#schema-outing).
 | `exit_recorded_by_name` | no | string or null | Staff member who scanned the exit. Empty only while exited_at is empty. |
 | `returned_at` | no | date-time or null | Empty until the return scan. Required once the resident has returned. |
 | `return_recorded_by_name` | no | string or null | Staff member who scanned the return. Empty only while returned_at is empty. |
-| `is_late` | yes | boolean |  |
+| `lateness` | yes | `on_time` or `late` | For a planned or outside outing, `late` when now is after `grace_ends_at`; otherwise `on_time`. Returned and cancelled outings keep the value at read time. |
 | `created_at` | yes | date-time |  |
 
 #### 401
@@ -1103,7 +1103,7 @@ One of: [LateNightCreate](#schema-latenightcreate), [HomeGoingCreate](#schema-ho
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `type` | yes | `late_night` |  |
+| `permission_type` | yes | `late_night` |  |
 | `short_place` | yes | string | Typed by the resident. Not chosen from the ordinary destination list. 1–120 characters. |
 | `destination_detail` | no | string | 1–120 characters. |
 | `reason` | yes | string | 1–500 characters. |
@@ -1114,7 +1114,7 @@ One of: [LateNightCreate](#schema-latenightcreate), [HomeGoingCreate](#schema-ho
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `type` | yes | `home_going` |  |
+| `permission_type` | yes | `home_going` |  |
 | `short_place` | yes | string | Short place on the warden card, such as Lucknow. 1–120 characters. |
 | `address` | yes | string | 1–300 characters. |
 | `reason` | yes | string | 1–500 characters. |
@@ -1125,7 +1125,7 @@ One of: [LateNightCreate](#schema-latenightcreate), [HomeGoingCreate](#schema-ho
 
 ```json
 {
-  "type": "late_night",
+  "permission_type": "late_night",
   "short_place": "Women's College",
   "destination_detail": "Seminar Hall",
   "reason": "Faculty seminar ends at 9:00 PM. Requesting late return to hall.",
@@ -1138,7 +1138,7 @@ One of: [LateNightCreate](#schema-latenightcreate), [HomeGoingCreate](#schema-ho
 
 ```json
 {
-  "type": "home_going",
+  "permission_type": "home_going",
   "short_place": "Lucknow",
   "address": "14, Civil Lines, Lucknow, U.P. 226001",
   "reason": "Family visit. Eid with parents.",
@@ -1158,7 +1158,7 @@ Body: [Permission](#schema-permission).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `id` | yes | uuid |  |
-| `type` | yes | `late_night` or `home_going` |  |
+| `permission_type` | yes | `late_night` or `home_going` |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` |  |
 | `short_place` | yes | string |  |
 | `destination_detail` | no | string or null |  |
@@ -1216,7 +1216,7 @@ Body: [Permission](#schema-permission).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `id` | yes | uuid |  |
-| `type` | yes | `late_night` or `home_going` |  |
+| `permission_type` | yes | `late_night` or `home_going` |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` |  |
 | `short_place` | yes | string |  |
 | `destination_detail` | no | string or null |  |
@@ -1274,7 +1274,7 @@ Body: [Permission](#schema-permission).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `id` | yes | uuid |  |
-| `type` | yes | `late_night` or `home_going` |  |
+| `permission_type` | yes | `late_night` or `home_going` |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` |  |
 | `short_place` | yes | string |  |
 | `destination_detail` | no | string or null |  |
@@ -1334,7 +1334,7 @@ fresh status.
 | Name | In | Required | Type | Notes |
 |---|---|---|---|---|
 | `status` | query | no | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` | Defaults to pending when omitted. |
-| `type` | query | no | `late_night` or `home_going` | Limit to late-night or home-going permissions. |
+| `permission_type` | query | no | `late_night` or `home_going` | Limit to late-night or home-going permissions. |
 | `block_id` | query | no | uuid | Limit to residents whose current room is in this block. |
 | `created_from` | query | no | date-time | Inclusive lower bound on created_at (UTC instant). |
 | `created_to` | query | no | date-time | Inclusive upper bound on created_at (UTC instant). |
@@ -1432,7 +1432,7 @@ Body: [PermissionReview](#schema-permissionreview).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `id` | yes | uuid |  |
-| `type` | yes | `late_night` or `home_going` |  |
+| `permission_type` | yes | `late_night` or `home_going` |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` |  |
 | `short_place` | yes | string |  |
 | `destination_detail` | no | string or null |  |
@@ -1514,7 +1514,7 @@ Body: [PermissionReview](#schema-permissionreview).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `id` | yes | uuid |  |
-| `type` | yes | `late_night` or `home_going` |  |
+| `permission_type` | yes | `late_night` or `home_going` |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` |  |
 | `short_place` | yes | string |  |
 | `destination_detail` | no | string or null |  |
@@ -2298,11 +2298,11 @@ is filled in.
 The 200 body is a discriminated union on `outcome`. Shared envelope
 fields are only `outcome`, `full_name`, `room_label`, and `message`.
 `recorded_at` is not on the envelope: it sits inside the nested variant.
-On `exit_recorded` the nest is `outing` (outing movement fields plus
-`recorded_at`). Exit has no timeliness field — lateness does not apply
-until return. On `return_recorded` the nest is `return_record`
-(`recorded_at`, `status`, `returned_at`, `return_recorded_by_name`).
-Return `status` is `on_time` (at or before expected return),
+On `exit_recorded` the nest is `outing` (outing movement fields, including
+`lateness` `on_time` or `late`, plus `recorded_at`). Exit has no
+`return_timeliness`. On `return_recorded` the nest is `return_record`
+(`recorded_at`, `return_timeliness`, `returned_at`, `return_recorded_by_name`).
+`return_timeliness` is `on_time` (at or before expected return),
 `within_grace` (after expected return, at or before grace), or `late`
 (after grace). No booleans on the scan response. Exit has no
 `return_record`; return has no `outing`. The JSON key is
@@ -2370,7 +2370,7 @@ One of: [ScanExitResult](#schema-scanexitresult), [ScanReturnResult](#schema-sca
   "outing": {
     "id": "e7700000-0000-4000-8000-000000000011",
     "permission_id": null,
-    "type": "ordinary",
+    "outing_type": "ordinary",
     "status": "outside",
     "place": "Library",
     "expected_return_at": "2026-09-13T13:00:00Z",
@@ -2395,7 +2395,7 @@ One of: [ScanExitResult](#schema-scanexitresult), [ScanReturnResult](#schema-sca
   "message": "On time. Status is now inside.",
   "return_record": {
     "recorded_at": "2026-09-13T13:24:00Z",
-    "status": "on_time",
+    "return_timeliness": "on_time",
     "returned_at": "2026-09-13T13:24:00Z",
     "return_recorded_by_name": "Fatima Khan"
   }
@@ -3633,7 +3633,7 @@ Body: [Block](#schema-block).
 | `floors` | yes | integer or null | A, B, C, and D have 4. The hall page does not state a floor count for Utility. |
 | `room_count` | yes | integer | Published room count for this block. Block-A 50, Block-B 58, Block-C 42, Block-D 40, Utility 16. |
 | `beds_per_room` | yes | integer | The hall page states a room capacity of 2. |
-| `is_active` | yes | boolean |  |
+| `status` | yes | `active` or `inactive` | `active` while the hall uses this block. `inactive` when retired. |
 
 #### 401
 
@@ -3660,7 +3660,7 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** provost. Bearer access token.
 
-Caller: provost. Deactivate with `is_active` false. Rooms in the block remain.
+Caller: provost. Deactivate with `status` `inactive`. Rooms in the block remain.
 
 **Parameters**
 
@@ -3678,7 +3678,7 @@ Body: [BlockUpdate](#schema-blockupdate).
 | `floors` | no | integer or null |  |
 | `room_count` | no | integer | 1–500. |
 | `beds_per_room` | no | integer | 1–6. |
-| `is_active` | no | boolean |  |
+| `status` | no | `active` or `inactive` |  |
 
 **Responses**
 
@@ -3696,7 +3696,7 @@ Body: [Block](#schema-block).
 | `floors` | yes | integer or null | A, B, C, and D have 4. The hall page does not state a floor count for Utility. |
 | `room_count` | yes | integer | Published room count for this block. Block-A 50, Block-B 58, Block-C 42, Block-D 40, Utility 16. |
 | `beds_per_room` | yes | integer | The hall page states a room capacity of 2. |
-| `is_active` | yes | boolean |  |
+| `status` | yes | `active` or `inactive` | `active` while the hall uses this block. `inactive` when retired. |
 
 #### 401
 
@@ -3796,7 +3796,7 @@ Body: [Room](#schema-room).
 | `number` | yes | string | Door number, kept as written. The hall page does not publish door numbers. |
 | `label` | yes | string |  |
 | `bed_count` | yes | integer | Copied from the block when the room is created. Active residents assigned here, including a suspended resident who has not moved, cannot exceed this. |
-| `is_active` | yes | boolean |  |
+| `status` | yes | `active` or `inactive` | `active` while the room can be assigned. `inactive` when retired. |
 
 #### 401
 
@@ -3845,7 +3845,7 @@ Body: [RoomUpdate](#schema-roomupdate).
 |---|---|---|---|
 | `number` | no | string | 1–12 characters. |
 | `bed_count` | no | integer | 1–6. |
-| `is_active` | no | boolean |  |
+| `status` | no | `active` or `inactive` |  |
 
 **Responses**
 
@@ -3862,7 +3862,7 @@ Body: [Room](#schema-room).
 | `number` | yes | string | Door number, kept as written. The hall page does not publish door numbers. |
 | `label` | yes | string |  |
 | `bed_count` | yes | integer | Copied from the block when the room is created. Active residents assigned here, including a suspended resident who has not moved, cannot exceed this. |
-| `is_active` | yes | boolean |  |
+| `status` | yes | `active` or `inactive` | `active` while the room can be assigned. `inactive` when retired. |
 
 #### 401
 
@@ -3928,7 +3928,7 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** provost. Bearer access token.
 
-Caller: provost. Only one active destination may have `is_other` true.
+Caller: provost. Only one active destination may have `source` `custom`.
 
 **Request.** Required.
 
@@ -3937,7 +3937,7 @@ Body: [DestinationCreate](#schema-destinationcreate).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `name` | yes | string | 1–80 characters. |
-| `is_other` | no | boolean | default `False`. |
+| `source` | no | `preset` or `custom` | `preset` for a fixed named place. `custom` for the free-text Other choice. default `preset`. |
 
 **Responses**
 
@@ -3951,8 +3951,8 @@ Body: [Destination](#schema-destination).
 |---|---|---|---|
 | `id` | yes | uuid |  |
 | `name` | yes | string | Named places are shown alphabetical by this name, ignoring capitals. The free-text choice is last. |
-| `is_other` | yes | boolean |  |
-| `is_active` | yes | boolean |  |
+| `source` | yes | `preset` or `custom` | Where the place comes from. `preset` is a fixed named place on the list. `custom` is the single free-text (Other) choice. |
+| `status` | yes | `active` or `inactive` | `active` while it can be chosen. `inactive` when retired. |
 
 #### 401
 
@@ -3994,8 +3994,8 @@ Body: [DestinationUpdate](#schema-destinationupdate).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `name` | no | string | 1–80 characters. |
-| `is_other` | no | boolean |  |
-| `is_active` | no | boolean |  |
+| `source` | no | `preset` or `custom` | `preset` for a fixed named place. `custom` for the free-text Other choice. |
+| `status` | no | `active` or `inactive` |  |
 
 **Responses**
 
@@ -4009,8 +4009,8 @@ Body: [Destination](#schema-destination).
 |---|---|---|---|
 | `id` | yes | uuid |  |
 | `name` | yes | string | Named places are shown alphabetical by this name, ignoring capitals. The free-text choice is last. |
-| `is_other` | yes | boolean |  |
-| `is_active` | yes | boolean |  |
+| `source` | yes | `preset` or `custom` | Where the place comes from. `preset` is a fixed named place on the list. `custom` is the single free-text (Other) choice. |
+| `status` | yes | `active` or `inactive` | `active` while it can be chosen. `inactive` when retired. |
 
 #### 401
 
@@ -4559,8 +4559,8 @@ One of: `inside`, `outside`, `late`.
 |---|---|---|---|
 | `id` | yes | uuid |  |
 | `name` | yes | string | Named places are shown alphabetical by this name, ignoring capitals. The free-text choice is last. |
-| `is_other` | yes | boolean |  |
-| `is_active` | yes | boolean |  |
+| `source` | yes | `preset` or `custom` | Where the place comes from. `preset` is a fixed named place on the list. `custom` is the single free-text (Other) choice. |
+| `status` | yes | `active` or `inactive` | `active` while it can be chosen. `inactive` when retired. |
 
 ### <a id="schema-destinationlist"></a>DestinationList
 
@@ -4573,15 +4573,15 @@ One of: `inside`, `outside`, `late`.
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `name` | yes | string | 1–80 characters. |
-| `is_other` | no | boolean | default `False`. |
+| `source` | no | `preset` or `custom` | `preset` for a fixed named place. `custom` for the free-text Other choice. default `preset`. |
 
 ### <a id="schema-destinationupdate"></a>DestinationUpdate
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `name` | no | string | 1–80 characters. |
-| `is_other` | no | boolean |  |
-| `is_active` | no | boolean |  |
+| `source` | no | `preset` or `custom` | `preset` for a fixed named place. `custom` for the free-text Other choice. |
+| `status` | no | `active` or `inactive` |  |
 
 ### <a id="schema-planoutingrequest"></a>PlanOutingRequest
 
@@ -4607,7 +4607,7 @@ One of: `planned`, `outside`, `returned`, `cancelled`.
 |---|---|---|---|
 | `id` | yes | uuid |  |
 | `permission_id` | no | uuid or null | Empty for an ordinary outing. Set when the exit used a permission. |
-| `type` | yes | `ordinary` or `late_night` or `home_going` |  |
+| `outing_type` | yes | `ordinary` or `late_night` or `home_going` |  |
 | `status` | yes | `planned` or `outside` or `returned` or `cancelled` |  |
 | `place` | yes | string | List name, the words typed for Other, or the permission's short place. |
 | `expected_return_at` | yes | date-time | UTC instant. Clients show India time on a 12-hour clock. |
@@ -4616,7 +4616,7 @@ One of: `planned`, `outside`, `returned`, `cancelled`.
 | `exit_recorded_by_name` | no | string or null | Staff member who scanned the exit. Empty only while exited_at is empty. |
 | `returned_at` | no | date-time or null | Empty until the return scan. Required once the resident has returned. |
 | `return_recorded_by_name` | no | string or null | Staff member who scanned the return. Empty only while returned_at is empty. |
-| `is_late` | yes | boolean |  |
+| `lateness` | yes | `on_time` or `late` | For a planned or outside outing, `late` when now is after `grace_ends_at`; otherwise `on_time`. Returned and cancelled outings keep the value at read time. |
 | `created_at` | yes | date-time |  |
 
 ### <a id="schema-outinglist"></a>OutingList
@@ -4666,7 +4666,7 @@ The `type` field selects the object:
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `type` | yes | `late_night` |  |
+| `permission_type` | yes | `late_night` |  |
 | `short_place` | yes | string | Typed by the resident. Not chosen from the ordinary destination list. 1–120 characters. |
 | `destination_detail` | no | string | 1–120 characters. |
 | `reason` | yes | string | 1–500 characters. |
@@ -4677,7 +4677,7 @@ The `type` field selects the object:
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `type` | yes | `home_going` |  |
+| `permission_type` | yes | `home_going` |  |
 | `short_place` | yes | string | Short place on the warden card, such as Lucknow. 1–120 characters. |
 | `address` | yes | string | 1–300 characters. |
 | `reason` | yes | string | 1–500 characters. |
@@ -4689,7 +4689,7 @@ The `type` field selects the object:
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `id` | yes | uuid |  |
-| `type` | yes | `late_night` or `home_going` |  |
+| `permission_type` | yes | `late_night` or `home_going` |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` |  |
 | `short_place` | yes | string |  |
 | `destination_detail` | no | string or null |  |
@@ -4706,7 +4706,7 @@ The `type` field selects the object:
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `id` | yes | uuid |  |
-| `type` | yes | `late_night` or `home_going` |  |
+| `permission_type` | yes | `late_night` or `home_going` |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` |  |
 | `short_place` | yes | string |  |
 | `destination_detail` | no | string or null |  |
@@ -4862,15 +4862,14 @@ One of: `on_time`, `within_grace`, `late`.
 ### <a id="schema-scanexitouting"></a>ScanExitOuting
 
 Exit nest for the scan response. Explicit property list (not allOf
-Outing) so the scan contract omits `is_late` and has no timeliness
-`status` — lateness does not apply on exit. Global `Outing.is_late`
-remains on resident outing APIs outside this response.
+Outing). Includes outing `lateness` (`on_time` or `late`). Omits
+`return_timeliness`, which is only on a return.
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `id` | yes | uuid |  |
 | `permission_id` | no | uuid or null |  |
-| `type` | yes | `ordinary` or `late_night` or `home_going` |  |
+| `outing_type` | yes | `ordinary` or `late_night` or `home_going` |  |
 | `status` | yes | `planned` or `outside` or `returned` or `cancelled` | Outing lifecycle status (typically `outside` on exit). |
 | `place` | yes | string |  |
 | `expected_return_at` | yes | date-time |  |
@@ -4879,6 +4878,7 @@ remains on resident outing APIs outside this response.
 | `exit_recorded_by_name` | no | string or null |  |
 | `returned_at` | no | date-time or null |  |
 | `return_recorded_by_name` | no | string or null |  |
+| `lateness` | yes | `on_time` or `late` | For a planned or outside outing, `late` when now is after `grace_ends_at`; otherwise `on_time`. Returned and cancelled outings keep the value at read time. |
 | `created_at` | yes | date-time |  |
 | `recorded_at` | yes | date-time | When this exit was recorded at the gate (UTC). |
 
@@ -4887,7 +4887,7 @@ remains on resident outing APIs outside this response.
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `recorded_at` | yes | date-time | When this return was recorded at the gate (UTC). |
-| `status` | yes | `on_time` or `within_grace` or `late` |  |
+| `return_timeliness` | yes | `on_time` or `within_grace` or `late` |  |
 | `returned_at` | yes | date-time |  |
 | `return_recorded_by_name` | yes | string | Staff member who scanned the return. |
 
@@ -4917,8 +4917,9 @@ Discriminated union on `outcome`. Shared envelope fields are only
 `outcome`, `full_name`, `room_label`, and `message`. Variant nests are
 mutually exclusive: `outing` on exit, `return_record` on return.
 `recorded_at` lives inside each nest, not on the envelope. No boolean
-timeliness fields: return uses `return_record.status`
-(`on_time` | `within_grace` | `late`); exit has no timeliness field.
+timeliness fields: return uses `return_record.return_timeliness`
+(`on_time` | `within_grace` | `late`). Exit outing includes `lateness`
+and omits `return_timeliness`.
 
 The `type` field selects the object:
 
@@ -5188,7 +5189,7 @@ One of: `not_due`, `sent`, `failed`.
 | `floors` | yes | integer or null | A, B, C, and D have 4. The hall page does not state a floor count for Utility. |
 | `room_count` | yes | integer | Published room count for this block. Block-A 50, Block-B 58, Block-C 42, Block-D 40, Utility 16. |
 | `beds_per_room` | yes | integer | The hall page states a room capacity of 2. |
-| `is_active` | yes | boolean |  |
+| `status` | yes | `active` or `inactive` | `active` while the hall uses this block. `inactive` when retired. |
 
 ### <a id="schema-blockcreate"></a>BlockCreate
 
@@ -5208,7 +5209,7 @@ One of: `not_due`, `sent`, `failed`.
 | `floors` | no | integer or null |  |
 | `room_count` | no | integer | 1–500. |
 | `beds_per_room` | no | integer | 1–6. |
-| `is_active` | no | boolean |  |
+| `status` | no | `active` or `inactive` |  |
 
 ### <a id="schema-room"></a>Room
 
@@ -5219,7 +5220,7 @@ One of: `not_due`, `sent`, `failed`.
 | `number` | yes | string | Door number, kept as written. The hall page does not publish door numbers. |
 | `label` | yes | string |  |
 | `bed_count` | yes | integer | Copied from the block when the room is created. Active residents assigned here, including a suspended resident who has not moved, cannot exceed this. |
-| `is_active` | yes | boolean |  |
+| `status` | yes | `active` or `inactive` | `active` while the room can be assigned. `inactive` when retired. |
 
 ### <a id="schema-roomcreate"></a>RoomCreate
 
@@ -5234,7 +5235,7 @@ One of: `not_due`, `sent`, `failed`.
 |---|---|---|---|
 | `number` | no | string | 1–12 characters. |
 | `bed_count` | no | integer | 1–6. |
-| `is_active` | no | boolean |  |
+| `status` | no | `active` or `inactive` |  |
 
 ### <a id="schema-hallsettings"></a>HallSettings
 

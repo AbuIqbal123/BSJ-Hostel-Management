@@ -194,7 +194,7 @@ class Block(BaseModel):
     floors: int | None
     room_count: int
     beds_per_room: int
-    is_active: bool
+    status: Literal["active", "inactive"]
 
 
 class BlockCreate(BaseModel):
@@ -212,7 +212,7 @@ class BlockUpdate(BaseModel):
     floors: int | None = Field(default=None, ge=1, le=20)
     room_count: int | None = Field(default=None, ge=1, le=500)
     beds_per_room: int | None = Field(default=None, ge=1, le=6)
-    is_active: bool | None = None
+    status: Literal["active", "inactive"] | None = None
 
 
 def row_to_block(row: sqlite3.Row) -> Block:
@@ -223,7 +223,7 @@ def row_to_block(row: sqlite3.Row) -> Block:
         floors=row["floors"],
         room_count=row["room_count"],
         beds_per_room=row["beds_per_room"],
-        is_active=bool(row["is_active"]),
+        status="active" if row["is_active"] else "inactive",
     )
 
 
@@ -288,7 +288,7 @@ class Room(BaseModel):
     number: str
     label: str
     bed_count: int
-    is_active: bool
+    status: Literal["active", "inactive"]
 
 
 class RoomCreate(BaseModel):
@@ -301,7 +301,7 @@ class RoomUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     number: str | None = Field(default=None, min_length=1, max_length=12)
     bed_count: int | None = Field(default=None, ge=1, le=6)
-    is_active: bool | None = None
+    status: Literal["active", "inactive"] | None = None
 
 
 def row_to_room(row: sqlite3.Row) -> Room:
@@ -311,7 +311,7 @@ def row_to_room(row: sqlite3.Row) -> Room:
         number=row["number"],
         label=row["label"],
         bed_count=row["bed_count"],
-        is_active=bool(row["is_active"]),
+        status="active" if row["is_active"] else "inactive",
     )
 
 
@@ -388,22 +388,22 @@ DESTINATION_COLUMNS = ("id", "name", "is_other", "is_active")
 class DestinationCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str = Field(min_length=1, max_length=80)
-    is_other: bool = False
+    source: Literal["preset", "custom"] = "preset"
 
 
 class DestinationUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str | None = Field(default=None, min_length=1, max_length=80)
-    is_other: bool | None = None
-    is_active: bool | None = None
+    source: Literal["preset", "custom"] | None = None
+    status: Literal["active", "inactive"] | None = None
 
 
 def row_to_destination(row: sqlite3.Row) -> Destination:
     return Destination(
         id=row["id"],
         name=row["name"],
-        is_other=bool(row["is_other"]),
-        is_active=bool(row["is_active"]),
+        source="custom" if row["is_other"] else "preset",
+        status="active" if row["is_active"] else "inactive",
     )
 
 

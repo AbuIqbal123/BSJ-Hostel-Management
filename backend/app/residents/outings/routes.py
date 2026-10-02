@@ -44,8 +44,8 @@ def _active_destinations(connection: sqlite3.Connection) -> list[Destination]:
         Destination(
             id=row["id"],
             name=row["name"],
-            is_other=bool(row["is_other"]),
-            is_active=bool(row["is_active"]),
+            source="custom" if row["is_other"] else "preset",
+            status="active" if row["is_active"] else "inactive",
         )
         for row in rows
     ]

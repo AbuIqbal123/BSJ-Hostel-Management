@@ -29,4 +29,4 @@ queryParams:
   - key: offset
     value: '0'
 description: |-
-  Caller: warden or provost. Defaults to `pending`. Ordered by `created_at` (`order=newest` or `oldest`). Optional filters: `type`, `block_id`, `created_from`, `created_to`. An approved permission whose expected return has passed, and which was never used, becomes `expired` when this list is read.
+  Caller: warden or provost. Defaults to `pending`. Ordered by `created_at` (`order=newest` or `oldest`). Optional filters: `permission_type`, `block_id`, `created_from`, `created_to`. An approved permission whose expected return has passed, and which was never used, becomes `expired` when this list is read.

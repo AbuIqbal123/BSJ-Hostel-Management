@@ -11,5 +11,5 @@ body:
   type: json
   content: |-
     {
-      "is_active": true
+      "status": "active"
     }
