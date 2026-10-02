@@ -230,7 +230,7 @@ def record_guest_departure(
     row = _host_fields(connection, guest_stay_id)
     if row is None:
         raise ApiError(404, "not_found", "That record was not found.")
-    if row["arrived_at"] is None or row["departed_at"] is not None or row["status"] != "approved":
+    if row["arrived_at"] is None or row["departed_at"] is not None or row["status"] not in {"approved", "pending"}:
         raise ApiError(
             409,
             "guest_not_in_hall",
@@ -246,7 +246,7 @@ def record_guest_departure(
           departed_recorded_by = ?,
           updated_at = ?
         WHERE id = ?
-          AND status = 'approved'
+          AND status IN ('approved', 'pending')
           AND arrived_at IS NOT NULL
           AND departed_at IS NULL
         RETURNING id, guest_name

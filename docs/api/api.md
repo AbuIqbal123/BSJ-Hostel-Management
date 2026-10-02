@@ -45,6 +45,7 @@ Do not edit this page by hand.
   - [GET `/api/v1/me/guest-stays` — Own guest applications](#get-api-v1-me-guest-stays)
   - [POST `/api/v1/me/guest-stays` — Apply for a guest stay](#post-api-v1-me-guest-stays)
   - [GET `/api/v1/me/guest-stays/{guest_stay_id}` — Own guest stay](#get-api-v1-me-guest-stays-guest_stay_id)
+  - [PATCH `/api/v1/me/guest-stays/{guest_stay_id}` — Edit own guest stay](#patch-api-v1-me-guest-stays-guest_stay_id)
   - [POST `/api/v1/me/guest-stays/{guest_stay_id}/cancel` — Cancel own guest application](#post-api-v1-me-guest-stays-guest_stay_id-cancel)
   - [GET `/api/v1/guest-stays` — Guest stays](#get-api-v1-guest-stays)
   - [GET `/api/v1/guest-stays/{guest_stay_id}` — Guest stay for review](#get-api-v1-guest-stays-guest_stay_id)
@@ -191,7 +192,7 @@ Body: [Ready](#schema-ready).
 ```json
 {
   "status": "ready",
-  "user_version": 6
+  "user_version": 7
 }
 ```
 
@@ -1554,13 +1555,14 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 ## <a id="tag-guest-stays"></a>Guest Stays
 
-Guest applications. Resident applies under /api/v1/me/guest-stays; warden or provost review under /api/v1/guest-stays. Gate arrival and departure stay under Gate.
+Guest applications. Resident applies and edits under /api/v1/me/guest-stays; warden or provost review under /api/v1/guest-stays. A resident edit returns the stay to pending so staff must approve again. Gate arrival and departure stay under Gate.
 
 | Method | Path | Purpose | Who |
 |---|---|---|---|
 | GET | `/api/v1/me/guest-stays` | [Own guest applications](#get-api-v1-me-guest-stays) | resident |
 | POST | `/api/v1/me/guest-stays` | [Apply for a guest stay](#post-api-v1-me-guest-stays) | resident |
 | GET | `/api/v1/me/guest-stays/{guest_stay_id}` | [Own guest stay](#get-api-v1-me-guest-stays-guest_stay_id) | resident, and only for a stay they host |
+| PATCH | `/api/v1/me/guest-stays/{guest_stay_id}` | [Edit own guest stay](#patch-api-v1-me-guest-stays-guest_stay_id) | resident, and only for a stay they host |
 | POST | `/api/v1/me/guest-stays/{guest_stay_id}/cancel` | [Cancel own guest application](#post-api-v1-me-guest-stays-guest_stay_id-cancel) | resident |
 | GET | `/api/v1/guest-stays` | [Guest stays](#get-api-v1-guest-stays) | warden or provost |
 | GET | `/api/v1/guest-stays/{guest_stay_id}` | [Guest stay for review](#get-api-v1-guest-stays-guest_stay_id) | warden or provost |
@@ -1761,6 +1763,127 @@ No record with that id is visible to the caller.
 Body: [ErrorResponse](#schema-errorresponse).
 
 
+### <a id="patch-api-v1-me-guest-stays-guest_stay_id"></a>PATCH `/api/v1/me/guest-stays/{guest_stay_id}` — Edit own guest stay
+
+`edit_guest_stay`
+
+**Who.** resident, and only for a stay they host. Bearer access token.
+
+Caller: resident, and only for a stay they host.
+
+Before arrival (`pending` or `approved`, and arrival not yet recorded):
+send all of `guest_name`, `relation`, `guest_start_date`, `guest_end_date`, and
+`reason` (full replace of those fields). Status, payment, arrival, and
+departure are not editable here.
+
+After arrival and before departure: only `guest_start_date` and/or `guest_end_date`
+may change. `guest_name`, `relation`, and `reason` are locked once the
+guest has arrived.
+
+Not editable when the stay is `departed`, `rejected`, or `cancelled`
+(409 `not_editable`).
+
+Every successful edit returns the stay to `pending`, clears
+`decided_by`, `decided_at`, and `decision_note`, and leaves
+`payment_status` unchanged. A warden or the provost must approve
+again — including when the stay was already approved, and including a
+date change after the guest has arrived. Staff see the stay back in
+the pending queue.
+
+**Parameters**
+
+| Name | In | Required | Type | Notes |
+|---|---|---|---|---|
+| `guest_stay_id` | path | yes | uuid |  |
+
+**Request.** Required.
+
+Body: [GuestStayUpdate](#schema-gueststayupdate).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `guest_name` | no | string | 1–120 characters. |
+| `relation` | no | string | 1–80 characters. |
+| `guest_start_date` | no | date |  |
+| `guest_end_date` | no | date |  |
+| `reason` | no | string | 1–500 characters. |
+
+**Example**
+
+```json
+{
+  "guest_name": "Zara Ahmed",
+  "relation": "Cousin",
+  "guest_start_date": "2026-10-02",
+  "guest_end_date": "2026-10-06",
+  "reason": "Family wedding in Aligarh. Staying with Aisha, B-204."
+}
+```
+
+**Responses**
+
+#### 200
+
+Guest stay updated and returned to pending. Decision fields are
+cleared; payment_status is unchanged.
+
+Body: [GuestStay](#schema-gueststay).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `id` | yes | uuid |  |
+| `host_resident_id` | yes | uuid |  |
+| `host_name` | yes | string |  |
+| `host_room_label` | yes | string |  |
+| `guest_name` | yes | string |  |
+| `relation` | yes | string |  |
+| `guest_start_date` | yes | date |  |
+| `guest_end_date` | yes | date |  |
+| `inclusive_days` | yes | integer |  |
+| `reason` | yes | string |  |
+| `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
+| `payment_status` | yes | `unpaid` or `paid` |  |
+| `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
+| `decision_note` | no | string or null |  |
+| `decided_by` | no | uuid or null | UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
+| `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
+| `arrived_at` | no | date-time or null |  |
+| `departed_at` | no | date-time or null |  |
+| `created_at` | yes | date-time |  |
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 404
+
+No record with that id is visible to the caller.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 409
+
+The stay cannot be edited (departed, rejected, cancelled, or
+otherwise closed). Code `not_editable`.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 422
+
+The JSON is the wrong shape, or a field fails a constraint that does not depend on existing rows.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
 ### <a id="post-api-v1-me-guest-stays-guest_stay_id-cancel"></a>POST `/api/v1/me/guest-stays/{guest_stay_id}/cancel` — Cancel own guest application
 
 `cancel_guest_stay`
@@ -1948,8 +2071,11 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** warden or provost. Bearer access token.
 
-Caller: warden or provost. Only while `pending`. Approval does not mark
-payment and does not record arrival.
+Caller: warden or provost. Only while `pending`. A resident edit returns
+an approved stay (and a post-arrival date change) to pending, so staff
+must decide again. When the guest has already arrived, only `approved`
+is allowed — reject is refused (the guest is in the hall). Approval does
+not mark payment and does not clear or set arrival.
 
 **Parameters**
 
@@ -4042,7 +4168,7 @@ Each JSON object used above. An operation section already shows the fields for i
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `code` | yes | string | Stable machine code. Known codes: `unauthenticated`, `rate_limited`, `not_ready`, `forbidden`, `not_found`, `validation_error`, `duplicate_username`, `duplicate_block`, `duplicate_room`, `duplicate_destination`, `room_in_use`, `room_inactive`, `other_exists`, `already_outside`, `return_already_planned`, `open_outing_exists`, `outside_ordinary_hours`, `permission_required`, `no_outing_planned`, `permission_not_yet_valid`, `duplicate_scan`, `resident_suspended`, `unknown_hall_pass`, `not_pending`, `permission_in_use`, `not_cancellable`, `guest_not_expected`, `guest_not_in_hall`, `payment_required`, `payment_locked`. |
+| `code` | yes | string | Stable machine code. Known codes: `unauthenticated`, `rate_limited`, `not_ready`, `forbidden`, `not_found`, `validation_error`, `duplicate_username`, `duplicate_block`, `duplicate_room`, `duplicate_destination`, `room_in_use`, `room_inactive`, `other_exists`, `already_outside`, `return_already_planned`, `open_outing_exists`, `outside_ordinary_hours`, `permission_required`, `no_outing_planned`, `permission_not_yet_valid`, `duplicate_scan`, `resident_suspended`, `unknown_hall_pass`, `not_pending`, `permission_in_use`, `not_cancellable`, `not_editable`, `guest_not_expected`, `guest_not_in_hall`, `payment_required`, `payment_locked`. |
 | `message` | yes | string | Sentence the phone can show. Not a stack trace. |
 | `details` | no | object |  |
 
@@ -4390,6 +4516,23 @@ One of: `pending`, `upcoming`, `expected`, `not_expected`, `in_hall`, `should_ha
 | `guest_start_date` | yes | date |  |
 | `guest_end_date` | yes | date |  |
 | `reason` | yes | string | 1–500 characters. |
+
+### <a id="schema-gueststayupdate"></a>GuestStayUpdate
+
+Editable fields for PATCH own guest stay. Before arrival, send all five
+fields (full replace of name, relation, dates, and reason). After arrival
+and before departure, only `guest_start_date` and/or `guest_end_date` may be present —
+name, relation, and reason are locked. Every successful edit returns
+status to pending and clears the decision so a warden or the provost must
+approve again; payment_status is left unchanged.
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `guest_name` | no | string | 1–120 characters. |
+| `relation` | no | string | 1–80 characters. |
+| `guest_start_date` | no | date |  |
+| `guest_end_date` | no | date |  |
+| `reason` | no | string | 1–500 characters. |
 
 ### <a id="schema-gueststay"></a>GuestStay
 
