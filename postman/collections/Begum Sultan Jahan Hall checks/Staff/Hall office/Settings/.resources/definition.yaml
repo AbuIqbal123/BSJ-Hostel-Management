@@ -2,4 +2,4 @@ $kind: collection
 name: Settings
 order: 4000
 description: |-
-  Hours, seasons, grace, and the guardian message text.
+  Ordinary outing hours, seasons, grace, guest lead, and permission lead. SMS templates are under Notifications.

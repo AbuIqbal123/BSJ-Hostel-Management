@@ -123,7 +123,7 @@ Other writing rules:
 
 There is one settings record for the hall.
 
-Ordinary hours are the window in which an ordinary outing may start and in which its expected return must fall. The window has a start and an end. Summer and winter each have their own window. There is no separate limit on how many hours an ordinary outing may last. If the resident needs to be out after the end of the window, she asks for late-night permission. If she needs to stay away overnight, she asks for home going.
+Ordinary outing hours are the window in which an ordinary outing may start and in which its expected return must fall. The window has a start and an end. Summer and winter each have their own window. There is no separate limit on how many hours an ordinary outing may last. If the resident needs to be out after the end of the window, she asks for late-night permission. If she needs to stay away overnight, she asks for home going.
 
 The clock times below are the hall's published times. SOP 06 and SOP 07 both say summer is 6:30 AM to 6:30 PM and winter is 6:30 AM to 5:30 PM. SOP 05 prints 5:30 AM as the start. This record follows SOP 06 and SOP 07, which agree with each other.
 
@@ -136,19 +136,19 @@ The season is a date. Summer starts on 1 April and winter starts on 1 October. A
 | university_name | Text | Yes | Set with the record | Aligarh Muslim University. |
 | timezone | Text | Yes | Set with the record | `Asia/Kolkata`. |
 | grace_minutes | Whole number | Yes | The hall confirmed 30. The provost can change it later. | Minutes after the expected return before a guardian can be told. Taken when the outing is created. A later change does not rewrite an outing already open. Whole minutes from 0 to 180. |
-| summer_hours_start | Time of day | Yes | SOP 06 and SOP 07 | Shown as 6:30 AM. Kept as `06:30`. |
-| summer_hours_end | Time of day | Yes | SOP 06 and SOP 07 | Shown as 6:30 PM. Kept as `18:30`. The end is after the start. |
-| winter_hours_start | Time of day | Yes | SOP 06 and SOP 07 | Shown as 6:30 AM. Kept as `06:30`. |
-| winter_hours_end | Time of day | Yes | SOP 06 and SOP 07 | Shown as 5:30 PM. Kept as `17:30`. The end is after the start. |
+| summer_outing_start | Time of day | Yes | SOP 06 and SOP 07 | Shown as 6:30 AM. Kept as `06:30`. |
+| summer_outing_end | Time of day | Yes | SOP 06 and SOP 07 | Shown as 6:30 PM. Kept as `18:30`. The end is after the start. |
+| winter_outing_start | Time of day | Yes | SOP 06 and SOP 07 | Shown as 6:30 AM. Kept as `06:30`. |
+| winter_outing_end | Time of day | Yes | SOP 06 and SOP 07 | Shown as 5:30 PM. Kept as `17:30`. The end is after the start. |
 | summer_season_start | Month and day | Yes | AMU University Health Services | 1 April. Kept as `04-01`. Summer runs from this day through the day before winter starts. |
 | winter_season_start | Month and day | Yes | AMU University Health Services | 1 October. Kept as `10-01`. Winter runs from this day through the day before summer starts, across the new year. |
-| permission_early_minutes | Whole number | Yes | Still open. Default 30. | How early a resident may leave on an approved permission. Whole minutes from 0 to 180. |
+| permission_lead_minutes | Whole number | Yes | Still open. Default 30. | Minutes before a permission's start when a resident may leave. Whole minutes from 0 to 180. |
 | guest_max_inclusive_days | Whole number | Yes | The hall confirmed 7. | Longest guest stay, counting the first and last day. Whole days from 1 to 30. |
 | guest_min_lead_days | Whole number | Yes | The hall confirmed 1. | How many hall days must pass before a guest stay may start. Whole days from 0 to 14. Today cannot be the start date. |
 | scan_duplicate_window_seconds | Whole number | Yes | Still open. Default 45. | How long a second scan of the same resident is ignored. Whole seconds from 0 to 600. |
-| late_sms_template | Text | Yes | The message below | The late message. |
-| return_sms_template | Text | Yes | The message below | The return message. |
-| updated_at | Instant | Yes | System, whenever these settings change | Shown in the 12-hour form. |
+| late_sms_template | Text | Yes | The message below | Late guardian SMS template. Stored on this settings row; read and updated only through GET/PATCH `/api/v1/admin/notifications` (not hall settings). |
+| return_sms_template | Text | Yes | The message below | Return guardian SMS template. Stored on this settings row; read and updated only through GET/PATCH `/api/v1/admin/notifications` (not hall settings). |
+| updated_at | Instant | Yes | System, whenever these settings change | Shown in the 12-hour form. Updated when either hall settings or notification templates change. |
 
 Late message:
 

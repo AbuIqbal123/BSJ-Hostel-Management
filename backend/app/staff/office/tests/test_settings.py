@@ -162,7 +162,26 @@ def test_admin_settings(database_path: Path, monkeypatch: pytest.MonkeyPatch) ->
 
         listed = client.get("/api/v1/admin/settings", headers=headers)
         assert listed.status_code == 200
-        assert listed.json() == expected["defaults"]
+        body_defaults = listed.json()
+        assert body_defaults == expected["defaults"]
+        forbidden_names = {
+            "summer_hours_start",
+            "summer_hours_end",
+            "winter_hours_start",
+            "winter_hours_end",
+            "permission_early_minutes",
+            "late_sms_template",
+            "return_sms_template",
+        }
+        assert forbidden_names.isdisjoint(body_defaults.keys())
+        for key in (
+            "summer_outing_start",
+            "summer_outing_end",
+            "winter_outing_start",
+            "winter_outing_end",
+            "permission_lead_minutes",
+        ):
+            assert key in body_defaults
 
         assert_error(
             client.patch(
@@ -178,11 +197,11 @@ def test_admin_settings(database_path: Path, monkeypatch: pytest.MonkeyPatch) ->
             client.patch(
                 "/api/v1/admin/settings",
                 headers=headers,
-                json={"summer_hours_start": "18:30", "summer_hours_end": "06:30"},
+                json={"summer_outing_start": "18:30", "summer_outing_end": "06:30"},
             ),
             422,
             "validation_error",
-            "summer_hours_end",
+            "summer_outing_end",
         )
         assert_error(
             client.patch(
@@ -202,7 +221,6 @@ def test_admin_settings(database_path: Path, monkeypatch: pytest.MonkeyPatch) ->
             ),
             422,
             "validation_error",
-            "late_sms_template",
         )
 
         empty = client.patch("/api/v1/admin/settings", headers=headers, json={})

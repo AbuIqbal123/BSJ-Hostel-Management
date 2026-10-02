@@ -547,7 +547,7 @@ def scan_hall_pass(
         connection,
         resident_id,
         now_text,
-        int(settings["permission_early_minutes"]),
+        int(settings["permission_lead_minutes"]),
     )
     if permission is not None:
         if return_is_taken(connection, resident_id, permission["expected_return_at"]):

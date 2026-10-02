@@ -198,11 +198,11 @@ def hours_refusal(moment: datetime, settings: sqlite3.Row) -> str | None:
     else:
         is_summer = month_day >= summer_start or month_day < winter_start
     if is_summer:
-        start = settings["summer_hours_start"]
-        end = settings["summer_hours_end"]
+        start = settings["summer_outing_start"]
+        end = settings["summer_outing_end"]
     else:
-        start = settings["winter_hours_start"]
-        end = settings["winter_hours_end"]
+        start = settings["winter_outing_start"]
+        end = settings["winter_outing_end"]
     clock_time = local.strftime("%H:%M:%S")
     if clock_time <= f"{start}:00":
         return "outside_ordinary_hours"
