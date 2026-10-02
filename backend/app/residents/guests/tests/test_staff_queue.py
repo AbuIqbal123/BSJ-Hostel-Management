@@ -436,13 +436,43 @@ def test_guest_stays_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch)
         assert rejected.json()["decision_note"] == "Not this week."
         assert rejected.json()["bucket"] == "rejected"
 
+        before_pay = client.get(f"/api/v1/guest-stays/{UPCOMING}", headers=headers)
+        assert before_pay.status_code == 200
+        assert before_pay.json()["payment_note"] is None
+        assert before_pay.json()["payment_status"] == "unpaid"
+
+        assert_error(
+            client.post(
+                f"/api/v1/guest-stays/{UPCOMING}/payment",
+                headers=headers,
+                json={"payment_status": "paid"},
+            ),
+            422,
+            "validation_error",
+            "Payment note is required when marking paid.",
+        )
+        assert_error(
+            client.post(
+                f"/api/v1/guest-stays/{UPCOMING}/payment",
+                headers=headers,
+                json={"payment_status": "paid", "payment_note": "   "},
+            ),
+            422,
+            "validation_error",
+            "Payment note is required when marking paid.",
+        )
+
         paid = client.post(
             f"/api/v1/guest-stays/{UPCOMING}/payment",
             headers=headers,
-            json={"payment_status": "paid"},
+            json={
+                "payment_status": "paid",
+                "payment_note": "UPI ref TXN123456; collected at desk",
+            },
         )
         assert paid.status_code == 200
         assert paid.json()["payment_status"] == "paid"
+        assert paid.json()["payment_note"] == "UPI ref TXN123456; collected at desk"
         assert paid.json()["status"] == "approved"
 
         unpaid = client.post(
@@ -452,6 +482,7 @@ def test_guest_stays_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch)
         )
         assert unpaid.status_code == 200
         assert unpaid.json()["payment_status"] == "unpaid"
+        assert unpaid.json()["payment_note"] is None
 
         # payment on pending (approve path already used PENDING_A; mark payment on approved empty)
         # re-seed a fresh pending via direct insert for payment-before-decision
@@ -475,11 +506,15 @@ def test_guest_stays_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch)
         pay_pending = client.post(
             f"/api/v1/guest-stays/{fresh}/payment",
             headers=headers,
-            json={"payment_status": "paid"},
+            json={
+                "payment_status": "paid",
+                "payment_note": "Cash collected by Sara",
+            },
         )
         assert pay_pending.status_code == 200
         assert pay_pending.json()["status"] == "pending"
         assert pay_pending.json()["payment_status"] == "paid"
+        assert pay_pending.json()["payment_note"] == "Cash collected by Sara"
 
         assert_error(
             client.post(
@@ -494,7 +529,10 @@ def test_guest_stays_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch)
             client.post(
                 f"/api/v1/guest-stays/{DEPARTED}/payment",
                 headers=headers,
-                json={"payment_status": "paid"},
+                json={
+                    "payment_status": "paid",
+                    "payment_note": "Should not apply",
+                },
             ),
             409,
             "payment_locked",
@@ -503,7 +541,10 @@ def test_guest_stays_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch)
             client.post(
                 f"/api/v1/guest-stays/{REJECTED}/payment",
                 headers=headers,
-                json={"payment_status": "paid"},
+                json={
+                    "payment_status": "paid",
+                    "payment_note": "Should not apply",
+                },
             ),
             409,
             "payment_locked",

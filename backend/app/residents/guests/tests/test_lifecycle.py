@@ -335,6 +335,7 @@ def test_guest_stays_resident(database_path: Path, monkeypatch: pytest.MonkeyPat
             "relation",
             "inclusive_days",
             "reason",
+            "payment_note",
             "decision_note",
             "decided_by",
             "arrived_recorded_by",

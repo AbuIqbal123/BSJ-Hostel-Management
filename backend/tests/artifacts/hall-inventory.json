@@ -1,5 +1,5 @@
 {
-  "user_version": 7,
+  "user_version": 8,
   "tables": [
     "audit_log",
     "blocks",
@@ -74,7 +74,8 @@
       "departed_at",
       "departed_recorded_by",
       "created_at",
-      "updated_at"
+      "updated_at",
+      "payment_note"
     ],
     "hall_settings": [
       "id",
