@@ -21,11 +21,14 @@ info:
     18 September 2026, 7:00 PM. This API returns the stored form.
 
     The caller sends an access token as `Authorization: Bearer`, except on
-    `GET /health`, `POST /api/v1/auth/login`, and `POST /api/v1/auth/refresh`.
+    `GET /health`, `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, and
+    `POST /api/v1/auth/onboard`.
 
     Access tokens last 15 minutes. Refresh tokens last 30 days. Passwords are
-    at least 10 characters and are stored as Argon2id. Accounts are issued by
-    the hall office. A resident username is the enrolment number.
+    at least 10 characters and are stored as Argon2id. Residents may self-onboard
+    at `POST /api/v1/auth/onboard` (pending until the Hall Office assigns a room
+    and activates). The provost may still create residents and must create staff.
+    A resident username is the enrolment number.
 
     Stored state and lifecycles live in `docs/database/database.md`. This file does not
     repeat the column list. The reading copy of this contract is `docs/api/api.md`.
@@ -45,7 +48,9 @@ tags:
   - name: Operations
     description: Process health. No hall data.
   - name: Auth
-    description: Hall-issued accounts. No public registration and no guardian login.
+    description: >
+      Sign-in and resident self-onboard under /api/v1/auth. Staff accounts stay
+      office-created. No guardian login. Do not confuse with Register (presence board).
   - name: Resident
     description: The resident phone. Ordinary outings, home, destinations, and the hall pass.
   - name: Permissions
@@ -129,9 +134,11 @@ paths:
 
         An unknown username and a known username with the wrong password both
         return the same message, so a caller cannot tell whether the username
-        exists. A correct password on a suspended account says the account is
-        suspended and asks the caller to contact the Hall Office. Repeated
-        attempts from the same client are limited; further attempts return 429.
+        exists. A correct password on a **pending** account says the account is
+        waiting for the Hall Office. A correct password on a suspended account
+        says the account is suspended and asks the caller to contact the Hall
+        Office. Repeated attempts from the same client are limited; further
+        attempts return 429.
       security: []
       requestBody:
         required: true
@@ -151,7 +158,8 @@ paths:
         "401":
           description: |
             Sign-in was refused. Unknown username and wrong password share one
-            message. A suspended account asks the caller to contact the Hall Office.
+            message. A pending account says it is waiting for the Hall Office.
+            A suspended account asks the caller to contact the Hall Office.
           content:
             application/json:
               schema:
@@ -163,6 +171,12 @@ paths:
                     error:
                       code: unauthenticated
                       message: Username or password is wrong.
+                pending:
+                  summary: Account is pending activation
+                  value:
+                    error:
+                      code: unauthenticated
+                      message: Your account is waiting for the Hall Office.
                 suspended:
                   summary: Account is suspended
                   value:
@@ -266,6 +280,72 @@ paths:
           description: Password changed.
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+
+  /api/v1/auth/onboard:
+    post:
+      tags: [Auth]
+      operationId: onboard_resident
+      summary: Resident self-onboard
+      description: |
+        Caller: anyone (no token). Creates a **pending** resident from the phone.
+        Required fields: `full_name`, `enrolment_number`, `password`, `phone`,
+        `guardian_name`, `guardian_phone`. Optional: `course`.
+
+        She does not choose block or room. The Hall Office assigns a room and
+        activates the account later. This call does **not** return tokens or a
+        hall pass. After activation she signs in at `POST /api/v1/auth/login`.
+
+        Enrolment is unique hall-wide (ignoring capitals) and becomes the
+        username. Staff cannot use this path. Rate-limited like sign-in.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResidentOnboardRequest"
+            example:
+              full_name: Aisha Khan
+              enrolment_number: 24-GLLB-118
+              phone: "+919811112222"
+              guardian_name: Rashid Khan
+              guardian_phone: "+919876543210"
+      responses:
+        "201":
+          description: |
+            Pending resident kept. No access token, refresh token, or hall pass.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResidentOnboardResponse"
+              example:
+                enrolment_number: 24-GLLB-118
+                status: pending
+                message: Your account is waiting for the Hall Office to assign a room and activate it.
+        "409":
+          description: |
+            Enrolment number already in use. Code `duplicate_enrolment`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: duplicate_enrolment
+                  message: That enrolment number is already registered.
+        "429":
+          description: |
+            Too many onboard attempts from this client in a short window.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: rate_limited
+                  message: Too many attempts. Try again shortly.
         "422":
           $ref: "#/components/responses/Unprocessable"
 
@@ -1789,7 +1869,7 @@ paths:
       tags: [Hall office]
       operationId: admin_list_residents
       summary: List resident accounts
-      description: "Caller: provost. Includes suspended residents. Does not include hall-pass tokens."
+      description: "Caller: provost. Includes pending and suspended residents. Does not include hall-pass tokens."
       parameters:
         - name: q
           in: query
@@ -1876,8 +1956,10 @@ paths:
         may be set to null to clear them. `guardian_name` and `guardian_phone`
         may be replaced and may not be cleared. A phone includes the country
         code. Changing `enrolment_number` changes the username. `status`
-        suspends or reinstates the account and revokes refresh tokens on
-        suspension.
+        activates a pending resident (requires `room_id` on the record),
+        suspends, or reinstates. Suspension revokes refresh tokens. Activating
+        a pending resident issues the hall pass once; the token is not returned
+        on this PATCH (use reissue if the office needs the payload again).
       parameters:
         - $ref: "#/components/parameters/ResidentId"
       requestBody:
@@ -1903,6 +1985,7 @@ paths:
           description: |
             Enrolment number already in use. Code `duplicate_username`.
             That room is not in use. Code `room_inactive`.
+            Cannot activate a pending resident without a room. Code `room_required`.
           content:
             application/json:
               schema:
@@ -2713,6 +2796,72 @@ components:
           minLength: 10
           maxLength: 200
 
+    ResidentOnboardRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - full_name
+        - enrolment_number
+        - password
+        - phone
+        - guardian_name
+        - guardian_phone
+      properties:
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        enrolment_number:
+          type: string
+          minLength: 1
+          maxLength: 40
+          description: >
+            Roll / enrolment number. Becomes the username. Unique hall-wide,
+            ignoring capitals.
+        password:
+          type: string
+          minLength: 10
+          maxLength: 200
+          description: >
+            First password she chooses. Stored as Argon2id. Not returned. Sample
+            bodies in this repository omit the value; the field is required.
+        course:
+          type: string
+          maxLength: 120
+          description: Optional. For example B.A. LL.B. (Hons.).
+        phone:
+          type: string
+          description: >
+            The resident's own phone in E.164 with country code. Required on
+            self-onboard. Not the guardian phone.
+          pattern: "^\\+[1-9][0-9]{7,14}$"
+          example: "+919811112222"
+        guardian_name:
+          type: string
+          minLength: 1
+          maxLength: 120
+          description: Parent or guardian the hall contacts.
+        guardian_phone:
+          type: string
+          description: E.164 with country code. Late and return SMS go here.
+          pattern: "^\\+[1-9][0-9]{7,14}$"
+          example: "+919876543210"
+
+    ResidentOnboardResponse:
+      type: object
+      additionalProperties: false
+      required: [enrolment_number, status, message]
+      properties:
+        enrolment_number:
+          type: string
+          description: Stored spelling of the enrolment number.
+        status:
+          type: string
+          enum: [pending]
+        message:
+          type: string
+          description: Waiting copy for the phone. Exact sentence for clients.
+
     PasswordResetRequest:
       type: object
       additionalProperties: false
@@ -2769,7 +2918,10 @@ components:
 
     AccountStatus:
       type: string
-      enum: [active, suspended]
+      enum: [active, suspended, pending]
+      description: >
+        `pending` is a self-onboarded resident waiting for room assignment and
+        activation. `active` may sign in. `suspended` may not.
 
     CurrentUser:
       type: object
@@ -4063,10 +4215,18 @@ components:
             - type: string
             - type: "null"
         room_id:
-          type: string
-          format: uuid
+          oneOf:
+            - type: string
+              format: uuid
+            - type: "null"
+          description: >
+            Empty while status is pending and the Hall Office has not assigned a
+            room. Required when status is active.
         room_label:
-          type: string
+          oneOf:
+            - type: string
+            - type: "null"
+          description: Empty when room_id is empty.
         phone:
           oneOf:
             - type: string
