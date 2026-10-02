@@ -8,7 +8,7 @@ info:
 
     This version is the contract. Auth, resident phone (home, history, hall pass,
     destinations, ordinary outings, permissions, guest stays), register, staff
-    permission queue, staff guest stays, gate scans and guests, and hall office
+    permission queue, staff guest stays, gate scans, guests, and occupancy, and hall office
     (settings, blocks, rooms, destinations, residents, staff, password reset,
     audit, SMS log, register export) respond. Swagger on this server is the
     review surface for purpose, payload, and response.
@@ -993,6 +993,34 @@ paths:
                     occurred_at: "2026-09-13T14:39:00Z"
                     title: Zoya Siddiqui
                     subtitle: A-118
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+
+  /api/v1/gate/occupancy:
+    get:
+      tags: [Gate]
+      operationId: gate_occupancy
+      summary: Guest dining occupancy at the gate
+      description: |
+        Caller: gate, warden, or provost. Hall-wide guest dining counts for the
+        gate home strip. `guests_in_hall_count` is every stay that has arrived
+        and has not departed (includes should-have-left).
+        `guests_should_have_left_count` is the subset whose hall date is after
+        `guest_end_date`. This is not the full register presence board; use
+        `GET /api/v1/register/summary` for resident inside/outside/late counts.
+      responses:
+        "200":
+          description: Dining occupancy counts.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GateOccupancy"
+              example:
+                guests_in_hall_count: 2
+                guests_should_have_left_count: 1
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -3277,6 +3305,24 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/GateActivityItem"
+
+
+    GateOccupancy:
+      type: object
+      additionalProperties: false
+      required: [guests_in_hall_count, guests_should_have_left_count]
+      properties:
+        guests_in_hall_count:
+          type: integer
+          minimum: 0
+          description: |
+            Dining count: arrived_at IS NOT NULL AND departed_at IS NULL
+            (includes should-have-left).
+        guests_should_have_left_count:
+          type: integer
+          minimum: 0
+          description: |
+            Subset of dining where the hall date is after guest_end_date.
 
     GateGuestCard:
       type: object

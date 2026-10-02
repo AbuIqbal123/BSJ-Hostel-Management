@@ -2,7 +2,7 @@ $kind: collection
 name: Gate
 order: 1000
 description: |-
-  Scan the hall pass, and record guest arrival and departure. Bearer uses {{token_gate}} (Sign in as Gate).
+  Scan the hall pass, read guest dining occupancy, and record guest arrival and departure. Bearer uses {{token_gate}} (Sign in as Gate).
 auth:
   type: bearer
   credentials:
