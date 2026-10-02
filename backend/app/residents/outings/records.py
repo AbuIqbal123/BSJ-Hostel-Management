@@ -17,7 +17,7 @@ class OutingBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: str
     permission_id: str | None
-    type: Literal["ordinary", "late_night", "home_going"]
+    outing_type: Literal["ordinary", "late_night", "home_going"]
     status: Literal["planned", "outside", "returned", "cancelled"]
     place: str
     expected_return_at: str
@@ -40,7 +40,7 @@ def outing_from_row(row: sqlite3.Row) -> OutingBody:
     return OutingBody(
         id=row["id"],
         permission_id=row["permission_id"],
-        type=row["type"],
+        outing_type=row["type"],
         status=row["status"],
         place=row["place"],
         expected_return_at=row["expected_return_at"],

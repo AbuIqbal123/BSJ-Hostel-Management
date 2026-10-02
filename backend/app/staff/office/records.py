@@ -388,13 +388,13 @@ DESTINATION_COLUMNS = ("id", "name", "is_other", "is_active")
 class DestinationCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str = Field(min_length=1, max_length=80)
-    type: Literal["named", "other"] = "named"
+    source: Literal["preset", "custom"] = "preset"
 
 
 class DestinationUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str | None = Field(default=None, min_length=1, max_length=80)
-    type: Literal["named", "other"] | None = None
+    source: Literal["preset", "custom"] | None = None
     status: Literal["active", "inactive"] | None = None
 
 
@@ -402,7 +402,7 @@ def row_to_destination(row: sqlite3.Row) -> Destination:
     return Destination(
         id=row["id"],
         name=row["name"],
-        type="other" if row["is_other"] else "named",
+        source="custom" if row["is_other"] else "preset",
         status="active" if row["is_active"] else "inactive",
     )
 

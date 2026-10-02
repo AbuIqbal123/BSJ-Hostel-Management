@@ -3,7 +3,7 @@ method: POST
 url: '{{baseUrl}}/api/v1/admin/destinations'
 order: 8000
 description: |-
-  Caller: provost. Only one active destination may have `type` `other`.
+  Caller: provost. Only one active destination may have `source` `custom`.
 headers:
   - key: Content-Type
     value: application/json
@@ -12,5 +12,5 @@ body:
   content: |-
     {
       "name": "Sample destination",
-      "type": "named"
+      "source": "preset"
     }

@@ -644,7 +644,7 @@ def expected_artifact() -> dict:
             "outing": {
                 "id": MARYAM_OUTING,
                 "permission_id": None,
-                "type": "ordinary",
+                "outing_type": "ordinary",
                 "status": "outside",
                 "place": "Maulana Azad Library",
                 "expected_return_at": "2026-09-30T13:30:00Z",
@@ -670,7 +670,7 @@ def expected_artifact() -> dict:
             "outing": {
                 "id": ZARA_OUTING,
                 "permission_id": None,
-                "type": "ordinary",
+                "outing_type": "ordinary",
                 "status": "outside",
                 "place": "Shamshad Market",
                 "expected_return_at": "2026-09-30T12:00:00Z",

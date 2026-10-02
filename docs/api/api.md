@@ -685,31 +685,31 @@ Body: [DestinationList](#schema-destinationlist).
     {
       "id": "1285f918-cd9c-5ef8-9c04-58a69285211c",
       "name": "J.N. Medical College",
-      "type": "named",
+      "source": "preset",
       "status": "active"
     },
     {
       "id": "fc2da7c5-8d65-5680-8034-d8acb69745eb",
       "name": "Maulana Azad Library",
-      "type": "named",
+      "source": "preset",
       "status": "active"
     },
     {
       "id": "924e5c75-e9b6-57a9-bb04-720028253526",
       "name": "Shamshad Market",
-      "type": "named",
+      "source": "preset",
       "status": "active"
     },
     {
       "id": "df29c4b7-63c5-525d-a9ec-798a980c64c8",
       "name": "Women's College",
-      "type": "named",
+      "source": "preset",
       "status": "active"
     },
     {
       "id": "f2008ef3-a1df-5ff0-b936-3466d0914781",
       "name": "Other",
-      "type": "other",
+      "source": "custom",
       "status": "active"
     }
   ]
@@ -830,7 +830,7 @@ Body: [Outing](#schema-outing).
 |---|---|---|---|
 | `id` | yes | uuid |  |
 | `permission_id` | no | uuid or null | Empty for an ordinary outing. Set when the exit used a permission. |
-| `type` | yes | `ordinary` or `late_night` or `home_going` |  |
+| `outing_type` | yes | `ordinary` or `late_night` or `home_going` |  |
 | `status` | yes | `planned` or `outside` or `returned` or `cancelled` |  |
 | `place` | yes | string | List name, the words typed for Other, or the permission's short place. |
 | `expected_return_at` | yes | date-time | UTC instant. Clients show India time on a 12-hour clock. |
@@ -939,7 +939,7 @@ Body: [Outing](#schema-outing).
 |---|---|---|---|
 | `id` | yes | uuid |  |
 | `permission_id` | no | uuid or null | Empty for an ordinary outing. Set when the exit used a permission. |
-| `type` | yes | `ordinary` or `late_night` or `home_going` |  |
+| `outing_type` | yes | `ordinary` or `late_night` or `home_going` |  |
 | `status` | yes | `planned` or `outside` or `returned` or `cancelled` |  |
 | `place` | yes | string | List name, the words typed for Other, or the permission's short place. |
 | `expected_return_at` | yes | date-time | UTC instant. Clients show India time on a 12-hour clock. |
@@ -1103,7 +1103,7 @@ One of: [LateNightCreate](#schema-latenightcreate), [HomeGoingCreate](#schema-ho
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `type` | yes | `late_night` |  |
+| `permission_type` | yes | `late_night` |  |
 | `short_place` | yes | string | Typed by the resident. Not chosen from the ordinary destination list. 1–120 characters. |
 | `destination_detail` | no | string | 1–120 characters. |
 | `reason` | yes | string | 1–500 characters. |
@@ -1114,7 +1114,7 @@ One of: [LateNightCreate](#schema-latenightcreate), [HomeGoingCreate](#schema-ho
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `type` | yes | `home_going` |  |
+| `permission_type` | yes | `home_going` |  |
 | `short_place` | yes | string | Short place on the warden card, such as Lucknow. 1–120 characters. |
 | `address` | yes | string | 1–300 characters. |
 | `reason` | yes | string | 1–500 characters. |
@@ -1125,7 +1125,7 @@ One of: [LateNightCreate](#schema-latenightcreate), [HomeGoingCreate](#schema-ho
 
 ```json
 {
-  "type": "late_night",
+  "permission_type": "late_night",
   "short_place": "Women's College",
   "destination_detail": "Seminar Hall",
   "reason": "Faculty seminar ends at 9:00 PM. Requesting late return to hall.",
@@ -1138,7 +1138,7 @@ One of: [LateNightCreate](#schema-latenightcreate), [HomeGoingCreate](#schema-ho
 
 ```json
 {
-  "type": "home_going",
+  "permission_type": "home_going",
   "short_place": "Lucknow",
   "address": "14, Civil Lines, Lucknow, U.P. 226001",
   "reason": "Family visit. Eid with parents.",
@@ -1158,7 +1158,7 @@ Body: [Permission](#schema-permission).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `id` | yes | uuid |  |
-| `type` | yes | `late_night` or `home_going` |  |
+| `permission_type` | yes | `late_night` or `home_going` |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` |  |
 | `short_place` | yes | string |  |
 | `destination_detail` | no | string or null |  |
@@ -1216,7 +1216,7 @@ Body: [Permission](#schema-permission).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `id` | yes | uuid |  |
-| `type` | yes | `late_night` or `home_going` |  |
+| `permission_type` | yes | `late_night` or `home_going` |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` |  |
 | `short_place` | yes | string |  |
 | `destination_detail` | no | string or null |  |
@@ -1274,7 +1274,7 @@ Body: [Permission](#schema-permission).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `id` | yes | uuid |  |
-| `type` | yes | `late_night` or `home_going` |  |
+| `permission_type` | yes | `late_night` or `home_going` |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` |  |
 | `short_place` | yes | string |  |
 | `destination_detail` | no | string or null |  |
@@ -1334,7 +1334,7 @@ fresh status.
 | Name | In | Required | Type | Notes |
 |---|---|---|---|---|
 | `status` | query | no | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` | Defaults to pending when omitted. |
-| `type` | query | no | `late_night` or `home_going` | Limit to late-night or home-going permissions. |
+| `permission_type` | query | no | `late_night` or `home_going` | Limit to late-night or home-going permissions. |
 | `block_id` | query | no | uuid | Limit to residents whose current room is in this block. |
 | `created_from` | query | no | date-time | Inclusive lower bound on created_at (UTC instant). |
 | `created_to` | query | no | date-time | Inclusive upper bound on created_at (UTC instant). |
@@ -1432,7 +1432,7 @@ Body: [PermissionReview](#schema-permissionreview).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `id` | yes | uuid |  |
-| `type` | yes | `late_night` or `home_going` |  |
+| `permission_type` | yes | `late_night` or `home_going` |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` |  |
 | `short_place` | yes | string |  |
 | `destination_detail` | no | string or null |  |
@@ -1514,7 +1514,7 @@ Body: [PermissionReview](#schema-permissionreview).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `id` | yes | uuid |  |
-| `type` | yes | `late_night` or `home_going` |  |
+| `permission_type` | yes | `late_night` or `home_going` |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` |  |
 | `short_place` | yes | string |  |
 | `destination_detail` | no | string or null |  |
@@ -3928,7 +3928,7 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** provost. Bearer access token.
 
-Caller: provost. Only one active destination may have `type` `other`.
+Caller: provost. Only one active destination may have `source` `custom`.
 
 **Request.** Required.
 
@@ -3937,7 +3937,7 @@ Body: [DestinationCreate](#schema-destinationcreate).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `name` | yes | string | 1–80 characters. |
-| `type` | no | `named` or `other` | Destination type only (`named` \| `other`). Not an outing, permission, or notice type. default `named`. |
+| `source` | no | `preset` or `custom` | `preset` for a fixed named place. `custom` for the free-text Other choice. default `preset`. |
 
 **Responses**
 
@@ -3951,7 +3951,7 @@ Body: [Destination](#schema-destination).
 |---|---|---|---|
 | `id` | yes | uuid |  |
 | `name` | yes | string | Named places are shown alphabetical by this name, ignoring capitals. The free-text choice is last. |
-| `type` | yes | `named` or `other` | Destination type only: `named` for a fixed place, `other` for the single free-text choice. Not an outing type, permission type, or notice type. |
+| `source` | yes | `preset` or `custom` | Where the place comes from. `preset` is a fixed named place on the list. `custom` is the single free-text (Other) choice. |
 | `status` | yes | `active` or `inactive` | `active` while it can be chosen. `inactive` when retired. |
 
 #### 401
@@ -3994,7 +3994,7 @@ Body: [DestinationUpdate](#schema-destinationupdate).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `name` | no | string | 1–80 characters. |
-| `type` | no | `named` or `other` | Destination type only (`named` \| `other`). Not an outing, permission, or notice type. |
+| `source` | no | `preset` or `custom` | `preset` for a fixed named place. `custom` for the free-text Other choice. |
 | `status` | no | `active` or `inactive` |  |
 
 **Responses**
@@ -4009,7 +4009,7 @@ Body: [Destination](#schema-destination).
 |---|---|---|---|
 | `id` | yes | uuid |  |
 | `name` | yes | string | Named places are shown alphabetical by this name, ignoring capitals. The free-text choice is last. |
-| `type` | yes | `named` or `other` | Destination type only: `named` for a fixed place, `other` for the single free-text choice. Not an outing type, permission type, or notice type. |
+| `source` | yes | `preset` or `custom` | Where the place comes from. `preset` is a fixed named place on the list. `custom` is the single free-text (Other) choice. |
 | `status` | yes | `active` or `inactive` | `active` while it can be chosen. `inactive` when retired. |
 
 #### 401
@@ -4559,7 +4559,7 @@ One of: `inside`, `outside`, `late`.
 |---|---|---|---|
 | `id` | yes | uuid |  |
 | `name` | yes | string | Named places are shown alphabetical by this name, ignoring capitals. The free-text choice is last. |
-| `type` | yes | `named` or `other` | Destination type only: `named` for a fixed place, `other` for the single free-text choice. Not an outing type, permission type, or notice type. |
+| `source` | yes | `preset` or `custom` | Where the place comes from. `preset` is a fixed named place on the list. `custom` is the single free-text (Other) choice. |
 | `status` | yes | `active` or `inactive` | `active` while it can be chosen. `inactive` when retired. |
 
 ### <a id="schema-destinationlist"></a>DestinationList
@@ -4573,14 +4573,14 @@ One of: `inside`, `outside`, `late`.
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `name` | yes | string | 1–80 characters. |
-| `type` | no | `named` or `other` | Destination type only (`named` \| `other`). Not an outing, permission, or notice type. default `named`. |
+| `source` | no | `preset` or `custom` | `preset` for a fixed named place. `custom` for the free-text Other choice. default `preset`. |
 
 ### <a id="schema-destinationupdate"></a>DestinationUpdate
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `name` | no | string | 1–80 characters. |
-| `type` | no | `named` or `other` | Destination type only (`named` \| `other`). Not an outing, permission, or notice type. |
+| `source` | no | `preset` or `custom` | `preset` for a fixed named place. `custom` for the free-text Other choice. |
 | `status` | no | `active` or `inactive` |  |
 
 ### <a id="schema-planoutingrequest"></a>PlanOutingRequest
@@ -4607,7 +4607,7 @@ One of: `planned`, `outside`, `returned`, `cancelled`.
 |---|---|---|---|
 | `id` | yes | uuid |  |
 | `permission_id` | no | uuid or null | Empty for an ordinary outing. Set when the exit used a permission. |
-| `type` | yes | `ordinary` or `late_night` or `home_going` |  |
+| `outing_type` | yes | `ordinary` or `late_night` or `home_going` |  |
 | `status` | yes | `planned` or `outside` or `returned` or `cancelled` |  |
 | `place` | yes | string | List name, the words typed for Other, or the permission's short place. |
 | `expected_return_at` | yes | date-time | UTC instant. Clients show India time on a 12-hour clock. |
@@ -4666,7 +4666,7 @@ The `type` field selects the object:
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `type` | yes | `late_night` |  |
+| `permission_type` | yes | `late_night` |  |
 | `short_place` | yes | string | Typed by the resident. Not chosen from the ordinary destination list. 1–120 characters. |
 | `destination_detail` | no | string | 1–120 characters. |
 | `reason` | yes | string | 1–500 characters. |
@@ -4677,7 +4677,7 @@ The `type` field selects the object:
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `type` | yes | `home_going` |  |
+| `permission_type` | yes | `home_going` |  |
 | `short_place` | yes | string | Short place on the warden card, such as Lucknow. 1–120 characters. |
 | `address` | yes | string | 1–300 characters. |
 | `reason` | yes | string | 1–500 characters. |
@@ -4689,7 +4689,7 @@ The `type` field selects the object:
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `id` | yes | uuid |  |
-| `type` | yes | `late_night` or `home_going` |  |
+| `permission_type` | yes | `late_night` or `home_going` |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` |  |
 | `short_place` | yes | string |  |
 | `destination_detail` | no | string or null |  |
@@ -4706,7 +4706,7 @@ The `type` field selects the object:
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `id` | yes | uuid |  |
-| `type` | yes | `late_night` or `home_going` |  |
+| `permission_type` | yes | `late_night` or `home_going` |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` |  |
 | `short_place` | yes | string |  |
 | `destination_detail` | no | string or null |  |

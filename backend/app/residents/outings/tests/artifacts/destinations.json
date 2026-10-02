@@ -4,37 +4,37 @@
       "id": "c11c0000-0000-4000-8000-000000000030",
       "name": "city clinic",
       "status": "active",
-      "type": "named"
+      "source": "preset"
     },
     {
       "id": "1285f918-cd9c-5ef8-9c04-58a69285211c",
       "name": "J.N. Medical College",
       "status": "active",
-      "type": "named"
+      "source": "preset"
     },
     {
       "id": "fc2da7c5-8d65-5680-8034-d8acb69745eb",
       "name": "Maulana Azad Library",
       "status": "active",
-      "type": "named"
+      "source": "preset"
     },
     {
       "id": "924e5c75-e9b6-57a9-bb04-720028253526",
       "name": "Shamshad Market",
       "status": "active",
-      "type": "named"
+      "source": "preset"
     },
     {
       "id": "df29c4b7-63c5-525d-a9ec-798a980c64c8",
       "name": "Women's College",
       "status": "active",
-      "type": "named"
+      "source": "preset"
     },
     {
       "id": "f2008ef3-a1df-5ff0-b936-3466d0914781",
       "name": "Other",
       "status": "active",
-      "type": "other"
+      "source": "custom"
     }
   ]
 }

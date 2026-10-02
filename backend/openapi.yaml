@@ -373,23 +373,23 @@ paths:
                 items:
                   - id: 1285f918-cd9c-5ef8-9c04-58a69285211c
                     name: J.N. Medical College
-                    type: named
+                    source: preset
                     status: active
                   - id: fc2da7c5-8d65-5680-8034-d8acb69745eb
                     name: Maulana Azad Library
-                    type: named
+                    source: preset
                     status: active
                   - id: 924e5c75-e9b6-57a9-bb04-720028253526
                     name: Shamshad Market
-                    type: named
+                    source: preset
                     status: active
                   - id: df29c4b7-63c5-525d-a9ec-798a980c64c8
                     name: Women's College
-                    type: named
+                    source: preset
                     status: active
                   - id: f2008ef3-a1df-5ff0-b936-3466d0914781
                     name: Other
-                    type: other
+                    source: custom
                     status: active
         "401":
           $ref: "#/components/responses/Unauthorized"
@@ -616,7 +616,7 @@ paths:
             examples:
               late_night:
                 value:
-                  type: late_night
+                  permission_type: late_night
                   short_place: Women's College
                   destination_detail: Seminar Hall
                   reason: Faculty seminar ends at 9:00 PM. Requesting late return to hall.
@@ -624,7 +624,7 @@ paths:
                   expected_return_at: "2026-09-13T16:00:00Z"
               home_going:
                 value:
-                  type: home_going
+                  permission_type: home_going
                   short_place: Lucknow
                   address: 14, Civil Lines, Lucknow, U.P. 226001
                   reason: Family visit. Eid with parents.
@@ -1355,7 +1355,7 @@ paths:
           description: Defaults to pending when omitted.
           schema:
             $ref: "#/components/schemas/PermissionStatus"
-        - name: type
+        - name: permission_type
           in: query
           required: false
           description: Limit to late-night or home-going permissions.
@@ -2103,7 +2103,7 @@ paths:
       operationId: create_destination
       summary: Create a destination
       description: |
-        Caller: provost. Only one active destination may have `type` `other`.
+        Caller: provost. Only one active destination may have `source` `custom`.
       requestBody:
         required: true
         content:
@@ -2762,7 +2762,7 @@ components:
     Destination:
       type: object
       additionalProperties: false
-      required: [id, name, type, status]
+      required: [id, name, source, status]
       properties:
         id:
           type: string
@@ -2770,13 +2770,12 @@ components:
         name:
           type: string
           description: Named places are shown alphabetical by this name, ignoring capitals. The free-text choice is last.
-        type:
+        source:
           type: string
-          enum: [named, other]
+          enum: [preset, custom]
           description: >
-            Destination type only: `named` for a fixed place, `other` for the
-            single free-text choice. Not an outing type, permission type, or
-            notice type.
+            Where the place comes from. `preset` is a fixed named place on the
+            list. `custom` is the single free-text (Other) choice.
         status:
           type: string
           enum: [active, inactive]
@@ -2801,13 +2800,13 @@ components:
           type: string
           minLength: 1
           maxLength: 80
-        type:
+        source:
           type: string
-          enum: [named, other]
-          default: named
+          enum: [preset, custom]
+          default: preset
           description: >
-            Destination type only (`named` | `other`). Not an outing,
-            permission, or notice type.
+            `preset` for a fixed named place. `custom` for the free-text Other
+            choice.
 
     DestinationUpdate:
       type: object
@@ -2817,12 +2816,12 @@ components:
           type: string
           minLength: 1
           maxLength: 80
-        type:
+        source:
           type: string
-          enum: [named, other]
+          enum: [preset, custom]
           description: >
-            Destination type only (`named` | `other`). Not an outing,
-            permission, or notice type.
+            `preset` for a fixed named place. `custom` for the free-text Other
+            choice.
         status:
           type: string
           enum: [active, inactive]
@@ -2858,7 +2857,7 @@ components:
       additionalProperties: false
       required:
         - id
-        - type
+        - outing_type
         - status
         - place
         - expected_return_at
@@ -2875,7 +2874,7 @@ components:
               format: uuid
             - type: "null"
           description: Empty for an ordinary outing. Set when the exit used a permission.
-        type:
+        outing_type:
           $ref: "#/components/schemas/OutingType"
         status:
           $ref: "#/components/schemas/OutingStatus"
@@ -2979,7 +2978,7 @@ components:
         - $ref: "#/components/schemas/LateNightCreate"
         - $ref: "#/components/schemas/HomeGoingCreate"
       discriminator:
-        propertyName: type
+        propertyName: permission_type
         mapping:
           late_night: "#/components/schemas/LateNightCreate"
           home_going: "#/components/schemas/HomeGoingCreate"
@@ -2987,9 +2986,9 @@ components:
     LateNightCreate:
       type: object
       additionalProperties: false
-      required: [type, short_place, reason, departure_at, expected_return_at]
+      required: [permission_type, short_place, reason, departure_at, expected_return_at]
       properties:
-        type:
+        permission_type:
           type: string
           const: late_night
         short_place:
@@ -3015,9 +3014,9 @@ components:
     HomeGoingCreate:
       type: object
       additionalProperties: false
-      required: [type, short_place, address, reason, departure_at, expected_return_at]
+      required: [permission_type, short_place, address, reason, departure_at, expected_return_at]
       properties:
-        type:
+        permission_type:
           type: string
           const: home_going
         short_place:
@@ -3045,7 +3044,7 @@ components:
       additionalProperties: false
       required:
         - id
-        - type
+        - permission_type
         - status
         - short_place
         - reason
@@ -3056,7 +3055,7 @@ components:
         id:
           type: string
           format: uuid
-        type:
+        permission_type:
           $ref: "#/components/schemas/PermissionType"
         status:
           $ref: "#/components/schemas/PermissionStatus"

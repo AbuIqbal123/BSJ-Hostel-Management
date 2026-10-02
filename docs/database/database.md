@@ -209,7 +209,7 @@ The list behind the ordinary-outing choices. The screen shows the active named p
 |---|---|---|---|---|
 | id | Identifier | Yes | System | Identifies this destination. |
 | name | Text | Yes | Provost. The first list is below. | Unique. Named places are compared in alphabetical order for display, ignoring capitals. The free-text choice is shown last. |
-| type | Text | Yes | Provost | Destination type only: `named` for a fixed place, `other` for the single free-text choice. Not an outing, permission, or notice type. |
+| source | Text | Yes | Provost | `preset` for a fixed named place on the list. `custom` for the single free-text (Other) choice. |
 | status | Text | Yes | Provost | `active` while it can be chosen. `inactive` when it is retired. |
 
 The first list is created with the records. The provost can add, rename, or retire entries afterwards. Shown A to Z, with the free-text choice last, the first list reads:
@@ -293,7 +293,7 @@ A permission is the warden's or the provost's decision. It is not itself the mom
 |---|---|---|---|---|
 | id | Identifier | Yes | System | Identifies this permission. |
 | resident_id | Identifier | Yes | The signed-in resident | The resident who asked. |
-| type | Choice | Yes | The form the resident chose | Late-night, or home going. |
+| permission_type | Choice | Yes | The form the resident chose | Late-night, or home going. |
 | status | Choice | Yes | System, as the lifecycle moves | See the lifecycle below. |
 | short_place | Text | Yes | The resident types it on the permission form | The short place the warden's card shows, such as Women's College or Lucknow. It is not chosen from the ordinary destination list. |
 | destination_detail | Text | Empty for home going. For late-night it may be empty. | The resident types it on the late-night form | A further detail, such as Seminar Hall. |
@@ -325,7 +325,7 @@ A resident may hold more than one permission. She may also plan several ordinary
 
 ## Outings
 
-Ordinary, late-night, and home going are kept as one outing record. The type says which it is. The gate, the register, lateness, and the message to the guardian all follow that one record. A resident may have several planned ordinary outings, including a morning return and an afternoon return on the same hall day. She has at most one outing that is outside, and at most one planned or outside outing for a given expected return.
+Ordinary, late-night, and home going are kept as one outing record. The outing type says which it is. The gate, the register, lateness, and the message to the guardian all follow that one record. A resident may have several planned ordinary outings, including a morning return and an afternoon return on the same hall day. She has at most one outing that is outside, and at most one planned or outside outing for a given expected return.
 
 An exit is not a finished fact until it has a time and the staff member who recorded it. A return is not a finished fact until it has a time and the staff member who recorded it. Those fields are empty only before that step. A planned ordinary outing is the only outing that exists before an exit.
 
@@ -333,8 +333,8 @@ An exit is not a finished fact until it has a time and the staff member who reco
 |---|---|---|---|---|
 | id | Identifier | Yes | System | Identifies this outing. |
 | resident_id | Identifier | Yes | The resident | The resident. |
-| permission_id | Identifier | Empty for an ordinary outing. Yes for late-night and home going. | The approved permission the scan uses | The permission's type must match the outing type. |
-| type | Choice | Yes | Ordinary, from the resident's plan. Late-night or home going, from the permission. | Ordinary, late-night, or home going. |
+| permission_id | Identifier | Empty for an ordinary outing. Yes for late-night and home going. | The approved permission the scan uses | The permission's permission_type must match the outing_type. |
+| outing_type | Choice | Yes | Ordinary, from the resident's plan. Late-night or home going, from the permission. | Ordinary, late-night, or home going. |
 | status | Choice | Yes | System | Planned, outside, returned, or cancelled. |
 | destination_id | Identifier | Empty when the place is not from the list | The list entry the resident chose | For an ordinary outing chosen from the list. Empty for Other, and empty for a permission outing. |
 | place | Text | Yes | The list name, the words the resident typed for Other, or the permission's short place | The place as it should be remembered. Renaming the list later does not change this. |

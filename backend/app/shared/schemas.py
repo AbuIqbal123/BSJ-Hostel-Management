@@ -18,7 +18,7 @@ class Destination(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: str
     name: str
-    type: Literal["named", "other"]
+    source: Literal["preset", "custom"]
     status: Literal["active", "inactive"]
 
 

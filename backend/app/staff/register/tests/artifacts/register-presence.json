@@ -269,7 +269,7 @@
     "outing": {
       "id": "e7700000-0000-4000-8000-000000000032",
       "permission_id": null,
-      "type": "ordinary",
+      "outing_type": "ordinary",
       "status": "outside",
       "place": "Maulana Azad Library",
       "expected_return_at": "2026-09-30T13:30:00Z",
@@ -295,7 +295,7 @@
     "outing": {
       "id": "e7700000-0000-4000-8000-000000000033",
       "permission_id": null,
-      "type": "ordinary",
+      "outing_type": "ordinary",
       "status": "outside",
       "place": "Shamshad Market",
       "expected_return_at": "2026-09-30T12:00:00Z",

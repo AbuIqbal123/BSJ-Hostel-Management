@@ -1,7 +1,7 @@
 {
   "cancelled": {
     "permission_id": null,
-    "type": "ordinary",
+    "outing_type": "ordinary",
     "status": "cancelled",
     "place": "Maulana Azad Library",
     "expected_return_at": "2026-09-30T13:00:00Z",

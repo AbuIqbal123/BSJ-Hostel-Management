@@ -22,7 +22,7 @@
     "current_outing": {
       "id": "e7700000-0000-4000-8000-000000000011",
       "permission_id": null,
-      "type": "ordinary",
+      "outing_type": "ordinary",
       "status": "outside",
       "place": "Maulana Azad Library",
       "expected_return_at": "2026-09-30T12:00:00Z",
@@ -36,7 +36,7 @@
     },
     "active_permission": {
       "id": "f8800000-0000-4000-8000-000000000021",
-      "type": "late_night",
+      "permission_type": "late_night",
       "status": "pending",
       "short_place": "Women's College",
       "destination_detail": "Seminar Hall",
