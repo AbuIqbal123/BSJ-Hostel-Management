@@ -562,9 +562,11 @@ paths:
       operationId: list_own_permissions
       summary: Own special permissions
       description: |
-        Caller: resident. Newest first. Includes late-night and home going. Does
-        not expire passed permissions; call POST /api/v1/me/expire-passed first
-        when the phone needs a fresh status.
+        Caller: resident. Newest first. Includes late-night and home going. Each
+        item is a Permission (no resident_id, resident_name, or room_label — the
+        caller already is that resident). Does not expire passed permissions;
+        call POST /api/v1/me/expire-passed first when the phone needs a fresh
+        status.
       parameters:
         - $ref: "#/components/parameters/Limit"
         - $ref: "#/components/parameters/Offset"
@@ -1168,7 +1170,8 @@ paths:
         oldest first. Optional filters narrow the page: `block_id` is the block
         of the resident's current room; `type` is late-night or home going;
         `created_from` and `created_to` are inclusive UTC bounds on
-        `created_at`. Does not expire passed permissions; call
+        `created_at`. Each item is a PermissionReview (includes resident
+        identity). Does not expire passed permissions; call
         POST /api/v1/permissions/expire-passed first when the queue needs a
         fresh status.
       parameters:
@@ -1224,7 +1227,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PermissionPage"
+                $ref: "#/components/schemas/PermissionReviewPage"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2850,7 +2853,20 @@ components:
             items:
               type: array
               items:
+                $ref: "#/components/schemas/Permission"
+              description: Resident own-list cards. No resident_id/name/room on each row.
+
+    PermissionReviewPage:
+      allOf:
+        - $ref: "#/components/schemas/ListMeta"
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
                 $ref: "#/components/schemas/PermissionReview"
+              description: Staff queue rows, including host resident identity.
 
     DecisionRequest:
       type: object

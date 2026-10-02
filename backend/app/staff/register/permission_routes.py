@@ -8,8 +8,8 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.residents.permissions.records import (
-    PermissionPageBody,
     PermissionReviewBody,
+    PermissionReviewPageBody,
     PermissionStatus,
     expire_passed_permissions,
     list_reviews,
@@ -46,7 +46,7 @@ def expire_passed_permissions_staff(
     return ExpirePassedPermissionsResult(permissions_expired=count)
 
 
-@router.get("/permissions", response_model=PermissionPageBody)
+@router.get("/permissions", response_model=PermissionReviewPageBody)
 def list_permissions(
     _account: RegisterDep,
     connection: ConnectionDep,
@@ -58,7 +58,7 @@ def list_permissions(
     order: Annotated[Literal["newest", "oldest"], Query()] = "newest",
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
-) -> PermissionPageBody:
+) -> PermissionReviewPageBody:
     filter_status = "pending" if status is None else status
     return list_reviews(
         connection,
