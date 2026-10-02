@@ -63,7 +63,7 @@ The rules in this document are the contract. The room inventory is taken from th
 - A guest stay is applied for by the host resident at least one day before the start date, for at most 7 days counting the first and last day. 18 September 2026 through 21 September 2026 is 4 days. Payment is marked at the hall office, not collected in the app. Guests have no hall pass. Gate staff record arrival and departure from a list. A guest stays on the dining count until departure is recorded, including when the end date has passed.
 - Emergency alerts are not in this version. An alert must not approve leave or change whether a resident is outside.
 - Parents and guardians do not use the app. A text message is the only channel to them.
-- A resident may self-onboard with her enrolment number, a password she chooses, her own phone, and guardian name and phone. The account starts **pending**. The Hall Office assigns a room and activates it. Until then she cannot sign in to the resident shell, has no hall pass, and is not counted on the register. Staff (gate, warden, provost) are never self-onboarded.
+- A resident may self-onboard with her full name, enrolment number, chosen password, own phone, guardian name and phone, and a selected block and room. The account starts **active**, can sign in immediately, and receives its hall pass. The Hall Office activation workflow is deferred. Staff (gate, warden, provost) are never self-onboarded.
 - Every time a person sees is India time, on a 12-hour clock. Every date a person sees is the day, the month name, and the year.
 
 ## Still for the hall to decide
@@ -75,7 +75,7 @@ These are stored as settings so the hall can set them later without reshaping th
 | How long a second scan is ignored | 45 seconds | A second scan in this gap must not undo the movement. A later scan of a resident who is outside records the return. |
 | How early a permission may be used | 30 minutes before the stated departure | How early a resident may scan out on an approved permission. |
 
-Sign-in uses the enrolment number (resident) or a hall-issued username (staff), and a password. Residents may self-onboard; the account stays pending until the Hall Office assigns a room and activates it. Staff accounts are office-created only. There is no parent or guardian login.
+Sign-in uses the enrolment number (resident) or a hall-issued username (staff), and a password. Residents may self-onboard; the selected block and room are kept and the account is active for sign-in immediately. Staff accounts are office-created only. There is no parent or guardian login.
 
 ## How a value is kept and how it is shown
 
@@ -200,7 +200,7 @@ The hall page does not list door numbers. This document does not invent them. Th
 | bed_count | Whole number | Yes | Copied from the block's beds per room when the room is created | How many residents this room can hold. Starts at 2. |
 | is_active | Yes or no | Yes | Provost | Yes while the room can be assigned. No when it is retired. HTTP `status` is `active` or `inactive`. |
 
-A block cannot contain the same room number twice. A resident points at a room when she has one. A resident is placed only in an active room. The number of active residents assigned to a room, including a suspended resident who has not been moved, cannot be more than that room's bed count. Pending residents have no room and do not count toward beds. Changing rooms updates the resident and writes an audit log entry. Past outings keep the place and the resident. They do not keep a copy of the old room. The register shows the room the resident has now.
+A block cannot contain the same room number twice. Every active resident points at an active room; the room's block is the resident's block. The number of active residents assigned to a room, including a suspended resident who has not been moved, cannot be more than that room's bed count. A future pending account may have no room and would not count toward beds. Changing rooms updates the resident and writes an audit log entry. Past outings keep the place and the resident. They do not keep a copy of the old room. The register shows the room the resident has now.
 
 ### Destinations
 
@@ -236,14 +236,14 @@ At most one active destination is the free-text choice.
 | username | Text | Yes | Provost for staff and office-created residents. Self-onboard uses the enrolment number. | Unique, ignoring capitals. |
 | full_name | Text | Yes | Provost, or the resident on self-onboard | The name people see. |
 | password_hash | Protected value | Yes | System, from the password she chooses on self-onboard, or the temporary password the provost sets, using Argon2id | Never the password itself. |
-| status | Choice | Yes | Self-onboard starts **pending**. Office-created residents and staff start **active**. Provost activates pending, or suspends or reinstates. | Active, suspended, or pending. |
+| status | Choice | Yes | Self-onboard and office-created residents and staff start **active**. A future office workflow may use pending; the provost may suspend or reinstate. | Active, suspended, or pending. |
 | created_at | Instant | Yes | System | When the account was created. |
 | updated_at | Instant | Yes | System | When the account last changed. |
 | last_login_at | Instant | Empty until the first sign-in | System, at each successful sign-in | When this person last signed in. |
 
 A suspended person cannot sign in and cannot be scanned out or in. The account stays.
 
-A **pending** person cannot sign in (the API says the account is waiting for the Hall Office). She has no usable hall pass and is not on the register. Pending applies only to residents created by self-onboard.
+A **pending** person cannot sign in (the API says the account is waiting for the Hall Office). She has no usable hall pass and is not on the register. Pending is reserved for a future Hall Office activation workflow; current self-onboard creates active residents.
 
 ### Residents
 
@@ -251,19 +251,19 @@ A resident profile exists only for a person whose role is resident. It uses that
 
 The guardian is the parent or other guardian the hall can reach. Both the name and the phone are required. On self-onboard the resident types them. On office create the provost enters them from the hall's record. The provost can correct them later on either path.
 
-The resident's own phone is separate from the guardian phone. Self-onboard requires it. Office create may leave it empty until the hall collects it. When present, it uses the same country-code form as the guardian phone. Late and return messages still go only to the guardian phone.
+The resident's own phone is separate from the guardian phone. Self-onboard and office create require it. The resident supplies it on self-onboard; the provost supplies it on office create. It uses the same country-code form as the guardian phone. Late and return messages still go only to the guardian phone.
 
 | Detail | Kept as | Required | Where it comes from | Rule |
 |---|---|---|---|---|
 | user_id | Identifier | Yes | The person's id | One profile for that person. |
 | enrolment_number | Text | Yes | Self-onboard, or provost. Same value as the username. | Unique, ignoring capitals. Shown on the warden record, for example `24-GLLB-118`. |
 | course | Text | Empty if not entered | Self-onboard (optional) or provost | For example `B.A. LL.B. (Hons.)`. |
-| room_id | Identifier | Empty while pending. Yes when active. | Provost, when activating or creating at the office | The room the resident lives in. A pending self-onboard has no room until the office assigns one. An active resident always has a room. |
-| phone | Phone | Yes on self-onboard. Empty allowed on office create until collected. | Self-onboard, or provost | The resident's own number. Country code required when set. Not used for guardian late or return messages. |
+| room_id | Identifier | Yes for an active resident. | Resident on self-onboard, or provost | The room the resident lives in. It must be active; its block is the resident's block. |
+| phone | Phone | Yes on self-onboard and office create. | Self-onboard, or provost | The resident's own number. Country code required. Not used for guardian late or return messages. |
 | guardian_name | Text | Yes | Self-onboard, or provost from the hall's record | The person the hall contacts about this resident. |
 | guardian_phone | Phone | Yes | Self-onboard, or provost from that same record | Country code required. Late and return messages go to this number. |
-| qr_token | Text | Empty while pending. Yes when active. | System, when the account is activated (or created active at the office), and again when the provost issues a new hall pass | The hall-pass code. Unique when set. Pending residents have no code. |
-| presence | Choice | Yes | System. Starts as inside. Changes when a gate scan records an exit or a return. | Inside or outside. This is presence in the hall, not sign-in. Pending residents stay inside and are not scanned. |
+| qr_token | Text | Yes when active. | System, when the account is created active (including self-onboard and office create), and again when the provost issues a new hall pass | The hall-pass code. Unique. |
+| presence | Choice | Yes | System. Starts as inside. Changes when a gate scan records an exit or a return. | Inside or outside. This is presence in the hall, not sign-in. |
 | created_at | Instant | Yes | System | When the profile was created. |
 | updated_at | Instant | Yes | System | When it last changed. |
 
@@ -564,11 +564,11 @@ What a person may do comes from her or his role.
 
 Gate staff scan a hall pass and record a guest's arrival and departure. They do not approve a permission, they do not approve a guest stay, and they do not change residents, rooms, or settings. Their screens are the scan result, recent gate activity, and the guest lists.
 
-A warden or the provost approves or rejects a permission and a guest stay, sees the register and the late list, and marks a guest paid. The provost also creates and edits residents, activates pending self-onboarded residents (room required), creates staff, rooms, destinations, and settings, issues a new hall pass, resets a password, exports the register, and reads guardian messages and the audit log.
+A warden or the provost approves or rejects a permission and a guest stay, sees the register and the late list, and marks a guest paid. The provost also creates and edits residents, creates staff, rooms, destinations, and settings, issues a new hall pass, resets a password, exports the register, and reads guardian messages and the audit log. A future Hall Office activation workflow is deferred.
 
 | Action | Resident | Gate | Warden | Provost |
 |---|---|---|---|---|
-| Self-onboard (pending account) | Yes | | | |
+| Self-onboard (active account) | Yes | | | |
 | Own outing, own permission, own guest application, own hall pass | Yes (active only) | | | |
 | Scan a hall pass, record a guest's arrival and departure | | Yes | Yes | Yes |
 | Register, late list, waiting decisions, mark a guest paid, upload or clear optional payment evidence | | | Yes | Yes |
@@ -579,7 +579,7 @@ A warden or the provost approves or rejects a permission and a guest stay, sees 
 
 ## What the register counts
 
-The same counts are kept for the whole hall and, separately, for each block. A resident counts in the block of the room she is assigned to now. Pending residents have no room and are left out of these counts. A guest counts in the block of the host's room. A permission waiting counts in the resident's block.
+The same counts are kept for the whole hall and, separately, for each block. A resident counts in the block of the room she is assigned to now. A future pending resident without a room would be left out of these counts. A guest counts in the block of the host's room. A permission waiting counts in the resident's block.
 
 | Count | Who is included |
 |---|---|
@@ -626,7 +626,7 @@ Besides the unique indexes that enforce one username, one open outside outing, a
 
 ## Implementation note (dev)
 
-Self-onboard and pending status are specified here and in the HTTP contract. A schema migration is not shipped in this stack. When handlers land, the next free migration number after `0011_guest_stay_payment_evidence.sql` is `0012_…` (confirm against `backend/app/shared/migrations/` on `dev` at that time). Leave this document's version at **0.3.4** until production.
+Self-onboard is specified here and in the HTTP contract. A future pending status is reserved for a later Hall Office activation workflow. A schema migration is not shipped in this stack. When handlers land, the next free migration number after `0011_guest_stay_payment_evidence.sql` is `0012_…` (confirm against `backend/app/shared/migrations/` on `dev` at that time). Leave this document's version at **0.3.4** until production.
 
 ## Revisions
 

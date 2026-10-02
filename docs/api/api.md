@@ -120,8 +120,10 @@ The caller sends an access token as `Authorization: Bearer`, except on
 
 Access tokens last 15 minutes. Refresh tokens last 30 days. Passwords are
 at least 10 characters and are stored as Argon2id. Residents may self-onboard
-at `POST /api/v1/auth/onboard` (pending until the Hall Office assigns a room
-and activates). The provost may still create residents and must create staff.
+at `POST /api/v1/auth/onboard` (public on dev). The form selects the block
+and room and creates an active resident who can sign in immediately. A future
+Hall Office activation workflow is deferred. The provost may still create
+residents and must create staff.
 A resident username is the enrolment number.
 
 Stored state and lifecycles live in `docs/database/database.md`. This file does not
@@ -512,16 +514,19 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** anyone (no token). No token.
 
-Caller: anyone (no token). Creates a **pending** resident from the phone.
-Required fields: `full_name`, `enrolment_number`, `password`, `phone`,
-`guardian_name`, `guardian_phone`. Optional: `course`.
+Caller: anyone (no token). Public resident self-sign-up on dev. Creates
+an **active** resident from the phone. Required fields: `full_name`,
+`enrolment_number`, `password`, `phone`, `block_id`, `room_id`,
+`guardian_name`, and `guardian_phone`. Optional: `course`.
 
-She does not choose block or room. The Hall Office assigns a room and
-activates the account later. This call does **not** return tokens or a
-hall pass. After activation she signs in at `POST /api/v1/auth/login`.
+She chooses the block and room on this form. The account can sign in
+immediately at `POST /api/v1/auth/login`; this call does not return
+access or refresh tokens. A Hall Office activation workflow is deferred.
 
 Enrolment is unique hall-wide (ignoring capitals) and becomes the
-username. Staff cannot use this path. Rate-limited like sign-in.
+username. Staff cannot use this path. Rate-limited like sign-in. A taken
+enrolment uses the same generic authentication refusal as other auth
+failures, so the API does not reveal whether an enrolment exists.
 
 **Request.** Required.
 
@@ -534,6 +539,8 @@ Body: [ResidentOnboardRequest](#schema-residentonboardrequest).
 | `password` | yes | string | First password she chooses. Stored as Argon2id. Not returned. Sample bodies in this repository omit the value; the field is required. 10–200 characters. |
 | `course` | no | string | Optional. For example B.A. LL.B. (Hons.). at most 120 characters. |
 | `phone` | yes | string | The resident's own phone in E.164 with country code. Required on self-onboard. Not the guardian phone. pattern `^\+[1-9][0-9]{7,14}$`. |
+| `block_id` | yes | uuid | The block selected for self-onboard. The room must belong to it. |
+| `room_id` | yes | uuid | The active room selected for self-onboard. |
 | `guardian_name` | yes | string | Parent or guardian the hall contacts. 1–120 characters. |
 | `guardian_phone` | yes | string | E.164 with country code. Late and return SMS go here. pattern `^\+[1-9][0-9]{7,14}$`. |
 
@@ -544,6 +551,8 @@ Body: [ResidentOnboardRequest](#schema-residentonboardrequest).
   "full_name": "Aisha Khan",
   "enrolment_number": "24-GLLB-118",
   "phone": "+919811112222",
+  "block_id": "00000000-0000-4000-8000-0000000000b1",
+  "room_id": "00000000-0000-4000-8000-000000000204",
   "guardian_name": "Rashid Khan",
   "guardian_phone": "+919876543210"
 }
@@ -553,29 +562,32 @@ Body: [ResidentOnboardRequest](#schema-residentonboardrequest).
 
 #### 201
 
-Pending resident kept. No access token, refresh token, or hall pass.
+Active resident kept. No access token or refresh token is returned;
+sign in with the submitted enrolment number and password.
 
 Body: [ResidentOnboardResponse](#schema-residentonboardresponse).
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `enrolment_number` | yes | string | Stored spelling of the enrolment number. |
-| `status` | yes | `pending` |  |
-| `message` | yes | string | Waiting copy for the phone. Exact sentence for clients. |
+| `status` | yes | `active` |  |
+| `message` | yes | string | Ready copy for the phone. Exact sentence for clients. |
 
 **Example**
 
 ```json
 {
   "enrolment_number": "24-GLLB-118",
-  "status": "pending",
-  "message": "Your account is waiting for the Hall Office to assign a room and activate it."
+  "status": "active",
+  "message": "Your account is ready. Sign in with your enrolment number and password."
 }
 ```
 
-#### 409
+#### 401
 
-Enrolment number already in use. Code `duplicate_enrolment`.
+The enrolment is already in use or the signup is otherwise refused.
+The generic authentication error does not reveal whether the
+enrolment exists.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
@@ -584,8 +596,8 @@ Body: [ErrorResponse](#schema-errorresponse).
 ```json
 {
   "error": {
-    "code": "duplicate_enrolment",
-    "message": "That enrolment number is already registered."
+    "code": "unauthenticated",
+    "message": "Username or password is wrong."
   }
 }
 ```
@@ -3498,9 +3510,11 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** provost. Bearer access token.
 
-Caller: provost. Username is the enrolment number. The response includes
-the hall pass payload once, so the office can place it on the resident's
-phone. Later reads of the account do not return the token.
+Caller: provost. Username is the enrolment number. Required fields include
+the resident's own phone in E.164 form, as well as the room, guardian
+details, and temporary password. The response includes the hall pass
+payload once, so the office can place it on the resident's phone. Later
+reads of the account do not return the token.
 
 **Request.** Required.
 
@@ -3512,7 +3526,7 @@ Body: [ResidentCreate](#schema-residentcreate).
 | `enrolment_number` | yes | string | 1–40 characters. |
 | `course` | no | string | at most 120 characters. |
 | `room_id` | yes | uuid |  |
-| `phone` | no | string | The resident's own phone in E.164 with country code. Optional. Omit when the hall has not collected it. pattern `^\+[1-9][0-9]{7,14}$`. |
+| `phone` | yes | string | The resident's own phone in E.164 with country code. Required on office create. Not the guardian phone. pattern `^\+[1-9][0-9]{7,14}$`. |
 | `guardian_name` | yes | string | Parent or guardian. Required. 1–120 characters. |
 | `guardian_phone` | yes | string | E.164 with country code, for example +919876543210. pattern `^\+[1-9][0-9]{7,14}$`. |
 | `temporary_password` | yes | string | 10–200 characters. |
@@ -4870,6 +4884,8 @@ Each JSON object used above. An operation section already shows the fields for i
 | `password` | yes | string | First password she chooses. Stored as Argon2id. Not returned. Sample bodies in this repository omit the value; the field is required. 10–200 characters. |
 | `course` | no | string | Optional. For example B.A. LL.B. (Hons.). at most 120 characters. |
 | `phone` | yes | string | The resident's own phone in E.164 with country code. Required on self-onboard. Not the guardian phone. pattern `^\+[1-9][0-9]{7,14}$`. |
+| `block_id` | yes | uuid | The block selected for self-onboard. The room must belong to it. |
+| `room_id` | yes | uuid | The active room selected for self-onboard. |
 | `guardian_name` | yes | string | Parent or guardian the hall contacts. 1–120 characters. |
 | `guardian_phone` | yes | string | E.164 with country code. Late and return SMS go here. pattern `^\+[1-9][0-9]{7,14}$`. |
 
@@ -4878,8 +4894,8 @@ Each JSON object used above. An operation section already shows the fields for i
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `enrolment_number` | yes | string | Stored spelling of the enrolment number. |
-| `status` | yes | `pending` |  |
-| `message` | yes | string | Waiting copy for the phone. Exact sentence for clients. |
+| `status` | yes | `active` |  |
+| `message` | yes | string | Ready copy for the phone. Exact sentence for clients. |
 
 ### <a id="schema-passwordresetrequest"></a>PasswordResetRequest
 
@@ -4917,7 +4933,7 @@ One of: `gate`, `warden`, `provost`.
 
 ### <a id="schema-accountstatus"></a>AccountStatus
 
-`pending` is a self-onboarded resident waiting for room assignment and activation. `active` may sign in. `suspended` may not.
+`active` may sign in. `suspended` may not. `pending` is reserved for a future Hall Office activation workflow and is not produced by the current self-onboard path.
 
 One of: `active`, `suspended`, `pending`.
 
@@ -5564,7 +5580,7 @@ One of: `not_due`, `sent`, `failed`.
 | `enrolment_number` | yes | string | 1–40 characters. |
 | `course` | no | string | at most 120 characters. |
 | `room_id` | yes | uuid |  |
-| `phone` | no | string | The resident's own phone in E.164 with country code. Optional. Omit when the hall has not collected it. pattern `^\+[1-9][0-9]{7,14}$`. |
+| `phone` | yes | string | The resident's own phone in E.164 with country code. Required on office create. Not the guardian phone. pattern `^\+[1-9][0-9]{7,14}$`. |
 | `guardian_name` | yes | string | Parent or guardian. Required. 1–120 characters. |
 | `guardian_phone` | yes | string | E.164 with country code, for example +919876543210. pattern `^\+[1-9][0-9]{7,14}$`. |
 | `temporary_password` | yes | string | 10–200 characters. |

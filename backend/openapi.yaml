@@ -26,8 +26,10 @@ info:
 
     Access tokens last 15 minutes. Refresh tokens last 30 days. Passwords are
     at least 10 characters and are stored as Argon2id. Residents may self-onboard
-    at `POST /api/v1/auth/onboard` (pending until the Hall Office assigns a room
-    and activates). The provost may still create residents and must create staff.
+    at `POST /api/v1/auth/onboard` (public on dev). The form selects the block
+    and room and creates an active resident who can sign in immediately. A future
+    Hall Office activation workflow is deferred. The provost may still create
+    residents and must create staff.
     A resident username is the enrolment number.
 
     Stored state and lifecycles live in `docs/database/database.md`. This file does not
@@ -289,16 +291,19 @@ paths:
       operationId: onboard_resident
       summary: Resident self-onboard
       description: |
-        Caller: anyone (no token). Creates a **pending** resident from the phone.
-        Required fields: `full_name`, `enrolment_number`, `password`, `phone`,
-        `guardian_name`, `guardian_phone`. Optional: `course`.
+        Caller: anyone (no token). Public resident self-sign-up on dev. Creates
+        an **active** resident from the phone. Required fields: `full_name`,
+        `enrolment_number`, `password`, `phone`, `block_id`, `room_id`,
+        `guardian_name`, and `guardian_phone`. Optional: `course`.
 
-        She does not choose block or room. The Hall Office assigns a room and
-        activates the account later. This call does **not** return tokens or a
-        hall pass. After activation she signs in at `POST /api/v1/auth/login`.
+        She chooses the block and room on this form. The account can sign in
+        immediately at `POST /api/v1/auth/login`; this call does not return
+        access or refresh tokens. A Hall Office activation workflow is deferred.
 
         Enrolment is unique hall-wide (ignoring capitals) and becomes the
-        username. Staff cannot use this path. Rate-limited like sign-in.
+        username. Staff cannot use this path. Rate-limited like sign-in. A taken
+        enrolment uses the same generic authentication refusal as other auth
+        failures, so the API does not reveal whether an enrolment exists.
       security: []
       requestBody:
         required: true
@@ -310,31 +315,36 @@ paths:
               full_name: Aisha Khan
               enrolment_number: 24-GLLB-118
               phone: "+919811112222"
+              block_id: 00000000-0000-4000-8000-0000000000b1
+              room_id: 00000000-0000-4000-8000-000000000204
               guardian_name: Rashid Khan
               guardian_phone: "+919876543210"
       responses:
         "201":
           description: |
-            Pending resident kept. No access token, refresh token, or hall pass.
+            Active resident kept. No access token or refresh token is returned;
+            sign in with the submitted enrolment number and password.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ResidentOnboardResponse"
               example:
                 enrolment_number: 24-GLLB-118
-                status: pending
-                message: Your account is waiting for the Hall Office to assign a room and activate it.
-        "409":
+                status: active
+                message: Your account is ready. Sign in with your enrolment number and password.
+        "401":
           description: |
-            Enrolment number already in use. Code `duplicate_enrolment`.
+            The enrolment is already in use or the signup is otherwise refused.
+            The generic authentication error does not reveal whether the
+            enrolment exists.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
               example:
                 error:
-                  code: duplicate_enrolment
-                  message: That enrolment number is already registered.
+                  code: unauthenticated
+                  message: Username or password is wrong.
         "429":
           description: |
             Too many onboard attempts from this client in a short window.
@@ -1895,9 +1905,11 @@ paths:
       operationId: admin_create_resident
       summary: Create a resident
       description: |
-        Caller: provost. Username is the enrolment number. The response includes
-        the hall pass payload once, so the office can place it on the resident's
-        phone. Later reads of the account do not return the token.
+        Caller: provost. Username is the enrolment number. Required fields include
+        the resident's own phone in E.164 form, as well as the room, guardian
+        details, and temporary password. The response includes the hall pass
+        payload once, so the office can place it on the resident's phone. Later
+        reads of the account do not return the token.
       requestBody:
         required: true
         content:
@@ -2804,6 +2816,8 @@ components:
         - enrolment_number
         - password
         - phone
+        - block_id
+        - room_id
         - guardian_name
         - guardian_phone
       properties:
@@ -2836,6 +2850,14 @@ components:
             self-onboard. Not the guardian phone.
           pattern: "^\\+[1-9][0-9]{7,14}$"
           example: "+919811112222"
+        block_id:
+          type: string
+          format: uuid
+          description: The block selected for self-onboard. The room must belong to it.
+        room_id:
+          type: string
+          format: uuid
+          description: The active room selected for self-onboard.
         guardian_name:
           type: string
           minLength: 1
@@ -2857,10 +2879,10 @@ components:
           description: Stored spelling of the enrolment number.
         status:
           type: string
-          enum: [pending]
+          enum: [active]
         message:
           type: string
-          description: Waiting copy for the phone. Exact sentence for clients.
+          description: Ready copy for the phone. Exact sentence for clients.
 
     PasswordResetRequest:
       type: object
@@ -2920,8 +2942,9 @@ components:
       type: string
       enum: [active, suspended, pending]
       description: >
-        `pending` is a self-onboarded resident waiting for room assignment and
-        activation. `active` may sign in. `suspended` may not.
+        `active` may sign in. `suspended` may not. `pending` is reserved for a
+        future Hall Office activation workflow and is not produced by the current
+        self-onboard path.
 
     CurrentUser:
       type: object
@@ -4260,7 +4283,7 @@ components:
     ResidentCreate:
       type: object
       additionalProperties: false
-      required: [full_name, enrolment_number, room_id, guardian_name, guardian_phone, temporary_password]
+      required: [full_name, enrolment_number, room_id, phone, guardian_name, guardian_phone, temporary_password]
       properties:
         full_name:
           type: string
@@ -4279,8 +4302,8 @@ components:
         phone:
           type: string
           description: >
-            The resident's own phone in E.164 with country code. Optional. Omit
-            when the hall has not collected it.
+            The resident's own phone in E.164 with country code. Required on
+            office create. Not the guardian phone.
           pattern: "^\\+[1-9][0-9]{7,14}$"
           example: "+919811112222"
         guardian_name:
