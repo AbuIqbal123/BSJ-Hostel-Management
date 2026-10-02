@@ -2632,7 +2632,8 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 Caller: gate, warden, or provost. The stay must be approved, paid, not
 yet arrived, and today's hall date must fall within the stay. Guests are
-not scanned.
+not scanned. Empty POST body; no client-supplied time.
+`arrival_time` equals `recorded_at` (same server clock tick).
 
 **Parameters**
 
@@ -2645,15 +2646,18 @@ not scanned.
 #### 200
 
 Arrival recorded.
+`arrival_time` equals `recorded_at` (same server clock tick; no client-supplied time).
 
-Body: [GuestMovementResult](#schema-guestmovementresult).
+Body: [GuestArrivalResult](#schema-guestarrivalresult).
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `guest_name` | yes | string |  |
 | `host_name` | yes | string |  |
 | `host_room_label` | yes | string |  |
-| `recorded_at` | yes | date-time |  |
+| `recorded_at` | yes | date-time | When the API wrote the arrival record and audit entry. |
+| `recorded_by` | yes | string | Full display name of the staff member who recorded the arrival. |
+| `arrival_time` | yes | date-time | When the guest entered the hall (stored `arrived_at`). Must equal `recorded_at` (same clock tick; no independent second timestamp). |
 | `message` | yes | string |  |
 
 **Example**
@@ -2664,6 +2668,8 @@ Body: [GuestMovementResult](#schema-guestmovementresult).
   "host_name": "Aisha Khan",
   "host_room_label": "B-204",
   "recorded_at": "2026-09-18T10:11:00Z",
+  "recorded_by": "Fatima Khan",
+  "arrival_time": "2026-09-18T10:11:00Z",
   "message": "The guest is now in the hall."
 }
 ```
@@ -2701,7 +2707,8 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 Caller: gate, warden, or provost. The guest must currently be in the hall.
 Closes the stay. Departure is still recorded when the end date has
-already passed.
+already passed. Empty POST body; no client-supplied time.
+`departure_time` equals `recorded_at` (same server clock tick).
 
 **Parameters**
 
@@ -2714,16 +2721,33 @@ already passed.
 #### 200
 
 Departure recorded.
+`departure_time` equals `recorded_at` (same server clock tick; no client-supplied time).
 
-Body: [GuestMovementResult](#schema-guestmovementresult).
+Body: [GuestDepartureResult](#schema-guestdepartureresult).
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `guest_name` | yes | string |  |
 | `host_name` | yes | string |  |
 | `host_room_label` | yes | string |  |
-| `recorded_at` | yes | date-time |  |
+| `recorded_at` | yes | date-time | When the API wrote the departure record and audit entry. |
+| `recorded_by` | yes | string | Full display name of the staff member who recorded the departure. |
+| `departure_time` | yes | date-time | When the guest left the hall (stored `departed_at`). Must equal `recorded_at` (same clock tick; no independent second timestamp). |
 | `message` | yes | string |  |
+
+**Example**
+
+```json
+{
+  "guest_name": "Zara Ahmed",
+  "host_name": "Aisha Khan",
+  "host_room_label": "B-204",
+  "recorded_at": "2026-09-18T10:11:00Z",
+  "recorded_by": "Fatima Khan",
+  "departure_time": "2026-09-18T10:11:00Z",
+  "message": "The guest has left the hall."
+}
+```
 
 #### 401
 
@@ -4871,14 +4895,38 @@ are null.
 |---|---|---|---|
 | `items` | yes | list of [GateGuestCard](#schema-gateguestcard) |  |
 
-### <a id="schema-guestmovementresult"></a>GuestMovementResult
+### <a id="schema-guestarrivalresult"></a>GuestArrivalResult
+
+Gate flash after recording arrival. Human labels for the screen.
+`arrival_time` and `recorded_at` are distinct field names but must be
+equal: both are the same server UTC instant written to `arrived_at` and
+the audit/write timestamp. No client-supplied time in this release.
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `guest_name` | yes | string |  |
 | `host_name` | yes | string |  |
 | `host_room_label` | yes | string |  |
-| `recorded_at` | yes | date-time |  |
+| `recorded_at` | yes | date-time | When the API wrote the arrival record and audit entry. |
+| `recorded_by` | yes | string | Full display name of the staff member who recorded the arrival. |
+| `arrival_time` | yes | date-time | When the guest entered the hall (stored `arrived_at`). Must equal `recorded_at` (same clock tick; no independent second timestamp). |
+| `message` | yes | string |  |
+
+### <a id="schema-guestdepartureresult"></a>GuestDepartureResult
+
+Gate flash after recording departure. Human labels for the screen.
+`departure_time` and `recorded_at` are distinct field names but must be
+equal: both are the same server UTC instant written to `departed_at` and
+the audit/write timestamp. No client-supplied time in this release.
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `guest_name` | yes | string |  |
+| `host_name` | yes | string |  |
+| `host_room_label` | yes | string |  |
+| `recorded_at` | yes | date-time | When the API wrote the departure record and audit entry. |
+| `recorded_by` | yes | string | Full display name of the staff member who recorded the departure. |
+| `departure_time` | yes | date-time | When the guest left the hall (stored `departed_at`). Must equal `recorded_at` (same clock tick; no independent second timestamp). |
 | `message` | yes | string |  |
 
 ### <a id="schema-registersummary"></a>RegisterSummary

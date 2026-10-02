@@ -339,6 +339,10 @@ def test_gate_guests(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
         assert body["host_name"] == "Aisha Khan"
         assert body["host_room_label"] == "B-204"
         assert "guests_in_hall_count" not in body
+        assert body["recorded_by"] == "Fatima Khan"
+        assert "arrival_time" in body
+        assert body["arrival_time"] == body["recorded_at"]
+        assert "departure_time" not in body
 
         activity = client.get("/api/v1/gate/activity", headers=headers)
         assert activity.status_code == 200
@@ -368,6 +372,10 @@ def test_gate_guests(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
         dep = departed.json()
         assert dep["message"] == expected["departure_message"]
         assert "guests_in_hall_count" not in dep
+        assert dep["recorded_by"] == "Fatima Khan"
+        assert "departure_time" in dep
+        assert dep["departure_time"] == dep["recorded_at"]
+        assert "arrival_time" not in dep
 
         dining_after = client.get("/api/v1/gate/guests?bucket=in_hall", headers=headers)
         assert {item["id"] for item in dining_after.json()["items"]} == {IN_HALL, EXPECTED}
