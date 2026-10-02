@@ -276,9 +276,9 @@ paths:
       description: |
         Caller: resident. Presence, room, the open outing if there is one, the
         permission the resident is waiting on or cleared to use, and the last
-        ten exit and return lines. A planned outing whose expected return has
-        passed is cancelled by this read, with no staff member, before the
-        screen is built.
+        ten exit and return lines. Does not cancel passed plans or expire
+        permissions; call POST /api/v1/me/expire-passed first when the phone
+        needs a fresh home screen.
       responses:
         "200":
           description: Home screen.
@@ -402,9 +402,9 @@ paths:
         Caller: resident. Her planned and outside outings, soonest return
         first. Several may fall on the same hall day. A later return today, and
         a later day, stay on this list. The open outing is the one she is
-        outside on, or the soonest plan for today. A planned outing whose
-        expected return has passed is cancelled by this read, with no staff
-        member, and then left off the list.
+        outside on, or the soonest plan for today. Does not cancel passed
+        plans; call POST /api/v1/me/expire-passed (or plan/cancel/scan) first
+        when the phone needs a fresh list.
       responses:
         "200":
           description: Planned and outside outings.
@@ -482,10 +482,10 @@ paths:
       description: |
         Caller: resident. The outing she is outside on, or the soonest plan
         whose return falls on today's hall date, or null. A later plan today
-        stays on the plan list. A plan for a later day stays there too. If a
-        planned ordinary outing's expected return has passed, this read cancels
-        that plan, with no staff member, and leaves her other plans planned.
-        An outside outing stays outside. It is late only after grace.
+        stays on the plan list. A plan for a later day stays there too. Does
+        not cancel passed plans; call POST /api/v1/me/expire-passed (or
+        plan/cancel/scan) first when the phone needs a fresh open outing. An
+        outside outing stays outside. It is late only after grace.
       responses:
         "200":
           description: Open outing, if any.
@@ -534,15 +534,37 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /api/v1/me/expire-passed:
+    post:
+      tags: [Resident]
+      operationId: expire_own_passed
+      summary: Expire own passed plans and permissions
+      description: |
+        Caller: resident. Marks this resident's planned ordinary outings whose
+        expected return has passed as cancelled, and marks unused approved
+        permissions whose expected return has passed as expired. GET routes do
+        not perform this work. Safe to call before painting home or lists.
+      responses:
+        "200":
+          description: Counts of rows updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExpirePassedResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /api/v1/me/permissions:
     get:
       tags: [Permissions]
       operationId: list_own_permissions
       summary: Own special permissions
       description: |
-        Caller: resident. Newest first. Includes late-night and home going. An
-        approved permission whose expected return has passed, and which was never
-        used, becomes `expired` when this list is read.
+        Caller: resident. Newest first. Includes late-night and home going. Does
+        not expire passed permissions; call POST /api/v1/me/expire-passed first
+        when the phone needs a fresh status.
       parameters:
         - $ref: "#/components/parameters/Limit"
         - $ref: "#/components/parameters/Offset"
@@ -567,7 +589,8 @@ paths:
       operationId: submit_permission
       summary: Request late-night or home going
       description: |
-        Caller: resident. A warden or the provost decides later. Submitting does
+        Caller: resident. A warden or the provost decides later. Also expires this resident's unused approved permissions whose
+        expected return has passed. Submitting does
         not let the resident leave. The hall pass can be used for this permission
         only after it is approved and the gate scans it inside the use window.
 
@@ -620,9 +643,9 @@ paths:
       operationId: get_own_permission
       summary: Own permission
       description: |
-        Caller: resident. Refuses another resident's permission. An approved
-        permission whose expected return has passed, and which was never used,
-        becomes `expired` when it is read.
+        Caller: resident. Refuses another resident's permission. Does not expire
+        a passed approved permission; call POST /api/v1/me/expire-passed (or a
+        write such as cancel) when the phone needs a fresh status.
       parameters:
         - $ref: "#/components/parameters/PermissionId"
       responses:
@@ -1145,8 +1168,9 @@ paths:
         oldest first. Optional filters narrow the page: `block_id` is the block
         of the resident's current room; `type` is late-night or home going;
         `created_from` and `created_to` are inclusive UTC bounds on
-        `created_at`. An approved permission whose expected return has passed,
-        and which was never used, becomes `expired` when this list is read.
+        `created_at`. Does not expire passed permissions; call
+        POST /api/v1/permissions/expire-passed first when the queue needs a
+        fresh status.
       parameters:
         - name: status
           in: query
@@ -1206,14 +1230,36 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /api/v1/permissions/expire-passed:
+    post:
+      tags: [Permissions]
+      operationId: expire_passed_permissions
+      summary: Expire passed unused permissions
+      description: |
+        Caller: warden or provost. Marks every unused approved permission whose
+        expected return has passed as expired. GET queue and GET-by-id do not
+        perform this work. Safe to call before opening the queue.
+      responses:
+        "200":
+          description: Count of permissions updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExpirePassedPermissionsResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /api/v1/permissions/{permission_id}:
     get:
       tags: [Permissions]
       operationId: get_permission
       summary: Permission for review
       description: |
-        Caller: warden or provost. An approved permission whose expected return
-        has passed, and which was never used, becomes `expired` when it is read.
+        Caller: warden or provost. Does not expire a passed approved permission;
+        call POST /api/v1/permissions/expire-passed first when review needs a
+        fresh status.
       parameters:
         - $ref: "#/components/parameters/PermissionId"
       responses:
@@ -1237,8 +1283,10 @@ paths:
       summary: Approve or reject a permission
       description: |
         Caller: warden or provost. Only a `pending` permission can be decided.
-        Approval does not create an outing and does not by itself let a scan
-        succeed before the use window. Rejection leaves ordinary outings available.
+        Before deciding, expires this permission if it is an unused approved
+        request whose expected return has already passed. Approval does not
+        create an outing and does not by itself let a scan succeed before the
+        use window. Rejection leaves ordinary outings available.
       parameters:
         - $ref: "#/components/parameters/PermissionId"
       requestBody:
@@ -2625,6 +2673,30 @@ components:
           oneOf:
             - $ref: "#/components/schemas/Outing"
             - type: "null"
+
+    ExpirePassedResult:
+      type: object
+      additionalProperties: false
+      required: [plans_expired, permissions_expired]
+      properties:
+        plans_expired:
+          type: integer
+          minimum: 0
+          description: Planned ordinary outings cancelled because expected return passed.
+        permissions_expired:
+          type: integer
+          minimum: 0
+          description: Unused approved permissions marked expired.
+
+    ExpirePassedPermissionsResult:
+      type: object
+      additionalProperties: false
+      required: [permissions_expired]
+      properties:
+        permissions_expired:
+          type: integer
+          minimum: 0
+          description: Unused approved permissions marked expired.
 
     PermissionType:
       type: string

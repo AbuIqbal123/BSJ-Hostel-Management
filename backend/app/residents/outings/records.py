@@ -161,7 +161,7 @@ def record_outing(
     )
 
 
-def expire_passed_plans(connection: sqlite3.Connection, resident_id: str, now_text: str) -> None:
+def expire_passed_plans(connection: sqlite3.Connection, resident_id: str, now_text: str) -> int:
     rows = connection.execute(
         """
         UPDATE outings
@@ -180,6 +180,7 @@ def expire_passed_plans(connection: sqlite3.Connection, resident_id: str, now_te
             row["id"],
             f"A planned outing to {row['place']} was cancelled because the expected return passed.",
         )
+    return len(rows)
 
 
 def hours_refusal(moment: datetime, settings: sqlite3.Row) -> str | None:

@@ -197,15 +197,12 @@ class OutingList(BaseModel):
 
 @router.get("/me/outings", response_model=OutingList)
 def list_outings(account: ResidentDep, connection: ConnectionDep) -> OutingList:
-    now_text = clock.format_instant(clock.utc_now())
-    expire_passed_plans(connection, account.id, now_text)
     return OutingList(items=load_upcoming(connection, account.id))
 
 
 @router.get("/me/outings/current", response_model=CurrentOuting)
 def current_outing(account: ResidentDep, connection: ConnectionDep) -> CurrentOuting:
     now = clock.utc_now()
-    expire_passed_plans(connection, account.id, clock.format_instant(now))
     return CurrentOuting(outing=load_current_outing(connection, account.id, now))
 
 

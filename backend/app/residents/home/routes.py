@@ -145,9 +145,6 @@ def _recent_history(connection: sqlite3.Connection, resident_id: str) -> list[Hi
 @router.get("/me/home", response_model=ResidentHome)
 def resident_home(account: ResidentDep, connection: ConnectionDep) -> ResidentHome:
     now = clock.utc_now()
-    now_text = clock.format_instant(now)
-    expire_passed_plans(connection, account.id, now_text)
-    expire_passed_permissions(connection, now_text, resident_id=account.id)
     return ResidentHome(
         resident=ResidentSummary.model_validate(
             {
@@ -172,3 +169,18 @@ def resident_history(
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> HistoryPage:
     return load_history(connection, account.id, limit=limit, offset=offset)
+
+
+class ExpirePassedResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    plans_expired: int
+    permissions_expired: int
+
+
+@router.post("/me/expire-passed", response_model=ExpirePassedResult)
+def expire_own_passed(account: ResidentDep, connection: ConnectionDep) -> ExpirePassedResult:
+    now_text = clock.format_instant(clock.utc_now())
+    plans = expire_passed_plans(connection, account.id, now_text)
+    permissions = expire_passed_permissions(connection, now_text, resident_id=account.id)
+    connection.commit()
+    return ExpirePassedResult(plans_expired=plans, permissions_expired=permissions)

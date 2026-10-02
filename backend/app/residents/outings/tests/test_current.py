@@ -160,6 +160,12 @@ def test_current_outing(database_path: Path, monkeypatch: pytest.MonkeyPatch) ->
         assert still.json()["outing"]["status"] == "planned"
 
         frozen.moment = datetime(2026, 9, 30, 13, 0, 1, tzinfo=timezone.utc)
+        expired = client.post(
+            "/api/v1/me/expire-passed",
+            headers={"Authorization": f"Bearer {resident}"},
+        )
+        assert expired.status_code == 200
+        assert expired.json()["plans_expired"] == 1
         passed = current(client, resident)
         assert passed.status_code == 200
         assert passed.json() == expected["empty"]

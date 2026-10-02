@@ -97,17 +97,13 @@ def list_own_permissions(
     offset: Annotated[int, Query(ge=0)] = 0,
     status: Annotated[PermissionStatus | None, Query()] = None,
 ) -> PermissionPageBody:
-    now_text = clock.format_instant(clock.utc_now())
-    expire_passed_permissions(connection, now_text, resident_id=account.id)
-    page = list_reviews(
+    return list_reviews(
         connection,
         resident_id=account.id,
         status=status,
         limit=limit,
         offset=offset,
     )
-    connection.commit()
-    return page
 
 
 @router.post("/me/permissions", status_code=201, response_model=PermissionBody)
@@ -136,6 +132,7 @@ def submit_permission(
     short_place = _required_text(request.short_place, field="short_place", label="Short place")
     reason = _required_text(request.reason, field="reason", label="Reason")
     now_text = clock.format_instant(clock.utc_now())
+    expire_passed_permissions(connection, now_text, resident_id=account.id)
     permission_id = str(uuid.uuid4())
     if request.type == "late_night":
         destination_detail = _optional_text(request.destination_detail)
@@ -188,9 +185,6 @@ def get_own_permission(
     account: ResidentDep,
     connection: ConnectionDep,
 ) -> PermissionBody:
-    now_text = clock.format_instant(clock.utc_now())
-    expire_passed_permissions(connection, now_text, permission_id=permission_id)
-    connection.commit()
     row = connection.execute(
         "SELECT resident_id FROM permissions WHERE id = ?",
         (permission_id,),

@@ -30,6 +30,22 @@ class DecisionRequest(BaseModel):
     note: str | None = Field(default=None, max_length=500)
 
 
+class ExpirePassedPermissionsResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    permissions_expired: int
+
+
+@router.post("/permissions/expire-passed", response_model=ExpirePassedPermissionsResult)
+def expire_passed_permissions_staff(
+    _account: RegisterDep,
+    connection: ConnectionDep,
+) -> ExpirePassedPermissionsResult:
+    now_text = clock.format_instant(clock.utc_now())
+    count = expire_passed_permissions(connection, now_text)
+    connection.commit()
+    return ExpirePassedPermissionsResult(permissions_expired=count)
+
+
 @router.get("/permissions", response_model=PermissionPageBody)
 def list_permissions(
     _account: RegisterDep,
@@ -43,10 +59,8 @@ def list_permissions(
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> PermissionPageBody:
-    now_text = clock.format_instant(clock.utc_now())
-    expire_passed_permissions(connection, now_text)
     filter_status = "pending" if status is None else status
-    page = list_reviews(
+    return list_reviews(
         connection,
         resident_id=None,
         status=filter_status,
@@ -58,8 +72,6 @@ def list_permissions(
         created_to=created_to,
         order=order,
     )
-    connection.commit()
-    return page
 
 
 @router.get("/permissions/{permission_id}", response_model=PermissionReviewBody)
@@ -68,9 +80,6 @@ def get_permission(
     _account: RegisterDep,
     connection: ConnectionDep,
 ) -> PermissionReviewBody:
-    now_text = clock.format_instant(clock.utc_now())
-    expire_passed_permissions(connection, now_text, permission_id=permission_id)
-    connection.commit()
     review = load_review(connection, permission_id)
     if review is None:
         raise ApiError(404, "not_found", "That record was not found.")

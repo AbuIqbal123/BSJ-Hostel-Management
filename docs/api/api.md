@@ -31,12 +31,14 @@ Do not edit this page by hand.
   - [POST `/api/v1/me/outings` — Plan an ordinary outing](#post-api-v1-me-outings)
   - [GET `/api/v1/me/outings/current` — Open outing](#get-api-v1-me-outings-current)
   - [POST `/api/v1/me/outings/{outing_id}/cancel` — Cancel a planned outing](#post-api-v1-me-outings-outing_id-cancel)
+  - [POST `/api/v1/me/expire-passed` — Expire own passed plans and permissions](#post-api-v1-me-expire-passed)
 - [Permissions](#tag-permissions)
   - [GET `/api/v1/me/permissions` — Own special permissions](#get-api-v1-me-permissions)
   - [POST `/api/v1/me/permissions` — Request late-night or home going](#post-api-v1-me-permissions)
   - [GET `/api/v1/me/permissions/{permission_id}` — Own permission](#get-api-v1-me-permissions-permission_id)
   - [POST `/api/v1/me/permissions/{permission_id}/cancel` — Cancel own permission](#post-api-v1-me-permissions-permission_id-cancel)
   - [GET `/api/v1/permissions` — Permission queue](#get-api-v1-permissions)
+  - [POST `/api/v1/permissions/expire-passed` — Expire passed unused permissions](#post-api-v1-permissions-expire-passed)
   - [GET `/api/v1/permissions/{permission_id}` — Permission for review](#get-api-v1-permissions-permission_id)
   - [POST `/api/v1/permissions/{permission_id}/decision` — Approve or reject a permission](#post-api-v1-permissions-permission_id-decision)
 - [Guest Stays](#tag-guest-stays)
@@ -492,6 +494,7 @@ The resident phone. Ordinary outings, home, destinations, and the hall pass.
 | POST | `/api/v1/me/outings` | [Plan an ordinary outing](#post-api-v1-me-outings) | resident |
 | GET | `/api/v1/me/outings/current` | [Open outing](#get-api-v1-me-outings-current) | resident |
 | POST | `/api/v1/me/outings/{outing_id}/cancel` | [Cancel a planned outing](#post-api-v1-me-outings-outing_id-cancel) | resident |
+| POST | `/api/v1/me/expire-passed` | [Expire own passed plans and permissions](#post-api-v1-me-expire-passed) | resident |
 
 ### <a id="get-api-v1-me-home"></a>GET `/api/v1/me/home` — Resident home
 
@@ -501,9 +504,9 @@ The resident phone. Ordinary outings, home, destinations, and the hall pass.
 
 Caller: resident. Presence, room, the open outing if there is one, the
 permission the resident is waiting on or cleared to use, and the last
-ten exit and return lines. A planned outing whose expected return has
-passed is cancelled by this read, with no staff member, before the
-screen is built.
+ten exit and return lines. Does not cancel passed plans or expire
+permissions; call POST /api/v1/me/expire-passed first when the phone
+needs a fresh home screen.
 
 **Responses**
 
@@ -725,9 +728,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 Caller: resident. Her planned and outside outings, soonest return
 first. Several may fall on the same hall day. A later return today, and
 a later day, stay on this list. The open outing is the one she is
-outside on, or the soonest plan for today. A planned outing whose
-expected return has passed is cancelled by this read, with no staff
-member, and then left off the list.
+outside on, or the soonest plan for today. Does not cancel passed
+plans; call POST /api/v1/me/expire-passed (or plan/cancel/scan) first
+when the phone needs a fresh list.
 
 **Responses**
 
@@ -860,10 +863,10 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 Caller: resident. The outing she is outside on, or the soonest plan
 whose return falls on today's hall date, or null. A later plan today
-stays on the plan list. A plan for a later day stays there too. If a
-planned ordinary outing's expected return has passed, this read cancels
-that plan, with no staff member, and leaves her other plans planned.
-An outside outing stays outside. It is late only after grace.
+stays on the plan list. A plan for a later day stays there too. Does
+not cancel passed plans; call POST /api/v1/me/expire-passed (or
+plan/cancel/scan) first when the phone needs a fresh open outing. An
+outside outing stays outside. It is late only after grace.
 
 **Responses**
 
@@ -959,6 +962,43 @@ says she is already outside.
 Body: [ErrorResponse](#schema-errorresponse).
 
 
+### <a id="post-api-v1-me-expire-passed"></a>POST `/api/v1/me/expire-passed` — Expire own passed plans and permissions
+
+`expire_own_passed`
+
+**Who.** resident. Bearer access token.
+
+Caller: resident. Marks this resident's planned ordinary outings whose
+expected return has passed as cancelled, and marks unused approved
+permissions whose expected return has passed as expired. GET routes do
+not perform this work. Safe to call before painting home or lists.
+
+**Responses**
+
+#### 200
+
+Counts of rows updated.
+
+Body: [ExpirePassedResult](#schema-expirepassedresult).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `plans_expired` | yes | integer | Planned ordinary outings cancelled because expected return passed. minimum 0. |
+| `permissions_expired` | yes | integer | Unused approved permissions marked expired. minimum 0. |
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
 ## <a id="tag-permissions"></a>Permissions
 
 Late-night and home-going permissions. Resident requests under /api/v1/me/permissions; warden or provost queue and decisions under /api/v1/permissions.
@@ -970,6 +1010,7 @@ Late-night and home-going permissions. Resident requests under /api/v1/me/permis
 | GET | `/api/v1/me/permissions/{permission_id}` | [Own permission](#get-api-v1-me-permissions-permission_id) | resident |
 | POST | `/api/v1/me/permissions/{permission_id}/cancel` | [Cancel own permission](#post-api-v1-me-permissions-permission_id-cancel) | resident |
 | GET | `/api/v1/permissions` | [Permission queue](#get-api-v1-permissions) | warden or provost |
+| POST | `/api/v1/permissions/expire-passed` | [Expire passed unused permissions](#post-api-v1-permissions-expire-passed) | warden or provost |
 | GET | `/api/v1/permissions/{permission_id}` | [Permission for review](#get-api-v1-permissions-permission_id) | warden or provost |
 | POST | `/api/v1/permissions/{permission_id}/decision` | [Approve or reject a permission](#post-api-v1-permissions-permission_id-decision) | warden or provost |
 
@@ -979,9 +1020,9 @@ Late-night and home-going permissions. Resident requests under /api/v1/me/permis
 
 **Who.** resident. Bearer access token.
 
-Caller: resident. Newest first. Includes late-night and home going. An
-approved permission whose expected return has passed, and which was never
-used, becomes `expired` when this list is read.
+Caller: resident. Newest first. Includes late-night and home going. Does
+not expire passed permissions; call POST /api/v1/me/expire-passed first
+when the phone needs a fresh status.
 
 **Parameters**
 
@@ -1025,7 +1066,8 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** resident. Bearer access token.
 
-Caller: resident. A warden or the provost decides later. Submitting does
+Caller: resident. A warden or the provost decides later. Also expires this resident's unused approved permissions whose
+expected return has passed. Submitting does
 not let the resident leave. The hall pass can be used for this permission
 only after it is approved and the gate scans it inside the use window.
 
@@ -1136,9 +1178,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** resident. Bearer access token.
 
-Caller: resident. Refuses another resident's permission. An approved
-permission whose expected return has passed, and which was never used,
-becomes `expired` when it is read.
+Caller: resident. Refuses another resident's permission. Does not expire
+a passed approved permission; call POST /api/v1/me/expire-passed (or a
+write such as cancel) when the phone needs a fresh status.
 
 **Parameters**
 
@@ -1265,8 +1307,9 @@ Caller: warden or provost. Defaults to `pending`. Ordered by
 oldest first. Optional filters narrow the page: `block_id` is the block
 of the resident's current room; `type` is late-night or home going;
 `created_from` and `created_to` are inclusive UTC bounds on
-`created_at`. An approved permission whose expected return has passed,
-and which was never used, becomes `expired` when this list is read.
+`created_at`. Does not expire passed permissions; call
+POST /api/v1/permissions/expire-passed first when the queue needs a
+fresh status.
 
 **Parameters**
 
@@ -1309,14 +1352,50 @@ The signed-in role cannot call this operation.
 Body: [ErrorResponse](#schema-errorresponse).
 
 
+### <a id="post-api-v1-permissions-expire-passed"></a>POST `/api/v1/permissions/expire-passed` — Expire passed unused permissions
+
+`expire_passed_permissions`
+
+**Who.** warden or provost. Bearer access token.
+
+Caller: warden or provost. Marks every unused approved permission whose
+expected return has passed as expired. GET queue and GET-by-id do not
+perform this work. Safe to call before opening the queue.
+
+**Responses**
+
+#### 200
+
+Count of permissions updated.
+
+Body: [ExpirePassedPermissionsResult](#schema-expirepassedpermissionsresult).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `permissions_expired` | yes | integer | Unused approved permissions marked expired. minimum 0. |
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
 ### <a id="get-api-v1-permissions-permission_id"></a>GET `/api/v1/permissions/{permission_id}` — Permission for review
 
 `get_permission`
 
 **Who.** warden or provost. Bearer access token.
 
-Caller: warden or provost. An approved permission whose expected return
-has passed, and which was never used, becomes `expired` when it is read.
+Caller: warden or provost. Does not expire a passed approved permission;
+call POST /api/v1/permissions/expire-passed first when review needs a
+fresh status.
 
 **Parameters**
 
@@ -1377,8 +1456,10 @@ Body: [ErrorResponse](#schema-errorresponse).
 **Who.** warden or provost. Bearer access token.
 
 Caller: warden or provost. Only a `pending` permission can be decided.
-Approval does not create an outing and does not by itself let a scan
-succeed before the use window. Rejection leaves ordinary outings available.
+Before deciding, expires this permission if it is an unused approved
+request whose expected return has already passed. Approval does not
+create an outing and does not by itself let a scan succeed before the
+use window. Rejection leaves ordinary outings available.
 
 **Parameters**
 
@@ -4165,6 +4246,19 @@ One of: `planned`, `outside`, `returned`, `cancelled`.
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `outing` | yes | [Outing](#schema-outing) or null |  |
+
+### <a id="schema-expirepassedresult"></a>ExpirePassedResult
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `plans_expired` | yes | integer | Planned ordinary outings cancelled because expected return passed. minimum 0. |
+| `permissions_expired` | yes | integer | Unused approved permissions marked expired. minimum 0. |
+
+### <a id="schema-expirepassedpermissionsresult"></a>ExpirePassedPermissionsResult
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `permissions_expired` | yes | integer | Unused approved permissions marked expired. minimum 0. |
 
 ### <a id="schema-permissiontype"></a>PermissionType
 
