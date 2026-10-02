@@ -1,0 +1,15 @@
+{
+  "uploaded": {
+    "payment_status": "unpaid",
+    "payment_evidence_original_name": "receipt.png",
+    "payment_evidence_content_type": "image/png",
+    "payment_evidence_uploaded_by": "e55fa000-0000-4000-8000-000000000005"
+  },
+  "after_unpaid_clears": {
+    "payment_status": "unpaid",
+    "payment_evidence_original_name": null,
+    "payment_evidence_content_type": null,
+    "payment_evidence_uploaded_at": null,
+    "payment_evidence_uploaded_by": null
+  }
+}

@@ -21,6 +21,7 @@ class Settings(BaseSettings):
 
     environment: str = "development"
     database_path: Path = BACKEND_ROOT / "data" / "hostel.db"
+    payment_evidence_dir: Path = BACKEND_ROOT / "data" / "payment-evidence"
     sqlite_busy_timeout_ms: int = 5000
     sms_driver: str = "mock"
     app_secret_key: str = ""

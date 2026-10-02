@@ -343,6 +343,10 @@ def test_guest_stays_resident(database_path: Path, monkeypatch: pytest.MonkeyPat
             "arrived_at",
             "departed_at",
             "created_at",
+            "payment_evidence_original_name",
+            "payment_evidence_content_type",
+            "payment_evidence_uploaded_at",
+            "payment_evidence_uploaded_by",
         }
         for item in page["items"]:
             assert set(item) == summary_keys

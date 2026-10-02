@@ -47,6 +47,10 @@ class GuestStayBody(BaseModel):
     decided_by: str | None = None
     arrived_recorded_by: str | None = None
     departed_recorded_by: str | None = None
+    payment_evidence_original_name: str | None = None
+    payment_evidence_content_type: str | None = None
+    payment_evidence_uploaded_at: str | None = None
+    payment_evidence_uploaded_by: str | None = None
     arrived_at: str | None = None
     departed_at: str | None = None
     created_at: str
@@ -166,6 +170,10 @@ SELECT
   guest_stays.decided_by,
   guest_stays.arrived_recorded_by,
   guest_stays.departed_recorded_by,
+  guest_stays.payment_evidence_original_name,
+  guest_stays.payment_evidence_content_type,
+  guest_stays.payment_evidence_uploaded_at,
+  guest_stays.payment_evidence_uploaded_by,
   guest_stays.arrived_at,
   guest_stays.departed_at,
   guest_stays.created_at
@@ -206,6 +214,10 @@ def _body_from_row(row: sqlite3.Row, today: str) -> GuestStayBody:
         decided_by=row["decided_by"],
         arrived_recorded_by=row["arrived_recorded_by"],
         departed_recorded_by=row["departed_recorded_by"],
+        payment_evidence_original_name=row["payment_evidence_original_name"],
+        payment_evidence_content_type=row["payment_evidence_content_type"],
+        payment_evidence_uploaded_at=row["payment_evidence_uploaded_at"],
+        payment_evidence_uploaded_by=row["payment_evidence_uploaded_by"],
         arrived_at=row["arrived_at"],
         departed_at=row["departed_at"],
         created_at=row["created_at"],
