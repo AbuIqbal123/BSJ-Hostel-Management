@@ -340,6 +340,17 @@ def test_gate_guests(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
         assert body["host_room_label"] == "B-204"
         assert "guests_in_hall_count" not in body
 
+        activity = client.get("/api/v1/gate/activity", headers=headers)
+        assert activity.status_code == 200
+        arrival_line = next(
+            item for item in activity.json()["items"] if item["event"] == "guest_arrival"
+        )
+        assert arrival_line["guest_name"] == "Expected Guest"
+        assert arrival_line["host_name"] == "Aisha Khan"
+        assert arrival_line["host_room_label"] == "B-204"
+        assert arrival_line["resident_name"] is None
+        assert arrival_line["room_label"] is None
+
         assert_error(
             client.post(f"/api/v1/gate/guests/{EXPECTED}/arrival", headers=headers),
             409,

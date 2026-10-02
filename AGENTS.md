@@ -50,7 +50,7 @@ Other tags (Operations, Resident, Hall office) follow the same idea: one tag own
 
 ### Response field names
 
-Response JSON uses explicit domain names so clients do not guess presentation. Prefer `guest_name`, `host_name`, `host_room_label`, `resident_name`, `room_label`, and the same style elsewhere. Do not use generic presentation fields such as `title` or `subtitle` on response schemas. Gate activity is the known exception being removed on a separate PR; new schemas must not add those names.
+Response JSON uses explicit domain names so clients do not guess presentation. Prefer `guest_name`, `host_name`, `host_room_label`, `resident_name`, `room_label`, and the same style elsewhere. Do not use generic presentation fields such as `title` or `subtitle` on response schemas. Gate activity uses `resident_name` and `room_label` on resident lines, and `guest_name`, `host_name`, and `host_room_label` on guest lines.
 
 ### Documents that stay current
 

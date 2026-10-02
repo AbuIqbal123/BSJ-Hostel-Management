@@ -2434,7 +2434,7 @@ Body: [GateActivityPage](#schema-gateactivitypage).
 | `offset` | yes | integer |  |
 | `items` | yes | list of [GateActivityItem](#schema-gateactivityitem) |  |
 
-**Example**
+**Resident exit**
 
 ```json
 {
@@ -2445,8 +2445,32 @@ Body: [GateActivityPage](#schema-gateactivitypage).
     {
       "event": "exit",
       "occurred_at": "2026-09-13T14:39:00Z",
-      "title": "Zoya Siddiqui",
-      "subtitle": "A-118"
+      "resident_name": "Zoya Siddiqui",
+      "room_label": "A-118",
+      "guest_name": null,
+      "host_name": null,
+      "host_room_label": null
+    }
+  ]
+}
+```
+
+**Guest arrival**
+
+```json
+{
+  "total": 3,
+  "limit": 50,
+  "offset": 0,
+  "items": [
+    {
+      "event": "guest_arrival",
+      "occurred_at": "2026-09-18T10:11:00Z",
+      "resident_name": null,
+      "room_label": null,
+      "guest_name": "Fatima Begum",
+      "host_name": "Aisha Khan",
+      "host_room_label": "B-204"
     }
   ]
 }
@@ -4689,12 +4713,23 @@ empty; any stored note is cleared with `payment_marked_by` and
 
 ### <a id="schema-gateactivityitem"></a>GateActivityItem
 
+One gate activity line. Always has `event` and `occurred_at`. The five
+name/room fields are always present and nullable. Invariant: for
+`exit` or `return`, `resident_name` and `room_label` are strings and
+`guest_name`, `host_name`, and `host_room_label` are null. For
+`guest_arrival` or `guest_departure`, `guest_name`, `host_name`, and
+`host_room_label` are strings and `resident_name` and `room_label`
+are null.
+
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `event` | yes | `exit` or `return` or `guest_arrival` or `guest_departure` | What the gate recorded. |
 | `occurred_at` | yes | date-time |  |
-| `title` | yes | string | Resident or guest name. |
-| `subtitle` | yes | string | Room label, or host and room for a guest. |
+| `resident_name` | yes | string or null | Resident display name for exit/return. Null for guest lines. |
+| `room_label` | yes | string or null | Resident room label for exit/return. Null for guest lines. |
+| `guest_name` | yes | string or null | Guest display name for guest arrival/departure. Null for resident lines. |
+| `host_name` | yes | string or null | Host resident display name for guest lines. Null for resident lines. |
+| `host_room_label` | yes | string or null | Host room label for guest lines. Null for resident lines. |
 
 ### <a id="schema-gateactivitypage"></a>GateActivityPage
 
