@@ -4766,6 +4766,8 @@ One of: `not_due`, `sent`, `failed`.
 
 ### <a id="schema-smsmessage"></a>SmsMessage
 
+Provost SMS log row. Transport vendor is not part of the public contract.
+
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `id` | yes | uuid |  |
@@ -4775,7 +4777,6 @@ One of: `not_due`, `sent`, `failed`.
 | `notice_type` | yes | `late_notice` or `return_notice` | Late notice, or return notice. |
 | `recipient_phone` | yes | string | Guardian phone copied at send time. Country code required. pattern `^\+[1-9][0-9]{7,14}$`. |
 | `body` | yes | string | Filled message. Times are described for display as 12-hour; this body is the text that was sent. |
-| `driver` | yes | `mock` or `dlt` |  |
 | `status` | yes | `sent` or `failed` |  |
 | `created_at` | yes | date-time |  |
 
