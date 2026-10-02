@@ -10,6 +10,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.shared.schemas import Destination, DestinationList, HallPass
+
 SETTINGS_COLUMNS = (
     "hall_name",
     "university_name",
@@ -345,19 +347,6 @@ def record_room_audit(
 DESTINATION_COLUMNS = ("id", "name", "is_other", "is_active")
 
 
-class Destination(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    id: str
-    name: str
-    is_other: bool
-    is_active: bool
-
-
-class DestinationList(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    items: list[Destination]
-
-
 class DestinationCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str = Field(min_length=1, max_length=80)
@@ -492,13 +481,6 @@ class ResidentCreate(BaseModel):
     guardian_name: str = Field(min_length=1, max_length=120)
     guardian_phone: str = Field(pattern=r"^\+[1-9][0-9]{7,14}$")
     temporary_password: str = Field(min_length=10, max_length=200)
-
-
-class HallPass(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    qr_payload: str
-    full_name: str
-    room_label: str
 
 
 class ResidentCreated(BaseModel):

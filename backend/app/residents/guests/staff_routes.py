@@ -5,8 +5,9 @@ from __future__ import annotations
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
+from app.shared.schemas import DecisionRequest
 from app.residents.guests.records import (
     GuestBucket,
     GuestStayBody,
@@ -22,12 +23,6 @@ from app.shared.errors import ApiError
 from app.staff.register.routes import RegisterDep
 
 router = APIRouter(prefix="/api/v1", tags=["Guest Stays"])
-
-
-class DecisionRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    decision: Literal["approved", "rejected"]
-    note: str | None = Field(default=None, max_length=500)
 
 
 class PaymentRequest(BaseModel):
