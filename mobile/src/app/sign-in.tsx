@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Redirect, router } from "expo-router";
 import {
   Keyboard,
-  LayoutAnimation,
   Platform,
   ScrollView,
   StyleSheet,
@@ -10,6 +9,7 @@ import {
   TextInput,
   View,
   type KeyboardEvent,
+  type LayoutChangeEvent,
 } from "react-native";
 
 import { HallButton } from "@/components/hall-button";
@@ -32,66 +32,158 @@ export default function SignInScreen() {
   const [error, setError] = useState<string | null>(null);
   const passwordRef = useRef<TextInput>(null);
   const pendingRef = useRef(false);
-  const buttonAnchor = useRef<View>(null);
-  const restingButtonBottom = useRef<number | null>(null);
-  const shiftRef = useRef(0);
+  const canvasRef = useRef<View>(null);
+  const canvasHeightRef = useRef(0);
+  const blockHeightRef = useRef(0);
+  const canvasBottom = useRef(0);
+  const restingPad = useRef(0);
+  const padRef = useRef<number | null>(null);
   const keyboardUpRef = useRef(false);
-  const [keyboardShift, setKeyboardShift] = useState(0);
+  const focusCount = useRef(0);
+  const hideTicket = useRef(0);
+  const [pad, setPad] = useState<number | null>(null);
   const [keyboardUp, setKeyboardUp] = useState(false);
 
-  const rememberButton = useCallback(() => {
-    if (restingButtonBottom.current != null) {
+  const syncResting = useCallback((canvasHeight: number, blockHeight: number) => {
+    // Wait until the canvas has stretched past the block. An early content-sized
+    // height would pin the block too low.
+    if (canvasHeight <= blockHeight || keyboardUpRef.current) {
       return;
     }
-    requestAnimationFrame(() => {
-      if (restingButtonBottom.current != null || shiftRef.current !== 0) {
-        return;
-      }
-      buttonAnchor.current?.measureInWindow((_x, y, _width, height) => {
-        if (restingButtonBottom.current == null && shiftRef.current === 0 && height > 0) {
-          restingButtonBottom.current = y + height;
+    const resting = Math.max(0, Math.round((canvasHeight - blockHeight) / 2 + blockLift));
+    restingPad.current = resting;
+    if (padRef.current === resting) {
+      return;
+    }
+    padRef.current = resting;
+    setPad(resting);
+  }, []);
+
+  const onCanvasLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      const height = Math.round(event.nativeEvent.layout.height);
+      canvasHeightRef.current = height;
+      canvasRef.current?.measure((_x, _y, _width, measured, _pageX, pageY) => {
+        if (measured > 0) {
+          canvasBottom.current = pageY + measured;
         }
       });
-    });
+      syncResting(height, blockHeightRef.current);
+    },
+    [syncResting],
+  );
+
+  const onBlockLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      const height = Math.round(event.nativeEvent.layout.height);
+      if (height === blockHeightRef.current) {
+        return;
+      }
+      blockHeightRef.current = height;
+      syncResting(canvasHeightRef.current, height);
+    },
+    [syncResting],
+  );
+
+  const onFieldFocus = useCallback(() => {
+    focusCount.current += 1;
+  }, []);
+
+  const onFieldBlur = useCallback(() => {
+    focusCount.current = Math.max(0, focusCount.current - 1);
   }, []);
 
   useEffect(() => {
     if (Platform.OS !== "ios") {
       return;
     }
-    const onFrame = (event: KeyboardEvent) => {
-      const apply = (bottom: number) => {
-        const keyboardTop = event.endCoordinates.screenY;
-        const shift = Math.min(360, Math.max(0, Math.round(bottom + keyboardGap - keyboardTop)));
-        const up = event.endCoordinates.height > 0;
-        if (shift === shiftRef.current && up === keyboardUpRef.current) {
-          return;
-        }
-        shiftRef.current = shift;
-        keyboardUpRef.current = up;
-        const duration = event.duration > 10 ? event.duration : 10;
-        LayoutAnimation.configureNext({
-          duration,
-          update: { duration, type: event.easing },
-        });
-        setKeyboardShift(shift);
-        setKeyboardUp(up);
-      };
-      const known = restingButtonBottom.current;
-      if (known != null) {
-        apply(known);
+
+    const place = (next: number, event: KeyboardEvent) => {
+      if (next === padRef.current) {
         return;
       }
-      buttonAnchor.current?.measureInWindow((_x, y, _width, height) => {
+      padRef.current = next;
+      Keyboard.scheduleLayoutAnimation(event);
+      setPad(next);
+    };
+
+    const raiseFrom = (event: KeyboardEvent, bottom: number) => {
+      const next = Math.max(
+        restingPad.current,
+        Math.round(bottom - event.endCoordinates.screenY + keyboardGap),
+      );
+      const first = !keyboardUpRef.current;
+      if (first) {
+        keyboardUpRef.current = true;
+        setKeyboardUp(true);
+      } else if (next <= (padRef.current ?? 0)) {
+        return;
+      }
+      place(next, event);
+    };
+
+    const raise = (event: KeyboardEvent) => {
+      const keyboardTop = event.endCoordinates.screenY;
+      if (event.endCoordinates.height <= 0 || keyboardTop <= 0) {
+        return;
+      }
+      if (canvasBottom.current > 0) {
+        raiseFrom(event, canvasBottom.current);
+        return;
+      }
+      canvasRef.current?.measure((_x, _y, _width, height, _pageX, pageY) => {
         if (height <= 0) {
           return;
         }
-        restingButtonBottom.current = y + height;
-        apply(y + height);
+        canvasBottom.current = pageY + height;
+        raiseFrom(event, pageY + height);
       });
     };
-    const subscription = Keyboard.addListener("keyboardWillChangeFrame", onFrame);
-    return () => subscription.remove();
+
+    const onShow = (event: KeyboardEvent) => {
+      hideTicket.current += 1;
+      raise(event);
+    };
+
+    const onFrame = (event: KeyboardEvent) => {
+      if (!keyboardUpRef.current) {
+        return;
+      }
+      raise(event);
+    };
+
+    const onHide = (event: KeyboardEvent) => {
+      const ticket = ++hideTicket.current;
+      requestAnimationFrame(() => {
+        if (ticket !== hideTicket.current) {
+          return;
+        }
+        if (focusCount.current > 0 || Keyboard.isVisible()) {
+          return;
+        }
+        if (!keyboardUpRef.current) {
+          return;
+        }
+        keyboardUpRef.current = false;
+        setKeyboardUp(false);
+        if (restingPad.current <= 0) {
+          padRef.current = null;
+          Keyboard.scheduleLayoutAnimation(event);
+          setPad(null);
+          return;
+        }
+        place(restingPad.current, event);
+      });
+    };
+
+    const subscriptions = [
+      Keyboard.addListener("keyboardWillShow", onShow),
+      Keyboard.addListener("keyboardWillChangeFrame", onFrame),
+      Keyboard.addListener("keyboardWillHide", onHide),
+    ];
+    return () => {
+      subscriptions.forEach((subscription) => subscription.remove());
+    };
   }, []);
 
   const focusPassword = useCallback(() => {
@@ -129,7 +221,7 @@ export default function SignInScreen() {
   return (
     <ScrollView
       style={[styles.screen, { backgroundColor: colors.paper }]}
-      contentContainerStyle={[styles.scroll, { paddingBottom: (blockLift + keyboardShift) * 2 }]}
+      contentContainerStyle={styles.canvas}
       keyboardDismissMode="interactive"
       keyboardShouldPersistTaps="handled"
       contentInsetAdjustmentBehavior="never"
@@ -139,8 +231,15 @@ export default function SignInScreen() {
       overScrollMode={keyboardUp ? "always" : "never"}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.center}>
-        <View style={styles.block}>
+      <View
+        ref={canvasRef}
+        style={[styles.canvas, pad == null && styles.resting]}
+        onLayout={onCanvasLayout}
+      >
+        <View
+          style={pad == null ? styles.block : [styles.block, styles.pinned, { bottom: pad }]}
+          onLayout={onBlockLayout}
+        >
           <View style={styles.mark}>
             <HallMark />
             <Text style={[text.hallName, { color: colors.ink }]}>Begum Sultan Jahan Hall</Text>
@@ -155,6 +254,8 @@ export default function SignInScreen() {
               returnKeyType="next"
               submitBehavior="submit"
               onSubmitEditing={focusPassword}
+              onFocus={onFieldFocus}
+              onBlur={onFieldBlur}
             />
             <TextField
               inputRef={passwordRef}
@@ -166,8 +267,10 @@ export default function SignInScreen() {
               textContentType="password"
               returnKeyType="go"
               onSubmitEditing={submit}
+              onFocus={onFieldFocus}
+              onBlur={onFieldBlur}
             />
-            <View ref={buttonAnchor} onLayout={rememberButton}>
+            <View>
               <HallButton label="Sign in" onPress={submit} />
               <View
                 pointerEvents="none"
@@ -199,11 +302,17 @@ export default function SignInScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  scroll: {
-    flexGrow: 1,
+  canvas: { flexGrow: 1 },
+  resting: {
+    justifyContent: "center",
+    paddingBottom: blockLift * 2,
     paddingHorizontal: 28,
   },
-  center: { flexGrow: 1, justifyContent: "center" },
+  pinned: {
+    position: "absolute",
+    left: 28,
+    right: 28,
+  },
   block: { gap: 28 },
   mark: { alignItems: "center", gap: 12 },
   fields: { gap: 16 },
