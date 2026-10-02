@@ -584,7 +584,7 @@ The whole-hall figure is the sum of the blocks. Suspended residents stay in the 
 
 Recent activity at the gate is not a separate record. It is the latest exits and returns, plus guest arrivals and departures, newest first.
 
-A resident's own history is the same exits and returns for that resident, newest first. Each exit and each return is its own line.
+A resident's own history is the same exits and returns for that resident, newest first. Each exit and each return is its own line. The line names the staff member who recorded that exit or return (`exit_recorded_by` or `return_recorded_by` joined to the account's display name).
 
 ## What this version does not keep
 
