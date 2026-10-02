@@ -336,9 +336,9 @@ def test_guest_stays_resident(database_path: Path, monkeypatch: pytest.MonkeyPat
             "inclusive_days",
             "reason",
             "decision_note",
-            "decided_by_name",
-            "arrived_recorded_by_name",
-            "departed_recorded_by_name",
+            "decided_by",
+            "arrived_recorded_by",
+            "departed_recorded_by",
             "arrived_at",
             "departed_at",
             "created_at",
@@ -381,7 +381,7 @@ def test_guest_stays_resident(database_path: Path, monkeypatch: pytest.MonkeyPat
         )
         assert approved_cancel.status_code == 200
         assert approved_cancel.json()["status"] == "cancelled"
-        assert approved_cancel.json()["decided_by_name"] is None
+        assert approved_cancel.json()["decided_by"] is None
 
         assert_error(
             client.post(f"/api/v1/me/guest-stays/{ARRIVED_STAY}/cancel", headers=headers),
