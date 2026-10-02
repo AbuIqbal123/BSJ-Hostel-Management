@@ -29,8 +29,8 @@ class GateGuestCard(BaseModel):
     guest_name: str
     host_name: str
     host_room_label: str
-    start_date: str
-    end_date: str
+    guest_start_date: str
+    guest_end_date: str
     payment_status: Literal["unpaid", "paid"]
     bucket: str
 
@@ -69,8 +69,8 @@ def _host_fields(connection: sqlite3.Connection, guest_stay_id: str) -> sqlite3.
           guest_stays.guest_name,
           guest_stays.status,
           guest_stays.payment_status,
-          guest_stays.start_date,
-          guest_stays.end_date,
+          guest_stays.guest_start_date,
+          guest_stays.guest_end_date,
           guest_stays.arrived_at,
           guest_stays.departed_at,
           host.full_name AS host_name,
@@ -99,8 +99,8 @@ def gate_guests(
           guest_stays.guest_name,
           guest_stays.status,
           guest_stays.payment_status,
-          guest_stays.start_date,
-          guest_stays.end_date,
+          guest_stays.guest_start_date,
+          guest_stays.guest_end_date,
           guest_stays.arrived_at,
           guest_stays.departed_at,
           host.full_name AS host_name,
@@ -110,7 +110,7 @@ def gate_guests(
         JOIN residents ON residents.user_id = guest_stays.host_resident_id
         JOIN rooms ON rooms.id = residents.room_id
         WHERE guest_stays.status = 'approved'
-        ORDER BY guest_stays.start_date, guest_stays.guest_name, guest_stays.id
+        ORDER BY guest_stays.guest_start_date, guest_stays.guest_name, guest_stays.id
         """
     ).fetchall()
     items: list[GateGuestCard] = []
@@ -118,8 +118,8 @@ def gate_guests(
         derived = derive_bucket(
             status=row["status"],
             payment_status=row["payment_status"],
-            start_date=row["start_date"],
-            end_date=row["end_date"],
+            start_date=row["guest_start_date"],
+            end_date=row["guest_end_date"],
             arrived_at=row["arrived_at"],
             departed_at=row["departed_at"],
             today=today,
@@ -128,7 +128,7 @@ def gate_guests(
             if not (
                 row["payment_status"] == "paid"
                 and row["arrived_at"] is None
-                and row["start_date"] <= today <= row["end_date"]
+                and row["guest_start_date"] <= today <= row["guest_end_date"]
             ):
                 continue
             card_bucket = "expected"
@@ -143,8 +143,8 @@ def gate_guests(
                 guest_name=row["guest_name"],
                 host_name=row["host_name"],
                 host_room_label=row["host_room_label"],
-                start_date=row["start_date"],
-                end_date=row["end_date"],
+                guest_start_date=row["guest_start_date"],
+                guest_end_date=row["guest_end_date"],
                 payment_status=row["payment_status"],
                 bucket=card_bucket,
             )
@@ -168,7 +168,7 @@ def record_guest_arrival(
             "guest_not_expected",
             "That guest is not expected for arrival today.",
         )
-    if not (row["start_date"] <= today <= row["end_date"]):
+    if not (row["guest_start_date"] <= today <= row["guest_end_date"]):
         raise ApiError(
             409,
             "guest_not_expected",
