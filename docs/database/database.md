@@ -317,7 +317,7 @@ The short place lets the warden's card read "Home going · Lucknow" without open
 - Completed: that outing was returned.
 - Rejected, cancelled, and expired: finished. They do not start again.
 
-From waiting, the warden or provost can reject it, or the resident can cancel it. From approved, the resident can cancel it before leaving. An approved permission whose expected return has passed, and which the resident never used, becomes expired. That check happens whenever a permission is listed or fetched (resident or staff), and when guardian messages are considered. There is no separate expiry list. Once expired it no longer counts as waiting or approved, and the gate cannot open an outing from it.
+From waiting, the warden or provost can reject it, or the resident can cancel it. From approved, the resident can cancel it before leaving. An approved permission whose expected return has passed, and which the resident never used, becomes expired. That check runs on write paths (plan, submit, cancel, decision, gate scan) and on the explicit expire-passed posts (`POST /api/v1/me/expire-passed` for the resident's own plans and permissions; `POST /api/v1/permissions/expire-passed` for staff across the hall). GET routes do not write expiry. Guardian-message sends also consider expiry. Once expired it no longer counts as waiting or approved, and the gate cannot open an outing from it.
 
 The use window runs from the departure minus the early-leave setting, through the expected return. The gate can open an outing from the permission only inside that window.
 

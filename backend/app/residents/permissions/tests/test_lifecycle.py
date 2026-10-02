@@ -376,6 +376,16 @@ def test_permission_lifecycle(database_path: Path, monkeypatch: pytest.MonkeyPat
         assert home_row["address"] == "14, Civil Lines, Lucknow, U.P. 226001"
         assert home_row["destination_detail"] is None
 
+        # Submit (write path) already expired the unused approved permission past its return.
+        assert permission_row(database_path, EXPIRED_ID)["status"] == "expired"
+        # GET stays read-only; expire-passed is idempotent when nothing is left.
+        own_before = client.get("/api/v1/me/permissions", headers=auth(resident))
+        assert own_before.status_code == 200
+        assert own_before.json()["items"][-1]["status"] == "expired"
+        expired_me = client.post("/api/v1/me/expire-passed", headers=auth(resident))
+        assert expired_me.status_code == 200
+        assert expired_me.json()["permissions_expired"] == 0
+
         own_list = client.get("/api/v1/me/permissions", headers=auth(resident))
         assert own_list.status_code == 200
         listed = own_list.json()
@@ -393,9 +403,7 @@ def test_permission_lifecycle(database_path: Path, monkeypatch: pytest.MonkeyPat
         assert listed["items"][0]["resident_name"] == "Aisha Khan"
         assert listed["items"][0]["room_label"] == "B-204"
         assert listed["items"][0]["resident_id"] == RESIDENT_ID
-        # Looking at the list expires the unused approved permission past its return.
         assert listed["items"][-1]["status"] == "expired"
-        assert permission_row(database_path, EXPIRED_ID)["status"] == "expired"
 
         got = client.get(f"/api/v1/me/permissions/{first_id}", headers=auth(resident))
         assert got.status_code == 200
@@ -454,6 +462,18 @@ def test_permission_lifecycle(database_path: Path, monkeypatch: pytest.MonkeyPat
         )
 
         warden = sign_in(client, "warden.sara", WARDEN_PHRASE)
+        assert permission_row(database_path, STAFF_EXPIRE_ID)["status"] == "approved"
+        queue_before = client.get("/api/v1/permissions", headers=auth(warden))
+        assert queue_before.status_code == 200
+        assert permission_row(database_path, STAFF_EXPIRE_ID)["status"] == "approved"
+        expired_staff = client.post(
+            "/api/v1/permissions/expire-passed",
+            headers=auth(warden),
+        )
+        assert expired_staff.status_code == 200
+        assert expired_staff.json()["permissions_expired"] == 1
+        assert permission_row(database_path, STAFF_EXPIRE_ID)["status"] == "expired"
+
         queue = client.get("/api/v1/permissions", headers=auth(warden))
         assert queue.status_code == 200
         queue_body = queue.json()
@@ -466,8 +486,6 @@ def test_permission_lifecycle(database_path: Path, monkeypatch: pytest.MonkeyPat
         assert all(item["status"] == "pending" for item in queue_body["items"])
         assert queue_body["items"][0]["resident_name"] == "Aisha Khan"
         assert queue_body["items"][2]["resident_name"] == "Maryam Siddiqui"
-        # Staff list expires unused approved permissions past their return for any resident.
-        assert permission_row(database_path, STAFF_EXPIRE_ID)["status"] == "expired"
 
         review = client.get(f"/api/v1/permissions/{first_id}", headers=auth(warden))
         assert review.status_code == 200

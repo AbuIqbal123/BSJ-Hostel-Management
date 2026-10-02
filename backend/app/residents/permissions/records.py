@@ -134,7 +134,7 @@ def expire_passed_permissions(
     *,
     resident_id: str | None = None,
     permission_id: str | None = None,
-) -> None:
+) -> int:
     """Mark unused approved permissions past their expected return as expired."""
     clauses = [
         "status = 'approved'",
@@ -167,6 +167,7 @@ def expire_passed_permissions(
             row["id"],
             f"An approved {label} permission for {row['short_place']} expired unused.",
         )
+    return len(rows)
 
 
 def load_permission(connection: sqlite3.Connection, permission_id: str) -> PermissionBody:
