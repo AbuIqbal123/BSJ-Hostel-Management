@@ -413,7 +413,7 @@ def test_guest_stays_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch)
         assert approved.json()["status"] == expected["approved_empty_note"]["status"]
         assert approved.json()["payment_status"] == expected["approved_empty_note"]["payment_status"]
         assert approved.json()["decision_note"] is None
-        assert approved.json()["decided_by_name"] == "Sara Malik"
+        assert approved.json()["decided_by"] == WARDEN_ID
         assert approved.json()["bucket"] == expected["approved_empty_note"]["bucket"]
 
         assert_error(

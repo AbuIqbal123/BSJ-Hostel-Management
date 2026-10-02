@@ -2968,21 +2968,24 @@ components:
           oneOf:
             - type: string
             - type: "null"
-        decided_by_name:
+        decided_by:
           oneOf:
             - type: string
+              format: uuid
             - type: "null"
-          description: Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects.
-        arrived_recorded_by_name:
+          description: UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects.
+        arrived_recorded_by:
           oneOf:
             - type: string
+              format: uuid
             - type: "null"
-          description: Staff member who recorded arrival. Empty until arrival is recorded.
-        departed_recorded_by_name:
+          description: UUID of the staff member who recorded arrival. Empty until arrival is recorded.
+        departed_recorded_by:
           oneOf:
             - type: string
+              format: uuid
             - type: "null"
-          description: Staff member who recorded departure. Empty until departure is recorded.
+          description: UUID of the staff member who recorded departure. Empty until departure is recorded.
         arrived_at:
           oneOf:
             - type: string
@@ -3002,8 +3005,8 @@ components:
       additionalProperties: false
       description: |
         Card fields for guest-stay list rows. Full stay detail (reason, decision
-        note, recorder names, arrival/departure instants) is on GuestStay via
-        GET by id.
+        note, decided_by / recorder staff ids, arrival/departure instants) is on
+        GuestStay via GET by id.
       required:
         - id
         - guest_name

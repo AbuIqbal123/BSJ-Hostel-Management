@@ -43,9 +43,9 @@ class GuestStayBody(BaseModel):
     payment_status: PaymentStatus
     bucket: GuestBucket
     decision_note: str | None = None
-    decided_by_name: str | None = None
-    arrived_recorded_by_name: str | None = None
-    departed_recorded_by_name: str | None = None
+    decided_by: str | None = None
+    arrived_recorded_by: str | None = None
+    departed_recorded_by: str | None = None
     arrived_at: str | None = None
     departed_at: str | None = None
     created_at: str
@@ -141,9 +141,9 @@ SELECT
   guest_stays.status,
   guest_stays.payment_status,
   guest_stays.decision_note,
-  decider.full_name AS decided_by_name,
-  arriver.full_name AS arrived_recorded_by_name,
-  departer.full_name AS departed_recorded_by_name,
+  guest_stays.decided_by,
+  guest_stays.arrived_recorded_by,
+  guest_stays.departed_recorded_by,
   guest_stays.arrived_at,
   guest_stays.departed_at,
   guest_stays.created_at
@@ -151,9 +151,6 @@ FROM guest_stays
 JOIN users AS host ON host.id = guest_stays.host_resident_id
 JOIN residents ON residents.user_id = guest_stays.host_resident_id
 JOIN rooms ON rooms.id = residents.room_id
-LEFT JOIN users AS decider ON decider.id = guest_stays.decided_by
-LEFT JOIN users AS arriver ON arriver.id = guest_stays.arrived_recorded_by
-LEFT JOIN users AS departer ON departer.id = guest_stays.departed_recorded_by
 """
 
 
@@ -183,9 +180,9 @@ def _body_from_row(row: sqlite3.Row, today: str) -> GuestStayBody:
             today=today,
         ),
         decision_note=row["decision_note"],
-        decided_by_name=row["decided_by_name"],
-        arrived_recorded_by_name=row["arrived_recorded_by_name"],
-        departed_recorded_by_name=row["departed_recorded_by_name"],
+        decided_by=row["decided_by"],
+        arrived_recorded_by=row["arrived_recorded_by"],
+        departed_recorded_by=row["departed_recorded_by"],
         arrived_at=row["arrived_at"],
         departed_at=row["departed_at"],
         created_at=row["created_at"],
