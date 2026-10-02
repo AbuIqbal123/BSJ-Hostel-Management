@@ -338,7 +338,7 @@ def test_gate_guests(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
         assert body["guest_name"] == "Expected Guest"
         assert body["host_name"] == "Aisha Khan"
         assert body["host_room_label"] == "B-204"
-        assert body["guests_in_hall_count"] == 3  # in_hall + should_left + just arrived
+        assert "guests_in_hall_count" not in body
 
         assert_error(
             client.post(f"/api/v1/gate/guests/{EXPECTED}/arrival", headers=headers),
@@ -356,7 +356,7 @@ def test_gate_guests(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
         assert departed.status_code == 200
         dep = departed.json()
         assert dep["message"] == expected["departure_message"]
-        assert dep["guests_in_hall_count"] == 2  # in_hall + expected-now-arrived
+        assert "guests_in_hall_count" not in dep
 
         dining_after = client.get("/api/v1/gate/guests?bucket=in_hall", headers=headers)
         assert {item["id"] for item in dining_after.json()["items"]} == {IN_HALL, EXPECTED}

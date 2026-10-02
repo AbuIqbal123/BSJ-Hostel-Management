@@ -1051,7 +1051,7 @@ paths:
         - $ref: "#/components/parameters/GuestStayId"
       responses:
         "200":
-          description: Arrival recorded. The response includes the new dining count.
+          description: Arrival recorded.
           content:
             application/json:
               schema:
@@ -1062,7 +1062,6 @@ paths:
                 host_room_label: B-204
                 recorded_at: "2026-09-18T10:11:00Z"
                 message: The guest is now in the hall.
-                guests_in_hall_count: 6
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -1083,7 +1082,7 @@ paths:
       summary: Record guest departure
       description: |
         Caller: gate, warden, or provost. The guest must currently be in the hall.
-        Closes the stay. The dining count drops, including when the end date has
+        Closes the stay. Departure is still recorded when the end date has
         already passed.
       parameters:
         - $ref: "#/components/parameters/GuestStayId"
@@ -3318,7 +3317,7 @@ components:
     GuestMovementResult:
       type: object
       additionalProperties: false
-      required: [guest_name, host_name, host_room_label, recorded_at, message, guests_in_hall_count]
+      required: [guest_name, host_name, host_room_label, recorded_at, message]
       properties:
         guest_name:
           type: string
@@ -3331,9 +3330,6 @@ components:
           format: date-time
         message:
           type: string
-        guests_in_hall_count:
-          type: integer
-          minimum: 0
 
     RegisterSummary:
       type: object
