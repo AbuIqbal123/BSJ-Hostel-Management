@@ -3,7 +3,7 @@ method: POST
 url: '{{baseUrl}}/api/v1/auth/login'
 order: 200
 description: |-
-  Signs in as Sara Malik, the warden. Press Send. Stashes `access_token` in collection variable `warden_token`.
+  Signs in as Sara Malik, the warden. Sets collection variable token_warden for Bearer auth on Permissions requests.
 headers:
   - key: Content-Type
     value: application/json
@@ -40,5 +40,5 @@ scripts:
           pm.expect(body.user.full_name).to.eql("Sara Malik");
       });
       if (pm.response.code === 200 && body.access_token) {
-          pm.collectionVariables.set("warden_token", body.access_token);
+          pm.collectionVariables.set("token_warden", body.access_token);
       }

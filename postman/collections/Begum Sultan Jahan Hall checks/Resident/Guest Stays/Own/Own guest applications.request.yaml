@@ -9,25 +9,3 @@ queryParams:
     value: '0'
 description: |-
   Caller: resident. Stays this resident is hosting. Newest first.
-scripts:
-  - type: beforeRequest
-    language: text/javascript
-    code: |-
-      pm.sendRequest({
-          url: pm.collectionVariables.get("baseUrl") + "/api/v1/auth/login",
-          method: "POST",
-          header: {"Content-Type": "application/json"},
-          body: {
-              mode: "raw",
-              raw: JSON.stringify(Object.assign({username: "24-GLLB-118"}, {[["pass", "word"].join("")]: ["resident", "10"].join("-")}))
-          }
-      }, function (err, res) {
-          if (err || !res || res.code !== 200) {
-              throw new Error("Could not sign in as Aisha Khan.");
-          }
-          const signedIn = res.json();
-          pm.request.headers.upsert({
-              key: "Authorization",
-              value: "Bearer " + signedIn.access_token
-          });
-      });

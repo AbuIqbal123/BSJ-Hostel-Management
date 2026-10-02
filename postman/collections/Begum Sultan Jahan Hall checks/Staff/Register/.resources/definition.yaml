@@ -2,4 +2,4 @@ $kind: collection
 name: Register
 order: 2000
 description: |-
-  Presence board under /api/v1/register. Each request signs in as Halima Begum, the provost.
+  Presence board under /api/v1/register. Bearer uses {{token_provost}} (Sign in as Provost).

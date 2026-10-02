@@ -4,25 +4,3 @@ url: '{{baseUrl}}/api/v1/me/outings'
 order: 2500
 description: |-
   Caller: resident. Her planned and outside outings, soonest return first. Several may fall on the same day. A later return today, and a later day, stay on this list. Open outing shows the outing she is outside on, or the soonest plan for today. A planned outing whose expected return has passed is cancelled by this read, with no staff member, and then left off the list.
-scripts:
-  - type: beforeRequest
-    language: text/javascript
-    code: |-
-      pm.sendRequest({
-          url: pm.collectionVariables.get("baseUrl") + "/api/v1/auth/login",
-          method: "POST",
-          header: {"Content-Type": "application/json"},
-          body: {
-              mode: "raw",
-              raw: JSON.stringify(Object.assign({username: "24-GLLB-118"}, {[["pass", "word"].join("")]: ["resident", "10"].join("-")}))
-          }
-      }, function (err, res) {
-          if (err || !res || res.code !== 200) {
-              throw new Error("Could not sign in as Aisha Khan.");
-          }
-          const signedIn = res.json();
-          pm.request.headers.upsert({
-              key: "Authorization",
-              value: "Bearer " + signedIn.access_token
-          });
-      });

@@ -3,7 +3,7 @@ method: POST
 url: '{{baseUrl}}/api/v1/me/guest-stays'
 order: 2000
 description: |-
-  Caller: resident. Start date must be at least `guest_min_lead_days` after today in Asia/Kolkata (by default, tomorrow or later). Inclusive days from start through end must be within `guest_max_inclusive_days` (by default, 7). Send sets the start to two hall days ahead and the end three days after that, four inclusive days. Payment is not taken here. The new guest stay id is saved for review, payment, arrival, and cancel.
+  Caller: resident. Start date must be at least `guest_min_lead_days` after today in Asia/Kolkata (by default, tomorrow or later). Inclusive days from start through end must be within `guest_max_inclusive_days` (by default, 7). Send sets the start to two hall days ahead and the end three days after that, four inclusive days. Payment is not taken here. The new guest stay id is saved for review, payment, arrival, and cancel. Bearer uses {{token_resident}}.
 headers:
   - key: Content-Type
     value: application/json
@@ -21,31 +21,13 @@ scripts:
   - type: beforeRequest
     language: text/javascript
     code: |-
-      pm.sendRequest({
-          url: pm.collectionVariables.get("baseUrl") + "/api/v1/auth/login",
-          method: "POST",
-          header: {"Content-Type": "application/json"},
-          body: {
-              mode: "raw",
-              raw: JSON.stringify(Object.assign({username: "24-GLLB-118"}, {[["pass", "word"].join("")]: ["resident", "10"].join("-")}))
-          }
-      }, function (err, res) {
-          if (err || !res || res.code !== 200) {
-              throw new Error("Could not sign in as Aisha Khan.");
-          }
-          const signedIn = res.json();
-          pm.request.headers.upsert({
-              key: "Authorization",
-              value: "Bearer " + signedIn.access_token
-          });
-          const kolkata = new Date(Date.now() + (5 * 60 + 30) * 60 * 1000);
-          const start = new Date(Date.UTC(kolkata.getUTCFullYear(), kolkata.getUTCMonth(), kolkata.getUTCDate() + 2));
-          const end = new Date(start.getTime() + 3 * 24 * 60 * 60 * 1000);
-          const payload = JSON.parse(pm.request.body.raw);
-          payload.start_date = start.toISOString().slice(0, 10);
-          payload.end_date = end.toISOString().slice(0, 10);
-          pm.request.body.raw = JSON.stringify(payload, null, 2);
-      });
+      const kolkata = new Date(Date.now() + (5 * 60 + 30) * 60 * 1000);
+      const start = new Date(Date.UTC(kolkata.getUTCFullYear(), kolkata.getUTCMonth(), kolkata.getUTCDate() + 2));
+      const end = new Date(start.getTime() + 3 * 24 * 60 * 60 * 1000);
+      const payload = JSON.parse(pm.request.body.raw);
+      payload.start_date = start.toISOString().slice(0, 10);
+      payload.end_date = end.toISOString().slice(0, 10);
+      pm.request.body.raw = JSON.stringify(payload, null, 2);
   - type: afterResponse
     language: text/javascript
     code: |-

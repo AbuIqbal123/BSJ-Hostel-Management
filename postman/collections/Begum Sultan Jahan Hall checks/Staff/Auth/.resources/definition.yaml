@@ -2,4 +2,4 @@ $kind: collection
 name: Auth
 order: 100
 description: |-
-  Halima Begum, the provost. Press Send. She can open the gate, the register, and the hall office.
+  Staff sign-in and session. Sign in requests set token_provost, token_warden, or token_gate.

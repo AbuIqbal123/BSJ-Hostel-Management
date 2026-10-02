@@ -2,4 +2,9 @@ $kind: collection
 name: Permissions
 order: 2100
 description: |-
-  Late-night and home-going queue and decisions. Each request signs in as Halima Begum, the provost.
+  Late-night and home-going queue and decisions. Bearer uses {{token_warden}} (Sign in as Warden).
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{token_warden}}'

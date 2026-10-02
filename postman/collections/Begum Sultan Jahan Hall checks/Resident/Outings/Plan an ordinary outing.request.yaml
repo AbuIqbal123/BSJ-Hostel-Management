@@ -3,7 +3,7 @@ method: POST
 url: '{{baseUrl}}/api/v1/me/outings'
 order: 2000
 description: |-
-  Caller: resident. This is required before an ordinary exit scan. The scan does not ask for a destination or an expected return. She may plan several returns, including two on the same day. Sets destination and expected return. Does not record the exit and does not change whether she is inside. The gate scan does that. No warden approval. Grace is the hall's `grace_minutes` added to the expected return. The expected return must be in the future and inside ordinary hours on that hall date. The start of the window is not included. The end is included. Summer, 1 April through 30 September, is 6:30 AM to 6:30 PM. Winter, 1 October through 31 March, is 6:30 AM to 5:30 PM. A return at or before the start is outside ordinary hours. A return after the end asks her to submit a permission request. A second plan ending at the same instant says she already has an outing ending at that time. When the chosen destination is the Other row, `destination_text` is required. Send fills the next free return at 12:00 PM, then 5:00 PM, then the next day. Both times are inside summer and winter hours. The new outing id is saved for Cancel.
+  Caller: resident. This is required before an ordinary exit scan. The scan does not ask for a destination or an expected return. She may plan several returns, including two on the same day. Sets destination and expected return. Does not record the exit and does not change whether she is inside. The gate scan does that. No warden approval. Grace is the hall's `grace_minutes` added to the expected return. The expected return must be in the future and inside ordinary hours on that hall date. The start of the window is not included. The end is included. Summer, 1 April through 30 September, is 6:30 AM to 6:30 PM. Winter, 1 October through 31 March, is 6:30 AM to 5:30 PM. A return at or before the start is outside ordinary hours. A return after the end asks her to submit a permission request. A second plan ending at the same instant says she already has an outing ending at that time. When the chosen destination is the Other row, `destination_text` is required. Send fills the next free return at 12:00 PM, then 5:00 PM, then the next day. Both times are inside summer and winter hours. The new outing id is saved for Cancel. Bearer uses {{token_resident}}.
 headers:
   - key: Content-Type
     value: application/json
@@ -18,60 +18,45 @@ scripts:
   - type: beforeRequest
     language: text/javascript
     code: |-
+      const token = pm.collectionVariables.get("token_resident");
+      if (!token) {
+          throw new Error("Sign in as Resident first (sets token_resident).");
+      }
       pm.sendRequest({
-          url: pm.collectionVariables.get("baseUrl") + "/api/v1/auth/login",
-          method: "POST",
-          header: {"Content-Type": "application/json"},
-          body: {
-              mode: "raw",
-              raw: JSON.stringify(Object.assign({username: "24-GLLB-118"}, {[["pass", "word"].join("")]: ["resident", "10"].join("-")}))
+          url: pm.collectionVariables.get("baseUrl") + "/api/v1/me/outings",
+          method: "GET",
+          header: {Authorization: "Bearer " + token}
+      }, function (listErr, listRes) {
+          const taken = {};
+          if (!listErr && listRes && listRes.code === 200) {
+              listRes.json().items.forEach(function (item) {
+                  taken[item.expected_return_at] = true;
+              });
           }
-      }, function (err, res) {
-          if (err || !res || res.code !== 200) {
-              throw new Error("Could not sign in as Aisha Khan.");
-          }
-          const signedIn = res.json();
-          pm.request.headers.upsert({
-              key: "Authorization",
-              value: "Bearer " + signedIn.access_token
-          });
-          const token = signedIn.access_token;
-          pm.sendRequest({
-              url: pm.collectionVariables.get("baseUrl") + "/api/v1/me/outings",
-              method: "GET",
-              header: {Authorization: "Bearer " + token}
-          }, function (listErr, listRes) {
-              const taken = {};
-              if (!listErr && listRes && listRes.code === 200) {
-                  listRes.json().items.forEach(function (item) {
-                      taken[item.expected_return_at] = true;
-                  });
-              }
-              const now = new Date();
-              const slots = [6 * 60 + 30, 11 * 60 + 30];
-              let target = null;
-              for (let day = 0; day < 14 && target === null; day += 1) {
-                  const base = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + day);
-                  for (let slot = 0; slot < slots.length; slot += 1) {
-                      const candidate = new Date(base + slots[slot] * 60 * 1000);
-                      if (candidate.getTime() <= now.getTime()) {
-                          continue;
-                      }
-                      const iso = candidate.toISOString().replace(".000Z", "Z");
-                      if (taken[iso]) {
-                          continue;
-                      }
-                      target = iso;
-                      break;
+          const now = new Date();
+          const slots = [6 * 60 + 30, 11 * 60 + 30];
+          let target = null;
+          for (let day = 0; day < 14 && target === null; day += 1) {
+              const base = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + day);
+              for (let slot = 0; slot < slots.length; slot += 1) {
+                  const candidate = new Date(base + slots[slot] * 60 * 1000);
+                  if (candidate.getTime() <= now.getTime()) {
+                      continue;
                   }
+                  const iso = candidate.toISOString().replace(".000Z", "Z");
+                  if (taken[iso]) {
+                      continue;
+                  }
+                  target = iso;
+                  break;
               }
-              if (target === null) {
-                  throw new Error("No free ordinary return in the next two weeks.");
-              }
-              const payload = JSON.parse(pm.request.body.raw);
-              payload.expected_return_at = target;
-              pm.request.body.raw = JSON.stringify(payload, null, 2);
-          });
+          }
+          if (target === null) {
+              throw new Error("No free ordinary return in the next two weeks.");
+          }
+          const payload = JSON.parse(pm.request.body.raw);
+          payload.expected_return_at = target;
+          pm.request.body.raw = JSON.stringify(payload, null, 2);
       });
   - type: afterResponse
     language: text/javascript

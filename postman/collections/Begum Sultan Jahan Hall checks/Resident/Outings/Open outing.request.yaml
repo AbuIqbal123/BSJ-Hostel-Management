@@ -4,25 +4,3 @@ url: '{{baseUrl}}/api/v1/me/outings/current'
 order: 3000
 description: |-
   Caller: resident. The outing she is outside on, or the soonest plan for today, or null. A later return today, and a plan for a later day, are on Ordinary outing plans. If a planned return has passed, this read cancels that plan, with no staff member. An outside outing stays outside. It is late only after grace.
-scripts:
-  - type: beforeRequest
-    language: text/javascript
-    code: |-
-      pm.sendRequest({
-          url: pm.collectionVariables.get("baseUrl") + "/api/v1/auth/login",
-          method: "POST",
-          header: {"Content-Type": "application/json"},
-          body: {
-              mode: "raw",
-              raw: JSON.stringify(Object.assign({username: "24-GLLB-118"}, {[["pass", "word"].join("")]: ["resident", "10"].join("-")}))
-          }
-      }, function (err, res) {
-          if (err || !res || res.code !== 200) {
-              throw new Error("Could not sign in as Aisha Khan.");
-          }
-          const signedIn = res.json();
-          pm.request.headers.upsert({
-              key: "Authorization",
-              value: "Bearer " + signedIn.access_token
-          });
-      });

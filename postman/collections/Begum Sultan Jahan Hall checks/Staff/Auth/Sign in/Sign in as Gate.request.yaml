@@ -3,7 +3,7 @@ method: POST
 url: '{{baseUrl}}/api/v1/auth/login'
 order: 300
 description: |-
-  Signs in as Fatima Khan, gate staff. Press Send. Stashes `access_token` in collection variable `gate_token`.
+  Signs in as Fatima Khan, gate staff. Sets collection variable token_gate for Bearer auth on Gate requests.
 headers:
   - key: Content-Type
     value: application/json
@@ -40,5 +40,5 @@ scripts:
           pm.expect(body.user.full_name).to.eql("Fatima Khan");
       });
       if (pm.response.code === 200 && body.access_token) {
-          pm.collectionVariables.set("gate_token", body.access_token);
+          pm.collectionVariables.set("token_gate", body.access_token);
       }

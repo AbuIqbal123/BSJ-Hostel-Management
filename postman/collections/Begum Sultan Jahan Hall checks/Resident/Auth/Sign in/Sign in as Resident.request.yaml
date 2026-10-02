@@ -3,7 +3,7 @@ method: POST
 url: '{{baseUrl}}/api/v1/auth/login'
 order: 100
 description: |-
-  Signs in as Aisha Khan, enrolment 24-GLLB-118. Press Send. Stashes `access_token` in collection variable `resident_token`.
+  Signs in as Aisha Khan, enrolment 24-GLLB-118. Sets collection variable token_resident for Bearer auth on Resident requests.
 headers:
   - key: Content-Type
     value: application/json
@@ -40,5 +40,5 @@ scripts:
           pm.expect(body.user.full_name).to.eql("Aisha Khan");
       });
       if (pm.response.code === 200 && body.access_token) {
-          pm.collectionVariables.set("resident_token", body.access_token);
+          pm.collectionVariables.set("token_resident", body.access_token);
       }

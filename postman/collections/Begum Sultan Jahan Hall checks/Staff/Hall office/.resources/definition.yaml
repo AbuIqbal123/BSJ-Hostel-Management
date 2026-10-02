@@ -2,4 +2,4 @@ $kind: collection
 name: Hall office
 order: 3000
 description: |-
-  Provost only. Each request signs in as Halima Begum.
+  Provost only. Bearer uses {{token_provost}} (Sign in as Provost).

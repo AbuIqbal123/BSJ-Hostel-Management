@@ -2,4 +2,4 @@ $kind: collection
 name: Session
 order: 200
 description: |-
-  Current account, refresh, change password, and sign out.
+  Current account, refresh, change password, and sign out. Uses {{token_provost}} unless noted.
