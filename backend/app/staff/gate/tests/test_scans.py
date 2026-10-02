@@ -204,11 +204,19 @@ def test_gate_scans_and_activity(
         assert exit_body["message"] == expected["exit_message"]
         assert exit_body["full_name"] == "Aisha Khan"
         assert exit_body["room_label"] == "B-204"
+        assert "recorded_at" not in exit_body
+        assert "on_time" not in exit_body
+        assert "return_record" not in exit_body
+        assert set(exit_body) == {"outcome", "full_name", "room_label", "message", "outing"}
         assert exit_body["outing"]["id"] == OUTING_ID
         assert exit_body["outing"]["status"] == "outside"
         assert exit_body["outing"]["exited_at"] == "2026-09-30T12:00:00Z"
         assert exit_body["outing"]["exit_recorded_by_name"] == "Fatima Khan"
-        assert exit_body["on_time"] is None
+        assert exit_body["outing"]["recorded_at"] == "2026-09-30T12:00:00Z"
+        assert exit_body["outing"]["lateness"] == "on_time"
+        assert "is_late" not in exit_body["outing"]
+        assert "return_timeliness" not in exit_body
+        assert "return_timeliness" not in exit_body["outing"]
 
         dup = assert_error(
             client.post("/api/v1/gate/scans", headers=headers, json={"qr_payload": QR}),
@@ -225,18 +233,37 @@ def test_gate_scans_and_activity(
         ret_body = returned.json()
         assert ret_body["outcome"] == "return_recorded"
         assert ret_body["message"] == expected["return_message"]
-        assert ret_body["on_time"] is True
-        assert ret_body["outing"]["status"] == "returned"
-        assert ret_body["outing"]["returned_at"] == "2026-09-30T12:01:00Z"
-        assert ret_body["outing"]["return_recorded_by_name"] == "Fatima Khan"
+        assert "recorded_at" not in ret_body
+        assert "on_time" not in ret_body
+        assert "outing" not in ret_body
+        assert "return_timeliness" not in ret_body
+        assert set(ret_body) == {"outcome", "full_name", "room_label", "message", "return_record"}
+        rr = ret_body["return_record"]
+        # expected 12:30Z, grace 13:00Z, returned 12:01Z → on_time
+        assert rr["return_timeliness"] == "on_time"
+        assert rr["returned_at"] == "2026-09-30T12:01:00Z"
+        assert rr["return_recorded_by_name"] == "Fatima Khan"
+        assert rr["recorded_at"] == "2026-09-30T12:01:00Z"
+        assert "is_late" not in rr
+        assert "status" not in rr
+        assert set(rr) == {
+            "recorded_at",
+            "return_timeliness",
+            "returned_at",
+            "return_recorded_by_name",
+        }
 
         activity = client.get("/api/v1/gate/activity", headers=headers)
         assert activity.status_code == 200
         page = activity.json()
         assert page["total"] == 2
         assert [item["event"] for item in page["items"]] == expected["activity_events"]
-        assert page["items"][0]["title"] == "Aisha Khan"
-        assert page["items"][0]["subtitle"] == "B-204"
+        first = page["items"][0]
+        assert first["resident_name"] == "Aisha Khan"
+        assert first["room_label"] == "B-204"
+        assert first["guest_name"] is None
+        assert first["host_name"] is None
+        assert first["host_room_label"] is None
 
         warden = sign_in(client, "warden.sara", WARDEN_PHRASE)
         warden_activity = client.get(
@@ -471,7 +498,9 @@ def test_tied_gate_activity_pages_do_not_skip_or_repeat(
         assert second_page["total"] == 2
         assert [item["event"] for item in first_page["items"]] == ["exit"]
         assert [item["event"] for item in second_page["items"]] == ["exit"]
-        assert first_page["items"][0]["subtitle"] == "B-201"
-        assert second_page["items"][0]["subtitle"] == "B-202"
+        assert first_page["items"][0]["room_label"] == "B-201"
+        assert second_page["items"][0]["room_label"] == "B-202"
         assert first_page["items"][0]["occurred_at"] == second_page["items"][0]["occurred_at"]
-        assert first_page["items"][0]["title"] == second_page["items"][0]["title"]
+        assert first_page["items"][0]["resident_name"] == second_page["items"][0]["resident_name"]
+        assert first_page["items"][0]["guest_name"] is None
+        assert second_page["items"][0]["guest_name"] is None

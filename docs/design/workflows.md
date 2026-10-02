@@ -72,7 +72,7 @@ Keep this document Fowler-simple: one workflow per section, steps a person can n
 
 **Edge cases by date / time**
 
-- Use window: departure minus `permission_early_minutes` through expected return. Gate may open an outing from the permission only inside that window.
+- Use window: departure minus `permission_lead_minutes` through expected return. Gate may open an outing from the permission only inside that window.
 - Approved unused whose expected return has passed becomes **expired** when listed or fetched (no separate expiry list). Gate cannot use it.
 - A return at or before that hall date's ordinary-hours start is 409 `outside_ordinary_hours`: "That return is outside ordinary hours." Do not send her to late-night or home going.
 - A return after the end is 409 `permission_required`: "That return is outside ordinary hours. Please submit a permission request." Summer, 1 April through 30 September, is 6:30 AM to 6:30 PM. Winter, 1 October through 31 March, is 6:30 AM to 5:30 PM. The start is not included. The end is included.

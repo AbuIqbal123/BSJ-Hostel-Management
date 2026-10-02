@@ -1,0 +1,8 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/api/v1/gate/occupancy'
+order: 1000
+description: |-
+  Caller: gate, warden, or provost. Hall-wide guest dining counts for the gate
+  home strip: guests still in the hall, and the subset who should already have
+  left. Not the full register presence board.

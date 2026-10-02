@@ -240,7 +240,7 @@ def page_summary(body: dict) -> dict:
         "items": [
             {
                 "id": item["id"],
-                "type": item["type"],
+                "permission_type": item["permission_type"],
                 "status": item["status"],
                 "short_place": item["short_place"],
                 "created_at": item["created_at"],
@@ -257,7 +257,7 @@ def expected_artifact() -> dict:
     newest = [
         {
             "id": PERM_HOME_A,
-            "type": "home_going",
+            "permission_type": "home_going",
             "status": "pending",
             "short_place": "Delhi",
             "created_at": "2026-09-30T12:30:00Z",
@@ -267,7 +267,7 @@ def expected_artifact() -> dict:
         },
         {
             "id": PERM_LATE_A,
-            "type": "late_night",
+            "permission_type": "late_night",
             "status": "pending",
             "short_place": "City library",
             "created_at": "2026-09-30T12:00:00Z",
@@ -277,7 +277,7 @@ def expected_artifact() -> dict:
         },
         {
             "id": PERM_HOME_B,
-            "type": "home_going",
+            "permission_type": "home_going",
             "status": "pending",
             "short_place": "Lucknow",
             "created_at": "2026-09-30T11:00:00Z",
@@ -287,7 +287,7 @@ def expected_artifact() -> dict:
         },
         {
             "id": PERM_LATE_B,
-            "type": "late_night",
+            "permission_type": "late_night",
             "status": "pending",
             "short_place": "Women's College",
             "created_at": "2026-09-30T10:00:00Z",
@@ -382,7 +382,7 @@ def test_permission_queue_filters_and_sort(
 
         home_going = client.get(
             "/api/v1/permissions",
-            params={"type": "home_going"},
+            params={"permission_type": "home_going"},
             headers=auth(warden),
         )
         assert home_going.status_code == 200
@@ -409,7 +409,7 @@ def test_permission_queue_filters_and_sort(
 
         combined = client.get(
             "/api/v1/permissions",
-            params={"type": "home_going", "block_id": BLOCK_A},
+            params={"permission_type": "home_going", "block_id": BLOCK_A},
             headers=auth(warden),
         )
         assert combined.status_code == 200

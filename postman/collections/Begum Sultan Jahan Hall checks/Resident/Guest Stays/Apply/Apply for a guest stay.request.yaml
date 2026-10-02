@@ -13,8 +13,8 @@ body:
     {
       "guest_name": "Zara Ahmed",
       "relation": "Cousin",
-      "start_date": "2026-10-18",
-      "end_date": "2026-10-21",
+      "guest_start_date": "2026-10-18",
+      "guest_end_date": "2026-10-21",
       "reason": "Family wedding in Aligarh. Staying with Aisha, B-204."
     }
 scripts:
@@ -25,8 +25,8 @@ scripts:
       const start = new Date(Date.UTC(kolkata.getUTCFullYear(), kolkata.getUTCMonth(), kolkata.getUTCDate() + 2));
       const end = new Date(start.getTime() + 3 * 24 * 60 * 60 * 1000);
       const payload = JSON.parse(pm.request.body.raw);
-      payload.start_date = start.toISOString().slice(0, 10);
-      payload.end_date = end.toISOString().slice(0, 10);
+      payload.guest_start_date = start.toISOString().slice(0, 10);
+      payload.guest_end_date = end.toISOString().slice(0, 10);
       pm.request.body.raw = JSON.stringify(payload, null, 2);
   - type: afterResponse
     language: text/javascript

@@ -1,0 +1,5 @@
+$kind: collection
+name: Occupancy
+order: 1500
+description: |-
+  Guest dining occupancy counts for the gate home strip.

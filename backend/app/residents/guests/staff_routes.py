@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from typing import Annotated, Literal
+
 from fastapi import APIRouter, File, Query, UploadFile
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.residents.guests.payment_evidence import (
     MAX_EVIDENCE_BYTES,
@@ -35,6 +36,7 @@ router = APIRouter(prefix="/api/v1", tags=["Guest Stays"])
 class PaymentRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     payment_status: Literal["paid", "unpaid"]
+    payment_note: str | None = Field(default=None, max_length=500)
 
 
 def _payment_mutable(row) -> bool:
@@ -71,6 +73,7 @@ def list_guest_stays_staff(
     _account: RegisterDep,
     connection: ConnectionDep,
     bucket: Annotated[GuestBucket | None, Query()] = None,
+    include_terminal: Annotated[bool, Query()] = False,
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> GuestStayPageBody:
@@ -82,6 +85,7 @@ def list_guest_stays_staff(
         offset=offset,
         today=today,
         bucket=bucket,
+        include_terminal=include_terminal,
     )
 
 
@@ -107,6 +111,29 @@ def decide_guest_stay(
 ) -> GuestStayBody:
     now_text = clock.format_instant(clock.utc_now())
     note = None if body.note is None else body.note.strip() or None
+    existing = connection.execute(
+        """
+        SELECT id, status, arrived_at, departed_at, guest_name
+        FROM guest_stays
+        WHERE id = ?
+        """,
+        (guest_stay_id,),
+    ).fetchone()
+    if existing is None:
+        raise ApiError(404, "not_found", "That record was not found.")
+    if existing["status"] != "pending" or existing["departed_at"] is not None:
+        raise ApiError(
+            409,
+            "not_pending",
+            "Only a pending guest stay can be approved or rejected "
+            f"(current status: {existing['status']}).",
+        )
+    if existing["arrived_at"] is not None and body.decision == "rejected":
+        raise ApiError(
+            409,
+            "not_pending",
+            "A guest stay cannot be rejected after the guest has arrived.",
+        )
     row = connection.execute(
         """
         UPDATE guest_stays
@@ -116,18 +143,12 @@ def decide_guest_stay(
           decided_at = ?,
           decision_note = ?,
           updated_at = ?
-        WHERE id = ? AND status = 'pending' AND arrived_at IS NULL AND departed_at IS NULL
+        WHERE id = ? AND status = 'pending' AND departed_at IS NULL
         RETURNING id, guest_name
         """,
         (body.decision, account.id, now_text, note, now_text, guest_stay_id),
     ).fetchone()
     if row is None:
-        existing = connection.execute(
-            "SELECT status FROM guest_stays WHERE id = ?",
-            (guest_stay_id,),
-        ).fetchone()
-        if existing is None:
-            raise ApiError(404, "not_found", "That record was not found.")
         raise ApiError(
             409,
             "not_pending",
@@ -175,7 +196,15 @@ def mark_guest_payment(
             "Payment cannot be changed after the guest has arrived or the stay is closed.",
         )
     previous_evidence = existing["payment_evidence_path"]
+    note = None if body.payment_note is None else body.payment_note.strip() or None
     if body.payment_status == "paid":
+        if note is None:
+            raise ApiError(
+                422,
+                "validation_error",
+                "Payment note is required when marking paid.",
+                field="payment_note",
+            )
         updated = connection.execute(
             """
             UPDATE guest_stays
@@ -183,6 +212,7 @@ def mark_guest_payment(
               payment_status = 'paid',
               payment_marked_by = ?,
               payment_marked_at = ?,
+              payment_note = ?,
               updated_at = ?
             WHERE id = ?
               AND status IN ('pending', 'approved')
@@ -190,7 +220,7 @@ def mark_guest_payment(
               AND departed_at IS NULL
             RETURNING id, guest_name
             """,
-            (account.id, now_text, now_text, guest_stay_id),
+            (account.id, now_text, note, now_text, guest_stay_id),
         ).fetchone()
     else:
         updated = connection.execute(
@@ -200,6 +230,7 @@ def mark_guest_payment(
               payment_status = 'unpaid',
               payment_marked_by = NULL,
               payment_marked_at = NULL,
+              payment_note = NULL,
               payment_evidence_path = NULL,
               payment_evidence_original_name = NULL,
               payment_evidence_content_type = NULL,

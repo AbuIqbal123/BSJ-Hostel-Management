@@ -1,4 +1,4 @@
-"""Provost hall-office settings routes."""
+"""Provost hall-office settings and notification routes."""
 
 from __future__ import annotations
 
@@ -13,9 +13,13 @@ from app.shared.errors import ApiError
 from app.staff.office.records import (
     LATE_PLACEHOLDERS,
     RETURN_PLACEHOLDERS,
+    HallNotifications,
+    HallNotificationsUpdate,
     HallSettings,
     HallSettingsUpdate,
+    apply_notifications_update,
     apply_settings_update,
+    load_notifications,
     load_settings,
     record_settings_updated,
     template_keeps_placeholders,
@@ -34,19 +38,19 @@ ProvostDep = Annotated[Account, Depends(provost_account)]
 
 
 def _require_hours_order(merged: HallSettings) -> None:
-    if not (merged.summer_hours_end > merged.summer_hours_start):
+    if not (merged.summer_outing_end > merged.summer_outing_start):
         raise ApiError(
             422,
             "validation_error",
-            "Summer hours end must be after the start.",
-            field="summer_hours_end",
+            "Summer outing end must be after the start.",
+            field="summer_outing_end",
         )
-    if not (merged.winter_hours_end > merged.winter_hours_start):
+    if not (merged.winter_outing_end > merged.winter_outing_start):
         raise ApiError(
             422,
             "validation_error",
-            "Winter hours end must be after the start.",
-            field="winter_hours_end",
+            "Winter outing end must be after the start.",
+            field="winter_outing_end",
         )
 
 
@@ -60,8 +64,9 @@ def _require_distinct_seasons(merged: HallSettings) -> None:
         )
 
 
-def _require_sms_placeholders(merged: HallSettings, changes: dict[str, object]) -> None:
-    # Enforce placeholders only when a template is being changed.
+def _require_sms_placeholders(
+    merged: HallNotifications, changes: dict[str, object]
+) -> None:
     if "late_sms_template" in changes and not template_keeps_placeholders(
         merged.late_sms_template, LATE_PLACEHOLDERS
     ):
@@ -100,7 +105,6 @@ def update_settings(
 
     _require_hours_order(merged)
     _require_distinct_seasons(merged)
-    _require_sms_placeholders(merged, changes)
 
     now_text = clock.format_instant(clock.utc_now())
     assignments = ", ".join(f"{key} = ?" for key in changes)
@@ -126,3 +130,49 @@ def update_settings(
     )
     connection.commit()
     return load_settings(connection)
+
+
+@router.get("/notifications", response_model=HallNotifications)
+def get_notifications(
+    _account: ProvostDep, connection: ConnectionDep
+) -> HallNotifications:
+    return load_notifications(connection)
+
+
+@router.patch("/notifications", response_model=HallNotifications)
+def update_notifications(
+    body: HallNotificationsUpdate,
+    account: ProvostDep,
+    connection: ConnectionDep,
+) -> HallNotifications:
+    current = load_notifications(connection)
+    merged, changes = apply_notifications_update(current, body)
+    if not changes:
+        return current
+
+    _require_sms_placeholders(merged, changes)
+
+    now_text = clock.format_instant(clock.utc_now())
+    assignments = ", ".join(f"{key} = ?" for key in changes)
+    values = [changes[key] for key in changes]
+    connection.execute(
+        f"""
+        UPDATE hall_settings
+        SET {assignments}, updated_at = ?
+        WHERE id = 'hall'
+        """,
+        (*values, now_text),
+    )
+    detail = json.dumps(
+        {"before": {key: getattr(current, key) for key in changes}, "after": changes},
+        sort_keys=True,
+    )
+    record_settings_updated(
+        connection,
+        now_text,
+        account.id,
+        f"{account.full_name} updated hall notification templates.",
+        detail,
+    )
+    connection.commit()
+    return load_notifications(connection)

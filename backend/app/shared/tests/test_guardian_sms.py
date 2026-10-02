@@ -188,7 +188,7 @@ def test_mock_late_and_return_notices(database_path: Path, monkeypatch: pytest.M
         )
         assert returned.status_code == 200
         assert returned.json()["outcome"] == "return_recorded"
-        assert returned.json()["on_time"] is False
+        assert returned.json()["return_record"]["return_timeliness"] == "late"
 
         connection = sqlite3.connect(database_path)
         connection.row_factory = sqlite3.Row

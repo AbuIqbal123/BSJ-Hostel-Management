@@ -168,7 +168,7 @@ def load_summary(connection: sqlite3.Connection) -> RegisterSummary:
             WHERE guest_stays.status = 'approved'
               AND guest_stays.arrived_at IS NOT NULL
               AND guest_stays.departed_at IS NULL
-              AND guest_stays.end_date < ?
+              AND guest_stays.guest_end_date < ?
               AND rooms.block_id = ?
             """,
             (today, block["block_id"]),

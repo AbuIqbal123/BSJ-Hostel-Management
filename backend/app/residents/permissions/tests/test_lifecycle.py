@@ -253,7 +253,7 @@ def test_permission_lifecycle(database_path: Path, monkeypatch: pytest.MonkeyPat
         insert_seed_permissions(database_path)
 
         late_night_body = {
-            "type": "late_night",
+            "permission_type": "late_night",
             "short_place": "Women's College",
             "destination_detail": "Seminar Hall",
             "reason": "Faculty seminar ends at 9:00 PM. Requesting late return to hall.",
@@ -345,7 +345,7 @@ def test_permission_lifecycle(database_path: Path, monkeypatch: pytest.MonkeyPat
             "/api/v1/me/permissions",
             headers=auth(resident),
             json={
-                "type": "late_night",
+                "permission_type": "late_night",
                 "short_place": "J.N. Medical College",
                 "reason": "Second late-night on overlapping hours.",
                 "departure_at": "2026-09-30T14:30:00Z",
@@ -361,7 +361,7 @@ def test_permission_lifecycle(database_path: Path, monkeypatch: pytest.MonkeyPat
             "/api/v1/me/permissions",
             headers=auth(resident),
             json={
-                "type": "home_going",
+                "permission_type": "home_going",
                 "short_place": "Lucknow",
                 "address": "14, Civil Lines, Lucknow, U.P. 226001",
                 "reason": "Family visit. Eid with parents.",

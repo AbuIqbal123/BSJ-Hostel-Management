@@ -143,7 +143,7 @@ def seed_stays(path: Path) -> None:
         connection.execute(
             """
             INSERT INTO guest_stays (
-              id, host_resident_id, guest_name, relation, start_date, end_date, reason,
+              id, host_resident_id, guest_name, relation, guest_start_date, guest_end_date, reason,
               status, payment_status, payment_marked_by, payment_marked_at,
               decided_by, decided_at, decision_note,
               arrived_at, arrived_recorded_by, departed_at, departed_recorded_by,
@@ -220,7 +220,7 @@ def test_optional_payment_evidence_upload(
         paid_only = client.post(
             f"/api/v1/guest-stays/{UPCOMING}/payment",
             headers=headers,
-            json={"payment_status": "paid"},
+            json={"payment_status": "paid", "payment_note": "Cash collected by Sara"},
         )
         assert paid_only.status_code == 200
         assert paid_only.json()["payment_status"] == "paid"
@@ -286,7 +286,7 @@ def test_optional_payment_evidence_upload(
             client.post(
                 f"/api/v1/guest-stays/{UPCOMING}/payment",
                 headers=headers,
-                json={"payment_status": "paid"},
+                json={"payment_status": "paid", "payment_note": "Cash collected by Sara"},
             ).status_code
             == 200
         )

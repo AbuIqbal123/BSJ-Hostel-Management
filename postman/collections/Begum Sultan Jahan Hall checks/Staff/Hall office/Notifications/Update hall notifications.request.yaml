@@ -1,0 +1,15 @@
+$kind: http-request
+method: PATCH
+url: '{{baseUrl}}/api/v1/admin/notifications'
+order: 2000
+description: |-
+  Caller: provost. Send only the fields that change. This sample sends the published late template, so Press Send leaves the hall message as it is when that text is already stored. Bearer uses {{token_provost}}.
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "late_sms_template": "{resident_name} ({room}) was expected to return to {hall_name} by {expected_return_local} and has not yet returned. Please contact the Hall Office if you need to speak to the duty warden."
+    }

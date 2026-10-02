@@ -14,8 +14,11 @@ class GateActivityItem(BaseModel):
     model_config = ConfigDict(extra="forbid")
     event: Literal["exit", "return", "guest_arrival", "guest_departure"]
     occurred_at: str
-    title: str
-    subtitle: str
+    resident_name: str | None
+    room_label: str | None
+    guest_name: str | None
+    host_name: str | None
+    host_room_label: str | None
 
 
 class GateActivityPage(BaseModel):
@@ -42,13 +45,24 @@ def normalize_qr_payload(qr_payload: str) -> str:
 
 
 _GATE_ACTIVITY_UNION = """
-SELECT event, occurred_at, title, subtitle, source_id
+SELECT
+  event,
+  occurred_at,
+  resident_name,
+  room_label,
+  guest_name,
+  host_name,
+  host_room_label,
+  source_id
 FROM (
   SELECT
     'exit' AS event,
     outings.exited_at AS occurred_at,
-    users.full_name AS title,
-    rooms.label AS subtitle,
+    users.full_name AS resident_name,
+    rooms.label AS room_label,
+    CAST(NULL AS TEXT) AS guest_name,
+    CAST(NULL AS TEXT) AS host_name,
+    CAST(NULL AS TEXT) AS host_room_label,
     outings.id AS source_id
   FROM outings
   JOIN residents ON residents.user_id = outings.resident_id
@@ -61,6 +75,9 @@ FROM (
     outings.returned_at,
     users.full_name,
     rooms.label,
+    CAST(NULL AS TEXT),
+    CAST(NULL AS TEXT),
+    CAST(NULL AS TEXT),
     outings.id
   FROM outings
   JOIN residents ON residents.user_id = outings.resident_id
@@ -71,8 +88,11 @@ FROM (
   SELECT
     'guest_arrival',
     guest_stays.arrived_at,
+    CAST(NULL AS TEXT),
+    CAST(NULL AS TEXT),
     guest_stays.guest_name,
-    host.full_name || ' · ' || rooms.label,
+    host.full_name,
+    rooms.label,
     guest_stays.id
   FROM guest_stays
   JOIN users AS host ON host.id = guest_stays.host_resident_id
@@ -83,8 +103,11 @@ FROM (
   SELECT
     'guest_departure',
     guest_stays.departed_at,
+    CAST(NULL AS TEXT),
+    CAST(NULL AS TEXT),
     guest_stays.guest_name,
-    host.full_name || ' · ' || rooms.label,
+    host.full_name,
+    rooms.label,
     guest_stays.id
   FROM guest_stays
   JOIN users AS host ON host.id = guest_stays.host_resident_id
@@ -107,7 +130,7 @@ def list_gate_activity(
     rows = connection.execute(
         f"""
         {_GATE_ACTIVITY_UNION}
-        ORDER BY occurred_at DESC, event, title, source_id
+        ORDER BY occurred_at DESC, event, COALESCE(resident_name, guest_name), source_id
         LIMIT ? OFFSET ?
         """,
         (limit, offset),
@@ -116,8 +139,11 @@ def list_gate_activity(
         GateActivityItem(
             event=row["event"],
             occurred_at=row["occurred_at"],
-            title=row["title"],
-            subtitle=row["subtitle"],
+            resident_name=row["resident_name"],
+            room_label=row["room_label"],
+            guest_name=row["guest_name"],
+            host_name=row["host_name"],
+            host_room_label=row["host_room_label"],
         )
         for row in rows
     ]

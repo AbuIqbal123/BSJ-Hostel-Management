@@ -1,7 +1,7 @@
 {
   "library": {
     "permission_id": null,
-    "type": "ordinary",
+    "outing_type": "ordinary",
     "status": "planned",
     "place": "Maulana Azad Library",
     "expected_return_at": "2026-09-30T13:00:00Z",
@@ -10,12 +10,12 @@
     "exit_recorded_by_name": null,
     "returned_at": null,
     "return_recorded_by_name": null,
-    "is_late": false,
+    "lateness": "on_time",
     "created_at": "2026-09-30T00:30:00Z"
   },
   "winter_end": {
     "permission_id": null,
-    "type": "ordinary",
+    "outing_type": "ordinary",
     "status": "planned",
     "place": "Women's College",
     "expected_return_at": "2026-10-01T12:00:00Z",
@@ -24,12 +24,12 @@
     "exit_recorded_by_name": null,
     "returned_at": null,
     "return_recorded_by_name": null,
-    "is_late": false,
+    "lateness": "on_time",
     "created_at": "2026-09-30T00:30:00Z"
   },
   "ahead": {
     "permission_id": null,
-    "type": "ordinary",
+    "outing_type": "ordinary",
     "status": "planned",
     "place": "Shamshad Market",
     "expected_return_at": "2026-10-02T10:30:00Z",
@@ -38,12 +38,12 @@
     "exit_recorded_by_name": null,
     "returned_at": null,
     "return_recorded_by_name": null,
-    "is_late": false,
+    "lateness": "on_time",
     "created_at": "2026-09-30T00:30:00Z"
   },
   "same_day": {
     "permission_id": null,
-    "type": "ordinary",
+    "outing_type": "ordinary",
     "status": "planned",
     "place": "Women's College",
     "expected_return_at": "2026-09-30T06:30:00Z",
@@ -52,12 +52,12 @@
     "exit_recorded_by_name": null,
     "returned_at": null,
     "return_recorded_by_name": null,
-    "is_late": false,
+    "lateness": "on_time",
     "created_at": "2026-09-30T00:30:00Z"
   },
   "other": {
     "permission_id": null,
-    "type": "ordinary",
+    "outing_type": "ordinary",
     "status": "planned",
     "place": "City bookshop",
     "expected_return_at": "2026-09-30T12:00:00Z",
@@ -66,7 +66,7 @@
     "exit_recorded_by_name": null,
     "returned_at": null,
     "return_recorded_by_name": null,
-    "is_late": false,
+    "lateness": "on_time",
     "created_at": "2026-09-30T00:30:00Z"
   }
 }

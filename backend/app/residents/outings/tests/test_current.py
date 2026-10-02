@@ -216,12 +216,12 @@ def test_current_outing(database_path: Path, monkeypatch: pytest.MonkeyPatch) ->
         frozen.moment = datetime(2026, 9, 30, 13, 30, tzinfo=timezone.utc)
         resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
         on_grace = current(client, resident)
-        assert on_grace.json()["outing"]["is_late"] is False
+        assert on_grace.json()["outing"]["lateness"] == "on_time"
         frozen.moment = datetime(2026, 9, 30, 13, 30, 1, tzinfo=timezone.utc)
         late = current(client, resident)
-        assert late.json()["outing"]["is_late"] is True
+        assert late.json()["outing"]["lateness"] == "late"
         assert late.json()["outing"]["status"] == "outside"
         home = client.get("/api/v1/me/home", headers={"Authorization": f"Bearer {resident}"})
         assert home.status_code == 200
         assert home.json()["current_outing"]["id"] == OUTSIDE_ID
-        assert home.json()["current_outing"]["is_late"] is True
+        assert home.json()["current_outing"]["lateness"] == "late"

@@ -21,8 +21,10 @@ class HistoryEvent(BaseModel):
     model_config = ConfigDict(extra="forbid")
     event: Literal["exited", "returned"]
     place: str
-    occurred_at: str
     outing_id: str
+    exited_at: str | None
+    returned_at: str | None
+    recorded_by: str
 
 
 class HistoryPage(BaseModel):
@@ -67,7 +69,7 @@ def _active_permission(connection: sqlite3.Connection, resident_id: str) -> Perm
         return None
     return PermissionBody(
         id=row["id"],
-        type=row["type"],
+        permission_type=row["type"],
         status=row["status"],
         short_place=row["short_place"],
         destination_detail=row["destination_detail"],
@@ -82,23 +84,29 @@ def _active_permission(connection: sqlite3.Connection, resident_id: str) -> Perm
 
 
 _HISTORY_EVENTS_SQL = """
-SELECT event, place, occurred_at, outing_id
+SELECT event, place, exited_at, returned_at, outing_id, recorded_by
 FROM (
   SELECT
     'exited' AS event,
-    place,
-    exited_at AS occurred_at,
-    id AS outing_id
+    outings.place AS place,
+    outings.exited_at AS exited_at,
+    CAST(NULL AS TEXT) AS returned_at,
+    outings.id AS outing_id,
+    exit_staff.full_name AS recorded_by
   FROM outings
-  WHERE resident_id = ? AND exited_at IS NOT NULL
+  LEFT JOIN users AS exit_staff ON exit_staff.id = outings.exit_recorded_by
+  WHERE outings.resident_id = ? AND outings.exited_at IS NOT NULL
   UNION ALL
   SELECT
     'returned',
-    place,
-    returned_at,
-    id
+    outings.place,
+    CAST(NULL AS TEXT),
+    outings.returned_at,
+    outings.id,
+    return_staff.full_name
   FROM outings
-  WHERE resident_id = ? AND returned_at IS NOT NULL
+  LEFT JOIN users AS return_staff ON return_staff.id = outings.return_recorded_by
+  WHERE outings.resident_id = ? AND outings.returned_at IS NOT NULL
 )
 """
 
@@ -117,7 +125,8 @@ def load_history(
     rows = connection.execute(
         f"""
         {_HISTORY_EVENTS_SQL}
-        ORDER BY occurred_at DESC, CASE event WHEN 'returned' THEN 0 ELSE 1 END, outing_id DESC
+        ORDER BY COALESCE(returned_at, exited_at) DESC,
+          CASE event WHEN 'returned' THEN 0 ELSE 1 END, outing_id DESC
         LIMIT ? OFFSET ?
         """,
         (resident_id, resident_id, limit, offset),
@@ -130,8 +139,10 @@ def load_history(
             HistoryEvent(
                 event=row["event"],
                 place=row["place"],
-                occurred_at=row["occurred_at"],
                 outing_id=row["outing_id"],
+                exited_at=row["exited_at"],
+                returned_at=row["returned_at"],
+                recorded_by=row["recorded_by"],
             )
             for row in rows
         ],

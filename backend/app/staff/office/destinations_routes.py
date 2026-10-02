@@ -51,7 +51,7 @@ def create_destination(
             "Name is required.",
             field="name",
         )
-    if body.is_other and active_other_exists(connection):
+    if body.source == "custom" and active_other_exists(connection):
         raise ApiError(409, "other_exists", _OTHER_EXISTS)
 
     destination_id = str(uuid.uuid4())
@@ -62,7 +62,7 @@ def create_destination(
             INSERT INTO destinations (id, name, is_other, is_active)
             VALUES (?, ?, ?, 1)
             """,
-            (destination_id, name, 1 if body.is_other else 0),
+            (destination_id, name, 1 if body.source == "custom" else 0),
         )
     except sqlite3.IntegrityError as exc:
         message = str(exc).lower()
@@ -124,8 +124,12 @@ def update_destination(
     if not changes:
         return current
 
-    will_be_other = bool(changes["is_other"]) if "is_other" in changes else current.is_other
-    will_be_active = bool(changes["is_active"]) if "is_active" in changes else current.is_active
+    will_be_other = (
+        changes["source"] == "custom" if "source" in changes else current.source == "custom"
+    )
+    will_be_active = (
+        changes["status"] == "active" if "status" in changes else current.status == "active"
+    )
     if will_be_other and will_be_active and active_other_exists(
         connection, excluding_id=destination_id
     ):
@@ -134,9 +138,12 @@ def update_destination(
     assignments: list[str] = []
     values: list[object] = []
     for key, value in changes.items():
-        if key in {"is_other", "is_active"}:
-            assignments.append(f"{key} = ?")
-            values.append(1 if value else 0)
+        if key == "source":
+            assignments.append("is_other = ?")
+            values.append(1 if value == "custom" else 0)
+        elif key == "status":
+            assignments.append("is_active = ?")
+            values.append(1 if value == "active" else 0)
         else:
             assignments.append(f"{key} = ?")
             values.append(value)

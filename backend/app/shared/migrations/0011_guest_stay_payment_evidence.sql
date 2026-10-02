@@ -1,6 +1,8 @@
 -- Optional guest-stay payment evidence file metadata.
--- Applied while user_version is 5. Leaves the version at 6.
--- Merge note: other open PRs may also claim 0006_*; renumber if that lands first.
+-- Applied while user_version is 10. Leaves the version at 11.
+-- Keeps guest_stay.edited from 0007 and adds the evidence audit actions.
+
+PRAGMA foreign_keys=OFF;
 
 ALTER TABLE guest_stays ADD COLUMN payment_evidence_path TEXT
   CHECK (payment_evidence_path IS NULL OR length(trim(payment_evidence_path)) > 0);
@@ -74,8 +76,6 @@ BEGIN
   SELECT RAISE(ABORT, 'guest decisions and payment are marked by a warden or the provost; arrival and departure are recorded by gate staff, a warden, or the provost');
 END;
 
-
--- Expand audit_log.action allowlist for payment evidence events.
 DROP TRIGGER IF EXISTS audit_log_no_update;
 DROP TRIGGER IF EXISTS audit_log_no_delete;
 
@@ -118,6 +118,7 @@ CREATE TABLE audit_log_new (
       'permission.expired',
       'guest_stay.submitted',
       'guest_stay.cancelled',
+      'guest_stay.edited',
       'guest_stay.approved',
       'guest_stay.rejected',
       'guest_stay.payment_marked',
@@ -159,7 +160,7 @@ FROM audit_log;
 DROP TABLE audit_log;
 ALTER TABLE audit_log_new RENAME TO audit_log;
 
-CREATE INDEX IF NOT EXISTS audit_log_occurred_at ON audit_log (occurred_at);
+CREATE INDEX audit_log_occurred_at ON audit_log (occurred_at);
 
 CREATE TRIGGER audit_log_no_update
 BEFORE UPDATE ON audit_log
@@ -173,4 +174,5 @@ BEGIN
   SELECT RAISE(ABORT, 'an audit log entry is not deleted');
 END;
 
-PRAGMA user_version = 6;
+PRAGMA foreign_keys=ON;
+PRAGMA user_version = 11;

@@ -184,7 +184,7 @@ def seed_stays(path: Path) -> None:
                 None,
                 "2026-09-19T09:00:00Z",
             ),
-            # unpaid within stay — not expected at gate
+            # unpaid within stay — timing-expected; arrival still refused until paid
             (
                 UNPAID,
                 RESIDENT_ID,
@@ -232,7 +232,7 @@ def seed_stays(path: Path) -> None:
         connection.executemany(
             """
             INSERT INTO guest_stays (
-              id, host_resident_id, guest_name, relation, start_date, end_date, reason,
+              id, host_resident_id, guest_name, relation, guest_start_date, guest_end_date, reason,
               status, payment_status, payment_marked_by, payment_marked_at,
               decided_by, decided_at, decision_note,
               arrived_at, arrived_recorded_by, departed_at, departed_recorded_by,
@@ -290,6 +290,23 @@ def test_gate_guests(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
         assert [item["id"] for item in listed.json()["items"]] == expected["expected_ids"]
         assert listed.json()["items"][0]["bucket"] == "expected"
         assert listed.json()["items"][0]["payment_status"] == "paid"
+        assert {item["payment_status"] for item in listed.json()["items"]} == {"paid", "unpaid"}
+
+        paid_only = client.get(
+            "/api/v1/gate/guests?bucket=expected&payment_status=paid",
+            headers=headers,
+        )
+        assert paid_only.status_code == 200
+        assert [item["id"] for item in paid_only.json()["items"]] == expected["expected_paid_ids"]
+        assert all(item["payment_status"] == "paid" for item in paid_only.json()["items"])
+
+        unpaid_only = client.get(
+            "/api/v1/gate/guests?bucket=expected&payment_status=unpaid",
+            headers=headers,
+        )
+        assert unpaid_only.status_code == 200
+        assert [item["id"] for item in unpaid_only.json()["items"]] == expected["expected_unpaid_ids"]
+        assert all(item["payment_status"] == "unpaid" for item in unpaid_only.json()["items"])
 
         dining = client.get("/api/v1/gate/guests?bucket=in_hall", headers=headers)
         assert dining.status_code == 200
@@ -321,7 +338,22 @@ def test_gate_guests(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
         assert body["guest_name"] == "Expected Guest"
         assert body["host_name"] == "Aisha Khan"
         assert body["host_room_label"] == "B-204"
-        assert body["guests_in_hall_count"] == 3  # in_hall + should_left + just arrived
+        assert "guests_in_hall_count" not in body
+        assert body["recorded_by"] == "Fatima Khan"
+        assert "arrival_time" in body
+        assert body["arrival_time"] == body["recorded_at"]
+        assert "departure_time" not in body
+
+        activity = client.get("/api/v1/gate/activity", headers=headers)
+        assert activity.status_code == 200
+        arrival_line = next(
+            item for item in activity.json()["items"] if item["event"] == "guest_arrival"
+        )
+        assert arrival_line["guest_name"] == "Expected Guest"
+        assert arrival_line["host_name"] == "Aisha Khan"
+        assert arrival_line["host_room_label"] == "B-204"
+        assert arrival_line["resident_name"] is None
+        assert arrival_line["room_label"] is None
 
         assert_error(
             client.post(f"/api/v1/gate/guests/{EXPECTED}/arrival", headers=headers),
@@ -339,13 +371,17 @@ def test_gate_guests(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
         assert departed.status_code == 200
         dep = departed.json()
         assert dep["message"] == expected["departure_message"]
-        assert dep["guests_in_hall_count"] == 2  # in_hall + expected-now-arrived
+        assert "guests_in_hall_count" not in dep
+        assert dep["recorded_by"] == "Fatima Khan"
+        assert "departure_time" in dep
+        assert dep["departure_time"] == dep["recorded_at"]
+        assert "arrival_time" not in dep
 
         dining_after = client.get("/api/v1/gate/guests?bucket=in_hall", headers=headers)
         assert {item["id"] for item in dining_after.json()["items"]} == {IN_HALL, EXPECTED}
 
         expected_after = client.get("/api/v1/gate/guests?bucket=expected", headers=headers)
-        assert expected_after.json()["items"] == []
+        assert [item["id"] for item in expected_after.json()["items"]] == expected["expected_unpaid_ids"]
 
         warden = sign_in(client, "warden.sara", WARDEN_PHRASE)
         warden_list = client.get(

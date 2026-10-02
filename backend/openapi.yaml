@@ -8,8 +8,8 @@ info:
 
     This version is the contract. Auth, resident phone (home, history, hall pass,
     destinations, ordinary outings, permissions, guest stays), register, staff
-    permission queue, staff guest stays, gate scans and guests, and hall office
-    (settings, blocks, rooms, destinations, residents, staff, password reset,
+    permission queue, staff guest stays, gate scans, guests, and occupancy, and hall office
+    (settings, notifications, blocks, rooms, destinations, residents, staff, password reset,
     audit, SMS log, register export) respond. Swagger on this server is the
     review surface for purpose, payload, and response.
 
@@ -54,8 +54,9 @@ tags:
       warden or provost queue and decisions under /api/v1/permissions.
   - name: Guest Stays
     description: >
-      Guest applications. Resident applies under /api/v1/me/guest-stays; warden or
-      provost review under /api/v1/guest-stays. Gate arrival and departure stay under Gate.
+      Guest applications. Resident applies and edits under /api/v1/me/guest-stays;
+      warden or provost review under /api/v1/guest-stays. A resident edit returns the
+      stay to pending so staff must approve again. Gate arrival and departure stay under Gate.
   - name: Gate
     description: Scan the permanent hall pass, and record guest arrival and departure. Guests have no hall pass.
   - name: Register
@@ -104,7 +105,7 @@ paths:
                 $ref: "#/components/schemas/Ready"
               example:
                 status: ready
-                user_version: 5
+                user_version: 11
         "503":
           description: The database could not be opened.
           content:
@@ -298,8 +299,10 @@ paths:
                 recent_history:
                   - event: returned
                     place: Maulana Azad Library
-                    occurred_at: "2026-09-12T15:16:00Z"
                     outing_id: 00000000-0000-4000-8000-000000000001
+                    exited_at: null
+                    returned_at: "2026-09-12T15:16:00Z"
+                    recorded_by: Fatima Khan
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -346,6 +349,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HistoryPage"
+              example:
+                total: 2
+                limit: 50
+                offset: 0
+                items:
+                  - event: returned
+                    place: Maulana Azad Library
+                    outing_id: 00000000-0000-4000-8000-000000000001
+                    exited_at: null
+                    returned_at: "2026-09-12T15:16:00Z"
+                    recorded_by: Fatima Khan
+                  - event: exited
+                    place: Maulana Azad Library
+                    outing_id: 00000000-0000-4000-8000-000000000001
+                    exited_at: "2026-09-12T14:00:00Z"
+                    returned_at: null
+                    recorded_by: Fatima Khan
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -372,24 +392,24 @@ paths:
                 items:
                   - id: 1285f918-cd9c-5ef8-9c04-58a69285211c
                     name: J.N. Medical College
-                    is_other: false
-                    is_active: true
+                    source: preset
+                    status: active
                   - id: fc2da7c5-8d65-5680-8034-d8acb69745eb
                     name: Maulana Azad Library
-                    is_other: false
-                    is_active: true
+                    source: preset
+                    status: active
                   - id: 924e5c75-e9b6-57a9-bb04-720028253526
                     name: Shamshad Market
-                    is_other: false
-                    is_active: true
+                    source: preset
+                    status: active
                   - id: df29c4b7-63c5-525d-a9ec-798a980c64c8
                     name: Women's College
-                    is_other: false
-                    is_active: true
+                    source: preset
+                    status: active
                   - id: f2008ef3-a1df-5ff0-b936-3466d0914781
                     name: Other
-                    is_other: true
-                    is_active: true
+                    source: custom
+                    status: active
         "401":
           $ref: "#/components/responses/Unauthorized"
 
@@ -615,7 +635,7 @@ paths:
             examples:
               late_night:
                 value:
-                  type: late_night
+                  permission_type: late_night
                   short_place: Women's College
                   destination_detail: Seminar Hall
                   reason: Faculty seminar ends at 9:00 PM. Requesting late return to hall.
@@ -623,7 +643,7 @@ paths:
                   expected_return_at: "2026-09-13T16:00:00Z"
               home_going:
                 value:
-                  type: home_going
+                  permission_type: home_going
                   short_place: Lucknow
                   address: 14, Civil Lines, Lucknow, U.P. 226001
                   reason: Family visit. Eid with parents.
@@ -743,8 +763,8 @@ paths:
             example:
               guest_name: Zara Ahmed
               relation: Cousin
-              start_date: "2026-09-18"
-              end_date: "2026-09-21"
+              guest_start_date: "2026-09-18"
+              guest_end_date: "2026-09-21"
               reason: Family wedding in Aligarh. Staying with Aisha, B-204.
       responses:
         "201":
@@ -781,6 +801,70 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Guest Stays]
+      operationId: edit_guest_stay
+      summary: Edit own guest stay
+      description: |
+        Caller: resident, and only for a stay they host.
+
+        Before arrival (`pending` or `approved`, and arrival not yet recorded):
+        send all of `guest_name`, `relation`, `guest_start_date`, `guest_end_date`, and
+        `reason` (full replace of those fields). Status, payment, arrival, and
+        departure are not editable here.
+
+        After arrival and before departure: only `guest_start_date` and/or `guest_end_date`
+        may change. `guest_name`, `relation`, and `reason` are locked once the
+        guest has arrived.
+
+        Not editable when the stay is `departed`, `rejected`, or `cancelled`
+        (409 `not_editable`).
+
+        Every successful edit returns the stay to `pending`, clears
+        `decided_by`, `decided_at`, and `decision_note`, and leaves
+        `payment_status` unchanged. A warden or the provost must approve
+        again — including when the stay was already approved, and including a
+        date change after the guest has arrived. Staff see the stay back in
+        the pending queue.
+      parameters:
+        - $ref: "#/components/parameters/GuestStayId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GuestStayUpdate"
+            example:
+              guest_name: Zara Ahmed
+              relation: Cousin
+              guest_start_date: "2026-10-02"
+              guest_end_date: "2026-10-06"
+              reason: Family wedding in Aligarh. Staying with Aisha, B-204.
+      responses:
+        "200":
+          description: |
+            Guest stay updated and returned to pending. Decision fields are
+            cleared; payment_status is unchanged.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuestStay"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: |
+            The stay cannot be edited (departed, rejected, cancelled, or
+            otherwise closed). Code `not_editable`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
 
   /api/v1/me/guest-stays/{guest_stay_id}/cancel:
     post:
@@ -835,6 +919,20 @@ paths:
         While the resident is outside, a scan records the return. Nothing else
         is filled in.
 
+        The 200 body is a discriminated union on `outcome`. Shared envelope
+        fields are only `outcome`, `full_name`, `room_label`, and `message`.
+        `recorded_at` is not on the envelope: it sits inside the nested variant.
+        On `exit_recorded` the nest is `outing` (outing movement fields, including
+        `lateness` `on_time` or `late`, plus `recorded_at`). Exit has no
+        `return_timeliness`. On `return_recorded` the nest is `return_record`
+        (`recorded_at`, `return_timeliness`, `returned_at`, `return_recorded_by_name`).
+        `return_timeliness` is `on_time` (at or before expected return),
+        `within_grace` (after expected return, at or before grace), or `late`
+        (after grace). No booleans on the scan response. Exit has no
+        `return_record`; return has no `outing`. The JSON key is
+        `return_record` (not `return`) so OpenAPI and Python clients avoid the
+        reserved word.
+
         A second scan inside `scan_duplicate_window_seconds` of the previous
         exit or return for that resident is refused, so one presentation at the
         gate cannot undo itself. The refusal for a fresh exit uses the gate
@@ -861,16 +959,32 @@ paths:
                     outcome: exit_recorded
                     full_name: Aisha Khan
                     room_label: B-204
-                    recorded_at: "2026-09-13T12:42:00Z"
                     message: The resident is now outside.
+                    outing:
+                      id: e7700000-0000-4000-8000-000000000011
+                      permission_id: null
+                      outing_type: ordinary
+                      status: outside
+                      place: Library
+                      expected_return_at: "2026-09-13T13:00:00Z"
+                      grace_ends_at: "2026-09-13T13:15:00Z"
+                      exited_at: "2026-09-13T12:42:00Z"
+                      exit_recorded_by_name: Fatima Khan
+                      returned_at: null
+                      return_recorded_by_name: null
+                      created_at: "2026-09-13T12:30:00Z"
+                      recorded_at: "2026-09-13T12:42:00Z"
                 return:
                   value:
                     outcome: return_recorded
                     full_name: Aisha Khan
                     room_label: B-204
-                    recorded_at: "2026-09-13T13:24:00Z"
                     message: On time. Status is now inside.
-                    on_time: true
+                    return_record:
+                      recorded_at: "2026-09-13T13:24:00Z"
+                      return_timeliness: on_time
+                      returned_at: "2026-09-13T13:24:00Z"
+                      return_recorded_by_name: Fatima Khan
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -919,15 +1033,63 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GateActivityPage"
+              examples:
+                resident_exit:
+                  summary: Resident exit
+                  value:
+                    total: 3
+                    limit: 50
+                    offset: 0
+                    items:
+                      - event: exit
+                        occurred_at: "2026-09-13T14:39:00Z"
+                        resident_name: Zoya Siddiqui
+                        room_label: A-118
+                        guest_name: null
+                        host_name: null
+                        host_room_label: null
+                guest_arrival:
+                  summary: Guest arrival
+                  value:
+                    total: 3
+                    limit: 50
+                    offset: 0
+                    items:
+                      - event: guest_arrival
+                        occurred_at: "2026-09-18T10:11:00Z"
+                        resident_name: null
+                        room_label: null
+                        guest_name: Fatima Begum
+                        host_name: Aisha Khan
+                        host_room_label: B-204
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+
+  /api/v1/gate/occupancy:
+    get:
+      tags: [Gate]
+      operationId: gate_occupancy
+      summary: Guest dining occupancy at the gate
+      description: |
+        Caller: gate, warden, or provost. Hall-wide guest dining counts for the
+        gate home strip. `guests_in_hall_count` is every stay that has arrived
+        and has not departed (includes should-have-left).
+        `guests_should_have_left_count` is the subset whose hall date is after
+        `guest_end_date`. This is not the full register presence board; use
+        `GET /api/v1/register/summary` for resident inside/outside/late counts.
+      responses:
+        "200":
+          description: Dining occupancy counts.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GateOccupancy"
               example:
-                total: 3
-                limit: 50
-                offset: 0
-                items:
-                  - event: exit
-                    occurred_at: "2026-09-13T14:39:00Z"
-                    title: Zoya Siddiqui
-                    subtitle: A-118
+                guests_in_hall_count: 2
+                guests_should_have_left_count: 1
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -939,9 +1101,12 @@ paths:
       operationId: gate_guests
       summary: Guests for the gate
       description: |
-        Caller: gate, warden, or provost. `expected` is approved, paid, not yet
-        arrived, and the hall date is inside the stay. `in_hall` includes guests
-        who should already have left, because departure is still recorded here.
+        Caller: gate, warden, or provost. Buckets are timing-based. `expected` is
+        approved, not yet arrived, and the hall date is inside the stay.
+        `in_hall` includes guests who should already have left, because departure
+        is still recorded here. Optional `payment_status` is a separate axis
+        (`paid` or `unpaid`); omit it to return every guest that matches the
+        bucket.
       parameters:
         - name: bucket
           in: query
@@ -949,6 +1114,15 @@ paths:
           schema:
             type: string
             enum: [expected, in_hall]
+        - name: payment_status
+          in: query
+          required: false
+          description: |
+            When set, keep only guests with that payment status. Omit to include
+            both paid and unpaid for the chosen bucket.
+          schema:
+            type: string
+            enum: [paid, unpaid]
       responses:
         "200":
           description: Guest cards for the gate.
@@ -969,23 +1143,27 @@ paths:
       description: |
         Caller: gate, warden, or provost. The stay must be approved, paid, not
         yet arrived, and today's hall date must fall within the stay. Guests are
-        not scanned.
+        not scanned. Empty POST body; no client-supplied time.
+        `arrival_time` equals `recorded_at` (same server clock tick).
       parameters:
         - $ref: "#/components/parameters/GuestStayId"
       responses:
         "200":
-          description: Arrival recorded. The response includes the new dining count.
+          description: |
+            Arrival recorded.
+            `arrival_time` equals `recorded_at` (same server clock tick; no client-supplied time).
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GuestMovementResult"
+                $ref: "#/components/schemas/GuestArrivalResult"
               example:
                 guest_name: Zara Ahmed
                 host_name: Aisha Khan
                 host_room_label: B-204
                 recorded_at: "2026-09-18T10:11:00Z"
+                recorded_by: Fatima Khan
+                arrival_time: "2026-09-18T10:11:00Z"
                 message: The guest is now in the hall.
-                guests_in_hall_count: 6
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -1006,17 +1184,28 @@ paths:
       summary: Record guest departure
       description: |
         Caller: gate, warden, or provost. The guest must currently be in the hall.
-        Closes the stay. The dining count drops, including when the end date has
-        already passed.
+        Closes the stay. Departure is still recorded when the end date has
+        already passed. Empty POST body; no client-supplied time.
+        `departure_time` equals `recorded_at` (same server clock tick).
       parameters:
         - $ref: "#/components/parameters/GuestStayId"
       responses:
         "200":
-          description: Departure recorded.
+          description: |
+            Departure recorded.
+            `departure_time` equals `recorded_at` (same server clock tick; no client-supplied time).
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GuestMovementResult"
+                $ref: "#/components/schemas/GuestDepartureResult"
+              example:
+                guest_name: Zara Ahmed
+                host_name: Aisha Khan
+                host_room_label: B-204
+                recorded_at: "2026-09-18T10:11:00Z"
+                recorded_by: Fatima Khan
+                departure_time: "2026-09-18T10:11:00Z"
+                message: The guest has left the hall.
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -1185,7 +1374,7 @@ paths:
           description: Defaults to pending when omitted.
           schema:
             $ref: "#/components/schemas/PermissionStatus"
-        - name: type
+        - name: permission_type
           in: query
           required: false
           description: Limit to late-night or home-going permissions.
@@ -1335,7 +1524,11 @@ paths:
       description: |
         Caller: warden or provost. Filter by derived bucket. `in_hall` here is
         the dining set and includes guests who should have left. Use
-        `should_have_left` for that subset. Each item is a GuestStaySummary
+        `should_have_left` for that subset. By default the list omits terminal
+        buckets `cancelled` and `rejected` so the warden queue stays clean.
+        Pass `include_terminal=true` to include those rows. An explicit
+        `bucket=cancelled` or `bucket=rejected` still returns that subset
+        without needing `include_terminal`. Each item is a GuestStaySummary
         card; open GET by id for the full GuestStay.
       parameters:
         - name: bucket
@@ -1343,6 +1536,16 @@ paths:
           required: false
           schema:
             $ref: "#/components/schemas/GuestBucket"
+        - name: include_terminal
+          in: query
+          required: false
+          description: |
+            When false (default), omit buckets `cancelled` and `rejected`
+            unless `bucket` is set to one of those values. When true, include
+            terminal rows (still subject to `bucket` when set).
+          schema:
+            type: boolean
+            default: false
         - $ref: "#/components/parameters/Limit"
         - $ref: "#/components/parameters/Offset"
       responses:
@@ -1385,8 +1588,11 @@ paths:
       operationId: decide_guest_stay
       summary: Approve or reject a guest stay
       description: |
-        Caller: warden or provost. Only while `pending`. Approval does not mark
-        payment and does not record arrival.
+        Caller: warden or provost. Only while `pending`. A resident edit returns
+        an approved stay (and a post-arrival date change) to pending, so staff
+        must decide again. When the guest has already arrived, only `approved`
+        is allowed — reject is refused (the guest is in the hall). Approval does
+        not mark payment and does not clear or set arrival.
       parameters:
         - $ref: "#/components/parameters/GuestStayId"
       requestBody:
@@ -1422,8 +1628,13 @@ paths:
       summary: Mark guest payment
       description: |
         Caller: warden or provost. Records that the hall office has or has not
-        taken payment. Allowed before arrival, whether the stay is pending or
-        approved. The app does not collect money.
+        taken payment outside the system. Allowed before arrival, whether the
+        stay is pending or approved. The app does not collect money. When
+        marking paid, `payment_note` is required (off-system proof such as a
+        transaction reference, who collected cash, or a screenshot mention).
+        When marking unpaid, `payment_note` is optional and any stored note is
+        cleared together with the payment staff member, the payment time, and
+        any optional payment evidence. A file is never required to mark paid.
       parameters:
         - $ref: "#/components/parameters/GuestStayId"
       requestBody:
@@ -1434,6 +1645,7 @@ paths:
               $ref: "#/components/schemas/PaymentRequest"
             example:
               payment_status: paid
+              payment_note: "UPI ref TXN123456; collected at desk"
       responses:
         "200":
           description: Payment status stored.
@@ -1660,11 +1872,12 @@ paths:
       operationId: admin_update_resident
       summary: Update a resident
       description: |
-        Caller: provost. Send only the fields that change. `course` may be set
-        to null to clear it. `guardian_name` and `guardian_phone` may be
-        replaced and may not be cleared. A phone includes the country code.
-        Changing `enrolment_number` changes the username. `status` suspends or
-        reinstates the account and revokes refresh tokens on suspension.
+        Caller: provost. Send only the fields that change. `course` and `phone`
+        may be set to null to clear them. `guardian_name` and `guardian_phone`
+        may be replaced and may not be cleared. A phone includes the country
+        code. Changing `enrolment_number` changes the username. `status`
+        suspends or reinstates the account and revokes refresh tokens on
+        suspension.
       parameters:
         - $ref: "#/components/parameters/ResidentId"
       requestBody:
@@ -1888,7 +2101,7 @@ paths:
       tags: [Hall office]
       operationId: update_block
       summary: Update a block
-      description: "Caller: provost. Deactivate with `is_active` false. Rooms in the block remain."
+      description: "Caller: provost. Deactivate with `status` `inactive`. Rooms in the block remain."
       parameters:
         - $ref: "#/components/parameters/BlockId"
       requestBody:
@@ -2029,7 +2242,7 @@ paths:
       operationId: create_destination
       summary: Create a destination
       description: |
-        Caller: provost. Only one active destination may have `is_other` true.
+        Caller: provost. Only one active destination may have `source` `custom`.
       requestBody:
         required: true
         content:
@@ -2095,7 +2308,7 @@ paths:
       tags: [Hall office]
       operationId: get_settings
       summary: Hall settings
-      description: "Caller: provost. Clock times are hall-local HH:MM. Season starts are MM-DD. Clients show both on a 12-hour clock and as a day and month."
+      description: "Caller: provost. Ordinary outing windows are hall-local HH:MM. Season starts are MM-DD. Clients show both on a 12-hour clock and as a day and month. SMS templates are under /api/v1/admin/notifications."
       responses:
         "200":
           description: Settings.
@@ -2112,11 +2325,11 @@ paths:
       operationId: update_settings
       summary: Update hall settings
       description: |
-        Caller: provost. Send only the fields that change. Summer hours, winter
-        hours, and the two season start dates are always set. Changing grace
-        does not rewrite outings that already have a `grace_ends_at`. SMS
-        templates keep the placeholders listed on `HallSettings`. A time of day
-        is sent as HH:MM. A season start is sent as MM-DD.
+        Caller: provost. Send only the fields that change. Summer and winter
+        ordinary outing windows, and the two season start dates, are always set.
+        Changing grace does not rewrite outings that already have a
+        `grace_ends_at`. SMS templates live under `/api/v1/admin/notifications`.
+        A time of day is sent as HH:MM. A season start is sent as MM-DD.
       requestBody:
         required: true
         content:
@@ -2137,6 +2350,54 @@ paths:
         "422":
           $ref: "#/components/responses/Unprocessable"
 
+  /api/v1/admin/notifications:
+    get:
+      tags: [Hall office]
+      operationId: get_notifications
+      summary: Hall notification settings
+      description: |
+        Caller: provost only (same gate as hall settings). Returns the late and
+        return SMS templates used for guardian notices. Placeholders are listed
+        on `HallNotifications`.
+      responses:
+        "200":
+          description: Notification settings.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HallNotifications"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    patch:
+      tags: [Hall office]
+      operationId: update_notifications
+      summary: Update hall notification settings
+      description: |
+        Caller: provost only (same gate as hall settings). Send only the fields
+        that change. Each template must keep the placeholders listed on
+        `HallNotifications`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HallNotificationsUpdate"
+      responses:
+        "200":
+          description: Notification settings saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HallNotifications"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+
   /api/v1/admin/register/export:
     get:
       tags: [Hall office]
@@ -2149,7 +2410,7 @@ paths:
 
         Header, in this order:
 
-        `record_type,full_name,enrolment_number,room_label,block_code,course,presence,state,place,exited_at,expected_return_at,grace_ends_at,returned_at,outing_type,guardian_name,guardian_phone,guest_name,relation,host_name,host_room_label,start_date,end_date,payment_status,guest_bucket,arrived_at,departed_at`
+        `record_type,full_name,enrolment_number,room_label,block_code,course,presence,state,place,exited_at,expected_return_at,grace_ends_at,returned_at,outing_type,guardian_name,guardian_phone,guest_name,relation,host_name,host_room_label,guest_start_date,guest_end_date,payment_status,guest_bucket,arrived_at,departed_at`
 
         `record_type` is `resident` or `guest`. Instants are UTC. Dates are
         YYYY-MM-DD. This export contains guardian phone numbers and is not a
@@ -2395,7 +2656,7 @@ components:
             `outside_ordinary_hours`, `permission_required`, `no_outing_planned`,
             `permission_not_yet_valid`,
             `duplicate_scan`, `resident_suspended`, `unknown_hall_pass`,
-            `not_pending`, `permission_in_use`, `not_cancellable`, `guest_not_expected`, `guest_not_in_hall`,
+            `not_pending`, `permission_in_use`, `not_cancellable`, `not_editable`, `guest_not_expected`, `guest_not_in_hall`,
             `payment_required`, `payment_locked`.
         message:
           type: string
@@ -2611,7 +2872,7 @@ components:
     HistoryEvent:
       type: object
       additionalProperties: false
-      required: [event, place, occurred_at, outing_id]
+      required: [event, place, outing_id, exited_at, returned_at, recorded_by]
       properties:
         event:
           type: string
@@ -2619,12 +2880,26 @@ components:
         place:
           type: string
           description: Place remembered on the outing.
-        occurred_at:
-          type: string
-          format: date-time
         outing_id:
           type: string
           format: uuid
+        exited_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: "null"
+          description: Set when event is exited; null when event is returned.
+        returned_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: "null"
+          description: Set when event is returned; null when event is exited.
+        recorded_by:
+          type: string
+          description: >
+            Display name of the staff member who recorded that exit or return
+            (from outings.exit_recorded_by or outings.return_recorded_by).
 
     HistoryPage:
       allOf:
@@ -2640,7 +2915,7 @@ components:
     Destination:
       type: object
       additionalProperties: false
-      required: [id, name, is_other, is_active]
+      required: [id, name, source, status]
       properties:
         id:
           type: string
@@ -2648,10 +2923,16 @@ components:
         name:
           type: string
           description: Named places are shown alphabetical by this name, ignoring capitals. The free-text choice is last.
-        is_other:
-          type: boolean
-        is_active:
-          type: boolean
+        source:
+          type: string
+          enum: [preset, custom]
+          description: >
+            Where the place comes from. `preset` is a fixed named place on the
+            list. `custom` is the single free-text (Other) choice.
+        status:
+          type: string
+          enum: [active, inactive]
+          description: "`active` while it can be chosen. `inactive` when retired."
 
     DestinationList:
       type: object
@@ -2672,9 +2953,13 @@ components:
           type: string
           minLength: 1
           maxLength: 80
-        is_other:
-          type: boolean
-          default: false
+        source:
+          type: string
+          enum: [preset, custom]
+          default: preset
+          description: >
+            `preset` for a fixed named place. `custom` for the free-text Other
+            choice.
 
     DestinationUpdate:
       type: object
@@ -2684,10 +2969,15 @@ components:
           type: string
           minLength: 1
           maxLength: 80
-        is_other:
-          type: boolean
-        is_active:
-          type: boolean
+        source:
+          type: string
+          enum: [preset, custom]
+          description: >
+            `preset` for a fixed named place. `custom` for the free-text Other
+            choice.
+        status:
+          type: string
+          enum: [active, inactive]
 
     PlanOutingRequest:
       type: object
@@ -2720,12 +3010,12 @@ components:
       additionalProperties: false
       required:
         - id
-        - type
+        - outing_type
         - status
         - place
         - expected_return_at
         - grace_ends_at
-        - is_late
+        - lateness
         - created_at
       properties:
         id:
@@ -2737,7 +3027,7 @@ components:
               format: uuid
             - type: "null"
           description: Empty for an ordinary outing. Set when the exit used a permission.
-        type:
+        outing_type:
           $ref: "#/components/schemas/OutingType"
         status:
           $ref: "#/components/schemas/OutingStatus"
@@ -2773,8 +3063,12 @@ components:
             - type: string
             - type: "null"
           description: Staff member who scanned the return. Empty only while returned_at is empty.
-        is_late:
-          type: boolean
+        lateness:
+          type: string
+          enum: [on_time, late]
+          description: |
+            For a planned or outside outing, `late` when now is after `grace_ends_at`;
+            otherwise `on_time`. Returned and cancelled outings keep the value at read time.
         created_at:
           type: string
           format: date-time
@@ -2837,7 +3131,7 @@ components:
         - $ref: "#/components/schemas/LateNightCreate"
         - $ref: "#/components/schemas/HomeGoingCreate"
       discriminator:
-        propertyName: type
+        propertyName: permission_type
         mapping:
           late_night: "#/components/schemas/LateNightCreate"
           home_going: "#/components/schemas/HomeGoingCreate"
@@ -2845,9 +3139,9 @@ components:
     LateNightCreate:
       type: object
       additionalProperties: false
-      required: [type, short_place, reason, departure_at, expected_return_at]
+      required: [permission_type, short_place, reason, departure_at, expected_return_at]
       properties:
-        type:
+        permission_type:
           type: string
           const: late_night
         short_place:
@@ -2873,9 +3167,9 @@ components:
     HomeGoingCreate:
       type: object
       additionalProperties: false
-      required: [type, short_place, address, reason, departure_at, expected_return_at]
+      required: [permission_type, short_place, address, reason, departure_at, expected_return_at]
       properties:
-        type:
+        permission_type:
           type: string
           const: home_going
         short_place:
@@ -2903,7 +3197,7 @@ components:
       additionalProperties: false
       required:
         - id
-        - type
+        - permission_type
         - status
         - short_place
         - reason
@@ -2914,7 +3208,7 @@ components:
         id:
           type: string
           format: uuid
-        type:
+        permission_type:
           $ref: "#/components/schemas/PermissionType"
         status:
           $ref: "#/components/schemas/PermissionStatus"
@@ -3010,7 +3304,7 @@ components:
     GuestStayCreate:
       type: object
       additionalProperties: false
-      required: [guest_name, relation, start_date, end_date, reason]
+      required: [guest_name, relation, guest_start_date, guest_end_date, reason]
       properties:
         guest_name:
           type: string
@@ -3020,10 +3314,41 @@ components:
           type: string
           minLength: 1
           maxLength: 80
-        start_date:
+        guest_start_date:
           type: string
           format: date
-        end_date:
+        guest_end_date:
+          type: string
+          format: date
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+
+    GuestStayUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      description: |
+        Editable fields for PATCH own guest stay. Before arrival, send all five
+        fields (full replace of name, relation, dates, and reason). After arrival
+        and before departure, only `guest_start_date` and/or `guest_end_date` may be present —
+        name, relation, and reason are locked. Every successful edit returns
+        status to pending and clears the decision so a warden or the provost must
+        approve again; payment_status is left unchanged.
+      properties:
+        guest_name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        relation:
+          type: string
+          minLength: 1
+          maxLength: 80
+        guest_start_date:
+          type: string
+          format: date
+        guest_end_date:
           type: string
           format: date
         reason:
@@ -3041,8 +3366,8 @@ components:
         - host_room_label
         - guest_name
         - relation
-        - start_date
-        - end_date
+        - guest_start_date
+        - guest_end_date
         - inclusive_days
         - reason
         - status
@@ -3064,10 +3389,10 @@ components:
           type: string
         relation:
           type: string
-        start_date:
+        guest_start_date:
           type: string
           format: date
-        end_date:
+        guest_end_date:
           type: string
           format: date
         inclusive_days:
@@ -3080,27 +3405,38 @@ components:
         payment_status:
           type: string
           enum: [unpaid, paid]
+        payment_note:
+          oneOf:
+            - type: string
+            - type: "null"
+          description: |
+            Off-system payment proof (transaction reference, who collected cash,
+            screenshot mention, and similar). Set when payment is marked paid;
+            null when unpaid.
         bucket:
           $ref: "#/components/schemas/GuestBucket"
         decision_note:
           oneOf:
             - type: string
             - type: "null"
-        decided_by_name:
+        decided_by:
           oneOf:
             - type: string
+              format: uuid
             - type: "null"
-          description: Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects.
-        arrived_recorded_by_name:
+          description: UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects.
+        arrived_recorded_by:
           oneOf:
             - type: string
+              format: uuid
             - type: "null"
-          description: Staff member who recorded arrival. Empty until arrival is recorded.
-        departed_recorded_by_name:
+          description: UUID of the staff member who recorded arrival. Empty until arrival is recorded.
+        departed_recorded_by:
           oneOf:
             - type: string
+              format: uuid
             - type: "null"
-          description: Staff member who recorded departure. Empty until departure is recorded.
+          description: UUID of the staff member who recorded departure. Empty until departure is recorded.
         arrived_at:
           oneOf:
             - type: string
@@ -3131,12 +3467,13 @@ components:
               format: date-time
             - type: "null"
           description: UTC instant when evidence was last uploaded. Empty when none.
-        payment_evidence_uploaded_by_name:
+        payment_evidence_uploaded_by:
           oneOf:
             - type: string
+              format: uuid
             - type: "null"
           description: |
-            Display name of the warden or provost who uploaded the evidence.
+            UUID of the warden or provost who uploaded the evidence.
             Empty when no evidence is stored.
         created_at:
           type: string
@@ -3147,15 +3484,15 @@ components:
       additionalProperties: false
       description: |
         Card fields for guest-stay list rows. Full stay detail (reason, decision
-        note, recorder names, arrival/departure instants) is on GuestStay via
-        GET by id.
+        note, decided_by / recorder staff ids, arrival/departure instants) is on
+        GuestStay via GET by id.
       required:
         - id
         - guest_name
         - host_name
         - host_room_label
-        - start_date
-        - end_date
+        - guest_start_date
+        - guest_end_date
         - status
         - payment_status
         - bucket
@@ -3169,10 +3506,10 @@ components:
           type: string
         host_room_label:
           type: string
-        start_date:
+        guest_start_date:
           type: string
           format: date
-        end_date:
+        guest_end_date:
           type: string
           format: date
         status:
@@ -3199,10 +3536,23 @@ components:
       type: object
       additionalProperties: false
       required: [payment_status]
+      description: |
+        Marks guest-stay payment that happened outside the system. `payment_note`
+        is required when `payment_status` is `paid` (non-empty after trim; max
+        500). When `payment_status` is `unpaid`, `payment_note` may be omitted or
+        empty; any stored note is cleared with `payment_marked_by` and
+        `payment_marked_at`, and any optional payment evidence.
       properties:
         payment_status:
           type: string
           enum: [paid, unpaid]
+        payment_note:
+          type: string
+          maxLength: 500
+          description: |
+            Off-system payment proof for the hall office (transaction reference,
+            who collected cash, screenshot mention, and similar). Required when
+            marking paid. Optional when marking unpaid; cleared on unpaid.
 
     ScanRequest:
       type: object
@@ -3215,35 +3565,171 @@ components:
           maxLength: 300
           description: Raw QR text, either `bsj:v1:{token}` or the token alone.
 
-    ScanResult:
+    ScanReturnTimeliness:
+      type: string
+      enum: [on_time, within_grace, late]
+      description: |
+        How the return sits against expected return and grace.
+        `on_time`: at or before `expected_return_at`.
+        `within_grace`: after expected return, at or before `grace_ends_at`.
+        `late`: after `grace_ends_at`.
+
+    ScanExitOuting:
       type: object
       additionalProperties: false
-      required: [outcome, full_name, room_label, recorded_at, message, outing]
+      description: |
+        Exit nest for the scan response. Explicit property list (not allOf
+        Outing). Includes outing `lateness` (`on_time` or `late`). Omits
+        `return_timeliness`, which is only on a return.
+      required:
+        - id
+        - outing_type
+        - status
+        - place
+        - expected_return_at
+        - grace_ends_at
+        - lateness
+        - created_at
+        - recorded_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        permission_id:
+          oneOf:
+            - type: string
+              format: uuid
+            - type: "null"
+        outing_type:
+          $ref: "#/components/schemas/OutingType"
+        status:
+          $ref: "#/components/schemas/OutingStatus"
+          description: Outing lifecycle status (typically `outside` on exit).
+        place:
+          type: string
+        expected_return_at:
+          type: string
+          format: date-time
+        grace_ends_at:
+          type: string
+          format: date-time
+        exited_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: "null"
+        exit_recorded_by_name:
+          oneOf:
+            - type: string
+            - type: "null"
+        returned_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: "null"
+        return_recorded_by_name:
+          oneOf:
+            - type: string
+            - type: "null"
+        lateness:
+          type: string
+          enum: [on_time, late]
+          description: |
+            For a planned or outside outing, `late` when now is after `grace_ends_at`;
+            otherwise `on_time`. Returned and cancelled outings keep the value at read time.
+        created_at:
+          type: string
+          format: date-time
+        recorded_at:
+          type: string
+          format: date-time
+          description: When this exit was recorded at the gate (UTC).
+
+    ScanReturnRecord:
+      type: object
+      additionalProperties: false
+      required: [recorded_at, return_timeliness, returned_at, return_recorded_by_name]
+      properties:
+        recorded_at:
+          type: string
+          format: date-time
+          description: When this return was recorded at the gate (UTC).
+        return_timeliness:
+          $ref: "#/components/schemas/ScanReturnTimeliness"
+        returned_at:
+          type: string
+          format: date-time
+        return_recorded_by_name:
+          type: string
+          description: Staff member who scanned the return.
+
+    ScanExitResult:
+      type: object
+      additionalProperties: false
+      required: [outcome, full_name, room_label, message, outing]
       properties:
         outcome:
           type: string
-          enum: [exit_recorded, return_recorded]
+          const: exit_recorded
         full_name:
           type: string
         room_label:
           type: string
-        recorded_at:
-          type: string
-          format: date-time
         message:
           type: string
-        on_time:
-          oneOf:
-            - type: boolean
-            - type: "null"
-          description: Present on a return. True when the return is at or before grace.
         outing:
-          $ref: "#/components/schemas/Outing"
+          $ref: "#/components/schemas/ScanExitOuting"
+
+    ScanReturnResult:
+      type: object
+      additionalProperties: false
+      required: [outcome, full_name, room_label, message, return_record]
+      properties:
+        outcome:
+          type: string
+          const: return_recorded
+        full_name:
+          type: string
+        room_label:
+          type: string
+        message:
+          type: string
+        return_record:
+          $ref: "#/components/schemas/ScanReturnRecord"
+          description: |
+            Nested return payload. Named `return_record` (not `return`) so
+            OpenAPI and Python clients avoid the reserved word.
+
+    ScanResult:
+      oneOf:
+        - $ref: "#/components/schemas/ScanExitResult"
+        - $ref: "#/components/schemas/ScanReturnResult"
+      discriminator:
+        propertyName: outcome
+        mapping:
+          exit_recorded: "#/components/schemas/ScanExitResult"
+          return_recorded: "#/components/schemas/ScanReturnResult"
+      description: |
+        Discriminated union on `outcome`. Shared envelope fields are only
+        `outcome`, `full_name`, `room_label`, and `message`. Variant nests are
+        mutually exclusive: `outing` on exit, `return_record` on return.
+        `recorded_at` lives inside each nest, not on the envelope. No boolean
+        timeliness fields: return uses `return_record.return_timeliness`
+        (`on_time` | `within_grace` | `late`). Exit outing includes `lateness`
+        and omits `return_timeliness`.
 
     GateActivityItem:
       type: object
       additionalProperties: false
-      required: [event, occurred_at, title, subtitle]
+      description: |
+        One gate activity line. Always has `event` and `occurred_at`. The five
+        name/room fields are always present and nullable. Invariant: for
+        `exit` or `return`, `resident_name` and `room_label` are strings and
+        `guest_name`, `host_name`, and `host_room_label` are null. For
+        `guest_arrival` or `guest_departure`, `guest_name`, `host_name`, and
+        `host_room_label` are strings and `resident_name` and `room_label`
+        are null.
+      required: [event, occurred_at, resident_name, room_label, guest_name, host_name, host_room_label]
       properties:
         event:
           type: string
@@ -3252,12 +3738,31 @@ components:
         occurred_at:
           type: string
           format: date-time
-        title:
-          type: string
-          description: Resident or guest name.
-        subtitle:
-          type: string
-          description: Room label, or host and room for a guest.
+        resident_name:
+          oneOf:
+            - type: string
+            - type: "null"
+          description: Resident display name for exit/return. Null for guest lines.
+        room_label:
+          oneOf:
+            - type: string
+            - type: "null"
+          description: Resident room label for exit/return. Null for guest lines.
+        guest_name:
+          oneOf:
+            - type: string
+            - type: "null"
+          description: Guest display name for guest arrival/departure. Null for resident lines.
+        host_name:
+          oneOf:
+            - type: string
+            - type: "null"
+          description: Host resident display name for guest lines. Null for resident lines.
+        host_room_label:
+          oneOf:
+            - type: string
+            - type: "null"
+          description: Host room label for guest lines. Null for resident lines.
 
     GateActivityPage:
       allOf:
@@ -3270,10 +3775,28 @@ components:
               items:
                 $ref: "#/components/schemas/GateActivityItem"
 
+
+    GateOccupancy:
+      type: object
+      additionalProperties: false
+      required: [guests_in_hall_count, guests_should_have_left_count]
+      properties:
+        guests_in_hall_count:
+          type: integer
+          minimum: 0
+          description: |
+            Dining count: arrived_at IS NOT NULL AND departed_at IS NULL
+            (includes should-have-left).
+        guests_should_have_left_count:
+          type: integer
+          minimum: 0
+          description: |
+            Subset of dining where the hall date is after guest_end_date.
+
     GateGuestCard:
       type: object
       additionalProperties: false
-      required: [id, guest_name, host_name, host_room_label, start_date, end_date, payment_status, bucket]
+      required: [id, guest_name, host_name, host_room_label, guest_start_date, guest_end_date, payment_status, bucket]
       properties:
         id:
           type: string
@@ -3284,10 +3807,10 @@ components:
           type: string
         host_room_label:
           type: string
-        start_date:
+        guest_start_date:
           type: string
           format: date
-        end_date:
+        guest_end_date:
           type: string
           format: date
         payment_status:
@@ -3306,10 +3829,15 @@ components:
           items:
             $ref: "#/components/schemas/GateGuestCard"
 
-    GuestMovementResult:
+    GuestArrivalResult:
       type: object
       additionalProperties: false
-      required: [guest_name, host_name, host_room_label, recorded_at, message, guests_in_hall_count]
+      description: |
+        Gate flash after recording arrival. Human labels for the screen.
+        `arrival_time` and `recorded_at` are distinct field names but must be
+        equal: both are the same server UTC instant written to `arrived_at` and
+        the audit/write timestamp. No client-supplied time in this release.
+      required: [guest_name, host_name, host_room_label, recorded_at, recorded_by, arrival_time, message]
       properties:
         guest_name:
           type: string
@@ -3320,11 +3848,50 @@ components:
         recorded_at:
           type: string
           format: date-time
+          description: When the API wrote the arrival record and audit entry.
+        recorded_by:
+          type: string
+          description: Full display name of the staff member who recorded the arrival.
+        arrival_time:
+          type: string
+          format: date-time
+          description: |
+            When the guest entered the hall (stored `arrived_at`).
+            Must equal `recorded_at` (same clock tick; no independent second timestamp).
         message:
           type: string
-        guests_in_hall_count:
-          type: integer
-          minimum: 0
+
+    GuestDepartureResult:
+      type: object
+      additionalProperties: false
+      description: |
+        Gate flash after recording departure. Human labels for the screen.
+        `departure_time` and `recorded_at` are distinct field names but must be
+        equal: both are the same server UTC instant written to `departed_at` and
+        the audit/write timestamp. No client-supplied time in this release.
+      required: [guest_name, host_name, host_room_label, recorded_at, recorded_by, departure_time, message]
+      properties:
+        guest_name:
+          type: string
+        host_name:
+          type: string
+        host_room_label:
+          type: string
+        recorded_at:
+          type: string
+          format: date-time
+          description: When the API wrote the departure record and audit entry.
+        recorded_by:
+          type: string
+          description: Full display name of the staff member who recorded the departure.
+        departure_time:
+          type: string
+          format: date-time
+          description: |
+            When the guest left the hall (stored `departed_at`).
+            Must equal `recorded_at` (same clock tick; no independent second timestamp).
+        message:
+          type: string
 
     RegisterSummary:
       type: object
@@ -3500,6 +4067,14 @@ components:
           format: uuid
         room_label:
           type: string
+        phone:
+          oneOf:
+            - type: string
+            - type: "null"
+          description: >
+            The resident's own phone in E.164 with country code. Empty when the
+            hall has not entered it. Optional; not the guardian phone.
+          example: "+919811112222"
         guardian_name:
           type: string
         guardian_phone:
@@ -3541,6 +4116,13 @@ components:
         room_id:
           type: string
           format: uuid
+        phone:
+          type: string
+          description: >
+            The resident's own phone in E.164 with country code. Optional. Omit
+            when the hall has not collected it.
+          pattern: "^\\+[1-9][0-9]{7,14}$"
+          example: "+919811112222"
         guardian_name:
           type: string
           minLength: 1
@@ -3585,6 +4167,15 @@ components:
         room_id:
           type: string
           format: uuid
+        phone:
+          oneOf:
+            - type: string
+              pattern: "^\\+[1-9][0-9]{7,14}$"
+            - type: "null"
+          description: >
+            The resident's own phone. Set to null to clear. Same E.164 pattern
+            as guardian_phone when present.
+          example: "+919811112222"
         guardian_name:
           type: string
           minLength: 1
@@ -3668,7 +4259,7 @@ components:
     Block:
       type: object
       additionalProperties: false
-      required: [id, code, name, floors, room_count, beds_per_room, is_active]
+      required: [id, code, name, floors, room_count, beds_per_room, status]
       properties:
         id:
           type: string
@@ -3690,8 +4281,10 @@ components:
         beds_per_room:
           type: integer
           description: The hall page states a room capacity of 2.
-        is_active:
-          type: boolean
+        status:
+          type: string
+          enum: [active, inactive]
+          description: "`active` while the hall uses this block. `inactive` when retired."
 
     BlockCreate:
       type: object
@@ -3743,13 +4336,14 @@ components:
           type: integer
           minimum: 1
           maximum: 6
-        is_active:
-          type: boolean
+        status:
+          type: string
+          enum: [active, inactive]
 
     Room:
       type: object
       additionalProperties: false
-      required: [id, block_id, number, label, bed_count, is_active]
+      required: [id, block_id, number, label, bed_count, status]
       properties:
         id:
           type: string
@@ -3766,8 +4360,10 @@ components:
         bed_count:
           type: integer
           description: Copied from the block when the room is created. Active residents assigned here, including a suspended resident who has not moved, cannot exceed this.
-        is_active:
-          type: boolean
+        status:
+          type: string
+          enum: [active, inactive]
+          description: "`active` while the room can be assigned. `inactive` when retired."
 
     RoomCreate:
       type: object
@@ -3794,8 +4390,9 @@ components:
           type: integer
           minimum: 1
           maximum: 6
-        is_active:
-          type: boolean
+        status:
+          type: string
+          enum: [active, inactive]
 
     HallSettings:
       type: object
@@ -3805,18 +4402,16 @@ components:
         - university_name
         - timezone
         - grace_minutes
-        - summer_hours_start
-        - summer_hours_end
-        - winter_hours_start
-        - winter_hours_end
+        - summer_outing_start
+        - summer_outing_end
+        - winter_outing_start
+        - winter_outing_end
         - summer_season_start
         - winter_season_start
-        - permission_early_minutes
+        - permission_lead_minutes
         - guest_max_inclusive_days
         - guest_min_lead_days
         - scan_duplicate_window_seconds
-        - late_sms_template
-        - return_sms_template
       properties:
         hall_name:
           type: string
@@ -3827,50 +4422,45 @@ components:
           example: Asia/Kolkata
         grace_minutes:
           type: integer
-        summer_hours_start:
+        summer_outing_start:
           type: string
           pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
-          description: Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30.
+          description: Ordinary outing window start (summer). Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30.
           example: "06:30"
-        summer_hours_end:
+        summer_outing_end:
           type: string
           pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
-          description: Kept as HH:MM. Shown as 6:30 PM. Starts as 18:30.
+          description: Ordinary outing window end (summer). Kept as HH:MM. Shown as 6:30 PM. Starts as 18:30.
           example: "18:30"
-        winter_hours_start:
+        winter_outing_start:
           type: string
           pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
-          description: Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30.
+          description: Ordinary outing window start (winter). Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30.
           example: "06:30"
-        winter_hours_end:
+        winter_outing_end:
           type: string
           pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
-          description: Kept as HH:MM. Shown as 5:30 PM. Starts as 17:30.
+          description: Ordinary outing window end (winter). Kept as HH:MM. Shown as 5:30 PM. Starts as 17:30.
           example: "17:30"
         summer_season_start:
           type: string
           pattern: "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
-          description: Month and day summer hours begin. Shown as 01 April. Starts as 04-01.
+          description: Month and day the summer ordinary outing window begins. Shown as 01 April. Starts as 04-01.
           example: "04-01"
         winter_season_start:
           type: string
           pattern: "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
-          description: Month and day winter hours begin. Shown as 01 October. Starts as 10-01.
+          description: Month and day the winter ordinary outing window begins. Shown as 01 October. Starts as 10-01.
           example: "10-01"
-        permission_early_minutes:
+        permission_lead_minutes:
           type: integer
+          description: Minutes before a permission start when a resident may leave. Aligns with guest_min_lead_days naming.
         guest_max_inclusive_days:
           type: integer
         guest_min_lead_days:
           type: integer
         scan_duplicate_window_seconds:
           type: integer
-        late_sms_template:
-          type: string
-          description: "Placeholders: {resident_name}, {room}, {expected_return_local}, {hall_name}."
-        return_sms_template:
-          type: string
-          description: "Placeholders: {resident_name}, {room}, {returned_at_local}, {hall_name}."
 
     HallSettingsUpdate:
       type: object
@@ -3888,16 +4478,16 @@ components:
           type: integer
           minimum: 0
           maximum: 180
-        summer_hours_start:
+        summer_outing_start:
           type: string
           pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
-        summer_hours_end:
+        summer_outing_end:
           type: string
           pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
-        winter_hours_start:
+        winter_outing_start:
           type: string
           pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
-        winter_hours_end:
+        winter_outing_end:
           type: string
           pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
         summer_season_start:
@@ -3906,7 +4496,7 @@ components:
         winter_season_start:
           type: string
           pattern: "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
-        permission_early_minutes:
+        permission_lead_minutes:
           type: integer
           minimum: 0
           maximum: 180
@@ -3922,6 +4512,25 @@ components:
           type: integer
           minimum: 0
           maximum: 600
+
+    HallNotifications:
+      type: object
+      additionalProperties: false
+      required:
+        - late_sms_template
+        - return_sms_template
+      properties:
+        late_sms_template:
+          type: string
+          description: "Placeholders: {resident_name}, {room}, {expected_return_local}, {hall_name}."
+        return_sms_template:
+          type: string
+          description: "Placeholders: {resident_name}, {room}, {returned_at_local}, {hall_name}."
+
+    HallNotificationsUpdate:
+      type: object
+      additionalProperties: false
+      properties:
         late_sms_template:
           type: string
           minLength: 1

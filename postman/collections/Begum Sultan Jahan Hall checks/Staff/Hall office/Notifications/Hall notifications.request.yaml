@@ -1,0 +1,6 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/api/v1/admin/notifications'
+order: 1000
+description: |-
+  Caller: provost. Late and return guardian SMS templates. Placeholders stay in the text. Bearer uses {{token_provost}}.

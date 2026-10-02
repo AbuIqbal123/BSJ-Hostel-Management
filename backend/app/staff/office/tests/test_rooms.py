@@ -168,7 +168,7 @@ def test_admin_rooms(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
         assert body["number"] == "205"
         assert body["block_id"] == BLOCK_B
         assert body["bed_count"] == 2
-        assert body["is_active"] is True
+        assert body["status"] == "active"
         room_205 = body["id"]
 
         leading = client.post(
@@ -202,7 +202,7 @@ def test_admin_rooms(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
         refuse_deactivate = client.patch(
             f"/api/v1/admin/rooms/{ROOM_B204}",
             headers=headers,
-            json={"is_active": False},
+            json={"status": "inactive"},
         )
         assert_error(refuse_deactivate, 409, "room_in_use")
         assert refuse_deactivate.json()["error"]["message"] == expected["room_in_use_message"]
@@ -220,17 +220,17 @@ def test_admin_rooms(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
         deactivated = client.patch(
             f"/api/v1/admin/rooms/{room_087}",
             headers=headers,
-            json={"is_active": False},
+            json={"status": "inactive"},
         )
         assert deactivated.status_code == 200
-        assert deactivated.json()["is_active"] is False
+        assert deactivated.json()["status"] == "inactive"
 
         all_rooms = client.get("/api/v1/admin/rooms", headers=headers)
         assert all_rooms.status_code == 200
         labels = [item["label"] for item in all_rooms.json()]
         assert labels == ["B-087", "B-204", "B-206"]
         inactive = next(item for item in all_rooms.json() if item["id"] == room_087)
-        assert inactive["is_active"] is False
+        assert inactive["status"] == "inactive"
 
         connection = sqlite3.connect(database_path)
         try:
@@ -267,7 +267,7 @@ def test_room_rejects_null_fields_and_unknown_block(
         headers = {"Authorization": f"Bearer {provost}"}
 
         for field_name, label in (
-            ("is_active", "Is active"),
+            ("status", "Status"),
             ("number", "Number"),
             ("bed_count", "Bed count"),
         ):
@@ -287,7 +287,7 @@ def test_room_rejects_null_fields_and_unknown_block(
             )
             assert listed.status_code == 200
             room = next(item for item in listed.json() if item["id"] == ROOM_B204)
-            assert room["is_active"] is True
+            assert room["status"] == "active"
             assert room["number"] == "204"
 
         missing_block = client.post(

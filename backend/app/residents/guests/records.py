@@ -35,21 +35,22 @@ class GuestStayBody(BaseModel):
     host_room_label: str
     guest_name: str
     relation: str
-    start_date: str
-    end_date: str
+    guest_start_date: str
+    guest_end_date: str
     inclusive_days: int
     reason: str
     status: GuestStatus
     payment_status: PaymentStatus
+    payment_note: str | None = None
     bucket: GuestBucket
     decision_note: str | None = None
-    decided_by_name: str | None = None
-    arrived_recorded_by_name: str | None = None
-    departed_recorded_by_name: str | None = None
+    decided_by: str | None = None
+    arrived_recorded_by: str | None = None
+    departed_recorded_by: str | None = None
     payment_evidence_original_name: str | None = None
     payment_evidence_content_type: str | None = None
     payment_evidence_uploaded_at: str | None = None
-    payment_evidence_uploaded_by_name: str | None = None
+    payment_evidence_uploaded_by: str | None = None
     arrived_at: str | None = None
     departed_at: str | None = None
     created_at: str
@@ -63,8 +64,8 @@ class GuestStaySummaryBody(BaseModel):
     guest_name: str
     host_name: str
     host_room_label: str
-    start_date: str
-    end_date: str
+    guest_start_date: str
+    guest_end_date: str
     status: GuestStatus
     payment_status: PaymentStatus
     bucket: GuestBucket
@@ -122,6 +123,9 @@ def derive_bucket(
     return "should_have_left"
 
 
+TERMINAL_BUCKETS: frozenset[GuestBucket] = frozenset({"cancelled", "rejected"})
+
+
 def bucket_matches(filter_bucket: GuestBucket | None, actual: GuestBucket) -> bool:
     """Staff list: `in_hall` is the dining set (in_hall + should_have_left)."""
     if filter_bucket is None:
@@ -129,6 +133,23 @@ def bucket_matches(filter_bucket: GuestBucket | None, actual: GuestBucket) -> bo
     if filter_bucket == "in_hall":
         return actual in {"in_hall", "should_have_left"}
     return actual == filter_bucket
+
+
+def stay_matches_list_filters(
+    *,
+    filter_bucket: GuestBucket | None,
+    actual: GuestBucket,
+    include_terminal: bool,
+) -> bool:
+    """Apply bucket filter, then optionally drop terminal buckets for staff queue."""
+    if not bucket_matches(filter_bucket, actual):
+        return False
+    if include_terminal:
+        return True
+    if actual in TERMINAL_BUCKETS:
+        # Explicit bucket=cancelled|rejected opts in for that one terminal subset.
+        return filter_bucket in TERMINAL_BUCKETS
+    return True
 
 
 _STAY_SELECT = """
@@ -139,19 +160,20 @@ SELECT
   rooms.label AS host_room_label,
   guest_stays.guest_name,
   guest_stays.relation,
-  guest_stays.start_date,
-  guest_stays.end_date,
+  guest_stays.guest_start_date,
+  guest_stays.guest_end_date,
   guest_stays.reason,
   guest_stays.status,
   guest_stays.payment_status,
+  guest_stays.payment_note,
   guest_stays.decision_note,
-  decider.full_name AS decided_by_name,
-  arriver.full_name AS arrived_recorded_by_name,
-  departer.full_name AS departed_recorded_by_name,
+  guest_stays.decided_by,
+  guest_stays.arrived_recorded_by,
+  guest_stays.departed_recorded_by,
   guest_stays.payment_evidence_original_name,
   guest_stays.payment_evidence_content_type,
   guest_stays.payment_evidence_uploaded_at,
-  evidence_uploader.full_name AS payment_evidence_uploaded_by_name,
+  guest_stays.payment_evidence_uploaded_by,
   guest_stays.arrived_at,
   guest_stays.departed_at,
   guest_stays.created_at
@@ -159,16 +181,12 @@ FROM guest_stays
 JOIN users AS host ON host.id = guest_stays.host_resident_id
 JOIN residents ON residents.user_id = guest_stays.host_resident_id
 JOIN rooms ON rooms.id = residents.room_id
-LEFT JOIN users AS decider ON decider.id = guest_stays.decided_by
-LEFT JOIN users AS arriver ON arriver.id = guest_stays.arrived_recorded_by
-LEFT JOIN users AS departer ON departer.id = guest_stays.departed_recorded_by
-LEFT JOIN users AS evidence_uploader ON evidence_uploader.id = guest_stays.payment_evidence_uploaded_by
 """
 
 
 def _body_from_row(row: sqlite3.Row, today: str) -> GuestStayBody:
-    start = row["start_date"]
-    end = row["end_date"]
+    start = row["guest_start_date"]
+    end = row["guest_end_date"]
     return GuestStayBody(
         id=row["id"],
         host_resident_id=row["host_resident_id"],
@@ -176,12 +194,13 @@ def _body_from_row(row: sqlite3.Row, today: str) -> GuestStayBody:
         host_room_label=row["host_room_label"],
         guest_name=row["guest_name"],
         relation=row["relation"],
-        start_date=start,
-        end_date=end,
+        guest_start_date=start,
+        guest_end_date=end,
         inclusive_days=inclusive_days(start, end),
         reason=row["reason"],
         status=row["status"],
         payment_status=row["payment_status"],
+        payment_note=row["payment_note"],
         bucket=derive_bucket(
             status=row["status"],
             payment_status=row["payment_status"],
@@ -192,13 +211,13 @@ def _body_from_row(row: sqlite3.Row, today: str) -> GuestStayBody:
             today=today,
         ),
         decision_note=row["decision_note"],
-        decided_by_name=row["decided_by_name"],
-        arrived_recorded_by_name=row["arrived_recorded_by_name"],
-        departed_recorded_by_name=row["departed_recorded_by_name"],
+        decided_by=row["decided_by"],
+        arrived_recorded_by=row["arrived_recorded_by"],
+        departed_recorded_by=row["departed_recorded_by"],
         payment_evidence_original_name=row["payment_evidence_original_name"],
         payment_evidence_content_type=row["payment_evidence_content_type"],
         payment_evidence_uploaded_at=row["payment_evidence_uploaded_at"],
-        payment_evidence_uploaded_by_name=row["payment_evidence_uploaded_by_name"],
+        payment_evidence_uploaded_by=row["payment_evidence_uploaded_by"],
         arrived_at=row["arrived_at"],
         departed_at=row["departed_at"],
         created_at=row["created_at"],
@@ -211,8 +230,8 @@ def _summary_from_body(body: GuestStayBody) -> GuestStaySummaryBody:
         guest_name=body.guest_name,
         host_name=body.host_name,
         host_room_label=body.host_room_label,
-        start_date=body.start_date,
-        end_date=body.end_date,
+        guest_start_date=body.guest_start_date,
+        guest_end_date=body.guest_end_date,
         status=body.status,
         payment_status=body.payment_status,
         bucket=body.bucket,
@@ -248,6 +267,7 @@ def list_guest_stays(
     offset: int,
     today: str,
     bucket: GuestBucket | None = None,
+    include_terminal: bool = True,
 ) -> GuestStayPageBody:
     where = ""
     params: list[object] = []
@@ -265,7 +285,11 @@ def list_guest_stays(
     full = [
         body
         for body in (_body_from_row(row, today) for row in rows)
-        if bucket_matches(bucket, body.bucket)
+        if stay_matches_list_filters(
+            filter_bucket=bucket,
+            actual=body.bucket,
+            include_terminal=include_terminal,
+        )
     ]
     total = len(full)
     items = [_summary_from_body(body) for body in full[offset : offset + limit]]
