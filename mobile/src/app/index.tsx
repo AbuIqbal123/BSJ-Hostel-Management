@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HallMark } from "@/components/hall-mark";
 import { useSession } from "@/session";
 import { useHallColors } from "@/theme/colors";
+import { text } from "@/theme/text";
 
 export default function OpeningScreen() {
   const colors = useHallColors();
@@ -32,26 +33,8 @@ export default function OpeningScreen() {
       }}
     >
       <HallMark />
-      <Text
-        style={{
-          color: colors.ink,
-          fontFamily: "SourceSerif4_600SemiBold",
-          fontSize: 28,
-          letterSpacing: -0.4,
-          textAlign: "center",
-        }}
-      >
-        Begum Sultan Jahan Hall
-      </Text>
-      <Text
-        style={{
-          color: colors.inkSoft,
-          fontFamily: "SourceSans3_400Regular",
-          fontSize: 17,
-        }}
-      >
-        Opening the hall
-      </Text>
+      <Text style={[text.hallName, { color: colors.ink }]}>Begum Sultan Jahan Hall</Text>
+      <Text style={[text.body, { color: colors.inkSoft }]}>Opening the hall</Text>
     </View>
   );
 }

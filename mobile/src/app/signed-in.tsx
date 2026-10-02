@@ -4,6 +4,7 @@ import { ScrollView, Text } from "react-native";
 import { HallButton } from "@/components/hall-button";
 import { roleLabel, useSession } from "@/session";
 import { useHallColors } from "@/theme/colors";
+import { text } from "@/theme/text";
 
 export default function SignedInScreen() {
   const colors = useHallColors();
@@ -19,34 +20,11 @@ export default function SignedInScreen() {
       contentContainerStyle={{ padding: 24, gap: 16 }}
       style={{ backgroundColor: colors.paper }}
     >
-      <Text
-        selectable
-        style={{
-          color: colors.ink,
-          fontFamily: "SourceSerif4_600SemiBold",
-          fontSize: 32,
-          letterSpacing: -0.4,
-        }}
-      >
+      <Text selectable style={[text.name, { color: colors.ink }]}>
         {user.full_name}
       </Text>
-      <Text
-        style={{
-          color: colors.inkSoft,
-          fontFamily: "SourceSans3_400Regular",
-          fontSize: 17,
-        }}
-      >
-        {roleLabel(user.role)}
-      </Text>
-      <Text
-        selectable
-        style={{
-          color: colors.inkFaint,
-          fontFamily: "IBMPlexMono_500Medium",
-          fontSize: 15,
-        }}
-      >
+      <Text style={[text.body, { color: colors.inkSoft }]}>{roleLabel(user.role)}</Text>
+      <Text selectable style={[text.mono, { color: colors.inkFaint }]}>
         {user.username}
       </Text>
       <HallButton

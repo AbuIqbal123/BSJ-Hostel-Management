@@ -1,6 +1,8 @@
-import { Pressable, Text } from "react-native";
+import { useMemo } from "react";
+import { Pressable, StyleSheet, Text } from "react-native";
 
 import { useHallColors } from "@/theme/colors";
+import { text } from "@/theme/text";
 
 type HallButtonProps = {
   label: string;
@@ -10,6 +12,7 @@ type HallButtonProps = {
 
 export function HallButton({ label, onPress, disabled = false }: HallButtonProps) {
   const colors = useHallColors();
+  const labelStyle = useMemo(() => [text.button, { color: colors.onForest }], [colors]);
 
   return (
     <Pressable
@@ -17,24 +20,24 @@ export function HallButton({ label, onPress, disabled = false }: HallButtonProps
       accessibilityLabel={label}
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => ({
-        backgroundColor: pressed ? colors.forestDeep : colors.forest,
-        borderRadius: 12,
-        borderCurve: "continuous",
-        opacity: disabled ? 0.6 : 1,
-        paddingVertical: 14,
-        alignItems: "center",
-      })}
+      style={({ pressed }) => [
+        styles.button,
+        {
+          backgroundColor: pressed ? colors.forestDeep : colors.forest,
+          opacity: disabled ? 0.6 : 1,
+        },
+      ]}
     >
-      <Text
-        style={{
-          color: colors.onForest,
-          fontFamily: "SourceSans3_600SemiBold",
-          fontSize: 17,
-        }}
-      >
-        {label}
-      </Text>
+      <Text style={labelStyle}>{label}</Text>
     </Pressable>
   );
 }
+
+const styles = StyleSheet.create({
+  button: {
+    alignItems: "center",
+    borderRadius: 12,
+    borderCurve: "continuous",
+    paddingVertical: 14,
+  },
+});

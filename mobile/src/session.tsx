@@ -4,10 +4,13 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
+import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
 
 const SESSION_KEY = "bsj.session";
 
@@ -36,14 +39,52 @@ type SessionValue = {
 
 const SessionContext = createContext<SessionValue | null>(null);
 
-function apiBase(): string {
+const LOCAL_HALL = "http://127.0.0.1:8000";
+
+function explicitHall(): string | null {
   const configured = process.env.EXPO_PUBLIC_API_URL;
-  if (configured) {
-    return configured.replace(/\/$/, "");
+  if (!configured) {
+    return null;
   }
-  return process.env.EXPO_OS === "android"
-    ? "http://10.0.2.2:8000"
-    : "http://127.0.0.1:8000";
+  return configured.replace(/\/$/, "");
+}
+
+// Localhost is the phone itself, or the Android emulator. Only then use the
+// computer Expo Go already reached, or the emulator's host alias.
+function devMachineHall(): string | null {
+  const host = Constants.expoConfig?.hostUri?.split(":")[0];
+  if (host && host !== "localhost" && host !== "127.0.0.1") {
+    return `http://${host}:8000`;
+  }
+  if (Platform.OS === "android") {
+    return "http://10.0.2.2:8000";
+  }
+  return null;
+}
+
+let resolvedHall: string | null = null;
+
+async function hallFetch(path: string, init: RequestInit): Promise<Response> {
+  const explicit = explicitHall();
+  if (explicit) {
+    return fetch(`${explicit}${path}`, init);
+  }
+  if (resolvedHall) {
+    return fetch(`${resolvedHall}${path}`, init);
+  }
+  try {
+    const response = await fetch(`${LOCAL_HALL}${path}`, init);
+    resolvedHall = LOCAL_HALL;
+    return response;
+  } catch {
+    const fallback = devMachineHall();
+    if (!fallback) {
+      throw new Error("The hall could not be reached.");
+    }
+    const response = await fetch(`${fallback}${path}`, init);
+    resolvedHall = fallback;
+    return response;
+  }
 }
 
 async function errorMessage(response: Response): Promise<string> {
@@ -98,7 +139,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(async (username: string, password: string) => {
     try {
-      const response = await fetch(`${apiBase()}/api/v1/auth/login`, {
+      const response = await hallFetch("/api/v1/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: username.trim(), password }),
@@ -124,22 +165,25 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
+
   const signOut = useCallback(async () => {
-    const current = session;
+    const current = sessionRef.current;
     setSession(null);
     await SecureStore.deleteItemAsync(SESSION_KEY);
     if (!current) {
       return;
     }
     try {
-      await fetch(`${apiBase()}/api/v1/auth/logout`, {
+      await hallFetch("/api/v1/auth/logout", {
         method: "POST",
         headers: { Authorization: `Bearer ${current.accessToken}` },
       });
     } catch {
       // The phone session is already cleared.
     }
-  }, [session]);
+  }, []);
 
   const value = useMemo<SessionValue>(
     () => ({
