@@ -408,6 +408,7 @@ Guests are not accounts and have no hall pass.
 | payment_status | Choice | Yes | System starts it as unpaid. A warden or the provost marks it paid. | Unpaid or paid. |
 | payment_marked_by | Identifier | Yes when paid. Empty when unpaid. | The warden or provost who marked it | Required together with the time when the stay is paid. |
 | payment_marked_at | Instant | Yes when paid. Empty when unpaid. | System, when payment is marked | |
+| payment_note | Text | Yes when paid. Empty when unpaid. | The warden or provost types it when marking paid | Off-system payment proof (transaction reference, who collected cash, screenshot mention, and similar). At most 500 characters. Cleared when marked unpaid. |
 | decided_by | Identifier | Empty while waiting, empty if the resident cancels before a decision, and empty after the resident edits (which returns the stay to waiting). Yes once approved or rejected. | The warden or provost who decided | The audit of the decision. A waiting stay has no decision yet, so the field is empty until then. |
 | decided_at | Instant | Empty in the same cases as decided_by. Yes once approved or rejected. | System, at the decision | |
 | decision_note | Text | Empty if they write nothing | The warden or provost may type it | Optional. |
@@ -435,7 +436,7 @@ The state and the times agree:
 - Approved is the stay that can be in the hall. Arrival is a time on that stay, not a new state.
 - Departure moves an approved stay to departed. Gate may also record departure while a post-arrival date edit is still waiting, so the guest is not trapped in the hall.
 
-Payment is a separate act by a warden or the provost. It can be marked before or after approval, and not after departure. Marking it unpaid again is allowed only before arrival. Marking it unpaid clears the payment staff member and the payment time.
+Payment is a separate act by a warden or the provost. It can be marked before or after approval, and not after departure. Marking it unpaid again is allowed only before arrival. Marking it paid requires a payment note (off-system proof). Marking it unpaid clears the payment staff member, the payment time, and the payment note.
 
 Arrival is allowed only when the stay is approved, payment is paid, arrival is still empty, and today's hall date falls on the start date, the end date, or a day between them.
 
@@ -586,7 +587,7 @@ A resident's own history is the same exits and returns for that resident, newest
 
 - Emergency alerts, duty phone numbers, or a second emergency contact besides the guardian.
 - Phone notifications. Text messages to the guardian are kept above. What the resident's or the staff member's own phone notifies, and when, is not a record in this document.
-- A payment amount, a receipt, or card collection. The office only marks a guest stay paid or unpaid.
+- A payment amount, a receipt file, or card collection. The office marks a guest stay paid or unpaid and may type a free-text payment note for off-system proof. File upload of payment evidence is not kept yet.
 - Parent or guardian accounts.
 - More than one outside outing, or two planned or outside outings with the same expected return.
 - A second role on one person.

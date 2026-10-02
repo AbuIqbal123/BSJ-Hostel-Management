@@ -192,7 +192,7 @@ Body: [Ready](#schema-ready).
 ```json
 {
   "status": "ready",
-  "user_version": 7
+  "user_version": 8
 }
 ```
 
@@ -1671,6 +1671,7 @@ Body: [GuestStay](#schema-gueststay).
 | `reason` | yes | string |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
 | `payment_status` | yes | `unpaid` or `paid` |  |
+| `payment_note` | no | string or null | Off-system payment proof (transaction reference, who collected cash, screenshot mention, and similar). Set when payment is marked paid; null when unpaid. |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
 | `decided_by` | no | uuid or null | UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
@@ -1735,6 +1736,7 @@ Body: [GuestStay](#schema-gueststay).
 | `reason` | yes | string |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
 | `payment_status` | yes | `unpaid` or `paid` |  |
+| `payment_note` | no | string or null | Off-system payment proof (transaction reference, who collected cash, screenshot mention, and similar). Set when payment is marked paid; null when unpaid. |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
 | `decided_by` | no | uuid or null | UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
@@ -1843,6 +1845,7 @@ Body: [GuestStay](#schema-gueststay).
 | `reason` | yes | string |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
 | `payment_status` | yes | `unpaid` or `paid` |  |
+| `payment_note` | no | string or null | Off-system payment proof (transaction reference, who collected cash, screenshot mention, and similar). Set when payment is marked paid; null when unpaid. |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
 | `decided_by` | no | uuid or null | UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
@@ -1920,6 +1923,7 @@ Body: [GuestStay](#schema-gueststay).
 | `reason` | yes | string |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
 | `payment_status` | yes | `unpaid` or `paid` |  |
+| `payment_note` | no | string or null | Off-system payment proof (transaction reference, who collected cash, screenshot mention, and similar). Set when payment is marked paid; null when unpaid. |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
 | `decided_by` | no | uuid or null | UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
@@ -2037,6 +2041,7 @@ Body: [GuestStay](#schema-gueststay).
 | `reason` | yes | string |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
 | `payment_status` | yes | `unpaid` or `paid` |  |
+| `payment_note` | no | string or null | Off-system payment proof (transaction reference, who collected cash, screenshot mention, and similar). Set when payment is marked paid; null when unpaid. |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
 | `decided_by` | no | uuid or null | UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
@@ -2114,6 +2119,7 @@ Body: [GuestStay](#schema-gueststay).
 | `reason` | yes | string |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
 | `payment_status` | yes | `unpaid` or `paid` |  |
+| `payment_note` | no | string or null | Off-system payment proof (transaction reference, who collected cash, screenshot mention, and similar). Set when payment is marked paid; null when unpaid. |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
 | `decided_by` | no | uuid or null | UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
@@ -2155,8 +2161,12 @@ Body: [ErrorResponse](#schema-errorresponse).
 **Who.** warden or provost. Bearer access token.
 
 Caller: warden or provost. Records that the hall office has or has not
-taken payment. Allowed before arrival, whether the stay is pending or
-approved. The app does not collect money.
+taken payment outside the system. Allowed before arrival, whether the
+stay is pending or approved. The app does not collect money. When
+marking paid, `payment_note` is required (off-system proof such as a
+transaction reference, who collected cash, or a screenshot mention).
+When marking unpaid, `payment_note` is optional and any stored note is
+cleared together with the payment staff member and time.
 
 **Parameters**
 
@@ -2171,12 +2181,14 @@ Body: [PaymentRequest](#schema-paymentrequest).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `payment_status` | yes | `paid` or `unpaid` |  |
+| `payment_note` | no | string | Off-system payment proof for the hall office (transaction reference, who collected cash, screenshot mention, and similar). Required when marking paid. Optional when marking unpaid; cleared on unpaid. at most 500 characters. |
 
 **Example**
 
 ```json
 {
-  "payment_status": "paid"
+  "payment_status": "paid",
+  "payment_note": "UPI ref TXN123456; collected at desk"
 }
 ```
 
@@ -2202,6 +2214,7 @@ Body: [GuestStay](#schema-gueststay).
 | `reason` | yes | string |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
 | `payment_status` | yes | `unpaid` or `paid` |  |
+| `payment_note` | no | string or null | Off-system payment proof (transaction reference, who collected cash, screenshot mention, and similar). Set when payment is marked paid; null when unpaid. |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
 | `decided_by` | no | uuid or null | UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
@@ -4550,6 +4563,7 @@ approve again; payment_status is left unchanged.
 | `reason` | yes | string |  |
 | `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
 | `payment_status` | yes | `unpaid` or `paid` |  |
+| `payment_note` | no | string or null | Off-system payment proof (transaction reference, who collected cash, screenshot mention, and similar). Set when payment is marked paid; null when unpaid. |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
 | `decided_by` | no | uuid or null | UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
@@ -4588,9 +4602,16 @@ GuestStay via GET by id.
 
 ### <a id="schema-paymentrequest"></a>PaymentRequest
 
+Marks guest-stay payment that happened outside the system. `payment_note`
+is required when `payment_status` is `paid` (non-empty after trim; max
+500). When `payment_status` is `unpaid`, `payment_note` may be omitted or
+empty; any stored note is cleared with `payment_marked_by` and
+`payment_marked_at`.
+
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `payment_status` | yes | `paid` or `unpaid` |  |
+| `payment_note` | no | string | Off-system payment proof for the hall office (transaction reference, who collected cash, screenshot mention, and similar). Required when marking paid. Optional when marking unpaid; cleared on unpaid. at most 500 characters. |
 
 ### <a id="schema-scanrequest"></a>ScanRequest
 

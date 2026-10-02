@@ -41,6 +41,7 @@ class GuestStayBody(BaseModel):
     reason: str
     status: GuestStatus
     payment_status: PaymentStatus
+    payment_note: str | None = None
     bucket: GuestBucket
     decision_note: str | None = None
     decided_by: str | None = None
@@ -140,6 +141,7 @@ SELECT
   guest_stays.reason,
   guest_stays.status,
   guest_stays.payment_status,
+  guest_stays.payment_note,
   guest_stays.decision_note,
   guest_stays.decided_by,
   guest_stays.arrived_recorded_by,
@@ -170,6 +172,7 @@ def _body_from_row(row: sqlite3.Row, today: str) -> GuestStayBody:
         reason=row["reason"],
         status=row["status"],
         payment_status=row["payment_status"],
+        payment_note=row["payment_note"],
         bucket=derive_bucket(
             status=row["status"],
             payment_status=row["payment_status"],

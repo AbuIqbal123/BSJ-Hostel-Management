@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.shared.schemas import DecisionRequest
 from app.residents.guests.records import (
@@ -28,6 +28,7 @@ router = APIRouter(prefix="/api/v1", tags=["Guest Stays"])
 class PaymentRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     payment_status: Literal["paid", "unpaid"]
+    payment_note: str | None = Field(default=None, max_length=500)
 
 
 @router.get("/guest-stays", response_model=GuestStayPageBody)
@@ -159,7 +160,15 @@ def mark_guest_payment(
             "payment_locked",
             "Payment cannot be changed after the guest has arrived or the stay is closed.",
         )
+    note = None if body.payment_note is None else body.payment_note.strip() or None
     if body.payment_status == "paid":
+        if note is None:
+            raise ApiError(
+                422,
+                "validation_error",
+                "Payment note is required when marking paid.",
+                field="payment_note",
+            )
         updated = connection.execute(
             """
             UPDATE guest_stays
@@ -167,6 +176,7 @@ def mark_guest_payment(
               payment_status = 'paid',
               payment_marked_by = ?,
               payment_marked_at = ?,
+              payment_note = ?,
               updated_at = ?
             WHERE id = ?
               AND status IN ('pending', 'approved')
@@ -174,7 +184,7 @@ def mark_guest_payment(
               AND departed_at IS NULL
             RETURNING id, guest_name
             """,
-            (account.id, now_text, now_text, guest_stay_id),
+            (account.id, now_text, note, now_text, guest_stay_id),
         ).fetchone()
     else:
         updated = connection.execute(
@@ -184,6 +194,7 @@ def mark_guest_payment(
               payment_status = 'unpaid',
               payment_marked_by = NULL,
               payment_marked_at = NULL,
+              payment_note = NULL,
               updated_at = ?
             WHERE id = ?
               AND status IN ('pending', 'approved')

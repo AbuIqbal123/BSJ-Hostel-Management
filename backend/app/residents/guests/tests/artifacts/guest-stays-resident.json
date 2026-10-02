@@ -18,6 +18,7 @@
     "departed_recorded_by": null,
     "arrived_at": null,
     "departed_at": null,
-    "created_at": "2026-09-30T13:00:00Z"
+    "created_at": "2026-09-30T13:00:00Z",
+    "payment_note": null
   }
 }

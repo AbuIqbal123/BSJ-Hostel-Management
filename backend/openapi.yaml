@@ -105,7 +105,7 @@ paths:
                 $ref: "#/components/schemas/Ready"
               example:
                 status: ready
-                user_version: 7
+                user_version: 8
         "503":
           description: The database could not be opened.
           content:
@@ -1490,8 +1490,12 @@ paths:
       summary: Mark guest payment
       description: |
         Caller: warden or provost. Records that the hall office has or has not
-        taken payment. Allowed before arrival, whether the stay is pending or
-        approved. The app does not collect money.
+        taken payment outside the system. Allowed before arrival, whether the
+        stay is pending or approved. The app does not collect money. When
+        marking paid, `payment_note` is required (off-system proof such as a
+        transaction reference, who collected cash, or a screenshot mention).
+        When marking unpaid, `payment_note` is optional and any stored note is
+        cleared together with the payment staff member and time.
       parameters:
         - $ref: "#/components/parameters/GuestStayId"
       requestBody:
@@ -1502,6 +1506,7 @@ paths:
               $ref: "#/components/schemas/PaymentRequest"
             example:
               payment_status: paid
+              payment_note: "UPI ref TXN123456; collected at desk"
       responses:
         "200":
           description: Payment status stored.
@@ -3061,6 +3066,14 @@ components:
         payment_status:
           type: string
           enum: [unpaid, paid]
+        payment_note:
+          oneOf:
+            - type: string
+            - type: "null"
+          description: |
+            Off-system payment proof (transaction reference, who collected cash,
+            screenshot mention, and similar). Set when payment is marked paid;
+            null when unpaid.
         bucket:
           $ref: "#/components/schemas/GuestBucket"
         decision_note:
@@ -3156,10 +3169,23 @@ components:
       type: object
       additionalProperties: false
       required: [payment_status]
+      description: |
+        Marks guest-stay payment that happened outside the system. `payment_note`
+        is required when `payment_status` is `paid` (non-empty after trim; max
+        500). When `payment_status` is `unpaid`, `payment_note` may be omitted or
+        empty; any stored note is cleared with `payment_marked_by` and
+        `payment_marked_at`.
       properties:
         payment_status:
           type: string
           enum: [paid, unpaid]
+        payment_note:
+          type: string
+          maxLength: 500
+          description: |
+            Off-system payment proof for the hall office (transaction reference,
+            who collected cash, screenshot mention, and similar). Required when
+            marking paid. Optional when marking unpaid; cleared on unpaid.
 
     ScanRequest:
       type: object

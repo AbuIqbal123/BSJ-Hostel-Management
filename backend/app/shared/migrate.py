@@ -10,7 +10,7 @@ from pathlib import Path
 
 from app.shared.db import create_connection
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 MIGRATIONS = (
     Path(__file__).resolve().parent / "migrations" / "0001_create_hall.sql",
     Path(__file__).resolve().parent / "migrations" / "0002_outing_days.sql",
@@ -19,6 +19,7 @@ MIGRATIONS = (
     Path(__file__).resolve().parent / "migrations" / "0005_late_sms_hall_name.sql",
     Path(__file__).resolve().parent / "migrations" / "0006_guest_stay_date_columns.sql",
     Path(__file__).resolve().parent / "migrations" / "0007_guest_stay_pending_after_arrival.sql",
+    Path(__file__).resolve().parent / "migrations" / "0008_guest_stay_payment_note.sql",
 )
 
 
