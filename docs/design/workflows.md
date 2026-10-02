@@ -21,8 +21,8 @@ Keep this document Fowler-simple: one workflow per section, steps a person can n
 
 **How a resident account starts (two paths)**
 
-1. **Self-onboard (new).** From sign-in, open Onboard. She enters `full_name`, `enrolment_number` (her roll number; becomes the username), `password`, `phone` (her own), `guardian_name`, and `guardian_phone`. Optional: `course`. She does **not** choose block or room. Submit calls `POST /api/v1/auth/onboard`. The hall keeps a **pending** resident. No tokens are returned. The screen says the Hall Office must finish her place (room) and activate the account.
-2. **Office-provisioned (unchanged).** Provost creates the resident at the hall office with room, guardian details, and a `temporary_password`. Account starts **active**. Login accepts that password and returns tokens.
+1. **Self-onboard (new).** From sign-in, open Onboard. She enters `full_name`, `enrolment_number` (her roll number; becomes the username), `password`, `phone` (her own), `block_id`, `room_id`, `guardian_name`, and `guardian_phone`. Optional: `course`. Submit calls `POST /api/v1/auth/onboard`. The hall keeps an **active** resident with the selected room and returns no tokens. She can sign in immediately with the submitted enrolment number and password.
+2. **Office-provisioned (unchanged).** Provost creates the resident at the hall office with room, the resident's phone, guardian details, and a `temporary_password`. Account starts **active**. Login accepts that password and returns tokens.
 3. There is **no guardian login**. Guardians do not use the app.
 
 **Critical-engineer decisions (locked for this stack)**
@@ -31,23 +31,23 @@ Keep this document Fowler-simple: one workflow per section, steps a person can n
 |---|---|---|
 | Who may self-onboard | Residents only. Gate, warden, and provost stay office-created (`POST /api/v1/admin/staff`). | Staff roles grant gate and hall records. Self-service staff accounts would bypass office control. |
 | Enrolment uniqueness | Hall-wide, ignoring capitals. Same rule as username. | One person per enrolment in this hall. Matches existing unique enrolment / username. |
-| Room / block at onboard | Assigned later by the Hall Office. Not chosen on the onboard form. | Bed inventory and active rooms are office-controlled. A resident cannot pick a free bed id. Pending residents stay off the register until a room is set and the account is activated. |
-| Guardian and phones | `guardian_name` and `guardian_phone` required. Resident `phone` required on self-onboard. Office create may still omit `phone`. | Hall already requires a guardian phone for late and return SMS. Self-onboard collects her own phone so the office can reach her while pending. |
-| Activation | Pending until the provost assigns a room and activates. Onboard does not issue tokens or a hall pass. | Enrolment alone is not admission. Room assignment and activation stay office work. Hall pass is issued when the account becomes active with a room. |
+| Room / block at onboard | Chosen on the onboard form as `block_id` and `room_id`; the room must belong to the block and be active. | This dev/testing flow is full onboarding. The Hall Office activation workflow is deferred. |
+| Guardian and phones | `guardian_name`, `guardian_phone`, and resident `phone` are required on both self-onboard and office create. | Hall already requires a guardian phone for late and return SMS. Both resident-entry paths collect the resident's own phone so it is on file from creation. |
+| Activation | Self-onboard creates an active resident with a room and hall pass; login is allowed immediately. | Dev/testing needs a complete path. A separate Hall Office activation workflow is deferred. |
 | First password | She chooses `password` on self-onboard (at least 10 characters). No must-change flag. Office path still uses `temporary_password`. After she can sign in, change-password from settings is optional. | Full onboarding means she owns the first password. Matches current "no must-change" for office accounts. |
 | Staff creation | Office only. No public staff onboard. | Same as today. |
 
 **Screens / steps**
 
-1. Sign-in: enrolment number (or staff username) + password. Link to Onboard for residents who do not yet have an active account.
-2. Onboard form (fields above). On success: waiting copy, then back to sign-in. On duplicate enrolment: refuse with the contract conflict message.
-3. After activation: sign in → route by `role` from `GET /api/v1/auth/me` into the correct shell.
+1. Sign-in: enrolment number (or staff username) + password. Link to Onboard for residents who do not yet have an account.
+2. Onboard form (fields above). On success: ready copy, then back to sign-in. A taken enrolment receives the same generic authentication refusal as other auth failures.
+3. After onboarding: sign in → route by `role` from `GET /api/v1/auth/me` into the correct shell.
 4. Change password from settings when she chooses. Needs current password and a new one. The shell does not block until she does this.
 5. Sign out revokes the refresh session.
 
-**Critical states:** a bad username and a wrong password are the same refusal, `Username or password is wrong.`; a **pending** account with the correct password says the account is waiting for the Hall Office (exact sentence in the OpenAPI contract); a suspended account says `This account is suspended. Please contact the Hall Office.`; too many attempts says `Too many attempts. Try again shortly.`; an expired session returns to sign-in. Do not show a screen that says the username is missing. Duplicate enrolment on onboard is a conflict, not a silent success.
+**Critical states:** a bad username and a wrong password are the same refusal, `Username or password is wrong.`; a taken onboard enrolment uses that same generic refusal and does not reveal whether the enrolment exists; a suspended account says `This account is suspended. Please contact the Hall Office.`; too many attempts says `Too many attempts. Try again shortly.`; an expired session returns to sign-in. Do not show a screen that says the username is missing.
 
-**Success:** pending onboard acknowledged without tokens; after office activation, correct shell for role with valid tokens; staff still office-created only.
+**Success:** active onboard acknowledged without tokens, then sign-in returns the correct shell for the role with valid tokens; staff still office-created only.
 
 ---
 
@@ -178,9 +178,9 @@ Provost may also export CSV via `GET /api/v1/admin/register/export`.
 | **Goal** | Keep people, places, and settings accurate |
 | **API** | `/api/v1/admin/settings`, `/api/v1/admin/blocks`, `/api/v1/admin/rooms`, `/api/v1/admin/destinations`, `/api/v1/admin/residents`, `/api/v1/admin/staff`, `POST /api/v1/admin/users/{user_id}/password`, `POST /api/v1/admin/residents/{resident_id}/hall-pass/reissue`, `GET /api/v1/admin/register/export`, `GET /api/v1/admin/sms`, `GET /api/v1/admin/audit` |
 
-**Screens:** settings (hours, grace, seasons, guest rules, SMS templates; show 12-hour + day-month as contract) → blocks/rooms → destinations → residents (pending queue: assign room and activate; create/edit; suspend; reissue pass) → staff → password reset → SMS log → audit → CSV export.
+**Screens:** settings (hours, grace, seasons, guest rules, SMS templates; show 12-hour + day-month as contract) → blocks/rooms → destinations → residents (create/edit; suspend; reissue pass) → staff → password reset → SMS log → audit → CSV export.
 
-**Pending residents:** list accounts with status pending. Provost assigns `room_id`, confirms or corrects guardian and phone fields, and activates. Activation issues the hall pass once. Until then the resident cannot sign in to the resident shell and is not counted on the register.
+**Activation:** the current self-onboard path creates an active resident with the selected room. A separate Hall Office activation workflow is deferred.
 
 **Critical states:** destructive confirms (reissue pass invalidates old QR; reset revokes sessions); inactive destinations hidden from resident catalog but visible in admin; pending without a room cannot be activated.
 
