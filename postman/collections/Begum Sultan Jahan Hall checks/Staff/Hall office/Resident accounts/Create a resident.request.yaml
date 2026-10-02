@@ -3,7 +3,7 @@ method: POST
 url: '{{baseUrl}}/api/v1/admin/residents'
 order: 2000
 description: |-
-  Caller: provost. Username is the enrolment number. The response includes the hall pass payload once, so the office can place it on the resident's phone. Later reads of the account do not return the token. Room B-204 already has Aisha Khan. This sample is a second resident for that room.
+  Caller: provost. Username is the enrolment number. The response includes the hall pass payload once, so the office can place it on the resident's phone. Later reads of the account do not return the token. Room B-204 already has Aisha Khan. This sample is a second resident for that room. Bearer uses {{token_provost}}.
 headers:
   - key: Content-Type
     value: application/json
@@ -36,30 +36,4 @@ scripts:
           mode: "raw",
           raw: JSON.stringify(payload),
           options: {raw: {language: "json"}}
-      });
-      pm.sendRequest({
-          url: pm.collectionVariables.get("baseUrl") + "/api/v1/auth/login",
-          method: "POST",
-          header: {"Content-Type": "application/json"},
-          body: {
-              mode: "raw",
-              raw: JSON.stringify(Object.assign({username: "provost.halima"}, {[["pass", "word"].join("")]: ["provost", "pass", "10"].join("-")}))
-          }
-      }, function (err, res) {
-          if (err || !res || res.code !== 200) {
-              throw new Error("Could not sign in as Halima Begum.");
-          }
-          const signedIn = res.json();
-          pm.request.headers.upsert({
-              key: "Authorization",
-              value: "Bearer " + signedIn.access_token
-          });
-          const target = String(pm.request.url);
-          if (target.indexOf("/api/v1/auth/refresh") !== -1) {
-              pm.request.body.update({
-                  mode: "raw",
-                  raw: JSON.stringify({refresh_token: signedIn.refresh_token}),
-                  options: {raw: {language: "json"}}
-              });
-          }
       });

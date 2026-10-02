@@ -2,4 +2,9 @@ $kind: collection
 name: Gate
 order: 1000
 description: |-
-  Scan the hall pass, and record guest arrival and departure. Each request signs in as Halima Begum, the provost.
+  Scan the hall pass, and record guest arrival and departure. Bearer uses {{token_gate}} (Sign in as Gate).
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{token_gate}}'

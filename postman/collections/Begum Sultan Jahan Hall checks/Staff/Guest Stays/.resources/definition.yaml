@@ -2,4 +2,4 @@ $kind: collection
 name: Guest Stays
 order: 2200
 description: |-
-  Guest stay review, payment, and decisions. Each request signs in as Halima Begum, the provost.
+  Guest stay review, payment, and decisions. Bearer uses {{token_provost}} (Sign in as Provost).

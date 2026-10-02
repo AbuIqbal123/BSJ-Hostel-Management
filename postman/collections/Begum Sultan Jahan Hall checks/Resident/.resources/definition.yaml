@@ -2,4 +2,9 @@ $kind: collection
 name: Resident
 order: 2000
 description: |-
-  Aisha Khan's phone. Press Send. Each request signs in as Aisha Khan, enrolment 24-GLLB-118.
+  Aisha Khan's phone. Sign in as Resident first (sets token_resident). Bearer uses {{token_resident}}.
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{token_resident}}'

@@ -9,25 +9,3 @@ queryParams:
     value: '0'
 description: |-
   Caller: resident. Newest first. Includes late-night and home going. An approved permission whose expected return has passed, and which was never used, becomes `expired` when this list is read.
-scripts:
-  - type: beforeRequest
-    language: text/javascript
-    code: |-
-      pm.sendRequest({
-          url: pm.collectionVariables.get("baseUrl") + "/api/v1/auth/login",
-          method: "POST",
-          header: {"Content-Type": "application/json"},
-          body: {
-              mode: "raw",
-              raw: JSON.stringify(Object.assign({username: "24-GLLB-118"}, {[["pass", "word"].join("")]: ["resident", "10"].join("-")}))
-          }
-      }, function (err, res) {
-          if (err || !res || res.code !== 200) {
-              throw new Error("Could not sign in as Aisha Khan.");
-          }
-          const signedIn = res.json();
-          pm.request.headers.upsert({
-              key: "Authorization",
-              value: "Bearer " + signedIn.access_token
-          });
-      });

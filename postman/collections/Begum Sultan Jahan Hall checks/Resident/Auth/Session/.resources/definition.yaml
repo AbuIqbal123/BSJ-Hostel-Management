@@ -2,4 +2,4 @@ $kind: collection
 name: Session
 order: 200
 description: |-
-  Current account.
+  Current account. Uses {{token_resident}}.

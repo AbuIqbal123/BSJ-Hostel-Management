@@ -2,4 +2,9 @@ $kind: collection
 name: Staff
 order: 3000
 description: |-
-  Halima Begum, the provost. Press Send. Each request signs in as Halima Begum. She can open the gate, the register, and the hall office.
+  Staff routes. Default Bearer is {{token_provost}} (Sign in as Provost). Gate uses token_gate; Permissions uses token_warden.
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{token_provost}}'

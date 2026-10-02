@@ -1,11 +1,16 @@
 $kind: collection
 name: 'Begum Sultan Jahan Hall checks'
 description: |-
-  Press Send. Each request signs itself in.
+  Sign in once per role under Auth → Sign in. Each login sets a collection variable
+  used as Bearer auth on that role's folders: token_resident, token_warden, token_gate,
+  token_provost. Switch roles by signing in as another account; no pasting tokens.
 
-  Resident is Aisha Khan, enrolment 24-GLLB-118. Staff sign-ins: Halima Begum (provost), Sara Malik (warden), Fatima Khan (gate). Auth Sign in requests stash provost_token, warden_token, resident_token, and gate_token.
+  Resident is Aisha Khan, enrolment 24-GLLB-118. Staff sign-ins: Halima Begum (provost),
+  Sara Malik (warden), Fatima Khan (gate).
 
-  Every route in the HTTP contract is here, including GET /ready. Plan an ordinary outing, request a permission, or apply for a guest stay before the requests that use outingId, permissionId, or guestStayId. Those Sends save the new id.
+  Every route in the HTTP contract is here, including GET /ready. Plan an ordinary outing,
+  request a permission, or apply for a guest stay before the requests that use outingId,
+  permissionId, or guestStayId. Those Sends save the new id.
 variables:
   - key: baseUrl
     value: 'http://localhost:8000'
@@ -25,11 +30,11 @@ variables:
     value: 00000000-0000-4000-8000-0000000000a1
   - key: guestStayId
     value: 00000000-0000-4000-8000-0000000000a2
-  - key: provost_token
+  - key: token_resident
     value: ''
-  - key: warden_token
+  - key: token_warden
     value: ''
-  - key: resident_token
+  - key: token_gate
     value: ''
-  - key: gate_token
+  - key: token_provost
     value: ''
