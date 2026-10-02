@@ -15,6 +15,7 @@ body:
       "enrolment_number": "26-BA-001",
       "course": "B.A.",
       "room_id": "{{roomId}}",
+      "phone": "+919811112222",
       "guardian_name": "Yusuf Siddiqui",
       "guardian_phone": "+919800000001"
     }
@@ -28,6 +29,7 @@ scripts:
           enrolment_number: "26-BA-001",
           course: "B.A.",
           room_id: pm.collectionVariables.get("roomId"),
+          phone: "+919811112222",
           guardian_name: "Yusuf Siddiqui",
           guardian_phone: "+919800000001"
       };

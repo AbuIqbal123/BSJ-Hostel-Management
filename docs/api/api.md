@@ -195,7 +195,7 @@ Body: [Ready](#schema-ready).
 ```json
 {
   "status": "ready",
-  "user_version": 9
+  "user_version": 10
 }
 ```
 
@@ -3103,6 +3103,7 @@ Body: [ResidentCreate](#schema-residentcreate).
 | `enrolment_number` | yes | string | 1–40 characters. |
 | `course` | no | string | at most 120 characters. |
 | `room_id` | yes | uuid |  |
+| `phone` | no | string | The resident's own phone in E.164 with country code. Optional. Omit when the hall has not collected it. pattern `^\+[1-9][0-9]{7,14}$`. |
 | `guardian_name` | yes | string | Parent or guardian. Required. 1–120 characters. |
 | `guardian_phone` | yes | string | E.164 with country code, for example +919876543210. pattern `^\+[1-9][0-9]{7,14}$`. |
 | `temporary_password` | yes | string | 10–200 characters. |
@@ -3176,6 +3177,7 @@ Body: [ResidentAccount](#schema-residentaccount).
 | `course` | no | string or null |  |
 | `room_id` | yes | uuid |  |
 | `room_label` | yes | string |  |
+| `phone` | no | string or null | The resident's own phone in E.164 with country code. Empty when the hall has not entered it. Optional; not the guardian phone. |
 | `guardian_name` | yes | string |  |
 | `guardian_phone` | yes | string | E.164, country code required. |
 | `status` | yes | `active` or `suspended` |  |
@@ -3206,11 +3208,12 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** provost. Bearer access token.
 
-Caller: provost. Send only the fields that change. `course` may be set
-to null to clear it. `guardian_name` and `guardian_phone` may be
-replaced and may not be cleared. A phone includes the country code.
-Changing `enrolment_number` changes the username. `status` suspends or
-reinstates the account and revokes refresh tokens on suspension.
+Caller: provost. Send only the fields that change. `course` and `phone`
+may be set to null to clear them. `guardian_name` and `guardian_phone`
+may be replaced and may not be cleared. A phone includes the country
+code. Changing `enrolment_number` changes the username. `status`
+suspends or reinstates the account and revokes refresh tokens on
+suspension.
 
 **Parameters**
 
@@ -3228,6 +3231,7 @@ Body: [ResidentUpdate](#schema-residentupdate).
 | `enrolment_number` | no | string | 1–40 characters. |
 | `course` | no | string or null |  |
 | `room_id` | no | uuid |  |
+| `phone` | no | string or null | The resident's own phone. Set to null to clear. Same E.164 pattern as guardian_phone when present. |
 | `guardian_name` | no | string | 1–120 characters. |
 | `guardian_phone` | no | string | pattern `^\+[1-9][0-9]{7,14}$`. |
 | `status` | no | `active` or `suspended` |  |
@@ -3248,6 +3252,7 @@ Body: [ResidentAccount](#schema-residentaccount).
 | `course` | no | string or null |  |
 | `room_id` | yes | uuid |  |
 | `room_label` | yes | string |  |
+| `phone` | no | string or null | The resident's own phone in E.164 with country code. Empty when the hall has not entered it. Optional; not the guardian phone. |
 | `guardian_name` | yes | string |  |
 | `guardian_phone` | yes | string | E.164, country code required. |
 | `status` | yes | `active` or `suspended` |  |
@@ -5096,6 +5101,7 @@ One of: `not_due`, `sent`, `failed`.
 | `course` | no | string or null |  |
 | `room_id` | yes | uuid |  |
 | `room_label` | yes | string |  |
+| `phone` | no | string or null | The resident's own phone in E.164 with country code. Empty when the hall has not entered it. Optional; not the guardian phone. |
 | `guardian_name` | yes | string |  |
 | `guardian_phone` | yes | string | E.164, country code required. |
 | `status` | yes | `active` or `suspended` |  |
@@ -5118,6 +5124,7 @@ One of: `not_due`, `sent`, `failed`.
 | `enrolment_number` | yes | string | 1–40 characters. |
 | `course` | no | string | at most 120 characters. |
 | `room_id` | yes | uuid |  |
+| `phone` | no | string | The resident's own phone in E.164 with country code. Optional. Omit when the hall has not collected it. pattern `^\+[1-9][0-9]{7,14}$`. |
 | `guardian_name` | yes | string | Parent or guardian. Required. 1–120 characters. |
 | `guardian_phone` | yes | string | E.164 with country code, for example +919876543210. pattern `^\+[1-9][0-9]{7,14}$`. |
 | `temporary_password` | yes | string | 10–200 characters. |
@@ -5137,6 +5144,7 @@ One of: `not_due`, `sent`, `failed`.
 | `enrolment_number` | no | string | 1–40 characters. |
 | `course` | no | string or null |  |
 | `room_id` | no | uuid |  |
+| `phone` | no | string or null | The resident's own phone. Set to null to clear. Same E.164 pattern as guardian_phone when present. |
 | `guardian_name` | no | string | 1–120 characters. |
 | `guardian_phone` | no | string | pattern `^\+[1-9][0-9]{7,14}$`. |
 | `status` | no | `active` or `suspended` |  |

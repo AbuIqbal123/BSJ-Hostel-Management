@@ -496,6 +496,7 @@ class ResidentAccount(BaseModel):
     course: str | None = None
     room_id: str
     room_label: str
+    phone: str | None = None
     guardian_name: str
     guardian_phone: str
     status: AccountStatus
@@ -516,6 +517,7 @@ class ResidentCreate(BaseModel):
     enrolment_number: str = Field(min_length=1, max_length=40)
     course: str | None = Field(default=None, max_length=120)
     room_id: str
+    phone: str | None = Field(default=None, pattern=r"^\+[1-9][0-9]{7,14}$")
     guardian_name: str = Field(min_length=1, max_length=120)
     guardian_phone: str = Field(pattern=r"^\+[1-9][0-9]{7,14}$")
     temporary_password: str = Field(min_length=10, max_length=200)
@@ -533,6 +535,7 @@ class ResidentUpdate(BaseModel):
     enrolment_number: str | None = Field(default=None, min_length=1, max_length=40)
     course: str | None = Field(default=None, max_length=120)
     room_id: str | None = None
+    phone: str | None = Field(default=None, pattern=r"^\+[1-9][0-9]{7,14}$")
     guardian_name: str | None = Field(default=None, min_length=1, max_length=120)
     guardian_phone: str | None = Field(default=None, pattern=r"^\+[1-9][0-9]{7,14}$")
     status: AccountStatus | None = None
@@ -546,6 +549,7 @@ def row_to_resident_account(row: sqlite3.Row) -> ResidentAccount:
         course=row["course"],
         room_id=row["room_id"],
         room_label=row["room_label"],
+        phone=row["phone"],
         guardian_name=row["guardian_name"],
         guardian_phone=row["guardian_phone"],
         status=row["status"],
@@ -562,6 +566,7 @@ SELECT
   residents.course,
   residents.room_id,
   rooms.label AS room_label,
+  residents.phone,
   residents.guardian_name,
   residents.guardian_phone,
   residents.presence
