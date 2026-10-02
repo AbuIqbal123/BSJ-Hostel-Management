@@ -51,12 +51,27 @@ class GuestStayBody(BaseModel):
     created_at: str
 
 
+class GuestStaySummaryBody(BaseModel):
+    """List card; full detail is GuestStayBody on GET by id."""
+
+    model_config = ConfigDict(extra="forbid")
+    id: str
+    guest_name: str
+    host_name: str
+    host_room_label: str
+    start_date: str
+    end_date: str
+    status: GuestStatus
+    payment_status: PaymentStatus
+    bucket: GuestBucket
+
+
 class GuestStayPageBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
     total: int
     limit: int
     offset: int
-    items: list[GuestStayBody]
+    items: list[GuestStaySummaryBody]
 
 
 def inclusive_days(start_date: str, end_date: str) -> int:
@@ -177,6 +192,20 @@ def _body_from_row(row: sqlite3.Row, today: str) -> GuestStayBody:
     )
 
 
+def _summary_from_body(body: GuestStayBody) -> GuestStaySummaryBody:
+    return GuestStaySummaryBody(
+        id=body.id,
+        guest_name=body.guest_name,
+        host_name=body.host_name,
+        host_room_label=body.host_room_label,
+        start_date=body.start_date,
+        end_date=body.end_date,
+        status=body.status,
+        payment_status=body.payment_status,
+        bucket=body.bucket,
+    )
+
+
 def load_guest_stay(
     connection: sqlite3.Connection,
     guest_stay_id: str,
@@ -220,17 +249,18 @@ def list_guest_stays(
         """,
         params,
     ).fetchall()
-    items = [
+    full = [
         body
         for body in (_body_from_row(row, today) for row in rows)
         if bucket_matches(bucket, body.bucket)
     ]
-    total = len(items)
+    total = len(full)
+    items = [_summary_from_body(body) for body in full[offset : offset + limit]]
     return GuestStayPageBody(
         total=total,
         limit=limit,
         offset=offset,
-        items=items[offset : offset + limit],
+        items=items,
     )
 
 

@@ -678,13 +678,15 @@ paths:
       tags: [Guest Stays]
       operationId: list_own_guest_stays
       summary: Own guest applications
-      description: "Caller: resident. Stays this resident is hosting. Newest first."
+      description: |
+        Caller: resident. Stays this resident is hosting. Newest first. Each
+        item is a GuestStaySummary card; open GET by id for the full GuestStay.
       parameters:
         - $ref: "#/components/parameters/Limit"
         - $ref: "#/components/parameters/Offset"
       responses:
         "200":
-          description: Guest stay page.
+          description: Guest stay page of GuestStaySummary cards.
           content:
             application/json:
               schema:
@@ -1278,7 +1280,8 @@ paths:
       description: |
         Caller: warden or provost. Filter by derived bucket. `in_hall` here is
         the dining set and includes guests who should have left. Use
-        `should_have_left` for that subset.
+        `should_have_left` for that subset. Each item is a GuestStaySummary
+        card; open GET by id for the full GuestStay.
       parameters:
         - name: bucket
           in: query
@@ -1289,7 +1292,7 @@ paths:
         - $ref: "#/components/parameters/Offset"
       responses:
         "200":
-          description: Guest stay page.
+          description: Guest stay page of GuestStaySummary cards.
           content:
             application/json:
               schema:
@@ -2901,6 +2904,48 @@ components:
           type: string
           format: date-time
 
+    GuestStaySummary:
+      type: object
+      additionalProperties: false
+      description: |
+        Card fields for guest-stay list rows. Full stay detail (reason, decision
+        note, recorder names, arrival/departure instants) is on GuestStay via
+        GET by id.
+      required:
+        - id
+        - guest_name
+        - host_name
+        - host_room_label
+        - start_date
+        - end_date
+        - status
+        - payment_status
+        - bucket
+      properties:
+        id:
+          type: string
+          format: uuid
+        guest_name:
+          type: string
+        host_name:
+          type: string
+        host_room_label:
+          type: string
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [pending, approved, rejected, cancelled, departed]
+        payment_status:
+          type: string
+          enum: [unpaid, paid]
+        bucket:
+          $ref: "#/components/schemas/GuestBucket"
+
     GuestStayPage:
       allOf:
         - $ref: "#/components/schemas/ListMeta"
@@ -2910,7 +2955,7 @@ components:
             items:
               type: array
               items:
-                $ref: "#/components/schemas/GuestStay"
+                $ref: "#/components/schemas/GuestStaySummary"
 
     PaymentRequest:
       type: object

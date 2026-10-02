@@ -1478,7 +1478,8 @@ Guest applications. Resident applies under /api/v1/me/guest-stays; warden or pro
 
 **Who.** resident. Bearer access token.
 
-Caller: resident. Stays this resident is hosting. Newest first.
+Caller: resident. Stays this resident is hosting. Newest first. Each
+item is a GuestStaySummary card; open GET by id for the full GuestStay.
 
 **Parameters**
 
@@ -1491,7 +1492,7 @@ Caller: resident. Stays this resident is hosting. Newest first.
 
 #### 200
 
-Guest stay page.
+Guest stay page of GuestStaySummary cards.
 
 Body: [GuestStayPage](#schema-gueststaypage).
 
@@ -1500,7 +1501,7 @@ Body: [GuestStayPage](#schema-gueststaypage).
 | `total` | yes | integer | minimum 0. |
 | `limit` | yes | integer |  |
 | `offset` | yes | integer |  |
-| `items` | yes | list of [GuestStay](#schema-gueststay) |  |
+| `items` | yes | list of [GuestStaySummary](#schema-gueststaysummary) |  |
 
 #### 401
 
@@ -1743,7 +1744,8 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 Caller: warden or provost. Filter by derived bucket. `in_hall` here is
 the dining set and includes guests who should have left. Use
-`should_have_left` for that subset.
+`should_have_left` for that subset. Each item is a GuestStaySummary
+card; open GET by id for the full GuestStay.
 
 **Parameters**
 
@@ -1757,7 +1759,7 @@ the dining set and includes guests who should have left. Use
 
 #### 200
 
-Guest stay page.
+Guest stay page of GuestStaySummary cards.
 
 Body: [GuestStayPage](#schema-gueststaypage).
 
@@ -1766,7 +1768,7 @@ Body: [GuestStayPage](#schema-gueststaypage).
 | `total` | yes | integer | minimum 0. |
 | `limit` | yes | integer |  |
 | `offset` | yes | integer |  |
-| `items` | yes | list of [GuestStay](#schema-gueststay) |  |
+| `items` | yes | list of [GuestStaySummary](#schema-gueststaysummary) |  |
 
 #### 401
 
@@ -4294,6 +4296,24 @@ One of: `pending`, `upcoming`, `expected`, `not_expected`, `in_hall`, `should_ha
 | `departed_at` | no | date-time or null |  |
 | `created_at` | yes | date-time |  |
 
+### <a id="schema-gueststaysummary"></a>GuestStaySummary
+
+Card fields for guest-stay list rows. Full stay detail (reason, decision
+note, recorder names, arrival/departure instants) is on GuestStay via
+GET by id.
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `id` | yes | uuid |  |
+| `guest_name` | yes | string |  |
+| `host_name` | yes | string |  |
+| `host_room_label` | yes | string |  |
+| `start_date` | yes | date |  |
+| `end_date` | yes | date |  |
+| `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
+| `payment_status` | yes | `unpaid` or `paid` |  |
+| `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
+
 ### <a id="schema-gueststaypage"></a>GuestStayPage
 
 | Field | Required | Type | Notes |
@@ -4301,7 +4321,7 @@ One of: `pending`, `upcoming`, `expected`, `not_expected`, `in_hall`, `should_ha
 | `total` | yes | integer | minimum 0. |
 | `limit` | yes | integer |  |
 | `offset` | yes | integer |  |
-| `items` | yes | list of [GuestStay](#schema-gueststay) |  |
+| `items` | yes | list of [GuestStaySummary](#schema-gueststaysummary) |  |
 
 ### <a id="schema-paymentrequest"></a>PaymentRequest
 

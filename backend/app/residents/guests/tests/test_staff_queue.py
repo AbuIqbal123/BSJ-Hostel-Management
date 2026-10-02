@@ -361,6 +361,19 @@ def test_guest_stays_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch)
         pending_body = pending.json()
         assert pending_body["total"] == 2
         assert [item["id"] for item in pending_body["items"]] == expected["pending_ids"]
+        summary_keys = {
+            "id",
+            "guest_name",
+            "host_name",
+            "host_room_label",
+            "start_date",
+            "end_date",
+            "status",
+            "payment_status",
+            "bucket",
+        }
+        for item in pending_body["items"]:
+            assert set(item) == summary_keys
 
         dining = client.get("/api/v1/guest-stays?bucket=in_hall", headers=headers)
         assert dining.status_code == 200
