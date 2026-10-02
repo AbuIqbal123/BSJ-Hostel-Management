@@ -84,6 +84,8 @@ Do not edit this page by hand.
   - [PATCH `/api/v1/admin/destinations/{destination_id}` — Update a destination](#patch-api-v1-admin-destinations-destination_id)
   - [GET `/api/v1/admin/settings` — Hall settings](#get-api-v1-admin-settings)
   - [PATCH `/api/v1/admin/settings` — Update hall settings](#patch-api-v1-admin-settings)
+  - [GET `/api/v1/admin/notifications` — Hall notification settings](#get-api-v1-admin-notifications)
+  - [PATCH `/api/v1/admin/notifications` — Update hall notification settings](#patch-api-v1-admin-notifications)
   - [GET `/api/v1/admin/register/export` — Export the register](#get-api-v1-admin-register-export)
   - [GET `/api/v1/admin/sms` — SMS log](#get-api-v1-admin-sms)
   - [GET `/api/v1/admin/audit` — Audit log](#get-api-v1-admin-audit)
@@ -97,7 +99,7 @@ is tracked separately in `docs/database/database.md` (0.3.4).
 This version is the contract. Auth, resident phone (home, history, hall pass,
 destinations, ordinary outings, permissions, guest stays), register, staff
 permission queue, staff guest stays, gate scans, guests, and occupancy, and hall office
-(settings, blocks, rooms, destinations, residents, staff, password reset,
+(settings, notifications, blocks, rooms, destinations, residents, staff, password reset,
 audit, SMS log, register export) respond. Swagger on this server is the
 review surface for purpose, payload, and response.
 
@@ -193,7 +195,7 @@ Body: [Ready](#schema-ready).
 ```json
 {
   "status": "ready",
-  "user_version": 8
+  "user_version": 9
 }
 ```
 
@@ -3031,6 +3033,8 @@ Provost only. Residents, staff, rooms, destinations, settings, export, SMS log, 
 | PATCH | `/api/v1/admin/destinations/{destination_id}` | [Update a destination](#patch-api-v1-admin-destinations-destination_id) | provost |
 | GET | `/api/v1/admin/settings` | [Hall settings](#get-api-v1-admin-settings) | provost |
 | PATCH | `/api/v1/admin/settings` | [Update hall settings](#patch-api-v1-admin-settings) | provost |
+| GET | `/api/v1/admin/notifications` | [Hall notification settings](#get-api-v1-admin-notifications) | provost only (same gate as hall settings) |
+| PATCH | `/api/v1/admin/notifications` | [Update hall notification settings](#patch-api-v1-admin-notifications) | provost only (same gate as hall settings) |
 | GET | `/api/v1/admin/register/export` | [Export the register](#get-api-v1-admin-register-export) | provost |
 | GET | `/api/v1/admin/sms` | [SMS log](#get-api-v1-admin-sms) | provost |
 | GET | `/api/v1/admin/audit` | [Audit log](#get-api-v1-admin-audit) | provost |
@@ -4045,7 +4049,7 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** provost. Bearer access token.
 
-Caller: provost. Clock times are hall-local HH:MM. Season starts are MM-DD. Clients show both on a 12-hour clock and as a day and month.
+Caller: provost. Ordinary outing windows are hall-local HH:MM. Season starts are MM-DD. Clients show both on a 12-hour clock and as a day and month. SMS templates are under /api/v1/admin/notifications.
 
 **Responses**
 
@@ -4061,18 +4065,16 @@ Body: [HallSettings](#schema-hallsettings).
 | `university_name` | yes | string |  |
 | `timezone` | yes | string |  |
 | `grace_minutes` | yes | integer |  |
-| `summer_hours_start` | yes | string | Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
-| `summer_hours_end` | yes | string | Kept as HH:MM. Shown as 6:30 PM. Starts as 18:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
-| `winter_hours_start` | yes | string | Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
-| `winter_hours_end` | yes | string | Kept as HH:MM. Shown as 5:30 PM. Starts as 17:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
-| `summer_season_start` | yes | string | Month and day summer hours begin. Shown as 01 April. Starts as 04-01. pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
-| `winter_season_start` | yes | string | Month and day winter hours begin. Shown as 01 October. Starts as 10-01. pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
-| `permission_early_minutes` | yes | integer |  |
+| `summer_outing_start` | yes | string | Ordinary outing window start (summer). Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `summer_outing_end` | yes | string | Ordinary outing window end (summer). Kept as HH:MM. Shown as 6:30 PM. Starts as 18:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `winter_outing_start` | yes | string | Ordinary outing window start (winter). Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `winter_outing_end` | yes | string | Ordinary outing window end (winter). Kept as HH:MM. Shown as 5:30 PM. Starts as 17:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `summer_season_start` | yes | string | Month and day the summer ordinary outing window begins. Shown as 01 April. Starts as 04-01. pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
+| `winter_season_start` | yes | string | Month and day the winter ordinary outing window begins. Shown as 01 October. Starts as 10-01. pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
+| `permission_lead_minutes` | yes | integer | Minutes before a permission start when a resident may leave. Aligns with guest_min_lead_days naming. |
 | `guest_max_inclusive_days` | yes | integer |  |
 | `guest_min_lead_days` | yes | integer |  |
 | `scan_duplicate_window_seconds` | yes | integer |  |
-| `late_sms_template` | yes | string | Placeholders: {resident_name}, {room}, {expected_return_local}, {hall_name}. |
-| `return_sms_template` | yes | string | Placeholders: {resident_name}, {room}, {returned_at_local}, {hall_name}. |
 
 #### 401
 
@@ -4093,11 +4095,11 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** provost. Bearer access token.
 
-Caller: provost. Send only the fields that change. Summer hours, winter
-hours, and the two season start dates are always set. Changing grace
-does not rewrite outings that already have a `grace_ends_at`. SMS
-templates keep the placeholders listed on `HallSettings`. A time of day
-is sent as HH:MM. A season start is sent as MM-DD.
+Caller: provost. Send only the fields that change. Summer and winter
+ordinary outing windows, and the two season start dates, are always set.
+Changing grace does not rewrite outings that already have a
+`grace_ends_at`. SMS templates live under `/api/v1/admin/notifications`.
+A time of day is sent as HH:MM. A season start is sent as MM-DD.
 
 **Request.** Required.
 
@@ -4108,18 +4110,16 @@ Body: [HallSettingsUpdate](#schema-hallsettingsupdate).
 | `hall_name` | no | string | 1–160 characters. |
 | `university_name` | no | string | 1–160 characters. |
 | `grace_minutes` | no | integer | 0–180. |
-| `summer_hours_start` | no | string | pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
-| `summer_hours_end` | no | string | pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
-| `winter_hours_start` | no | string | pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
-| `winter_hours_end` | no | string | pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `summer_outing_start` | no | string | pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `summer_outing_end` | no | string | pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `winter_outing_start` | no | string | pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `winter_outing_end` | no | string | pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
 | `summer_season_start` | no | string | pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
 | `winter_season_start` | no | string | pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
-| `permission_early_minutes` | no | integer | 0–180. |
+| `permission_lead_minutes` | no | integer | 0–180. |
 | `guest_max_inclusive_days` | no | integer | 1–30. |
 | `guest_min_lead_days` | no | integer | 0–14. |
 | `scan_duplicate_window_seconds` | no | integer | 0–600. |
-| `late_sms_template` | no | string | at least 1 characters. |
-| `return_sms_template` | no | string | at least 1 characters. |
 
 **Responses**
 
@@ -4135,16 +4135,101 @@ Body: [HallSettings](#schema-hallsettings).
 | `university_name` | yes | string |  |
 | `timezone` | yes | string |  |
 | `grace_minutes` | yes | integer |  |
-| `summer_hours_start` | yes | string | Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
-| `summer_hours_end` | yes | string | Kept as HH:MM. Shown as 6:30 PM. Starts as 18:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
-| `winter_hours_start` | yes | string | Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
-| `winter_hours_end` | yes | string | Kept as HH:MM. Shown as 5:30 PM. Starts as 17:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
-| `summer_season_start` | yes | string | Month and day summer hours begin. Shown as 01 April. Starts as 04-01. pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
-| `winter_season_start` | yes | string | Month and day winter hours begin. Shown as 01 October. Starts as 10-01. pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
-| `permission_early_minutes` | yes | integer |  |
+| `summer_outing_start` | yes | string | Ordinary outing window start (summer). Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `summer_outing_end` | yes | string | Ordinary outing window end (summer). Kept as HH:MM. Shown as 6:30 PM. Starts as 18:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `winter_outing_start` | yes | string | Ordinary outing window start (winter). Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `winter_outing_end` | yes | string | Ordinary outing window end (winter). Kept as HH:MM. Shown as 5:30 PM. Starts as 17:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `summer_season_start` | yes | string | Month and day the summer ordinary outing window begins. Shown as 01 April. Starts as 04-01. pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
+| `winter_season_start` | yes | string | Month and day the winter ordinary outing window begins. Shown as 01 October. Starts as 10-01. pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
+| `permission_lead_minutes` | yes | integer | Minutes before a permission start when a resident may leave. Aligns with guest_min_lead_days naming. |
 | `guest_max_inclusive_days` | yes | integer |  |
 | `guest_min_lead_days` | yes | integer |  |
 | `scan_duplicate_window_seconds` | yes | integer |  |
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 422
+
+The JSON is the wrong shape, or a field fails a constraint that does not depend on existing rows.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
+### <a id="get-api-v1-admin-notifications"></a>GET `/api/v1/admin/notifications` — Hall notification settings
+
+`get_notifications`
+
+**Who.** provost only (same gate as hall settings). Bearer access token.
+
+Caller: provost only (same gate as hall settings). Returns the late and
+return SMS templates used for guardian notices. Placeholders are listed
+on `HallNotifications`.
+
+**Responses**
+
+#### 200
+
+Notification settings.
+
+Body: [HallNotifications](#schema-hallnotifications).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `late_sms_template` | yes | string | Placeholders: {resident_name}, {room}, {expected_return_local}, {hall_name}. |
+| `return_sms_template` | yes | string | Placeholders: {resident_name}, {room}, {returned_at_local}, {hall_name}. |
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
+### <a id="patch-api-v1-admin-notifications"></a>PATCH `/api/v1/admin/notifications` — Update hall notification settings
+
+`update_notifications`
+
+**Who.** provost only (same gate as hall settings). Bearer access token.
+
+Caller: provost only (same gate as hall settings). Send only the fields
+that change. Each template must keep the placeholders listed on
+`HallNotifications`.
+
+**Request.** Required.
+
+Body: [HallNotificationsUpdate](#schema-hallnotificationsupdate).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `late_sms_template` | no | string | at least 1 characters. |
+| `return_sms_template` | no | string | at least 1 characters. |
+
+**Responses**
+
+#### 200
+
+Notification settings saved.
+
+Body: [HallNotifications](#schema-hallnotifications).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
 | `late_sms_template` | yes | string | Placeholders: {resident_name}, {room}, {expected_return_local}, {hall_name}. |
 | `return_sms_template` | yes | string | Placeholders: {resident_name}, {room}, {returned_at_local}, {hall_name}. |
 
@@ -5159,18 +5244,16 @@ One of: `not_due`, `sent`, `failed`.
 | `university_name` | yes | string |  |
 | `timezone` | yes | string |  |
 | `grace_minutes` | yes | integer |  |
-| `summer_hours_start` | yes | string | Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
-| `summer_hours_end` | yes | string | Kept as HH:MM. Shown as 6:30 PM. Starts as 18:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
-| `winter_hours_start` | yes | string | Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
-| `winter_hours_end` | yes | string | Kept as HH:MM. Shown as 5:30 PM. Starts as 17:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
-| `summer_season_start` | yes | string | Month and day summer hours begin. Shown as 01 April. Starts as 04-01. pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
-| `winter_season_start` | yes | string | Month and day winter hours begin. Shown as 01 October. Starts as 10-01. pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
-| `permission_early_minutes` | yes | integer |  |
+| `summer_outing_start` | yes | string | Ordinary outing window start (summer). Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `summer_outing_end` | yes | string | Ordinary outing window end (summer). Kept as HH:MM. Shown as 6:30 PM. Starts as 18:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `winter_outing_start` | yes | string | Ordinary outing window start (winter). Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `winter_outing_end` | yes | string | Ordinary outing window end (winter). Kept as HH:MM. Shown as 5:30 PM. Starts as 17:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `summer_season_start` | yes | string | Month and day the summer ordinary outing window begins. Shown as 01 April. Starts as 04-01. pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
+| `winter_season_start` | yes | string | Month and day the winter ordinary outing window begins. Shown as 01 October. Starts as 10-01. pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
+| `permission_lead_minutes` | yes | integer | Minutes before a permission start when a resident may leave. Aligns with guest_min_lead_days naming. |
 | `guest_max_inclusive_days` | yes | integer |  |
 | `guest_min_lead_days` | yes | integer |  |
 | `scan_duplicate_window_seconds` | yes | integer |  |
-| `late_sms_template` | yes | string | Placeholders: {resident_name}, {room}, {expected_return_local}, {hall_name}. |
-| `return_sms_template` | yes | string | Placeholders: {resident_name}, {room}, {returned_at_local}, {hall_name}. |
 
 ### <a id="schema-hallsettingsupdate"></a>HallSettingsUpdate
 
@@ -5179,16 +5262,28 @@ One of: `not_due`, `sent`, `failed`.
 | `hall_name` | no | string | 1–160 characters. |
 | `university_name` | no | string | 1–160 characters. |
 | `grace_minutes` | no | integer | 0–180. |
-| `summer_hours_start` | no | string | pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
-| `summer_hours_end` | no | string | pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
-| `winter_hours_start` | no | string | pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
-| `winter_hours_end` | no | string | pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `summer_outing_start` | no | string | pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `summer_outing_end` | no | string | pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `winter_outing_start` | no | string | pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `winter_outing_end` | no | string | pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
 | `summer_season_start` | no | string | pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
 | `winter_season_start` | no | string | pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
-| `permission_early_minutes` | no | integer | 0–180. |
+| `permission_lead_minutes` | no | integer | 0–180. |
 | `guest_max_inclusive_days` | no | integer | 1–30. |
 | `guest_min_lead_days` | no | integer | 0–14. |
 | `scan_duplicate_window_seconds` | no | integer | 0–600. |
+
+### <a id="schema-hallnotifications"></a>HallNotifications
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `late_sms_template` | yes | string | Placeholders: {resident_name}, {room}, {expected_return_local}, {hall_name}. |
+| `return_sms_template` | yes | string | Placeholders: {resident_name}, {room}, {returned_at_local}, {hall_name}. |
+
+### <a id="schema-hallnotificationsupdate"></a>HallNotificationsUpdate
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
 | `late_sms_template` | no | string | at least 1 characters. |
 | `return_sms_template` | no | string | at least 1 characters. |
 
