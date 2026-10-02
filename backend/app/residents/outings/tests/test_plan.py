@@ -330,6 +330,9 @@ def test_plan_outing(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
             headers={"Authorization": f"Bearer {resident}"},
         )
         assert listed.status_code == 200
+        assert listed.json()["total"] == 3
+        assert listed.json()["limit"] == 50
+        assert listed.json()["offset"] == 0
         assert [item["id"] for item in listed.json()["items"]] == [same_day_id, created, ahead_id]
         current = client.get(
             "/api/v1/me/outings/current",

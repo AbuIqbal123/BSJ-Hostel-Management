@@ -404,7 +404,11 @@ paths:
         a later day, stay on this list. The open outing is the one she is
         outside on, or the soonest plan for today. Does not cancel passed
         plans; call POST /api/v1/me/expire-passed (or plan/cancel/scan) first
-        when the phone needs a fresh list.
+        when the phone needs a fresh list. Paginated with `limit` and `offset`
+        (default limit 50).
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
       responses:
         "200":
           description: Planned and outside outings.
@@ -2658,14 +2662,15 @@ components:
           format: date-time
 
     OutingList:
-      type: object
-      additionalProperties: false
-      required: [items]
-      properties:
-        items:
-          type: array
-          items:
-            $ref: "#/components/schemas/Outing"
+      allOf:
+        - $ref: "#/components/schemas/ListMeta"
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/Outing"
 
     CurrentOuting:
       type: object

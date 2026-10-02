@@ -730,7 +730,15 @@ first. Several may fall on the same hall day. A later return today, and
 a later day, stay on this list. The open outing is the one she is
 outside on, or the soonest plan for today. Does not cancel passed
 plans; call POST /api/v1/me/expire-passed (or plan/cancel/scan) first
-when the phone needs a fresh list.
+when the phone needs a fresh list. Paginated with `limit` and `offset`
+(default limit 50).
+
+**Parameters**
+
+| Name | In | Required | Type | Notes |
+|---|---|---|---|---|
+| `limit` | query | no | integer | 1–500. default `50`. |
+| `offset` | query | no | integer | minimum 0. default `0`. |
 
 **Responses**
 
@@ -742,6 +750,9 @@ Body: [OutingList](#schema-outinglist).
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
+| `total` | yes | integer | minimum 0. |
+| `limit` | yes | integer |  |
+| `offset` | yes | integer |  |
 | `items` | yes | list of [Outing](#schema-outing) |  |
 
 #### 401
@@ -4242,6 +4253,9 @@ One of: `planned`, `outside`, `returned`, `cancelled`.
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
+| `total` | yes | integer | minimum 0. |
+| `limit` | yes | integer |  |
+| `offset` | yes | integer |  |
 | `items` | yes | list of [Outing](#schema-outing) |  |
 
 ### <a id="schema-currentouting"></a>CurrentOuting

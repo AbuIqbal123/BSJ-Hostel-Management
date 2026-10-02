@@ -6,10 +6,13 @@ import sqlite3
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter
+from typing import Annotated
+
+from fastapi import APIRouter, Query
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.shared import clock
+from app.shared.schemas import Destination, DestinationList
 from app.shared.auth.routes import AccountDep, ConnectionDep
 from app.shared.errors import ApiError
 from app.residents.home.routes import ResidentDep
@@ -26,19 +29,6 @@ from app.residents.outings.records import (
 )
 
 router = APIRouter(prefix="/api/v1", tags=["Resident"])
-
-
-class Destination(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    id: str
-    name: str
-    is_other: bool
-    is_active: bool
-
-
-class DestinationList(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    items: list[Destination]
 
 
 def _active_destinations(connection: sqlite3.Connection) -> list[Destination]:
@@ -192,12 +182,27 @@ class CurrentOuting(BaseModel):
 
 class OutingList(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    total: int
+    limit: int
+    offset: int
     items: list[OutingBody]
 
 
 @router.get("/me/outings", response_model=OutingList)
-def list_outings(account: ResidentDep, connection: ConnectionDep) -> OutingList:
-    return OutingList(items=load_upcoming(connection, account.id))
+def list_outings(
+    account: ResidentDep,
+    connection: ConnectionDep,
+    limit: Annotated[int, Query(ge=1, le=500)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> OutingList:
+    items = load_upcoming(connection, account.id)
+    total = len(items)
+    return OutingList(
+        total=total,
+        limit=limit,
+        offset=offset,
+        items=items[offset : offset + limit],
+    )
 
 
 @router.get("/me/outings/current", response_model=CurrentOuting)

@@ -285,6 +285,9 @@ def test_cancel_outing(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
             headers={"Authorization": f"Bearer {resident}"},
         )
         assert kept.status_code == 200
+        assert kept.json()["total"] == 2
+        assert kept.json()["limit"] == 50
+        assert kept.json()["offset"] == 0
         assert [item["id"] for item in kept.json()["items"]] == [afternoon_id, later_id]
         assert_error(cancel(client, resident, outing_id), 409, "no_outing_planned", "There is no planned outing.")
         same_day = cancel(client, resident, afternoon_id)

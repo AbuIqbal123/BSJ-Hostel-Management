@@ -3,20 +3,12 @@
 from __future__ import annotations
 
 from fastapi import APIRouter
-from pydantic import BaseModel, ConfigDict
-
 from app.residents.home.routes import ResidentDep
 from app.shared.auth.routes import ConnectionDep
 from app.shared.errors import ApiError
+from app.shared.schemas import HallPass
 
 router = APIRouter(prefix="/api/v1", tags=["Resident"])
-
-
-class HallPass(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    qr_payload: str
-    full_name: str
-    room_label: str
 
 
 @router.get("/me/hall-pass", response_model=HallPass)
