@@ -373,23 +373,23 @@ paths:
                 items:
                   - id: 1285f918-cd9c-5ef8-9c04-58a69285211c
                     name: J.N. Medical College
-                    kind: named
+                    type: named
                     status: active
                   - id: fc2da7c5-8d65-5680-8034-d8acb69745eb
                     name: Maulana Azad Library
-                    kind: named
+                    type: named
                     status: active
                   - id: 924e5c75-e9b6-57a9-bb04-720028253526
                     name: Shamshad Market
-                    kind: named
+                    type: named
                     status: active
                   - id: df29c4b7-63c5-525d-a9ec-798a980c64c8
                     name: Women's College
-                    kind: named
+                    type: named
                     status: active
                   - id: f2008ef3-a1df-5ff0-b936-3466d0914781
                     name: Other
-                    kind: other
+                    type: other
                     status: active
         "401":
           $ref: "#/components/responses/Unauthorized"
@@ -2103,7 +2103,7 @@ paths:
       operationId: create_destination
       summary: Create a destination
       description: |
-        Caller: provost. Only one active destination may have `kind` `other`.
+        Caller: provost. Only one active destination may have `type` `other`.
       requestBody:
         required: true
         content:
@@ -2762,7 +2762,7 @@ components:
     Destination:
       type: object
       additionalProperties: false
-      required: [id, name, kind, status]
+      required: [id, name, type, status]
       properties:
         id:
           type: string
@@ -2770,10 +2770,13 @@ components:
         name:
           type: string
           description: Named places are shown alphabetical by this name, ignoring capitals. The free-text choice is last.
-        kind:
+        type:
           type: string
           enum: [named, other]
-          description: "`named` for a fixed place. `other` for the single free-text choice."
+          description: >
+            Destination type only: `named` for a fixed place, `other` for the
+            single free-text choice. Not an outing type, permission type, or
+            notice type.
         status:
           type: string
           enum: [active, inactive]
@@ -2798,10 +2801,13 @@ components:
           type: string
           minLength: 1
           maxLength: 80
-        kind:
+        type:
           type: string
           enum: [named, other]
           default: named
+          description: >
+            Destination type only (`named` | `other`). Not an outing,
+            permission, or notice type.
 
     DestinationUpdate:
       type: object
@@ -2811,9 +2817,12 @@ components:
           type: string
           minLength: 1
           maxLength: 80
-        kind:
+        type:
           type: string
           enum: [named, other]
+          description: >
+            Destination type only (`named` | `other`). Not an outing,
+            permission, or notice type.
         status:
           type: string
           enum: [active, inactive]

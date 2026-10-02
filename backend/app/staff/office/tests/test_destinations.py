@@ -157,7 +157,7 @@ def test_admin_destinations(database_path: Path, monkeypatch: pytest.MonkeyPatch
         assert listed.status_code == 200
         names = [item["name"] for item in listed.json()["items"]]
         assert names == expected["seed_names"]
-        assert listed.json()["items"][-1]["kind"] == "other"
+        assert listed.json()["items"][-1]["type"] == "other"
 
         created = client.post(
             "/api/v1/admin/destinations",
@@ -167,7 +167,7 @@ def test_admin_destinations(database_path: Path, monkeypatch: pytest.MonkeyPatch
         assert created.status_code == 201
         body = created.json()
         assert body["name"] == "City Clinic"
-        assert body["kind"] == "named"
+        assert body["type"] == "named"
         assert body["status"] == "active"
         city_id = body["id"]
 
@@ -182,7 +182,7 @@ def test_admin_destinations(database_path: Path, monkeypatch: pytest.MonkeyPatch
         second_other = client.post(
             "/api/v1/admin/destinations",
             headers=headers,
-            json={"name": "Free text", "kind": "other"},
+            json={"name": "Free text", "type": "other"},
         )
         assert_error(second_other, 409, "other_exists")
         assert second_other.json()["error"]["message"] == expected["other_exists_message"]
@@ -215,7 +215,7 @@ def test_admin_destinations(database_path: Path, monkeypatch: pytest.MonkeyPatch
         flag_other = client.patch(
             f"/api/v1/admin/destinations/{city_id}",
             headers=headers,
-            json={"kind": "other"},
+            json={"type": "other"},
         )
         assert_error(flag_other, 409, "other_exists")
         assert flag_other.json()["error"]["message"] == expected["other_exists_message"]
@@ -267,12 +267,12 @@ def test_destination_update_rejects_null(database_path: Path) -> None:
         original = next(item for item in listed.json()["items"] if item["id"] == OTHER_ID)
         assert original["name"] == "Other"
         assert original["status"] == "active"
-        assert original["kind"] == "other"
+        assert original["type"] == "other"
 
         cases = (
             ("name", "Name is required."),
             ("status", "Status is required."),
-            ("kind", "Kind is required."),
+            ("type", "Type is required."),
         )
         for field, message in cases:
             rejected = client.patch(

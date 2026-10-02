@@ -393,11 +393,11 @@ Copy this block for each test and fill every field.
 | Field | Content |
 |---|---|
 | Test | `backend/app/staff/office/tests/test_destinations.py` |
-| Purpose | Provost lists all destinations (including inactive), named places alphabetical with Other last; creates a destination; patches name/kind/status. Duplicate names and a second active Other are refused. A null update field is refused and does not change the row. Deactivating does not rewrite outing places. |
+| Purpose | Provost lists all destinations (including inactive), named places alphabetical with Other last; creates a destination; patches name/type/status. Duplicate names and a second active Other are refused. A null update field is refused and does not change the row. Deactivating does not rewrite outing places. |
 | Actor | Provost. Warden and resident are refused. |
 | Preconditions | The hall from `hall-created` exists (five seeded destinations). Clock frozen at 2026-09-30T12:00:00Z. Halima Begum is provost. Sara Malik is warden. Aisha Khan is a resident. |
-| Action | `GET/POST /api/v1/admin/destinations` and `PATCH /api/v1/admin/destinations/{id}` with no token, as Aisha, as Sara, as Halima (list seed order; create City Clinic; refuse duplicate name; refuse second active Other; deactivate a named place; reactivate; set `kind` `other` on a row while Other is active → other_exists; unknown id 404). `PATCH` the active Other row with JSON null for `name`, `status`, and `kind`. |
-| Expected response | No token returns 401. Resident and warden return 403. List matches artifact seed names with Other last. Create returns 201 and audit `destination.created`. Duplicate returns 409 `duplicate_destination`. Second Other returns 409 `other_exists`. Patches audit `destination.updated`. Each null field returns 422 `validation_error` and the following list still shows that row active, named Other, with `kind` `other`. |
+| Action | `GET/POST /api/v1/admin/destinations` and `PATCH /api/v1/admin/destinations/{id}` with no token, as Aisha, as Sara, as Halima (list seed order; create City Clinic; refuse duplicate name; refuse second active Other; deactivate a named place; reactivate; set `type` `other` on a row while Other is active → other_exists; unknown id 404). `PATCH` the active Other row with JSON null for `name`, `status`, and `type`. |
+| Expected response | No token returns 401. Resident and warden return 403. List matches artifact seed names with Other last. Create returns 201 and audit `destination.created`. Duplicate returns 409 `duplicate_destination`. Second Other returns 409 `other_exists`. Patches audit `destination.updated`. Each null field returns 422 `validation_error` and the following list still shows that row active, named Other, with `type` `other`. |
 | Failure cases | E2E; failure cases are covered by the expected response. |
 | Artifact | `backend/app/staff/office/tests/artifacts/admin-destinations.json` |
 

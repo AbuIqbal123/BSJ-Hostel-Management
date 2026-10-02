@@ -209,7 +209,7 @@ The list behind the ordinary-outing choices. The screen shows the active named p
 |---|---|---|---|---|
 | id | Identifier | Yes | System | Identifies this destination. |
 | name | Text | Yes | Provost. The first list is below. | Unique. Named places are compared in alphabetical order for display, ignoring capitals. The free-text choice is shown last. |
-| kind | Text | Yes | Provost | `named` for a fixed place. `other` for the single free-text choice. |
+| type | Text | Yes | Provost | Destination type only: `named` for a fixed place, `other` for the single free-text choice. Not an outing, permission, or notice type. |
 | status | Text | Yes | Provost | `active` while it can be chosen. `inactive` when it is retired. |
 
 The first list is created with the records. The provost can add, rename, or retire entries afterwards. Shown A to Z, with the free-text choice last, the first list reads:

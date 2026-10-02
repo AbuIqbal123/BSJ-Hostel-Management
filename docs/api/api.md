@@ -685,31 +685,31 @@ Body: [DestinationList](#schema-destinationlist).
     {
       "id": "1285f918-cd9c-5ef8-9c04-58a69285211c",
       "name": "J.N. Medical College",
-      "kind": "named",
+      "type": "named",
       "status": "active"
     },
     {
       "id": "fc2da7c5-8d65-5680-8034-d8acb69745eb",
       "name": "Maulana Azad Library",
-      "kind": "named",
+      "type": "named",
       "status": "active"
     },
     {
       "id": "924e5c75-e9b6-57a9-bb04-720028253526",
       "name": "Shamshad Market",
-      "kind": "named",
+      "type": "named",
       "status": "active"
     },
     {
       "id": "df29c4b7-63c5-525d-a9ec-798a980c64c8",
       "name": "Women's College",
-      "kind": "named",
+      "type": "named",
       "status": "active"
     },
     {
       "id": "f2008ef3-a1df-5ff0-b936-3466d0914781",
       "name": "Other",
-      "kind": "other",
+      "type": "other",
       "status": "active"
     }
   ]
@@ -3928,7 +3928,7 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** provost. Bearer access token.
 
-Caller: provost. Only one active destination may have `kind` `other`.
+Caller: provost. Only one active destination may have `type` `other`.
 
 **Request.** Required.
 
@@ -3937,7 +3937,7 @@ Body: [DestinationCreate](#schema-destinationcreate).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `name` | yes | string | 1–80 characters. |
-| `kind` | no | `named` or `other` | default `named`. |
+| `type` | no | `named` or `other` | Destination type only (`named` \| `other`). Not an outing, permission, or notice type. default `named`. |
 
 **Responses**
 
@@ -3951,7 +3951,7 @@ Body: [Destination](#schema-destination).
 |---|---|---|---|
 | `id` | yes | uuid |  |
 | `name` | yes | string | Named places are shown alphabetical by this name, ignoring capitals. The free-text choice is last. |
-| `kind` | yes | `named` or `other` | `named` for a fixed place. `other` for the single free-text choice. |
+| `type` | yes | `named` or `other` | Destination type only: `named` for a fixed place, `other` for the single free-text choice. Not an outing type, permission type, or notice type. |
 | `status` | yes | `active` or `inactive` | `active` while it can be chosen. `inactive` when retired. |
 
 #### 401
@@ -3994,7 +3994,7 @@ Body: [DestinationUpdate](#schema-destinationupdate).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `name` | no | string | 1–80 characters. |
-| `kind` | no | `named` or `other` |  |
+| `type` | no | `named` or `other` | Destination type only (`named` \| `other`). Not an outing, permission, or notice type. |
 | `status` | no | `active` or `inactive` |  |
 
 **Responses**
@@ -4009,7 +4009,7 @@ Body: [Destination](#schema-destination).
 |---|---|---|---|
 | `id` | yes | uuid |  |
 | `name` | yes | string | Named places are shown alphabetical by this name, ignoring capitals. The free-text choice is last. |
-| `kind` | yes | `named` or `other` | `named` for a fixed place. `other` for the single free-text choice. |
+| `type` | yes | `named` or `other` | Destination type only: `named` for a fixed place, `other` for the single free-text choice. Not an outing type, permission type, or notice type. |
 | `status` | yes | `active` or `inactive` | `active` while it can be chosen. `inactive` when retired. |
 
 #### 401
@@ -4559,7 +4559,7 @@ One of: `inside`, `outside`, `late`.
 |---|---|---|---|
 | `id` | yes | uuid |  |
 | `name` | yes | string | Named places are shown alphabetical by this name, ignoring capitals. The free-text choice is last. |
-| `kind` | yes | `named` or `other` | `named` for a fixed place. `other` for the single free-text choice. |
+| `type` | yes | `named` or `other` | Destination type only: `named` for a fixed place, `other` for the single free-text choice. Not an outing type, permission type, or notice type. |
 | `status` | yes | `active` or `inactive` | `active` while it can be chosen. `inactive` when retired. |
 
 ### <a id="schema-destinationlist"></a>DestinationList
@@ -4573,14 +4573,14 @@ One of: `inside`, `outside`, `late`.
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `name` | yes | string | 1–80 characters. |
-| `kind` | no | `named` or `other` | default `named`. |
+| `type` | no | `named` or `other` | Destination type only (`named` \| `other`). Not an outing, permission, or notice type. default `named`. |
 
 ### <a id="schema-destinationupdate"></a>DestinationUpdate
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `name` | no | string | 1–80 characters. |
-| `kind` | no | `named` or `other` |  |
+| `type` | no | `named` or `other` | Destination type only (`named` \| `other`). Not an outing, permission, or notice type. |
 | `status` | no | `active` or `inactive` |  |
 
 ### <a id="schema-planoutingrequest"></a>PlanOutingRequest

@@ -51,7 +51,7 @@ def create_destination(
             "Name is required.",
             field="name",
         )
-    if body.kind == "other" and active_other_exists(connection):
+    if body.type == "other" and active_other_exists(connection):
         raise ApiError(409, "other_exists", _OTHER_EXISTS)
 
     destination_id = str(uuid.uuid4())
@@ -62,7 +62,7 @@ def create_destination(
             INSERT INTO destinations (id, name, is_other, is_active)
             VALUES (?, ?, ?, 1)
             """,
-            (destination_id, name, 1 if body.kind == "other" else 0),
+            (destination_id, name, 1 if body.type == "other" else 0),
         )
     except sqlite3.IntegrityError as exc:
         message = str(exc).lower()
@@ -125,7 +125,7 @@ def update_destination(
         return current
 
     will_be_other = (
-        changes["kind"] == "other" if "kind" in changes else current.kind == "other"
+        changes["type"] == "other" if "type" in changes else current.type == "other"
     )
     will_be_active = (
         changes["status"] == "active" if "status" in changes else current.status == "active"
@@ -138,7 +138,7 @@ def update_destination(
     assignments: list[str] = []
     values: list[object] = []
     for key, value in changes.items():
-        if key == "kind":
+        if key == "type":
             assignments.append("is_other = ?")
             values.append(1 if value == "other" else 0)
         elif key == "status":
