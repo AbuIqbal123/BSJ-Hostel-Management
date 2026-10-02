@@ -6,7 +6,8 @@ This is the system that exists in the repository today. A solid arrow is in use.
 
 ```mermaid
 flowchart LR
-  browser["Browser"] -->|"health, sign-in, resident phone, register, permissions, guest stays, gate, hall office, and Swagger"| api["Hall API"]
+  phone["Phone"] -->|"sign-in"| api["Hall API"]
+  browser["Browser"] -->|"health, sign-in, resident phone, register, permissions, guest stays, gate, hall office, and Swagger"| api
   api -->|"serves"| contract["API contract"]
   model["Data model"] --> db[("SQLite")]
   api -->|"creates the hall and keeps records"| db
@@ -16,6 +17,7 @@ flowchart LR
 
 | Arrow | Meaning |
 |---|---|
+| Phone → Hall API | In use for sign-in. The Expo app in `mobile/` opens on a loading screen, then asks for the hall username and password. A successful sign-in shows the person's name. Sign-out clears the session on the phone and revokes the refresh token. |
 | Browser → Hall API | In use. The process is FastAPI on this computer, at `http://localhost:8000`. `GET /health` answers. `GET /ready` opens an existing hall database and reports `user_version`. A missing or unreadable file answers 503 and is not created. Sign-in answers. The resident phone answers for home, history, hall pass, destinations, ordinary outings, late-night and home-going permissions, and guest stays (including edit, which returns a stay to pending for re-approval). A warden or the provost can read the register presence board, the permission queue, and guest stays, and can decide pending permissions and guest stays, mark payment, and upload optional payment evidence. Gate staff can scan a hall pass, list recent gate activity, read guest dining occupancy, and record guest arrival and departure. The provost can manage settings, blocks, rooms, destinations, residents, staff, password reset, the audit log, the SMS log, and register CSV export. Swagger is at `/docs`. |
 | Hall API → API contract | In use. `/docs` reads `backend/openapi.yaml`. [`api.md`](../api/api.md) is the same contract for reading. The Auth, Resident, Register, Permissions, Guest Stays, Gate, and Hall office paths in that file are implemented and registered. |
 | Data model → SQLite | In use. [`database.md`](../database/database.md) is applied when the service starts. After startup the hall records exist. |
@@ -23,4 +25,4 @@ flowchart LR
 | Hall API → Parent SMS | In use with the mock driver. Outside production the process stops unless the SMS driver is mock. Reading the register (and a return scan) records late notices for outside outings past grace; a return scan records the return notice when a late notice was sent. No phone network is contacted. |
 | Hall API → Local payment-evidence directory | In use. Optional guest-stay payment evidence (JPEG, PNG, or PDF, at most 5 MiB) is stored under `PAYMENT_EVIDENCE_DIR` (default under the backend data directory). Paths are hall-controlled; clients never receive absolute filesystem paths. Uploading evidence is never required to mark a stay paid. |
 
-The phone app, Docker, Nginx, and the VPS are absent from this picture. They are drawn here when that part exists in the project.
+Docker, Nginx, and the VPS are absent from this picture. They are drawn here when that part exists in the project. The phone client signs in and stops there.

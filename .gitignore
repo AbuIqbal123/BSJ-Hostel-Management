@@ -1,4 +1,5 @@
 .DS_Store
+.expo/
 node_modules/
 .vercel
 *.tmp.png
