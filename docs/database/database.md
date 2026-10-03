@@ -49,7 +49,7 @@ The rules in this document are the contract. The room inventory is taken from th
 ## What the hall already decided
 
 - The hall is Begum Sultan Jahan Hall, Aligarh Muslim University. The hall page lists 206 double rooms and 412 beds. For session 2025–26 the same page lists 506 resident students and 434 non-resident students. That roll is not a room count. This system keeps the provost, wardens, and gate staff.
-- A resident has one permanent hall pass. It is not replaced for each outing. The same code records leaving and coming back. The provost can issue a new code from the resident's record. The steps are under Residents.
+- A resident has one permanent hall pass. It is not replaced for each outing. The same code records leaving and coming back. The provost can issue a new code from the resident's record. The steps are under Residents. The resident phone shows that code for one outing at a time: from 30 minutes before the ordinary outing's start (immediately when the start is within 5 minutes, because that lead has already begun) until the outing ends. While she is outside, the code stays available until the return scan. The gate scan still decides the movement.
 - An ordinary outing is a same-day outing inside ordinary hours. The resident sets the destination and the expected return in the app before going to the gate. The gate scan does not ask for either. If either is missing, the scan does not let her out. An ordinary outing needs no warden approval. The scan records the exit, the time, and which staff member scanned.
 - Ordinary hours are a window with a start and an end. Summer is 1 April through 30 September, 6:30 AM to 6:30 PM. Winter is 1 October through 31 March, 6:30 AM to 5:30 PM. On 30 September the summer window is in force. On 1 October the winter window is in force. The clock times and the two start dates are under Hall settings.
 - Grace is 30 minutes after the expected return. An expected return of 7:00 PM means grace ends at 7:30 PM.
@@ -267,7 +267,7 @@ The resident's own phone is separate from the guardian phone. Self-onboard and o
 | created_at | Instant | Yes | System | When the profile was created. |
 | updated_at | Instant | Yes | System | When it last changed. |
 
-A future Hall Office activation of a pending account would assign a room and issue the first hall-pass code at that moment; that workflow is deferred. The hall pass stays the same from outing to outing. It changes only when the provost issues a new one. The provost does that on the resident's record, for example after a lost phone or because someone else has seen the code. The provost does not type the new code. The system makes a new random code, puts it in place of the old one at that moment, and writes an audit log entry. The old code stops working immediately. The resident's phone shows the new code the next time it loads the pass.
+A future Hall Office activation of a pending account would assign a room and issue the first hall-pass code at that moment; that workflow is deferred. The hall pass code stays the same from outing to outing. It changes only when the provost issues a new one. The resident phone returns that code on her hall pass only while an outing's show window is open. The provost does that on the resident's record, for example after a lost phone or because someone else has seen the code. The provost does not type the new code. The system makes a new random code, puts it in place of the old one at that moment, and writes an audit log entry. The old code stops working immediately. The resident's phone shows the new code the next time it loads the pass.
 
 ### Staff
 
@@ -327,7 +327,7 @@ From waiting, the warden or provost can reject it, or the resident can cancel it
 
 The use window runs from the departure minus the early-leave setting, through the expected return. The gate can open an outing from the permission only inside that window.
 
-A resident may hold more than one permission. She may also plan several ordinary outings ahead, including more than one return on the same hall day. She may not be outside on two outings, and she may not have two planned or outside outings that end at the same instant. Planning or scanning resolves that, under Outings.
+A resident may hold more than one permission. She may also plan several future ordinary outings, including more than one return on the same hall day. She cannot plan another while one ordinary outing is inside its show window (30 minutes before its start until that outing ends, including while she is outside on it). She may not be outside on two outings, and she may not have two planned or outside outings that end at the same instant. Planning or scanning resolves that, under Outings.
 
 ## Outings
 
@@ -344,6 +344,7 @@ An exit is not a finished fact until it has a time and the staff member who reco
 | status | Choice | Yes | System | Planned, outside, returned, or cancelled. |
 | destination_id | Identifier | Empty when the place is not from the list | The list entry the resident chose | For an ordinary outing chosen from the list. Empty for Other, and empty for a permission outing. |
 | place | Text | Yes | The list name, the words the resident typed for Other, or the permission's short place | The place as it should be remembered. Renaming the list later does not change this. |
+| starts_at | Instant | Empty for a permission outing and for an ordinary outing saved before this column. Yes for a new ordinary plan. | The resident, before she leaves | When she said she would leave. Same hall day as the expected return, inside that day's ordinary hours. |
 | expected_return_at | Instant | Yes | The resident, before she leaves | When she said she would be back. |
 | hall_date | Date | Yes | System, from the expected return | The hall day of that return, in Asia/Kolkata. Several planned outings may share this day. The gate uses it so a later day's plan is not taken today. |
 | grace_ends_at | Instant | Yes | System, from the expected return plus the grace minutes in force when the outing was created | A later change to grace does not rewrite this. |
@@ -366,11 +367,11 @@ A resident has at most one outing that is outside, and at most one planned or ou
 
 ### Ordinary outing
 
-Created when the resident confirms a destination and an expected return. Other plans may already exist, including another return on that same hall day. She may do this while she is outside. Planning does not change whether she is inside or outside. This is the step before the gate. The scan cannot invent the destination or the expected return.
+Created when the resident confirms a destination, a start, and an expected return. Other future plans may already exist, including another return on that same hall day, as long as none of them is inside its show window. Planning does not change whether she is inside or outside. This is the step before the gate. The scan cannot invent the destination, the start, or the expected return. No warden approval.
 
-The expected return must be in the future at the moment she confirms it. It must fall on a hall day, after that day's ordinary-hours start and at or before that day's ordinary-hours end. The season is the one that contains that hall date. If the return would be outside that window, the plan is refused and she asks for late-night permission or home going instead. If she already has a planned or outside outing ending at that same instant, the plan is refused. After that outing is cancelled or returned, she may plan that instant again.
+The start and the expected return must both be in the future at the moment she confirms them, the return after the start, and both on the same hall day. Each must fall after that day's ordinary-hours start and at or before that day's ordinary-hours end. The season is the one that contains that hall date. If either time would be outside that window, the plan is refused and she asks for late-night permission or home going instead. If one ordinary outing is already inside its show window, the plan is refused. The show window opens 30 minutes before `starts_at`. When `starts_at` is within 5 minutes, that lead has already opened, so the hall-pass QR is shown immediately. A planned outing's window ends at the expected return. An outside ordinary outing's window stays open until the return scan. If she already has a planned or outside outing ending at that same instant, the plan is refused. After that outing is cancelled or returned, she may plan that instant again.
 
-The outing stays planned until the gate scans the hall pass. She may cancel one planned outing by choosing it. Her other plans stay planned. If the expected return passes and she has not been scanned out, the system cancels that plan only, and writes an audit log entry with no staff member.
+The outing stays planned until the gate scans the hall pass. She may change or cancel one planned outing by choosing it, until that outing's show window opens. Once the window is open, or she is outside on it, she cannot change or cancel it here. Her other plans stay planned, and she can still change one whose window is shut. Changing a plan stores the new destination, start, and expected return, and recalculates grace from that return. If the expected return passes and she has not been scanned out, the system cancels that plan only, and writes an audit log entry with no staff member.
 
 ### Leaving on a permission
 
@@ -536,6 +537,7 @@ This is the audit log: the record of who did what. Each entry is one action that
 | Destination updated | destination.updated |
 | Settings updated | settings.updated |
 | Outing planned | outing.planned |
+| Outing changed | outing.updated |
 | Outing cancelled | outing.cancelled |
 | Exit recorded | outing.exit |
 | Return recorded | outing.return |
@@ -627,7 +629,7 @@ Besides the unique indexes that enforce one username, one open outside outing, a
 
 ## Implementation note (dev)
 
-Self-onboard is specified here and in the HTTP contract. A future pending status is reserved for a later Hall Office activation workflow. Migration `0012_resident_block_rooms.sql` seeds door numbers 1 through each published count for blocks A, B, C, and D. Utility has no seeded rooms. The next free migration number is `0013_…`. Leave this document's version at **0.3.4** until production.
+Self-onboard is specified here and in the HTTP contract. A future pending status is reserved for a later Hall Office activation workflow. Migration `0012_resident_block_rooms.sql` seeds door numbers 1 through each published count for blocks A, B, C, and D. Utility has no seeded rooms. `0013_outing_starts_at.sql` adds nullable `outings.starts_at`. `0014_outing_updated_audit.sql` records an outing change. The next free migration number is `0015_…`. Leave this document's version at **0.3.4** until production.
 
 ## Revisions
 

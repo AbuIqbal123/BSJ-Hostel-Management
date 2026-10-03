@@ -216,6 +216,7 @@ def assert_planned(response, expected: dict, path: Path, destination_id: str | N
     assert row["cancelled_at"] is None
     assert row["hall_date"] == hall_day(expected["expected_return_at"])
     assert row["expected_return_at"] == expected["expected_return_at"]
+    assert row["starts_at"] == expected["starts_at"]
     assert row["grace_ends_at"] == expected["grace_ends_at"]
     assert row["created_at"] == NOW
     assert row["updated_at"] == NOW
@@ -231,55 +232,79 @@ def test_plan_outing(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
     with TestClient(app) as client:
         issue_people(database_path)
         assert_error(
-            client.post("/api/v1/me/outings", json={"destination_id": LIBRARY, "expected_return_at": "2026-09-30T13:00:00Z"}),
+            client.post("/api/v1/me/outings", json={"destination_id": LIBRARY, "starts_at": "2026-09-30T08:00:00Z", "expected_return_at": "2026-09-30T13:00:00Z"}),
             401,
             "unauthenticated",
             "Sign in again.",
         )
         gate = sign_in(client, "gate.fatima", GATE_PHRASE)
         assert_error(
-            plan(client, gate, {"destination_id": LIBRARY, "expected_return_at": "2026-09-30T13:00:00Z"}),
+            plan(client, gate, {"destination_id": LIBRARY, "starts_at": "2026-09-30T08:00:00Z", "expected_return_at": "2026-09-30T13:00:00Z"}),
             403,
             "forbidden",
             "This account cannot do that.",
         )
         resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
-        library = {"destination_id": LIBRARY, "expected_return_at": "2026-09-30T13:00:00Z"}
+        library = {"destination_id": LIBRARY, "starts_at": "2026-09-30T08:00:00Z", "expected_return_at": "2026-09-30T13:00:00Z"}
         assert_error(
-            plan(client, resident, {"destination_id": LIBRARY, "expected_return_at": NOW}),
+            plan(client, resident, {"destination_id": LIBRARY, "starts_at": "2026-09-30T00:00:00Z", "expected_return_at": NOW}),
             422,
             "validation_error",
             "The expected return must be in the future.",
         )
         assert_error(
-            plan(client, resident, {"destination_id": LIBRARY, "expected_return_at": "2026-09-30T01:00:00Z"}),
+            plan(client, resident, {"destination_id": LIBRARY, "starts_at": "2026-09-30T00:45:00Z", "expected_return_at": "2026-09-30T01:00:00Z"}),
             409,
             "outside_ordinary_hours",
             "That return is outside ordinary hours.",
         )
         assert_error(
-            plan(client, resident, {"destination_id": LIBRARY, "expected_return_at": "2026-09-30T13:00:01Z"}),
+            plan(client, resident, {"destination_id": LIBRARY, "starts_at": "2026-09-30T08:00:00Z", "expected_return_at": "2026-09-30T13:00:01Z"}),
             409,
             "permission_required",
             "That return is outside ordinary hours. Please submit a permission request.",
         )
         assert_error(
-            plan(client, resident, {"destination_id": WOMENS, "expected_return_at": "2026-10-01T13:00:00Z"}),
+            plan(client, resident, {"destination_id": WOMENS, "starts_at": "2026-10-01T06:00:00Z", "expected_return_at": "2026-10-01T13:00:00Z"}),
             409,
             "permission_required",
             "That return is outside ordinary hours. Please submit a permission request.",
         )
         assert_error(
-            plan(client, resident, {"destination_id": UNKNOWN, "expected_return_at": "2026-09-30T13:00:00Z"}),
+            plan(client, resident, {"destination_id": UNKNOWN, "starts_at": "2026-09-30T08:00:00Z", "expected_return_at": "2026-09-30T13:00:00Z"}),
             422,
             "validation_error",
             "Choose a destination from the list.",
         )
         assert_error(
-            plan(client, resident, {"destination_id": OTHER, "expected_return_at": "2026-09-30T12:00:00Z"}),
+            plan(client, resident, {"destination_id": OTHER, "starts_at": "2026-09-30T07:00:00Z", "expected_return_at": "2026-09-30T12:00:00Z"}),
             422,
             "validation_error",
             "Destination text is required.",
+        )
+        assert_error(
+            plan(client, resident, {"destination_id": LIBRARY, "starts_at": "2026-09-30T00:00:00Z", "expected_return_at": "2026-09-30T13:00:00Z"}),
+            422,
+            "validation_error",
+            "The outing start must be in the future.",
+        )
+        assert_error(
+            plan(client, resident, {"destination_id": LIBRARY, "starts_at": "2026-09-30T12:00:00Z", "expected_return_at": "2026-09-30T08:00:00Z"}),
+            422,
+            "validation_error",
+            "The expected return must be after the start.",
+        )
+        assert_error(
+            plan(client, resident, {"destination_id": LIBRARY, "starts_at": "2026-09-30T01:00:00Z", "expected_return_at": "2026-09-30T13:00:00Z"}),
+            409,
+            "outside_ordinary_hours",
+            "That start is outside ordinary hours.",
+        )
+        assert_error(
+            plan(client, resident, {"destination_id": LIBRARY, "starts_at": "2026-09-30T08:00:00Z", "expected_return_at": "2026-10-01T12:00:00Z"}),
+            422,
+            "validation_error",
+            "An ordinary outing starts and returns on the same hall day.",
         )
         connection = sqlite3.connect(database_path)
         connection.execute(
@@ -289,7 +314,7 @@ def test_plan_outing(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
         connection.commit()
         connection.close()
         ahead_id = assert_planned(
-            plan(client, resident, {"destination_id": SHAMSHAD, "expected_return_at": "2026-10-02T10:30:00Z"}),
+            plan(client, resident, {"destination_id": SHAMSHAD, "starts_at": "2026-10-02T05:00:00Z", "expected_return_at": "2026-10-02T10:30:00Z"}),
             expected["ahead"],
             database_path,
             SHAMSHAD,
@@ -314,7 +339,7 @@ def test_plan_outing(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
         assert stale["status"] == "cancelled"
         assert stale["cancelled_at"] == NOW
         same_day_id = assert_planned(
-            plan(client, resident, {"destination_id": WOMENS, "expected_return_at": "2026-09-30T06:30:00Z"}),
+            plan(client, resident, {"destination_id": WOMENS, "starts_at": "2026-09-30T02:00:00Z", "expected_return_at": "2026-09-30T06:30:00Z"}),
             expected["same_day"],
             database_path,
             WOMENS,
@@ -343,7 +368,7 @@ def test_plan_outing(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
 
         clear_planned(database_path)
         winter_id = assert_planned(
-            plan(client, resident, {"destination_id": WOMENS, "expected_return_at": "2026-10-01T12:00:00Z"}),
+            plan(client, resident, {"destination_id": WOMENS, "starts_at": "2026-10-01T06:00:00Z", "expected_return_at": "2026-10-01T12:00:00Z"}),
             expected["winter_end"],
             database_path,
             WOMENS,
@@ -356,7 +381,7 @@ def test_plan_outing(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
                 {
                     "destination_id": OTHER,
                     "destination_text": "  City bookshop  ",
-                    "expected_return_at": "2026-09-30T12:00:00Z",
+                    "starts_at": "2026-09-30T07:00:00Z", "expected_return_at": "2026-09-30T12:00:00Z",
                 },
             ),
             expected["other"],
@@ -421,4 +446,73 @@ def test_plan_outing(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
         ]
         assert sorted(recorded, key=lambda row: (row[1], row[3])) == sorted(
             expected_audits, key=lambda row: (row[1], row[3])
+        )
+
+
+class LaterClock:
+    def utc_now(self) -> datetime:
+        return datetime(2026, 9, 30, 2, 0, tzinfo=timezone.utc)
+
+
+def test_cannot_plan_while_an_outing_window_is_open(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.shared import clock
+    from app.main import app
+
+    monkeypatch.setattr(clock, "utc_now", LaterClock().utc_now)
+    with TestClient(app) as client:
+        issue_people(database_path)
+        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        first = plan(
+            client,
+            resident,
+            {
+                "destination_id": LIBRARY,
+                "starts_at": "2026-09-30T02:04:00Z",
+                "expected_return_at": "2026-09-30T06:00:00Z",
+            },
+        )
+        assert first.status_code == 201
+        body = first.json()
+        assert body["qr_visible"] is True
+        assert body["qr_visible_from"] == "2026-09-30T01:34:00Z"
+        assert body["qr_visible_until"] == "2026-09-30T06:00:00Z"
+        assert body["starts_at"] == "2026-09-30T02:04:00Z"
+        assert_error(
+            plan(
+                client,
+                resident,
+                {
+                    "destination_id": SHAMSHAD,
+                    "starts_at": "2026-09-30T04:00:00Z",
+                    "expected_return_at": "2026-09-30T08:00:00Z",
+                },
+            ),
+            409,
+            "outing_window_open",
+            "You cannot start another outing while one is inside its window.",
+        )
+        assert_error(
+            client.post(
+                f"/api/v1/me/outings/{body['id']}/cancel",
+                headers={"Authorization": f"Bearer {resident}"},
+            ),
+            409,
+            "outing_window_open",
+            "You cannot change this outing while its window is open.",
+        )
+        assert_error(
+            plan(
+                client,
+                resident,
+                {
+                    "destination_id": SHAMSHAD,
+                    "starts_at": "2026-09-30T04:00:00Z",
+                    "expected_return_at": "2026-09-30T08:00:00Z",
+                },
+            ),
+            409,
+            "outing_window_open",
+            "You cannot start another outing while one is inside its window.",
         )

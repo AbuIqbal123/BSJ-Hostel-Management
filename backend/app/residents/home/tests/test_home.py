@@ -130,6 +130,7 @@ def insert_outing(
     place: str,
     *,
     destination_id: str | None = None,
+    starts_at: str | None = None,
     expected_return_at: str,
     grace_ends_at: str,
     exited_at: str | None = None,
@@ -141,9 +142,9 @@ def insert_outing(
         """
         INSERT INTO outings (
           id, resident_id, permission_id, type, status, destination_id, place,
-          expected_return_at, grace_ends_at, exited_at, exit_recorded_by,
+          starts_at, expected_return_at, grace_ends_at, exited_at, exit_recorded_by,
           returned_at, return_recorded_by, created_at, updated_at, cancelled_at, hall_date
-        ) VALUES (?, ?, NULL, 'ordinary', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, NULL, 'ordinary', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             outing_id,
@@ -151,6 +152,7 @@ def insert_outing(
             status,
             destination_id,
             place,
+            starts_at,
             expected_return_at,
             grace_ends_at,
             exited_at,
@@ -416,3 +418,80 @@ def test_resident_home(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
             connection.close()
         assert audit == ["auth.login", "auth.login"]
         assert stored == ("outside", "2026-09-30T08:00:00Z", "outside")
+
+        connection = sqlite3.connect(database_path)
+        try:
+            connection.execute("PRAGMA foreign_keys=ON;")
+            insert_outing(
+                connection,
+                "e7700000-0000-4000-8000-000000000014",
+                RESIDENT_ID,
+                "planned",
+                "Maulana Azad Library",
+                destination_id=LIBRARY,
+                starts_at="2026-09-30T13:20:00Z",
+                expected_return_at="2026-09-30T14:00:00Z",
+                grace_ends_at="2026-09-30T14:30:00Z",
+                created_at="2026-09-30T12:00:00Z",
+            )
+            insert_outing(
+                connection,
+                "e7700000-0000-4000-8000-000000000012",
+                RESIDENT_ID,
+                "planned",
+                "Women's College",
+                starts_at="2026-10-01T02:00:00Z",
+                expected_return_at="2026-10-01T08:00:00Z",
+                grace_ends_at="2026-10-01T08:30:00Z",
+                created_at="2026-09-30T12:00:00Z",
+            )
+            insert_outing(
+                connection,
+                "e7700000-0000-4000-8000-000000000013",
+                RESIDENT_ID,
+                "planned",
+                "Shamshad Market",
+                starts_at="2026-10-02T05:00:00Z",
+                expected_return_at="2026-10-02T10:30:00Z",
+                grace_ends_at="2026-10-02T11:00:00Z",
+                created_at="2026-09-30T12:00:00Z",
+            )
+            insert_outing(
+                connection,
+                "e7700000-0000-4000-8000-000000000015",
+                RESIDENT_ID,
+                "planned",
+                "Passed plan",
+                starts_at="2026-09-30T08:00:00Z",
+                expected_return_at="2026-09-30T11:00:00Z",
+                grace_ends_at="2026-09-30T11:30:00Z",
+                created_at="2026-09-30T07:00:00Z",
+            )
+            connection.commit()
+        finally:
+            connection.close()
+        listed = client.get("/api/v1/me/home", headers=headers)
+        assert listed.status_code == 200
+        assert listed.json()["upcoming_outings"] == [
+            {
+                "id": "e7700000-0000-4000-8000-000000000014",
+                "place": "Maulana Azad Library",
+                "starts_at": "2026-09-30T13:20:00Z",
+                "expected_return_at": "2026-09-30T14:00:00Z",
+                "can_modify": False,
+            },
+            {
+                "id": "e7700000-0000-4000-8000-000000000012",
+                "place": "Women's College",
+                "starts_at": "2026-10-01T02:00:00Z",
+                "expected_return_at": "2026-10-01T08:00:00Z",
+                "can_modify": True,
+            },
+            {
+                "id": "e7700000-0000-4000-8000-000000000013",
+                "place": "Shamshad Market",
+                "starts_at": "2026-10-02T05:00:00Z",
+                "expected_return_at": "2026-10-02T10:30:00Z",
+                "can_modify": True,
+            },
+        ]

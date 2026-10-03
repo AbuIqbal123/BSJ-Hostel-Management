@@ -140,7 +140,7 @@ def test_current_outing(database_path: Path, monkeypatch: pytest.MonkeyPatch) ->
         planned = client.post(
             "/api/v1/me/outings",
             headers={"Authorization": f"Bearer {resident}"},
-            json={"destination_id": LIBRARY, "expected_return_at": "2026-09-30T13:00:00Z"},
+            json={"destination_id": LIBRARY, "starts_at": "2026-09-30T09:00:00Z", "expected_return_at": "2026-09-30T13:00:00Z"},
         )
         assert planned.status_code == 201
         outing_id = planned.json()["id"]

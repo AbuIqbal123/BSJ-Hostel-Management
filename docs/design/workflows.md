@@ -55,7 +55,7 @@ Keep this document Fowler-simple: one workflow per section, steps a person can n
 
 | Role | Goal | Key screens | Critical states | Success |
 |---|---|---|---|---|
-| **Resident** | Know presence; start outing / permission / guest; open hall pass or history | `GET /api/v1/me/home` hub: name, room, presence chip, open outing or active permission summary; actions that can sit together: Plan outing, Request permission, Guest stay, Hall pass, History | Inside idle; one or more plans, including two returns on the same hall day; outside with expected return and grace, and she may still plan another return; pending permission; approved permission usable. A suspended account never reaches this screen: sign-in and the next refresh fail, and she sees the Hall Office sentence | One glance answers "where am I?" and the next action |
+| **Resident** | Know presence; start outing / permission / guest; open hall pass or history | `GET /api/v1/me/home` hub: name, room, presence, the open outing, upcoming ordinary outings, and the active permission; actions that can sit together: Plan outing, Request permission, Guest stay, Hall pass, History | Inside idle; several future plans, including two returns on the same hall day, until one ordinary outing is inside its show window. While that window is open, including when she is outside on it, she cannot plan another. Pending permission; approved permission usable. A suspended account never reaches this screen: sign-in and the next refresh fail, and she sees the Hall Office sentence | One glance answers "where am I?" and the next action |
 | **Gate** | Ready to scan; see recent activity | Dark home: primary Scan; list from `GET /api/v1/gate/activity`; entry to guests | Idle; last result flash | Thumb on Scan in under a second |
 | **Warden** | Hall pulse | Register summary counts; shortcuts to Late, Permissions waiting, Guest stays waiting | Quiet night vs busy late list | Counts match `GET /api/v1/register/summary` |
 | **Provost** | Same as warden + office entry | Warden home + Hall office | (none special) | Office reachable without burying register |
@@ -130,8 +130,8 @@ Provost may also export CSV via `GET /api/v1/admin/register/export`.
 
 **Resident loop**
 
-1. Plan an ordinary outing with a destination and an expected return. She may save several plans, including two on the same hall day, and she may plan while she is already outside. Planning does not change presence. The check is the expected return (in the future, inside that hall date's window), not whether the clock is inside ordinary hours when she plans. She may also hold an approved late-night or home-going permission.
-2. Open the hall pass. The QR is permanent and the same code is used both ways. The pass stays available while a plan or an outside outing exists.
+1. Plan an ordinary outing with a destination, a start, and an expected return. She may save several future plans, including two on the same hall day. She cannot start another while one ordinary outing is inside its show window. Planning does not change presence. No warden approval. She may also hold an approved late-night or home-going permission.
+2. Open the hall pass. The code is still the permanent hall-pass token, and the gate scan still decides the movement. The phone shows the QR for one outing: from 30 minutes before its start (immediately when the start is within 5 minutes) until the outing ends. While she is outside, it stays up until the return scan.
 3. At an exit scan, today's earliest ordinary plan whose return has not passed is used when the current time is inside today's ordinary hours. A later plan today, and any other day's plan, stay planned. An approved permission is opened only if no such plan is used. If she meant the permission, or a later trip today, she cancels the plan the gate would use and shows the pass again.
 4. The scan updates home to outside, or shows the refusal.
 5. A return scan adds the history line.

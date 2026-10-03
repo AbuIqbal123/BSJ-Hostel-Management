@@ -9,9 +9,9 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict
 
 from app.shared import clock
-from app.shared.auth.routes import Account, AccountDep, ConnectionDep, ResidentSummary
+from app.shared.auth.routes import Account, AccountDep, ConnectionDep
 from app.shared.errors import ApiError
-from app.residents.outings.records import OutingBody, expire_passed_plans, load_current_outing
+from app.residents.outings.records import OutingBody, UpcomingOuting, expire_passed_plans, load_current_outing, load_upcoming, load_upcoming_outings
 from app.residents.permissions.records import PermissionBody, expire_passed_permissions
 
 router = APIRouter(prefix="/api/v1", tags=["Resident"])
@@ -35,10 +35,22 @@ class HistoryPage(BaseModel):
     items: list[HistoryEvent]
 
 
+class HomeResident(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    full_name: str
+    enrolment_number: str
+    course: str | None
+    room_label: str
+    block_name: str
+    presence: Literal["inside", "outside"]
+
+
 class ResidentHome(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    resident: ResidentSummary
+    resident: HomeResident
+    ordinary_outing_active: bool
     current_outing: OutingBody | None
+    upcoming_outings: list[UpcomingOuting]
     active_permission: PermissionBody | None
     recent_history: list[HistoryEvent]
 
@@ -156,17 +168,21 @@ def _recent_history(connection: sqlite3.Connection, resident_id: str) -> list[Hi
 @router.get("/me/home", response_model=ResidentHome)
 def resident_home(account: ResidentDep, connection: ConnectionDep) -> ResidentHome:
     now = clock.utc_now()
+    upcoming = load_upcoming(connection, account.id)
     return ResidentHome(
-        resident=ResidentSummary.model_validate(
-            {
-                "enrolment_number": account.enrolment_number,
-                "course": account.course,
-                "room_label": account.room_label,
-                "block_name": account.block_name,
-                "presence": account.presence,
-            }
+        resident=HomeResident(
+            full_name=account.full_name,
+            enrolment_number=account.enrolment_number or "",
+            course=account.course,
+            room_label=account.room_label or "",
+            block_name=account.block_name or "",
+            presence=account.presence or "inside",
+        ),
+        ordinary_outing_active=any(
+            item.outing_type == "ordinary" and item.qr_visible for item in upcoming
         ),
         current_outing=load_current_outing(connection, account.id, now),
+        upcoming_outings=load_upcoming_outings(connection, account.id, now),
         active_permission=_active_permission(connection, account.id),
         recent_history=_recent_history(connection, account.id),
     )

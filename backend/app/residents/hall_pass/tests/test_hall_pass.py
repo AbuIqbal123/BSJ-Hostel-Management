@@ -23,6 +23,7 @@ RESIDENT_ID = "b22de000-0000-4000-8000-000000000002"
 ROOM_ID = "d4400000-0000-4000-8000-000000000004"
 CREATED = "2026-09-30T00:00:00Z"
 RESIDENT_QR = "bsj:v1:test-resident-hall-pass"
+OUTING_ID = "e7700000-0000-4000-8000-0000000000cc"
 
 
 class FrozenClock:
@@ -142,11 +143,37 @@ def test_resident_hall_pass(database_path: Path, monkeypatch: pytest.MonkeyPatch
         headers = {"Authorization": f"Bearer {resident}"}
         response = client.get("/api/v1/me/hall-pass", headers=headers)
         assert response.status_code == 200
-        assert response.json() == expected["pass"]
-        assert set(response.json()) == {"qr_payload", "full_name", "room_label"}
-        assert response.json()["qr_payload"].startswith("bsj:v1:")
+        assert response.json() == expected["hidden"]
+        assert response.json()["qr_payload"] is None
 
         connection = sqlite3.connect(database_path)
+        connection.execute(
+            """
+            INSERT INTO outings (
+              id, resident_id, permission_id, type, status, destination_id, place,
+              starts_at, expected_return_at, grace_ends_at, exited_at, exit_recorded_by,
+              returned_at, return_recorded_by, created_at, updated_at, cancelled_at,
+              hall_date
+            ) VALUES (
+              ?, ?, NULL, 'ordinary', 'planned', NULL, 'Maulana Azad Library',
+              '2026-09-30T14:00:00Z', '2026-09-30T15:00:00Z', '2026-09-30T15:30:00Z', NULL, NULL,
+              NULL, NULL, ?, ?, NULL, '2026-09-30'
+            )
+            """,
+            (OUTING_ID, RESIDENT_ID, CREATED, CREATED),
+        )
+        connection.commit()
+        connection.close()
+        waiting = client.get("/api/v1/me/hall-pass", headers=headers)
+        assert waiting.status_code == 200
+        assert waiting.json() == expected["waiting"]
+
+        connection = sqlite3.connect(database_path)
+        connection.execute(
+            "UPDATE outings SET starts_at = '2026-09-30T13:04:00Z', updated_at = ? WHERE id = ?",
+            (CREATED, OUTING_ID),
+        )
+        connection.commit()
         try:
             stored = connection.execute(
                 "SELECT qr_token FROM residents WHERE user_id = ?",
@@ -160,5 +187,8 @@ def test_resident_hall_pass(database_path: Path, monkeypatch: pytest.MonkeyPatch
             ]
         finally:
             connection.close()
-        assert stored == expected["pass"]["qr_payload"]
+        showing = client.get("/api/v1/me/hall-pass", headers=headers)
+        assert showing.status_code == 200
+        assert showing.json() == expected["showing"]
+        assert stored == RESIDENT_QR
         assert audit == ["auth.login", "auth.login", "auth.login"]

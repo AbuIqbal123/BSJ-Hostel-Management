@@ -4,13 +4,24 @@ from __future__ import annotations
 
 import sqlite3
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Literal
 from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict
 
 from app.shared import clock
+
+
+class UpcomingOuting(BaseModel):
+    """A planned ordinary outing still in the future, for the home list."""
+
+    model_config = ConfigDict(extra="forbid")
+    id: str
+    place: str
+    starts_at: str | None
+    expected_return_at: str
+    can_modify: bool
 
 
 class OutingBody(BaseModel):
@@ -20,6 +31,10 @@ class OutingBody(BaseModel):
     outing_type: Literal["ordinary", "late_night", "home_going"]
     status: Literal["planned", "outside", "returned", "cancelled"]
     place: str
+    starts_at: str | None
+    qr_visible: bool
+    qr_visible_from: str | None
+    qr_visible_until: str | None
     expected_return_at: str
     grace_ends_at: str
     exited_at: str | None
@@ -36,13 +51,72 @@ def outing_lateness(status: str, grace_ends_at: str) -> Literal["on_time", "late
     return "on_time"
 
 
+_QR_LEAD = timedelta(minutes=30)
+_QR_IMMEDIATE = timedelta(minutes=5)
+
+
+def _parse_instant(value: str) -> datetime:
+    return datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+
+
+def qr_window(
+    *,
+    outing_type: str,
+    status: str,
+    starts_at: str | None,
+    expected_return_at: str,
+    exited_at: str | None,
+    now: datetime,
+) -> tuple[bool, str | None, str | None]:
+    """QR show window for one outing.
+
+    An ordinary outing opens 30 minutes before `starts_at`. When `starts_at`
+    is within 5 minutes, that lead has already begun, so the QR is shown
+    immediately. A planned outing closes at `expected_return_at`. An outside
+    ordinary outing stays open until the return scan. Other types have no
+    ordinary window.
+    """
+    if outing_type != "ordinary":
+        return False, None, None
+    if starts_at is None:
+        if status == "outside":
+            return True, exited_at, None
+        return False, None, None
+    start = _parse_instant(starts_at)
+    visible_from = clock.format_instant(start - _QR_LEAD)
+    if status == "outside":
+        return True, visible_from, None
+    visible_until = expected_return_at
+    if status != "planned":
+        return False, visible_from, visible_until
+    if now >= _parse_instant(expected_return_at):
+        return False, visible_from, visible_until
+    lead_open = now >= start - _QR_LEAD
+    starts_within_five = timedelta(0) <= (start - now) <= _QR_IMMEDIATE
+    if lead_open or starts_within_five:
+        return True, visible_from, visible_until
+    return False, visible_from, visible_until
+
+
 def outing_from_row(row: sqlite3.Row) -> OutingBody:
+    visible, visible_from, visible_until = qr_window(
+        outing_type=row["type"],
+        status=row["status"],
+        starts_at=row["starts_at"],
+        expected_return_at=row["expected_return_at"],
+        exited_at=row["exited_at"],
+        now=clock.utc_now(),
+    )
     return OutingBody(
         id=row["id"],
         permission_id=row["permission_id"],
         outing_type=row["type"],
         status=row["status"],
         place=row["place"],
+        starts_at=row["starts_at"],
+        qr_visible=visible,
+        qr_visible_from=visible_from,
+        qr_visible_until=visible_until,
         expected_return_at=row["expected_return_at"],
         grace_ends_at=row["grace_ends_at"],
         exited_at=row["exited_at"],
@@ -61,6 +135,7 @@ SELECT
   outings.type,
   outings.status,
   outings.place,
+  outings.starts_at,
   outings.expected_return_at,
   outings.grace_ends_at,
   outings.exited_at,
@@ -83,16 +158,78 @@ def _timezone(connection: sqlite3.Connection) -> str:
     return row["timezone"]
 
 
-def return_is_taken(connection: sqlite3.Connection, resident_id: str, expected_return_at: str) -> bool:
-    row = connection.execute(
+def ordinary_window_is_open(
+    connection: sqlite3.Connection, resident_id: str, now: datetime
+) -> bool:
+    rows = connection.execute(
         """
+        SELECT type, status, starts_at, expected_return_at, exited_at
+        FROM outings
+        WHERE resident_id = ?
+          AND type = 'ordinary'
+          AND status IN ('planned', 'outside')
+        """,
+        (resident_id,),
+    ).fetchall()
+    for row in rows:
+        visible, _, _ = qr_window(
+            outing_type=row["type"],
+            status=row["status"],
+            starts_at=row["starts_at"],
+            expected_return_at=row["expected_return_at"],
+            exited_at=row["exited_at"],
+            now=now,
+        )
+        if visible:
+            return True
+    return False
+
+
+def can_modify_outing(
+    *,
+    outing_type: str,
+    status: str,
+    starts_at: str | None,
+    expected_return_at: str,
+    exited_at: str | None,
+    now: datetime,
+) -> bool:
+    """True only while she may still change or cancel this outing.
+
+    False once its hall-pass window is open, and false while she is outside
+    on it. Only a planned ordinary outing can be true.
+    """
+    if outing_type != "ordinary" or status != "planned":
+        return False
+    visible, _, _ = qr_window(
+        outing_type=outing_type,
+        status=status,
+        starts_at=starts_at,
+        expected_return_at=expected_return_at,
+        exited_at=exited_at,
+        now=now,
+    )
+    return not visible
+
+
+def return_is_taken(
+    connection: sqlite3.Connection,
+    resident_id: str,
+    expected_return_at: str,
+    *,
+    except_outing_id: str | None = None,
+) -> bool:
+    sql = """
         SELECT 1 FROM outings
         WHERE resident_id = ?
           AND expected_return_at = ?
           AND status IN ('planned', 'outside')
-        """,
-        (resident_id, expected_return_at),
-    ).fetchone()
+    """
+    params: list[str] = [resident_id, expected_return_at]
+    if except_outing_id is not None:
+        sql += " AND id != ?"
+        params.append(except_outing_id)
+    row = connection.execute(sql, params).fetchone()
     return row is not None
 
 
@@ -131,6 +268,46 @@ def load_upcoming(connection: sqlite3.Connection, resident_id: str) -> list[Outi
         (resident_id,),
     ).fetchall()
     return [outing_from_row(row) for row in rows]
+
+
+def load_upcoming_outings(
+    connection: sqlite3.Connection, resident_id: str, now: datetime
+) -> list[UpcomingOuting]:
+    """Planned ordinary outings whose expected return is still ahead.
+
+    Soonest start first. Returned, cancelled, outside, and passed plans are
+    left off. A plan inside its show window stays, with can_modify false.
+    """
+    now_text = clock.format_instant(now)
+    rows = connection.execute(
+        """
+        SELECT id, type, status, place, starts_at, expected_return_at, exited_at
+        FROM outings
+        WHERE resident_id = ?
+          AND type = 'ordinary'
+          AND status = 'planned'
+          AND expected_return_at > ?
+        ORDER BY COALESCE(starts_at, expected_return_at), id
+        """,
+        (resident_id, now_text),
+    ).fetchall()
+    return [
+        UpcomingOuting(
+            id=row["id"],
+            place=row["place"],
+            starts_at=row["starts_at"],
+            expected_return_at=row["expected_return_at"],
+            can_modify=can_modify_outing(
+                outing_type=row["type"],
+                status=row["status"],
+                starts_at=row["starts_at"],
+                expected_return_at=row["expected_return_at"],
+                exited_at=row["exited_at"],
+                now=now,
+            ),
+        )
+        for row in rows
+    ]
 
 
 def load_outing(connection: sqlite3.Connection, outing_id: str) -> OutingBody:
