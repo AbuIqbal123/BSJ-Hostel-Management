@@ -208,10 +208,8 @@ export function WhenField({
         style={styles.row}
       >
         <Text style={[text.label, { color: open ? colors.forest : colors.inkSoft }]}>{label}</Text>
-        <View style={styles.when}>
-          <Text style={[text.field, { color: ink }]}>{dayText}</Text>
-          <Text style={[text.field, { color: ink }]}>{clockText}</Text>
-        </View>
+        <Text style={[text.field, { color: ink }]}>{dayText}</Text>
+        <Text style={[text.field, { color: ink }]}>{clockText}</Text>
       </Pressable>
       {open ? (
         <View onStartShouldSetResponder={() => true}>
@@ -261,15 +259,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  when: {
-    flex: 1,
-    flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "flex-end",
-    columnGap: 12,
-    rowGap: 2,
+    gap: 12,
   },
 });

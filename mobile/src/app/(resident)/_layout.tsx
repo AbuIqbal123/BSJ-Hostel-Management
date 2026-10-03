@@ -119,12 +119,7 @@ export default function ResidentLayout() {
                 >
                   {options.tabBarIcon?.({ focused, color, size: 24 })}
                   <View style={styles.caption}>
-                    <Text
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.8}
-                      style={[styles.label, { color }]}
-                    >
+                    <Text numberOfLines={1} style={[styles.label, { color }]}>
                       {label}
                     </Text>
                   </View>
@@ -188,6 +183,8 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
+    width: "25%",
+    maxWidth: "25%",
     minWidth: 0,
     alignItems: "center",
     paddingHorizontal: 0,

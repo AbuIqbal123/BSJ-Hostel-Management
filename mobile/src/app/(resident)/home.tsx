@@ -269,7 +269,7 @@ export default function HomeScreen() {
           style={styles.row}
         >
           <Text style={[text.label, { color: placeOpen ? colors.forest : colors.inkSoft }]}>Place</Text>
-          <Text style={[text.field, styles.value, { color: chosen ? colors.ink : colors.inkFaint }]}>
+          <Text style={[text.field, { color: chosen ? colors.ink : colors.inkFaint }]}>
             {chosen?.name ?? "Choose a place"}
           </Text>
         </Pressable>
@@ -421,12 +421,8 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    flexWrap: "wrap",
     gap: 12,
-  },
-  value: {
-    flex: 1,
-    textAlign: "right",
   },
   choices: { gap: 16, marginTop: 16 },
   list: { gap: 16 },
