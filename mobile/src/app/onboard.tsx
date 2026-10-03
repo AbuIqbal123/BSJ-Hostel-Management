@@ -186,6 +186,30 @@ function passwordRulesMet(value: string): boolean {
   return value.length > 0 && failingPasswordRule(value) === null && value.length <= 200;
 }
 
+function droppedOneCharacter(previous: string, incoming: string): boolean {
+  if (incoming.length !== previous.length - 1) {
+    return false;
+  }
+  let index = 0;
+  while (index < incoming.length && previous[index] === incoming[index]) {
+    index += 1;
+  }
+  return previous.slice(index + 1) === incoming.slice(index);
+}
+
+function securePasswordEdit(previous: string, incoming: string): string {
+  if (incoming.startsWith(previous)) {
+    return incoming;
+  }
+  if (droppedOneCharacter(previous, incoming)) {
+    return incoming;
+  }
+  if (incoming.length === 0) {
+    return previous;
+  }
+  return previous + incoming;
+}
+
 function digits(value: string): string {
   return value.replace(/\D/g, "").slice(0, 10);
 }
@@ -275,6 +299,7 @@ export default function OnboardScreen() {
   const [fullName, setFullName] = useState("");
   const [enrolment, setEnrolment] = useState("");
   const [password, setPassword] = useState("");
+  const passwordRef = useRef("");
   const [phone, setPhone] = useState("");
   const [guardianName, setGuardianName] = useState("");
   const [guardianPhone, setGuardianPhone] = useState("");
@@ -449,6 +474,21 @@ export default function OnboardScreen() {
       setError(null);
     },
     [phone, phoneField],
+  );
+
+  const onPassword = useCallback(
+    (value: string) => {
+      const previous = passwordRef.current;
+      const next = securePasswordEdit(previous, value);
+      if (next === previous) {
+        return;
+      }
+      passwordRef.current = next;
+      setPassword(next);
+      passwordField.onEdit();
+      setError(null);
+    },
+    [passwordField],
   );
 
   const onGuardianPhone = useCallback(
@@ -676,11 +716,7 @@ export default function OnboardScreen() {
         <TextField
           label="Password"
           value={password}
-          onChangeText={(value) => {
-            setPassword(value);
-            passwordField.onEdit();
-            setError(null);
-          }}
+          onChangeText={onPassword}
           secureTextEntry
           autoComplete="password"
           textContentType="password"
