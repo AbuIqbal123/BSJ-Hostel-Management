@@ -629,7 +629,7 @@ Besides the unique indexes that enforce one username, one open outside outing, a
 
 ## Implementation note (dev)
 
-Self-onboard is specified here and in the HTTP contract. A future pending status is reserved for a later Hall Office activation workflow. Migration `0012_resident_block_rooms.sql` seeds door numbers 1 through each published count for blocks A, B, C, and D. Utility has no seeded rooms. `0013_outing_starts_at.sql` adds nullable `outings.starts_at`. The next free migration number is `0014_…`. Leave this document's version at **0.3.4** until production.
+Self-onboard is specified here and in the HTTP contract. A future pending status is reserved for a later Hall Office activation workflow. Migration `0012_resident_block_rooms.sql` seeds door numbers 1 through each published count for blocks A, B, C, and D. Utility has no seeded rooms. `0013_outing_starts_at.sql` adds nullable `outings.starts_at`. `0014_outing_updated_audit.sql` records an outing change. The next free migration number is `0015_…`. Leave this document's version at **0.3.4** until production.
 
 ## Revisions
 
