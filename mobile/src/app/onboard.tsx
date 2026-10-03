@@ -726,11 +726,10 @@ export default function OnboardScreen() {
 
   const nameNote = shown(fullNameField.visible, personError(fullName, "Enter your full name."));
   const enrolmentNote = shown(enrolmentField.visible, enrolmentError(enrolment));
-  const passwordLengthNote = shown(
+  const passwordNote = shown(
     passwordField.visible,
-    password.length > 200 ? "Use 200 characters or fewer." : null,
+    password.length > 200 ? "Use 200 characters or fewer." : failingPasswordRule(password),
   );
-  const passwordRuleNote = shown(passwordField.visible, failingPasswordRule(password));
   const ownPhoneNote = phoneNote(phone, phoneField.visible);
   const guardianNameNote = shown(
     guardianNameField.visible,
@@ -757,7 +756,7 @@ export default function OnboardScreen() {
           autoComplete="off"
           returnKeyType="next"
         />
-        {nameNote ? <Text style={[text.error, { color: colors.inkSoft }]}>{nameNote}</Text> : null}
+        {nameNote ? <Text style={[text.error, { color: colors.danger }]}>{nameNote}</Text> : null}
       </View>
       <View style={styles.noteBlock}>
         <TextField
@@ -772,7 +771,7 @@ export default function OnboardScreen() {
           returnKeyType="next"
         />
         {enrolmentNote ? (
-          <Text style={[text.error, { color: colors.inkSoft }]}>{enrolmentNote}</Text>
+          <Text style={[text.error, { color: colors.danger }]}>{enrolmentNote}</Text>
         ) : null}
       </View>
       <View style={styles.noteBlock}>
@@ -787,7 +786,7 @@ export default function OnboardScreen() {
           returnKeyType="next"
         />
         {ownPhoneNote ? (
-          <Text style={[text.error, { color: colors.inkSoft }]}>{ownPhoneNote}</Text>
+          <Text style={[text.error, { color: colors.danger }]}>{ownPhoneNote}</Text>
         ) : null}
       </View>
       <View style={styles.noteBlock}>
@@ -801,15 +800,8 @@ export default function OnboardScreen() {
           returnKeyType="go"
           onSubmitEditing={advance}
         />
-        {passwordLengthNote || passwordRuleNote ? (
-          <View style={styles.rules}>
-            {passwordLengthNote ? (
-              <Text style={[text.error, { color: colors.inkSoft }]}>{passwordLengthNote}</Text>
-            ) : null}
-            {passwordRuleNote ? (
-              <Text style={[text.error, { color: colors.inkSoft }]}>{passwordRuleNote}</Text>
-            ) : null}
-          </View>
+        {passwordNote ? (
+          <Text style={[text.error, { color: colors.danger }]}>{passwordNote}</Text>
         ) : null}
       </View>
     </View>
@@ -831,7 +823,7 @@ export default function OnboardScreen() {
           returnKeyType="next"
         />
         {guardianNameNote ? (
-          <Text style={[text.error, { color: colors.inkSoft }]}>{guardianNameNote}</Text>
+          <Text style={[text.error, { color: colors.danger }]}>{guardianNameNote}</Text>
         ) : null}
       </View>
       <View style={styles.noteBlock}>
@@ -847,7 +839,7 @@ export default function OnboardScreen() {
           onSubmitEditing={advance}
         />
         {guardianPhoneNote ? (
-          <Text style={[text.error, { color: colors.inkSoft }]}>{guardianPhoneNote}</Text>
+          <Text style={[text.error, { color: colors.danger }]}>{guardianPhoneNote}</Text>
         ) : null}
       </View>
     </View>
@@ -1012,7 +1004,6 @@ const styles = StyleSheet.create({
   pane: { flexShrink: 0 },
   fields: { gap: 16 },
   noteBlock: { gap: 8 },
-  rules: { gap: 2 },
   action: { marginTop: 16 },
   dial: {
     flexDirection: "row",

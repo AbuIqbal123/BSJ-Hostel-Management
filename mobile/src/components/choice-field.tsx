@@ -144,7 +144,7 @@ export const ChoiceField = memo(function ChoiceField({
         <OptionList items={hits} selectedId={selectedId} onPick={pick} colors={colors} />
       ) : null}
       {hint ? <Text style={[text.body, { color: colors.inkSoft }]}>{hint}</Text> : null}
-      {note ? <Text style={[text.error, { color: colors.inkSoft }]}>{note}</Text> : null}
+      {note ? <Text style={[text.error, { color: colors.danger }]}>{note}</Text> : null}
     </View>
   );
 });
