@@ -4,7 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { formatWhen } from "@/format-when";
-import { useSession, type UpcomingOuting } from "@/session";
+import { outingLocked, useSession, type UpcomingOuting } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
@@ -24,7 +24,7 @@ function OutingRow({ item }: { item: UpcomingOuting }) {
       <Text style={[text.body, { color: colors.inkSoft }]}>{outingWhen(item)}</Text>
     </View>
   );
-  if (!item.canModify) {
+  if (!item.canModify || outingLocked(item.id)) {
     return lines;
   }
   return (
@@ -53,6 +53,7 @@ export default function HomeScreen() {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
   const { user, loadResidentHome } = useSession();
+  const [loaded, setLoaded] = useState(false);
   const [fullName, setFullName] = useState<string | null>(null);
   const [blockName, setBlockName] = useState<string | null>(null);
   const [roomLabel, setRoomLabel] = useState<string | null>(null);
@@ -69,6 +70,7 @@ export default function HomeScreen() {
         setBlockName(result.home.blockName);
         setRoomLabel(result.home.roomLabel);
         setUpcoming(result.home.upcoming);
+        setLoaded(true);
       });
       return () => {
         active = false;
@@ -97,16 +99,19 @@ export default function HomeScreen() {
             </Text>
           ) : null}
           {blockName ? (
-            <Text selectable style={[text.body, { color: colors.ink }]}>
+            <Text selectable style={[text.body, { color: colors.inkSoft }]}>
               {blockName}
             </Text>
           ) : null}
           {roomLabel ? (
-            <Text selectable style={[text.body, { color: colors.ink }]}>
+            <Text selectable style={[text.body, { color: colors.inkSoft }]}>
               {roomLabel}
             </Text>
           ) : null}
         </View>
+        {loaded && upcoming.length === 0 ? (
+          <Text style={[text.body, { color: colors.inkSoft }]}>Nothing upcoming.</Text>
+        ) : null}
         {upcoming.length > 0 ? (
           <View style={styles.list}>
             {upcoming.map((item) => (

@@ -3,19 +3,47 @@ import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import DateTimePicker, {
   DateTimePickerAndroid,
 } from "@react-native-community/datetimepicker";
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  BackHandler,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ChoiceField } from "@/components/choice-field";
+import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
 import { formatWhen, utcInstant } from "@/format-when";
-import { useSession, type DestinationItem } from "@/session";
+import { lockOuting, useSession, type DestinationItem } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
 // Seeded catalog name. backend/app/shared/migrations/0001_create_hall.sql stores 'Other'.
 const OTHER_NAME = "Other";
+
+// hall_day() is the calendar date in hall_settings.timezone, seeded Asia/Kolkata.
+// Ordinary hours are the seeded summer and winter outing clocks. The start is
+// not included. The end is included. A later time is not a permission flow.
+const HALL_ZONE = "Asia/Kolkata";
+const SUMMER_START = "04-01";
+const WINTER_START = "10-01";
+const DAY_START = "06:30";
+const SUMMER_END = "18:30";
+const WINTER_END = "17:30";
+
+const START_FUTURE = "The outing start must be in the future.";
+const RETURN_FUTURE = "The expected return must be in the future.";
+const RETURN_AFTER = "The expected return must be after the start.";
+const SAME_DAY = "An ordinary outing starts and returns on the same hall day.";
+const START_EARLY = "That start is outside ordinary hours.";
+const START_LATE = "That start is outside ordinary hours. Please submit a permission request.";
+const RETURN_EARLY = "That return is outside ordinary hours.";
+const RETURN_LATE = "That return is outside ordinary hours. Please submit a permission request.";
 
 function paramText(value: string | string[] | undefined): string {
   if (Array.isArray(value)) {
@@ -35,14 +63,82 @@ function instant(value: string): Date | null {
   return date;
 }
 
+function hallPart(date: Date, type: Intl.DateTimeFormatPartTypes): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: HALL_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  return parts.find((item) => item.type === type)?.value ?? "";
+}
+
+function hallDay(date: Date): string {
+  return `${hallPart(date, "year")}-${hallPart(date, "month")}-${hallPart(date, "day")}`;
+}
+
+function hallClock(date: Date): string {
+  return `${hallPart(date, "hour")}:${hallPart(date, "minute")}:${hallPart(date, "second")}`;
+}
+
+function monthDay(date: Date): string {
+  return `${hallPart(date, "month")}-${hallPart(date, "day")}`;
+}
+
+function hoursNote(date: Date, kind: "start" | "return"): string | null {
+  const day = monthDay(date);
+  const summer = SUMMER_START <= day && day < WINTER_START;
+  const end = summer ? SUMMER_END : WINTER_END;
+  const clock = hallClock(date);
+  if (clock <= `${DAY_START}:00`) {
+    return kind === "start" ? START_EARLY : RETURN_EARLY;
+  }
+  if (clock > `${end}:00`) {
+    return kind === "start" ? START_LATE : RETURN_LATE;
+  }
+  return null;
+}
+
+function leaveNote(leaveAt: Date | null): string | null {
+  if (!leaveAt) {
+    return null;
+  }
+  if (leaveAt.getTime() <= Date.now()) {
+    return START_FUTURE;
+  }
+  return hoursNote(leaveAt, "start");
+}
+
+function returnNote(leaveAt: Date | null, backBy: Date | null): string | null {
+  if (!backBy) {
+    return null;
+  }
+  if (backBy.getTime() <= Date.now()) {
+    return RETURN_FUTURE;
+  }
+  if (leaveAt && backBy.getTime() <= leaveAt.getTime()) {
+    return RETURN_AFTER;
+  }
+  if (leaveAt && hallDay(leaveAt) !== hallDay(backBy)) {
+    return SAME_DAY;
+  }
+  return hoursNote(backBy, "return");
+}
+
 function WhenField({
   label,
   value,
   onChange,
+  pastNote,
 }: {
   label: string;
   value: Date | null;
   onChange: (date: Date) => void;
+  pastNote: string | null;
 }) {
   const colors = useHallColors();
   const [iosOpen, setIosOpen] = useState(false);
@@ -60,10 +156,16 @@ function WhenField({
         value: seed,
         mode: "date",
         onValueChange: (_event, date) => {
+          if (!date) {
+            return;
+          }
           DateTimePickerAndroid.open({
             value: date,
             mode: "time",
             onValueChange: (_timeEvent, time) => {
+              if (!time) {
+                return;
+              }
               const next = new Date(date);
               next.setHours(time.getHours(), time.getMinutes(), 0, 0);
               onChange(next);
@@ -89,7 +191,11 @@ function WhenField({
           value={value ?? new Date()}
           mode="datetime"
           display="compact"
-          onValueChange={(_event, date) => onChange(date)}
+          onValueChange={(_event, date) => {
+            if (date) {
+              onChange(date);
+            }
+          }}
         />
       ) : (
         <Pressable
@@ -107,6 +213,7 @@ function WhenField({
           </Text>
         </Pressable>
       )}
+      {pastNote ? <Text style={[text.error, { color: colors.danger }]}>{pastNote}</Text> : null}
     </View>
   );
 }
@@ -135,6 +242,11 @@ export default function PlanScreen() {
   const pending = useRef(false);
   const seeded = useRef<string | null>(null);
   const seenOuting = useRef<string>("");
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => dismissOpenChoice());
+    return () => subscription.remove();
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -185,6 +297,7 @@ export default function PlanScreen() {
         }
         return;
       }
+      setLoadError(null);
       setPlaces(result.items);
     });
     return () => {
@@ -235,6 +348,8 @@ export default function PlanScreen() {
 
   const chosen = places?.find((item) => item.id === destinationId) ?? null;
   const other = chosen?.name === OTHER_NAME;
+  const leaveProblem = leaveNote(leaveAt);
+  const returnProblem = returnNote(leaveAt, backBy);
 
   const backHome = useCallback(() => {
     router.setParams({ outing: "", place: "", startsAt: "", expectedReturnAt: "" });
@@ -258,6 +373,11 @@ export default function PlanScreen() {
     if (!backBy) {
       setPlanned(false);
       setError("Choose when you will be back.");
+      return;
+    }
+    if (leaveNote(leaveAt) || returnNote(leaveAt, backBy)) {
+      setPlanned(false);
+      setError(null);
       return;
     }
     const placeText = where.trim();
@@ -311,20 +431,41 @@ export default function PlanScreen() {
     where,
   ]);
 
-  const cancel = useCallback(async () => {
+  const confirmCancel = useCallback(async () => {
     if (pending.current || !editing) {
       return;
     }
     pending.current = true;
-    const message = await cancelOuting(outingId);
+    const failure = await cancelOuting(outingId);
     pending.current = false;
-    if (message) {
-      setPlanned(false);
-      setError(message);
+    if (!failure) {
+      backHome();
       return;
     }
-    backHome();
+    if (failure.code === "outing_window_open" || failure.code === "already_outside") {
+      lockOuting(outingId);
+      setError(null);
+      backHome();
+      return;
+    }
+    setPlanned(false);
+    setError(failure.message);
   }, [backHome, cancelOuting, editing, outingId]);
+
+  const cancel = useCallback(() => {
+    if (pending.current || !editing) {
+      return;
+    }
+    Alert.alert("Cancel outing", undefined, [
+      { text: "Back", style: "cancel" },
+      {
+        text: "Cancel outing",
+        onPress: () => {
+          void confirmCancel();
+        },
+      },
+    ]);
+  }, [confirmCancel, editing]);
 
   const frame = {
     paddingTop: insets.top + 28,
@@ -340,6 +481,7 @@ export default function PlanScreen() {
       keyboardDismissMode="interactive"
       showsVerticalScrollIndicator={false}
     >
+      <Pressable style={styles.dismiss} onPress={dismissOpenChoice}>
       {!editing && gate === "out" ? (
         <Text style={[text.body, { color: colors.ink }]}>You are out.</Text>
       ) : null}
@@ -382,6 +524,7 @@ export default function PlanScreen() {
             <WhenField
               label="Leave at"
               value={leaveAt}
+              pastNote={leaveProblem}
               onChange={(date) => {
                 setLeaveAt(date);
                 clearResult();
@@ -390,6 +533,7 @@ export default function PlanScreen() {
             <WhenField
               label="Back by"
               value={backBy}
+              pastNote={returnProblem}
               onChange={(date) => {
                 setBackBy(date);
                 clearResult();
@@ -426,9 +570,7 @@ export default function PlanScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Cancel outing"
-                onPress={() => {
-                  void cancel();
-                }}
+                onPress={cancel}
               >
                 <Text style={[text.body, { color: colors.inkSoft }]}>Cancel outing</Text>
               </Pressable>
@@ -448,6 +590,7 @@ export default function PlanScreen() {
           </View>
         </View>
       ) : null}
+      </Pressable>
     </ScrollView>
   );
 }
@@ -459,6 +602,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     gap: 16,
   },
+  dismiss: { flexGrow: 1, gap: 16 },
   block: { gap: 28 },
   fields: { gap: 16 },
   field: { gap: 8 },
