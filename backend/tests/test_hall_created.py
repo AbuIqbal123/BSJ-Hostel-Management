@@ -13,7 +13,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "hall-inventory.json"
-SEEDED_TABLES = {"hall_settings", "blocks", "destinations"}
+SEEDED_TABLES = {"hall_settings", "blocks", "destinations", "rooms"}
 BOOLEAN_COLUMNS = {"is_active", "is_other"}
 
 
@@ -82,7 +82,7 @@ def read_inventory(path: Path) -> dict:
         empty = {
             table: connection.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0]
             for table in tables
-            if table not in SEEDED_TABLES and table != "rooms"
+            if table not in SEEDED_TABLES
         }
         return {
             "user_version": user_version,

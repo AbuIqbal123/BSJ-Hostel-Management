@@ -17,6 +17,7 @@ from app.shared.db import get_connection
 from app.shared.errors import ApiError
 from app.shared.auth.rate_limit import client_key, login_limiter, refresh_limiter
 from app.staff.office.records import new_hall_pass_token, room_has_capacity
+from app.shared.auth.onboard_catalog import RESIDENT_BLOCK_CODES
 from app.shared.auth.password_rules import IndianMobile, StrongPassword
 from app.shared.auth.security import (
     ACCESS_TOKEN_SECONDS,
@@ -461,24 +462,39 @@ class OnboardBlockOption(BaseModel):
 @router.get("/onboard/options")
 def onboard_options(request: Request, connection: ConnectionDep) -> list[OnboardBlockOption]:
     login_limiter.check(client_key(request.client.host if request.client else None))
-    rows = connection.execute(
-        """
-        SELECT blocks.id AS block_id, blocks.name AS block_name, rooms.id AS room_id, rooms.label AS room_label
+    placeholders = ", ".join("?" for _ in RESIDENT_BLOCK_CODES)
+    block_rows = connection.execute(
+        f"""
+        SELECT id, code, name
         FROM blocks
-        JOIN rooms ON rooms.block_id = blocks.id
-        WHERE blocks.is_active = 1
-          AND rooms.is_active = 1
-          AND NOT EXISTS (
-            SELECT 1 FROM residents WHERE residents.room_id = rooms.id
-          )
-        ORDER BY blocks.name, rooms.label
-        """
+        WHERE code IN ({placeholders})
+        ORDER BY code
+        """,
+        RESIDENT_BLOCK_CODES,
     ).fetchall()
     blocks: list[OnboardBlockOption] = []
-    current: OnboardBlockOption | None = None
-    for row in rows:
-        if current is None or current.id != row["block_id"]:
-            current = OnboardBlockOption(id=row["block_id"], name=row["block_name"], rooms=[])
-            blocks.append(current)
-        current.rooms.append(OnboardRoomOption(id=row["room_id"], label=row["room_label"]))
+    for block in block_rows:
+        room_rows = connection.execute(
+            """
+            SELECT rooms.id AS room_id, rooms.label AS room_label
+            FROM rooms
+            WHERE rooms.block_id = ?
+              AND rooms.is_active = 1
+              AND NOT EXISTS (
+                SELECT 1 FROM residents WHERE residents.room_id = rooms.id
+              )
+            ORDER BY CAST(rooms.number AS INTEGER), rooms.number
+            """,
+            (block["id"],),
+        ).fetchall()
+        blocks.append(
+            OnboardBlockOption(
+                id=block["id"],
+                name=block["name"],
+                rooms=[
+                    OnboardRoomOption(id=row["room_id"], label=row["room_label"])
+                    for row in room_rows
+                ],
+            )
+        )
     return blocks

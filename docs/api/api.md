@@ -208,7 +208,7 @@ Body: [Ready](#schema-ready).
 ```json
 {
   "status": "ready",
-  "user_version": 11
+  "user_version": 12
 }
 ```
 
@@ -526,9 +526,11 @@ an **active** resident from the phone. Required fields: `full_name`,
 `enrolment_number`, `password`, `phone`, `block_id`, `room_id`,
 `guardian_name`, and `guardian_phone`. Optional: `course`.
 
-She chooses the block and room on this form. The account can sign in
-immediately at `POST /api/v1/auth/login`; this call does not return
-access or refresh tokens. A Hall Office activation workflow is deferred.
+She chooses the block and room on this form from the seeded resident
+inventory returned by `GET /api/v1/auth/onboard/options`. The account can
+sign in immediately at `POST /api/v1/auth/login`; this call does not
+return access or refresh tokens. A Hall Office activation workflow is
+deferred.
 
 Enrolment is unique hall-wide (ignoring capitals) and becomes the
 username. Staff cannot use this path. Rate-limited like sign-in. A taken
@@ -640,14 +642,19 @@ Body: [ErrorResponse](#schema-errorresponse).
 **Who.** anyone (no token). No token.
 
 Caller: anyone (no token). Public list for the resident self-onboard
-form only. Returns active blocks that still have at least one active
-room with no resident assigned. A room that already has a resident is
-omitted, even when a bed remains. Inactive blocks and inactive rooms
-are omitted. A block with no remaining room is omitted.
+form only. Returns the four resident blocks A, B, C, and D (by code),
+in that order. Utility and any other non-resident block are never
+included. A block stays in the list even when every room is taken; its
+`rooms` array may be empty.
+
+Each room entry comes from a stored room row. Only active rooms with no
+resident assigned are listed. A room that already has a resident is
+omitted, even when a bed remains. Inactive rooms are omitted. The
+response does not invent room rows.
 
 Each block is `id` and `name` only. Each room is `id` and `label` only.
-Blocks are ordered by name. Rooms inside a block are ordered by label.
-This is not the provost block or room record.
+Rooms inside a block are ordered by door number. This is not the
+provost block or room record.
 
 Rate-limited like sign-in.
 
@@ -666,12 +673,37 @@ No fields.
 ```json
 [
   {
+    "id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+    "name": "Block-A",
+    "rooms": [
+      {
+        "id": "70ca72d7-95e1-52c9-865e-3663cddb45e5",
+        "label": "A-1"
+      }
+    ]
+  },
+  {
     "id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
     "name": "Block-B",
     "rooms": [
       {
-        "id": "d4400000-0000-4000-8000-000000000204",
-        "label": "B-204"
+        "id": "b9d8a3e2-9c67-50e2-a1a4-8f241f823ab1",
+        "label": "B-1"
+      }
+    ]
+  },
+  {
+    "id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+    "name": "Block-C",
+    "rooms": []
+  },
+  {
+    "id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+    "name": "Block-D",
+    "rooms": [
+      {
+        "id": "df9f29b7-4c46-5373-9de0-36cfcf8b9338",
+        "label": "D-40"
       }
     ]
   }
@@ -4975,7 +5007,7 @@ Each JSON object used above. An operation section already shows the fields for i
 |---|---|---|---|
 | `id` | yes | uuid |  |
 | `name` | yes | string |  |
-| `rooms` | yes | list of [OnboardRoomOption](#schema-onboardroomoption) |  |
+| `rooms` | yes | list of [OnboardRoomOption](#schema-onboardroomoption) | Active unassigned rooms in this block. May be empty when every room is taken or inactive. |
 
 ### <a id="schema-onboardroomoption"></a>OnboardRoomOption
 

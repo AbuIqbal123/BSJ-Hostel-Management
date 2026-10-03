@@ -1,10 +1,1530 @@
 {
   "rooms": [
     {
+      "id": "70ca72d7-95e1-52c9-865e-3663cddb45e5",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "1",
+      "label": "A-1",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "d95e43b4-14ef-5f5a-a76d-a7a2355fb894",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "10",
+      "label": "A-10",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "0e33893b-fec2-5514-b649-eac8856da20b",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "11",
+      "label": "A-11",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "a6f0f708-bafe-5570-a79c-46f67b7da835",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "12",
+      "label": "A-12",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "061edd13-689c-5d4d-815a-036daf76e639",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "13",
+      "label": "A-13",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "d8ea5e0b-5a08-58b1-bc43-177f624dacf9",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "14",
+      "label": "A-14",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "c18827a0-7a32-5d6a-a8b8-7d00c1ce5434",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "15",
+      "label": "A-15",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "8197cdc9-57d7-511e-9507-a5ce5d47be03",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "16",
+      "label": "A-16",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "7de4613b-8709-58b3-b4c3-ee45051d3122",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "17",
+      "label": "A-17",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "4b050436-4528-5da1-8c68-973c95003e5e",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "18",
+      "label": "A-18",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "27b543e8-5aee-5869-935c-204084732631",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "19",
+      "label": "A-19",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "34efc17c-5abf-5ee4-a326-cd2dac6394ca",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "2",
+      "label": "A-2",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "9b3934b0-1cfc-586d-91fb-e63aeb5fcae3",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "20",
+      "label": "A-20",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "b8cb4235-c5a7-59de-977f-ad6008e8e9a6",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "21",
+      "label": "A-21",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "66c3d5bd-997d-5a13-997e-fc11fc4fcfb1",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "22",
+      "label": "A-22",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "c74e0658-7c71-5108-b808-42fda2ea367c",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "23",
+      "label": "A-23",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "8dd855d6-aa5c-5021-813a-853ec12e8d59",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "24",
+      "label": "A-24",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "4800f25f-110c-5de5-a82d-80c0bccca619",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "25",
+      "label": "A-25",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "c830a2a7-7e77-5873-a438-47b47cc61f0a",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "26",
+      "label": "A-26",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "7f3c3e15-6e14-5112-8013-7a31f6bdcebb",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "27",
+      "label": "A-27",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "ec7f2817-9df6-5f82-9b34-e2ecd499663a",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "28",
+      "label": "A-28",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "8c5cb26b-7152-5d98-af98-99dad020ad0d",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "29",
+      "label": "A-29",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "ab2f164d-14da-5aa8-8b39-a59621309f4a",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "3",
+      "label": "A-3",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "83311d05-b174-5ba7-bf74-dc961d22380d",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "30",
+      "label": "A-30",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "afc91270-dbff-59c4-9d05-97c766a4a296",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "31",
+      "label": "A-31",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "a4104f1d-0190-5f11-b8de-bb20f83c21c2",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "32",
+      "label": "A-32",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "5c895e76-ab14-55ef-a7eb-404cc0f148de",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "33",
+      "label": "A-33",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "7ebe5901-8c93-5894-a53f-f385f2b0b95c",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "34",
+      "label": "A-34",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "113a64a5-5abd-538c-9a8d-cef148621c42",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "35",
+      "label": "A-35",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "94f426e5-bfd0-519f-ad04-55a81156bd9d",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "36",
+      "label": "A-36",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "1e0aae85-3a19-5604-8306-154fc31768db",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "37",
+      "label": "A-37",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "9c6fc335-8b03-5d08-b550-fffd3d5eec08",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "38",
+      "label": "A-38",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "de62f86a-a2a9-5848-a4f5-8fcf2e46b273",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "39",
+      "label": "A-39",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "c190698d-eed2-5863-8d17-4062eabeba76",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "4",
+      "label": "A-4",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "c54b23a8-5a5c-5757-80af-3b7724da4788",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "40",
+      "label": "A-40",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "0b6467c7-9b21-5742-ac3a-a9e8575c04d7",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "41",
+      "label": "A-41",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "5118f755-b4bd-5dc5-9aff-f0889e7651fe",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "42",
+      "label": "A-42",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "fb4f161a-fde7-5e02-8b21-c508266ae159",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "43",
+      "label": "A-43",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "36799649-c32f-5779-8bc5-aeb32c6ff49e",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "44",
+      "label": "A-44",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "10236422-4257-5034-8fa0-ecfc7c54ca54",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "45",
+      "label": "A-45",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "268ecb07-8a56-566f-8560-051c24636304",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "46",
+      "label": "A-46",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "667da921-8714-5a0f-8e5b-7574b3cebd1e",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "47",
+      "label": "A-47",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "4cd8e6c3-9c7e-526e-8ace-39d54f66d3d9",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "48",
+      "label": "A-48",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "d7a2dbad-571b-504d-96f2-42bdc7516714",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "49",
+      "label": "A-49",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "ab8fbfbc-ee11-5312-9afd-d5f964b8eee4",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "5",
+      "label": "A-5",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "05168b94-2da3-5401-862c-81f941bdbd76",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "50",
+      "label": "A-50",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "e38c6a8c-6fd6-5132-bea5-4ca5e697b9e4",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "6",
+      "label": "A-6",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "0ed37d10-a1c7-555a-85f6-b5d96d891c77",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "7",
+      "label": "A-7",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "7d011ca3-f7c8-59c6-afb3-5c4025497d00",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "8",
+      "label": "A-8",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "64bf30e4-0b46-5bd9-b085-4d9872c65eb2",
+      "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+      "number": "9",
+      "label": "A-9",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "b9d8a3e2-9c67-50e2-a1a4-8f241f823ab1",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "1",
+      "label": "B-1",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "ac1a6e22-033f-5cd6-941f-6ce5aaf22109",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "10",
+      "label": "B-10",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "6451371a-d5f0-578a-9d0d-a575e109ea3f",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "11",
+      "label": "B-11",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "bf6dd9fa-aa9d-5d63-83fb-e034630c9833",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "12",
+      "label": "B-12",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "776e613d-7d9e-5c0a-8d0d-b1a128db6d26",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "13",
+      "label": "B-13",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "c00ca021-6f70-528a-8166-47f011b8d186",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "14",
+      "label": "B-14",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "f6fb6e31-42dc-5b33-91d7-6bda2e8395b3",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "15",
+      "label": "B-15",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "0d416cef-e471-5984-a7bc-80ce854c103c",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "16",
+      "label": "B-16",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "535d4c0c-eb09-5ac1-af1a-d723698c7dad",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "17",
+      "label": "B-17",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "352e47b7-ca45-56de-ac61-716c2f531b50",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "18",
+      "label": "B-18",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "74f9b95d-283c-50b3-8cd5-828983dfa978",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "19",
+      "label": "B-19",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "54fd29d4-3738-5e3f-bd7c-33bba2afe41c",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "2",
+      "label": "B-2",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "c76f6ff1-2095-5adb-a6a2-9222a3ba3df9",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "20",
+      "label": "B-20",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
       "id": "d4400000-0000-4000-8000-000000000004",
       "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
       "number": "204",
       "label": "B-204",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "f8b1fd47-0c07-505f-9b81-5d113ff05158",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "21",
+      "label": "B-21",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "f80dac59-67f8-5662-aad0-75f52ce35d1f",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "22",
+      "label": "B-22",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "e2963fd6-2dc9-5c7e-bedf-23dbd8ed96be",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "23",
+      "label": "B-23",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "3427544f-ddd6-5e3a-acfd-8fa1dcb2e7b5",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "24",
+      "label": "B-24",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "ddc0f4d8-5165-53f8-8b3b-03fbf2dff7bc",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "25",
+      "label": "B-25",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "6d23a145-6e98-5c00-b2ce-c86b0d9f5144",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "26",
+      "label": "B-26",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "01a5db18-e5c5-518a-bea3-29a01d54fcfc",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "27",
+      "label": "B-27",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "e31b3f2f-5976-5a2e-809f-a713b971b383",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "28",
+      "label": "B-28",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "99d68117-67d8-554a-9ddb-85458ddb680e",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "29",
+      "label": "B-29",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "4ad036f6-083b-5a19-9efd-22350494579d",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "3",
+      "label": "B-3",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "89f822fa-cc60-5f1b-9cd8-ebdbc6f0a03b",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "30",
+      "label": "B-30",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "2253c46e-042f-519a-816e-473e563b3599",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "31",
+      "label": "B-31",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "d24980b7-09e9-5cc2-b7cb-d3a959554b29",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "32",
+      "label": "B-32",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "3cd293b3-fed2-5cc5-a995-d899b40e3abf",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "33",
+      "label": "B-33",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "0fb5d968-9ebc-5e5b-a033-e09fb3c599e7",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "34",
+      "label": "B-34",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "8960c118-4dac-55e3-99a5-b6dbd8075079",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "35",
+      "label": "B-35",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "9d0dae64-05a7-5ebe-879e-7cf5a00f8956",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "36",
+      "label": "B-36",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "56842fae-ea00-5682-b764-ce5685159eec",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "37",
+      "label": "B-37",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "459f9eb3-7f2d-53e8-935d-1c2efc0a20a1",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "38",
+      "label": "B-38",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "accb8ad0-892a-5c61-b664-d0823f1c5f29",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "39",
+      "label": "B-39",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "8dc4c908-e18e-50c8-87d3-f61a11d1ebbf",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "4",
+      "label": "B-4",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "f2144e96-d412-5a49-92e0-7c1167bc93c0",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "40",
+      "label": "B-40",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "732f5948-38f7-5315-be52-2f6ebe08938e",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "41",
+      "label": "B-41",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "404789fd-beee-5bfa-b424-5eb60f772413",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "42",
+      "label": "B-42",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "27d72f55-6b6c-573b-9334-c51d0ac25229",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "43",
+      "label": "B-43",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "868fb807-8b7e-5c4e-9a12-656f2ae33389",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "44",
+      "label": "B-44",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "75d3423d-8ba9-5134-adb7-63f99511db2b",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "45",
+      "label": "B-45",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "95a98f65-35e8-5fff-95bc-9d05a4432e47",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "46",
+      "label": "B-46",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "48055397-3280-5b4e-b77f-79bf790d3d14",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "47",
+      "label": "B-47",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "c5290adc-f0fa-50b8-a02a-0b1341986494",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "48",
+      "label": "B-48",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "04334fff-2c34-5fbf-b60f-898ff567cb1b",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "49",
+      "label": "B-49",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "ad4a91e7-4189-53d7-a7db-7e39c979e26c",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "5",
+      "label": "B-5",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "05d3a435-fb21-5e6e-97d4-9d5bdfb08786",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "50",
+      "label": "B-50",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "84c8009c-c93b-5c23-a7cf-5253ce48c615",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "51",
+      "label": "B-51",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "5f5a760d-de2f-5de1-b4eb-ce3b7a38173a",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "52",
+      "label": "B-52",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "24466c89-1572-5911-998d-7a491e542975",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "53",
+      "label": "B-53",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "f6b9de93-e25b-53d6-8b76-b16485f1e226",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "54",
+      "label": "B-54",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "a1ef1c88-be42-50cd-8906-d602fab552e5",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "55",
+      "label": "B-55",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "7206719e-fb41-5e04-bf42-c0dc1625c34c",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "56",
+      "label": "B-56",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "bb26a647-a299-556b-b264-96e76591d2a9",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "57",
+      "label": "B-57",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "5954bbef-0578-53e8-9b12-8be3ce221acc",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "58",
+      "label": "B-58",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "4d662030-b4be-50e5-aa16-ec9379330b45",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "6",
+      "label": "B-6",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "77ea7700-5d24-5ee7-9886-8a443c02d77e",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "7",
+      "label": "B-7",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "1e64b927-a33c-53f2-b648-7e4cde42f906",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "8",
+      "label": "B-8",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "eec16eb6-7943-5891-a8fd-999e63ec8b6d",
+      "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+      "number": "9",
+      "label": "B-9",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "ae562240-8ff9-5ad7-b568-2bb9c1aad6fc",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "1",
+      "label": "C-1",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "4dd74b3a-cb89-58a6-8871-7b848439a1be",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "10",
+      "label": "C-10",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "29c775d0-198e-5736-b014-b19f3ecaecd7",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "11",
+      "label": "C-11",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "09dbcb2f-047c-5358-a499-e79306b8e626",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "12",
+      "label": "C-12",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "dfbfe63c-f4b6-54ac-8c18-59c8e9223d09",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "13",
+      "label": "C-13",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "e943079c-af8a-5b62-a060-30e239e6dd4b",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "14",
+      "label": "C-14",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "d4617bed-3459-5f98-85a4-ebbe7a1abb7b",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "15",
+      "label": "C-15",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "cfb4ef03-8bab-51b9-b3e3-7f6bf3ac7bec",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "16",
+      "label": "C-16",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "642a14e0-d9ac-5b95-8d49-a5831ac6cb68",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "17",
+      "label": "C-17",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "fc893203-1104-5179-99ee-4b600e5bff29",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "18",
+      "label": "C-18",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "1eb1babb-7881-5702-9fb1-2bf267d8aa23",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "19",
+      "label": "C-19",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "fa7d96f8-15d9-5499-a0a1-25faa1f6b45d",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "2",
+      "label": "C-2",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "c7e549be-e01f-583e-9792-1c581b964a21",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "20",
+      "label": "C-20",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "811e6dbd-17cd-5ec0-a9c7-15cc19066d9b",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "21",
+      "label": "C-21",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "bef316c0-0d9e-5e48-8d9a-944892478a20",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "22",
+      "label": "C-22",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "7cfdd2bf-e529-54b7-8ffa-5e8617e45e96",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "23",
+      "label": "C-23",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "767721bd-06dd-5206-b841-5d2223915f14",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "24",
+      "label": "C-24",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "aac93d08-2e22-570c-b7e7-166cf2f0fc5d",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "25",
+      "label": "C-25",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "0521d05f-e160-5c8f-95e1-64c3d9ed92bf",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "26",
+      "label": "C-26",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "c78c17bc-4a1a-50b1-bac1-e1f845142691",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "27",
+      "label": "C-27",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "33cac05e-73a5-5310-ba6a-37bf9f3fa3af",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "28",
+      "label": "C-28",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "13325b05-2591-54f1-a4ce-717bbd3b4c7b",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "29",
+      "label": "C-29",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "fbe4cfcb-1978-57db-8382-baf086f0ee6f",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "3",
+      "label": "C-3",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "241b49fe-bed1-5c03-a5f2-632896c78762",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "30",
+      "label": "C-30",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "0889ea61-fe0f-5f43-86ba-a264ab0a9eb5",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "31",
+      "label": "C-31",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "741a1529-75f9-5539-97ad-0c10d02f2e06",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "32",
+      "label": "C-32",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "a8bd6e6e-0526-57a5-9693-ca5819094866",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "33",
+      "label": "C-33",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "6dd93dcc-98c0-5ffd-9ad8-eec72ffb9fc2",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "34",
+      "label": "C-34",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "52a120da-08b5-5801-8d00-97bbede132e7",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "35",
+      "label": "C-35",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "3d5a0fbe-b73c-5912-b170-70a7ece50337",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "36",
+      "label": "C-36",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "0dc74dd8-6c98-5284-aeed-748b0ed5195e",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "37",
+      "label": "C-37",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "8ba7e997-617b-5536-a536-151e8a390f97",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "38",
+      "label": "C-38",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "c2c3d991-3763-50e6-8849-70d715fce3b2",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "39",
+      "label": "C-39",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "e9ea4c80-caf0-527d-954d-2f04eb83cc8f",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "4",
+      "label": "C-4",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "4ff4543b-23d2-54b8-995f-a2d165891429",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "40",
+      "label": "C-40",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "49bae312-1f2f-57ef-b93f-9f29ca01c1a7",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "41",
+      "label": "C-41",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "59f99a71-7897-5ece-bf77-b4fba160ce4d",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "42",
+      "label": "C-42",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "8c6f4d22-e3fb-597f-bcb8-c7c53e476eeb",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "5",
+      "label": "C-5",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "8a7954f4-f621-5936-9c8d-83939759864e",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "6",
+      "label": "C-6",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "5e387de7-0ee2-50fa-9d95-e94d25b25320",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "7",
+      "label": "C-7",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "a24fa267-955e-5a75-a050-91264905e776",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "8",
+      "label": "C-8",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "e39df508-54c6-5916-ad73-67fbbbbd3860",
+      "block_id": "dad52ee9-0b9a-53e2-a792-1dbee295ada9",
+      "number": "9",
+      "label": "C-9",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "d1a298da-fa7e-5567-8d55-7aee0382b950",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "1",
+      "label": "D-1",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "b10338de-9ecf-508f-8582-c89eba0d4573",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "10",
+      "label": "D-10",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "f3ed608f-ceff-53a1-8e4c-663edbe10a1c",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "11",
+      "label": "D-11",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "72626d83-a904-52d0-a134-8e46ce5f2023",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "12",
+      "label": "D-12",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "2e537c41-6815-5cad-924a-9fe5764bb10c",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "13",
+      "label": "D-13",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "be8268da-f60f-5ab2-811c-504897bac82c",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "14",
+      "label": "D-14",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "e34628e7-f9f8-5012-a95a-0dc36a129dcb",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "15",
+      "label": "D-15",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "676c81aa-89b2-5809-86fd-7cb3cae4dff5",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "16",
+      "label": "D-16",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "c46b520b-950f-5b3c-a515-abfdab5da348",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "17",
+      "label": "D-17",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "25369403-b8dc-5c05-8e29-0ba53815256f",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "18",
+      "label": "D-18",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "6b67408d-13c9-5cf2-81b2-e961bf408eef",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "19",
+      "label": "D-19",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "a059ba82-6e59-53af-b847-bff5e206df32",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "2",
+      "label": "D-2",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "6863630c-9b95-57b8-8f96-3432ff895140",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "20",
+      "label": "D-20",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "965cee9d-6b32-514c-b812-d7be3d109264",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "21",
+      "label": "D-21",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "9db9f4d6-3aec-5068-accf-974d25e4b916",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "22",
+      "label": "D-22",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "5884c165-7e3b-521b-94ee-6ea800e9a12d",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "23",
+      "label": "D-23",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "529d75f4-037f-53d7-a1f0-a92c0c4d72f9",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "24",
+      "label": "D-24",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "59266c66-23bc-54f1-9c7b-38d3037b6d44",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "25",
+      "label": "D-25",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "eb9b471b-693c-5e77-8217-5158096688bf",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "26",
+      "label": "D-26",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "bc9c1292-4475-566f-b5e5-69126b9f7ba3",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "27",
+      "label": "D-27",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "495751d5-ac5a-5a76-868b-4e43644a0020",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "28",
+      "label": "D-28",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "12560b1e-625f-5ce3-853c-293ee6a8f824",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "29",
+      "label": "D-29",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "409407c4-f9cd-5fc1-9ac9-00171b14d5e1",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "3",
+      "label": "D-3",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "8c35a916-d8f2-5c4a-b165-9884734fef26",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "30",
+      "label": "D-30",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "aea02e7a-2e32-55ae-a1f6-a4cc80edc110",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "31",
+      "label": "D-31",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "e7320cbb-ed0f-5e2e-939f-db23e1c75cff",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "32",
+      "label": "D-32",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "c667f0e3-15d8-55e1-96dd-194aa7731e6a",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "33",
+      "label": "D-33",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "0488d5e6-537c-5f8c-ab93-7813d74fe95f",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "34",
+      "label": "D-34",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "3b09be7f-b824-5e3f-90eb-7110e37db86f",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "35",
+      "label": "D-35",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "bcd48a44-f324-5d4f-9ab0-18a6cfddf709",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "36",
+      "label": "D-36",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "6498c71d-92c9-5a42-907c-c3bd45e0abe3",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "37",
+      "label": "D-37",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "ae4f9e24-f8f7-5175-a03f-88992781b764",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "38",
+      "label": "D-38",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "a1bb2bc7-2e59-54e4-a468-7d809ad09659",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "39",
+      "label": "D-39",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "5eea8ffb-301a-5653-8d20-ef6610775f5e",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "4",
+      "label": "D-4",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "df9f29b7-4c46-5373-9de0-36cfcf8b9338",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "40",
+      "label": "D-40",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "20846221-1b59-5fc3-b279-31cc9a42b770",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "5",
+      "label": "D-5",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "88d5e0e9-3c33-5406-becf-a068e5047746",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "6",
+      "label": "D-6",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "554f3ea3-7e7d-5fce-9a50-5724e500e159",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "7",
+      "label": "D-7",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "0c022424-2bf4-57a3-920f-bca5d555df12",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "8",
+      "label": "D-8",
+      "bed_count": 2,
+      "is_active": true
+    },
+    {
+      "id": "deb60acc-c0c5-5643-babf-e22a67e7182f",
+      "block_id": "f75a0c4d-cf9e-5b03-9ba5-13f77337453d",
+      "number": "9",
+      "label": "D-9",
       "bed_count": 2,
       "is_active": true
     }
