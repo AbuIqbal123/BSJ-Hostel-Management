@@ -123,34 +123,107 @@ def derive_bucket(
     return "should_have_left"
 
 
-TERMINAL_BUCKETS: frozenset[GuestBucket] = frozenset({"cancelled", "rejected"})
+def _bucket_sql(
+    bucket: GuestBucket,
+    today: str,
+) -> tuple[str, list[object]]:
+    """SQL predicate matching derive_bucket for one filter value.
+
+    Staff list: bucket=in_hall is the dining set (in_hall + should_have_left).
+    """
+    approved_open = (
+        "guest_stays.status = 'approved' "
+        "AND guest_stays.departed_at IS NULL"
+    )
+    if bucket == "pending":
+        return "guest_stays.status = 'pending'", []
+    if bucket == "rejected":
+        return "guest_stays.status = 'rejected'", []
+    if bucket == "cancelled":
+        return "guest_stays.status = 'cancelled'", []
+    if bucket == "departed":
+        return (
+            "("
+            "guest_stays.status = 'departed' "
+            "OR ("
+            "guest_stays.departed_at IS NOT NULL "
+            "AND guest_stays.status NOT IN ('pending', 'rejected', 'cancelled')"
+            ")"
+            ")",
+            [],
+        )
+    if bucket == "upcoming":
+        return (
+            f"{approved_open} "
+            "AND guest_stays.arrived_at IS NULL "
+            "AND ? < guest_stays.guest_start_date",
+            [today],
+        )
+    if bucket == "expected":
+        return (
+            f"{approved_open} "
+            "AND guest_stays.arrived_at IS NULL "
+            "AND guest_stays.payment_status = 'paid' "
+            "AND guest_stays.guest_start_date <= ? "
+            "AND ? <= guest_stays.guest_end_date",
+            [today, today],
+        )
+    if bucket == "not_expected":
+        return (
+            f"{approved_open} "
+            "AND guest_stays.arrived_at IS NULL "
+            "AND guest_stays.guest_start_date <= ? "
+            "AND ("
+            "guest_stays.payment_status != 'paid' "
+            "OR guest_stays.guest_end_date < ?"
+            ")",
+            [today, today],
+        )
+    if bucket == "in_hall":
+        # Dining set: arrived, not departed (includes should_have_left).
+        return (
+            f"{approved_open} AND guest_stays.arrived_at IS NOT NULL",
+            [],
+        )
+    if bucket == "should_have_left":
+        return (
+            f"{approved_open} "
+            "AND guest_stays.arrived_at IS NOT NULL "
+            "AND guest_stays.guest_end_date < ?",
+            [today],
+        )
+    raise AssertionError(f"unexpected guest bucket: {bucket}")
 
 
-def bucket_matches(filter_bucket: GuestBucket | None, actual: GuestBucket) -> bool:
-    """Staff list: `in_hall` is the dining set (in_hall + should_have_left)."""
-    if filter_bucket is None:
-        return True
-    if filter_bucket == "in_hall":
-        return actual in {"in_hall", "should_have_left"}
-    return actual == filter_bucket
-
-
-def stay_matches_list_filters(
+def _list_filter_sql(
     *,
-    filter_bucket: GuestBucket | None,
-    actual: GuestBucket,
+    host_resident_id: str | None,
+    bucket: GuestBucket | None,
     include_terminal: bool,
-) -> bool:
-    """Apply bucket filter, then optionally drop terminal buckets for staff queue."""
-    if not bucket_matches(filter_bucket, actual):
-        return False
-    if include_terminal:
-        return True
-    if actual in TERMINAL_BUCKETS:
-        # Explicit bucket=cancelled|rejected opts in for that one terminal subset.
-        return filter_bucket in TERMINAL_BUCKETS
-    return True
+    today: str,
+) -> tuple[str, list[object]]:
+    clauses: list[str] = []
+    params: list[object] = []
+    if host_resident_id is not None:
+        clauses.append("guest_stays.host_resident_id = ?")
+        params.append(host_resident_id)
+    if bucket is not None:
+        clause, bucket_params = _bucket_sql(bucket, today)
+        clauses.append(clause)
+        params.extend(bucket_params)
+    elif not include_terminal:
+        # Explicit bucket=cancelled|rejected opts in; default staff queue hides them.
+        clauses.append("guest_stays.status NOT IN ('cancelled', 'rejected')")
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    return where, params
 
+
+_STAY_FROM = """
+FROM guest_stays
+JOIN users AS host ON host.id = guest_stays.host_resident_id
+JOIN residents ON residents.user_id = guest_stays.host_resident_id
+JOIN rooms ON rooms.id = residents.room_id
+"""
 
 _STAY_SELECT = """
 SELECT
@@ -177,11 +250,7 @@ SELECT
   guest_stays.arrived_at,
   guest_stays.departed_at,
   guest_stays.created_at
-FROM guest_stays
-JOIN users AS host ON host.id = guest_stays.host_resident_id
-JOIN residents ON residents.user_id = guest_stays.host_resident_id
-JOIN rooms ON rooms.id = residents.room_id
-"""
+""" + _STAY_FROM
 
 
 def _body_from_row(row: sqlite3.Row, today: str) -> GuestStayBody:
@@ -269,36 +338,33 @@ def list_guest_stays(
     bucket: GuestBucket | None = None,
     include_terminal: bool = True,
 ) -> GuestStayPageBody:
-    where = ""
-    params: list[object] = []
-    if host_resident_id is not None:
-        where = "WHERE guest_stays.host_resident_id = ?"
-        params.append(host_resident_id)
+    where, params = _list_filter_sql(
+        host_resident_id=host_resident_id,
+        bucket=bucket,
+        include_terminal=include_terminal,
+        today=today,
+    )
+    total = connection.execute(
+        f"SELECT COUNT(*) AS n {_STAY_FROM} {where}",
+        params,
+    ).fetchone()["n"]
     rows = connection.execute(
         f"""
         {_STAY_SELECT}
         {where}
         ORDER BY guest_stays.created_at DESC, guest_stays.id DESC
+        LIMIT ? OFFSET ?
         """,
-        params,
+        [*params, limit, offset],
     ).fetchall()
-    full = [
-        body
-        for body in (_body_from_row(row, today) for row in rows)
-        if stay_matches_list_filters(
-            filter_bucket=bucket,
-            actual=body.bucket,
-            include_terminal=include_terminal,
-        )
-    ]
-    total = len(full)
-    items = [_summary_from_body(body) for body in full[offset : offset + limit]]
+    items = [_summary_from_body(_body_from_row(row, today)) for row in rows]
     return GuestStayPageBody(
-        total=total,
+        total=int(total),
         limit=limit,
         offset=offset,
         items=items,
     )
+
 
 
 def record_guest_stay(
