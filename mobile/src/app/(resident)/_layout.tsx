@@ -1,13 +1,36 @@
 import { Feather } from "@expo/vector-icons";
-import { Redirect, router } from "expo-router";
+import { Redirect } from "expo-router";
 import { Tabs } from "expo-router/js-tabs";
 import { StyleSheet, View, type ColorValue } from "react-native";
 
 import { useSession } from "@/session";
 import { useHallColors } from "@/theme/colors";
 
-function TabIcon({ name, color }: { name: "home" | "calendar" | "credit-card" | "settings"; color: ColorValue }) {
+function TabIcon({ name, color }: { name: "home" | "calendar" | "settings"; color: ColorValue }) {
   return <Feather name={name} size={24} color={color} />;
+}
+
+function QrMark({ color }: { color: ColorValue }) {
+  const stroke = StyleSheet.hairlineWidth * 2;
+  const finder = (place: object) => (
+    <View
+      style={[
+        styles.finder,
+        place,
+        { borderColor: color, borderWidth: stroke },
+      ]}
+    >
+      <View style={[styles.finderInner, { borderColor: color, borderWidth: stroke }]} />
+    </View>
+  );
+  return (
+    <View style={styles.mark}>
+      <View style={[styles.markFrame, { borderColor: color, borderWidth: stroke }]} />
+      {finder({ top: 3, left: 3 })}
+      {finder({ top: 3, right: 3 })}
+      {finder({ bottom: 3, left: 3 })}
+    </View>
+  );
 }
 
 export default function ResidentLayout() {
@@ -61,29 +84,17 @@ export default function ResidentLayout() {
         }}
       />
       <Tabs.Screen
-        name="plan"
+        name="permissions"
         options={{
-          title: "Plan an outing",
+          title: "Permissions",
           tabBarIcon: ({ color }) => <TabIcon name="calendar" color={color} />,
         }}
-        listeners={({ navigation }) => ({
-          tabPress: (event) => {
-            event.preventDefault();
-            if (navigation.isFocused()) {
-              return;
-            }
-            router.navigate({
-              pathname: "/plan",
-              params: { outing: "", place: "", startsAt: "", expectedReturnAt: "" },
-            });
-          },
-        })}
       />
       <Tabs.Screen
         name="pass"
         options={{
-          title: "My hall pass",
-          tabBarIcon: ({ color }) => <TabIcon name="credit-card" color={color} />,
+          title: "Pass",
+          tabBarIcon: ({ color }) => <QrMark color={color} />,
         }}
       />
       <Tabs.Screen
@@ -93,10 +104,32 @@ export default function ResidentLayout() {
           tabBarIcon: ({ color }) => <TabIcon name="settings" color={color} />,
         }}
       />
+      <Tabs.Screen name="plan" options={{ href: null }} />
     </Tabs>
   );
 }
 
 const styles = StyleSheet.create({
   hold: { flex: 1 },
+  mark: { width: 24, height: 24 },
+  markFrame: {
+    position: "absolute",
+    top: 1,
+    left: 1,
+    right: 1,
+    bottom: 1,
+    borderRadius: 2,
+  },
+  finder: {
+    position: "absolute",
+    width: 8,
+    height: 8,
+  },
+  finderInner: {
+    position: "absolute",
+    top: 1.5,
+    left: 1.5,
+    right: 1.5,
+    bottom: 1.5,
+  },
 });

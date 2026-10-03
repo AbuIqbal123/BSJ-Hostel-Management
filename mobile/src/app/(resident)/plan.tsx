@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { Redirect, router, useLocalSearchParams } from "expo-router";
 import DateTimePicker, {
   DateTimePickerAndroid,
 } from "@react-native-community/datetimepicker";
@@ -24,7 +24,7 @@ import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
 // Seeded catalog name. backend/app/shared/migrations/0001_create_hall.sql stores 'Other'.
-const OTHER_NAME = "Other";
+export const OTHER_NAME = "Other";
 
 // hall_day() is the calendar date in hall_settings.timezone, seeded Asia/Kolkata.
 // Ordinary hours are the seeded summer and winter outing clocks. The start is
@@ -77,7 +77,7 @@ function hallPart(date: Date, type: Intl.DateTimeFormatPartTypes): string {
   return parts.find((item) => item.type === type)?.value ?? "";
 }
 
-function hallDay(date: Date): string {
+export function hallDay(date: Date): string {
   return `${hallPart(date, "year")}-${hallPart(date, "month")}-${hallPart(date, "day")}`;
 }
 
@@ -103,7 +103,7 @@ function hoursNote(date: Date, kind: "start" | "return"): string | null {
   return null;
 }
 
-function leaveNote(leaveAt: Date | null): string | null {
+export function leaveNote(leaveAt: Date | null): string | null {
   if (!leaveAt) {
     return null;
   }
@@ -113,7 +113,7 @@ function leaveNote(leaveAt: Date | null): string | null {
   return hoursNote(leaveAt, "start");
 }
 
-function returnNote(leaveAt: Date | null, backBy: Date | null): string | null {
+export function returnNote(leaveAt: Date | null, backBy: Date | null): string | null {
   if (!backBy) {
     return null;
   }
@@ -129,7 +129,7 @@ function returnNote(leaveAt: Date | null, backBy: Date | null): string | null {
   return hoursNote(backBy, "return");
 }
 
-function WhenField({
+export function WhenField({
   label,
   value,
   onChange,
@@ -229,8 +229,7 @@ export default function PlanScreen() {
   }>();
   const outingId = paramText(params.outing);
   const editing = outingId.length > 0;
-  const { loadResidentHome, loadDestinations, planOuting, updateOuting, cancelOuting } = useSession();
-  const [gate, setGate] = useState<"loading" | "in" | "out" | "window">("loading");
+  const { loadDestinations, planOuting, updateOuting, cancelOuting } = useSession();
   const [loadError, setLoadError] = useState<string | null>(null);
   const [places, setPlaces] = useState<DestinationItem[] | null>(null);
   const [destinationId, setDestinationId] = useState<string | null>(null);
@@ -248,41 +247,8 @@ export default function PlanScreen() {
     return () => subscription.remove();
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (editing) {
-        return;
-      }
-      let active = true;
-      void loadResidentHome().then((result) => {
-        if (!active) {
-          return;
-        }
-        if (result.error !== null) {
-          setLoadError(result.error);
-          setGate("loading");
-          return;
-        }
-        setLoadError(null);
-        if (result.home.out) {
-          setGate("out");
-        } else if (result.home.windowOpen) {
-          setGate("window");
-        } else {
-          setGate("in");
-        }
-      });
-      return () => {
-        active = false;
-      };
-    }, [editing, loadResidentHome]),
-  );
-
   useEffect(() => {
-    if (places) {
-      return;
-    }
-    if (!editing && gate !== "in") {
+    if (places || !editing) {
       return;
     }
     let active = true;
@@ -292,9 +258,6 @@ export default function PlanScreen() {
       }
       if (result.error !== null) {
         setLoadError(result.error);
-        if (!editing) {
-          setGate("loading");
-        }
         return;
       }
       setLoadError(null);
@@ -303,7 +266,7 @@ export default function PlanScreen() {
     return () => {
       active = false;
     };
-  }, [editing, gate, loadDestinations, places]);
+  }, [editing, loadDestinations, places]);
 
   useEffect(() => {
     if (seenOuting.current === outingId) {
@@ -471,7 +434,11 @@ export default function PlanScreen() {
     paddingTop: insets.top + 28,
     paddingBottom: insets.bottom + 28,
   };
-  const showForm = places !== null && (editing || gate === "in");
+  const showForm = editing && places !== null;
+
+  if (!editing) {
+    return <Redirect href="/home" />;
+  }
 
   return (
     <ScrollView
@@ -482,14 +449,6 @@ export default function PlanScreen() {
       showsVerticalScrollIndicator={false}
     >
       <Pressable style={styles.dismiss} onPress={dismissOpenChoice}>
-      {!editing && gate === "out" ? (
-        <Text style={[text.body, { color: colors.ink }]}>You are out.</Text>
-      ) : null}
-      {!editing && gate === "window" ? (
-        <Text style={[text.body, { color: colors.ink }]}>
-          You cannot start another outing while one is inside its window.
-        </Text>
-      ) : null}
       {loadError ? (
         <Text
           selectable
@@ -558,7 +517,7 @@ export default function PlanScreen() {
           </View>
           <View style={styles.action}>
             <HallButton
-              label={editing ? "Save" : "Plan"}
+              label="Save"
               onPress={() => {
                 void submit();
               }}
