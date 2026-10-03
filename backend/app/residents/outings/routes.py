@@ -25,6 +25,7 @@ from app.residents.outings.records import (
     load_current_outing,
     load_outing,
     load_upcoming,
+    ordinary_window_is_open,
     record_outing,
 )
 
@@ -60,6 +61,7 @@ class PlanOutingRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     destination_id: str
     destination_text: str | None = Field(default=None, min_length=1, max_length=120)
+    starts_at: str
     expected_return_at: str
 
 
@@ -115,10 +117,34 @@ def plan_outing(
     connection: ConnectionDep,
 ) -> OutingBody:
     moment = _instant(body.expected_return_at)
+    start = _instant(body.starts_at)
     now = clock.utc_now()
     now_text = clock.format_instant(now)
     if body.expected_return_at <= now_text:
         raise ApiError(422, "validation_error", "The expected return must be in the future.")
+    settings = _settings(connection)
+    refusal = hours_refusal(moment, settings)
+    if refusal is not None:
+        raise ApiError(409, refusal, _WINDOW_MESSAGE[refusal])
+    if body.starts_at <= now_text:
+        raise ApiError(422, "validation_error", "The outing start must be in the future.")
+    if body.starts_at >= body.expected_return_at:
+        raise ApiError(422, "validation_error", "The expected return must be after the start.")
+    if hall_day(start, settings["timezone"]) != hall_day(moment, settings["timezone"]):
+        raise ApiError(
+            422,
+            "validation_error",
+            "An ordinary outing starts and returns on the same hall day.",
+        )
+    start_refusal = hours_refusal(start, settings)
+    if start_refusal == "outside_ordinary_hours":
+        raise ApiError(409, start_refusal, "That start is outside ordinary hours.")
+    if start_refusal == "permission_required":
+        raise ApiError(
+            409,
+            start_refusal,
+            "That start is outside ordinary hours. Please submit a permission request.",
+        )
     destination = _destination(connection, body.destination_id)
     if destination["is_other"]:
         place = (body.destination_text or "").strip()
@@ -128,12 +154,15 @@ def plan_outing(
     else:
         place = destination["name"]
         destination_id = destination["id"]
-    settings = _settings(connection)
-    refusal = hours_refusal(moment, settings)
-    if refusal is not None:
-        raise ApiError(409, refusal, _WINDOW_MESSAGE[refusal])
     expire_passed_plans(connection, account.id, now_text)
     day = hall_day(moment, settings["timezone"])
+    if ordinary_window_is_open(connection, account.id, now):
+        connection.commit()
+        raise ApiError(
+            409,
+            "outing_window_open",
+            "You cannot start another outing while one is inside its window.",
+        )
     if return_is_taken(connection, account.id, body.expected_return_at):
         connection.commit()
         raise ApiError(409, "return_already_planned", "You already have an outing ending at that time.")
@@ -143,12 +172,12 @@ def plan_outing(
         """
         INSERT INTO outings (
           id, resident_id, permission_id, type, status, destination_id, place,
-          expected_return_at, grace_ends_at, exited_at, exit_recorded_by,
+          starts_at, expected_return_at, grace_ends_at, exited_at, exit_recorded_by,
           returned_at, return_recorded_by, created_at, updated_at, cancelled_at,
           hall_date
         ) VALUES (
           ?, ?, NULL, 'ordinary', 'planned', ?, ?,
-          ?, ?, NULL, NULL,
+          ?, ?, ?, NULL, NULL,
           NULL, NULL, ?, ?, NULL, ?
         )
         """,
@@ -157,6 +186,7 @@ def plan_outing(
             account.id,
             destination_id,
             place,
+            body.starts_at,
             body.expected_return_at,
             grace_ends_at,
             now_text,

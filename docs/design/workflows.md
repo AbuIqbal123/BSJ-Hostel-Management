@@ -130,8 +130,8 @@ Provost may also export CSV via `GET /api/v1/admin/register/export`.
 
 **Resident loop**
 
-1. Plan an ordinary outing with a destination and an expected return. She may save several plans, including two on the same hall day, and she may plan while she is already outside. Planning does not change presence. The check is the expected return (in the future, inside that hall date's window), not whether the clock is inside ordinary hours when she plans. She may also hold an approved late-night or home-going permission.
-2. Open the hall pass. The QR is permanent and the same code is used both ways. The pass stays available while a plan or an outside outing exists.
+1. Plan an ordinary outing with a destination, a start, and an expected return. She may save several future plans, including two on the same hall day. She cannot start another while one ordinary outing is inside its show window. Planning does not change presence. No warden approval. She may also hold an approved late-night or home-going permission.
+2. Open the hall pass. The code is still the permanent hall-pass token, and the gate scan still decides the movement. The phone shows the QR for one outing: from 30 minutes before its start (immediately when the start is within 5 minutes) until the outing ends. While she is outside, it stays up until the return scan.
 3. At an exit scan, today's earliest ordinary plan whose return has not passed is used when the current time is inside today's ordinary hours. A later plan today, and any other day's plan, stay planned. An approved permission is opened only if no such plan is used. If she meant the permission, or a later trip today, she cancels the plan the gate would use and shows the pass again.
 4. The scan updates home to outside, or shows the refusal.
 5. A return scan adds the history line.

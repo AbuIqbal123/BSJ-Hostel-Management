@@ -98,7 +98,10 @@ def _return_timeliness(
 
 
 def _exit_outing(outing: OutingBody, recorded_at: str) -> ScanExitOuting:
-    return ScanExitOuting(**outing.model_dump(), recorded_at=recorded_at)
+    kept = outing.model_dump(
+        exclude={"starts_at", "qr_visible", "qr_visible_from", "qr_visible_until"}
+    )
+    return ScanExitOuting(**kept, recorded_at=recorded_at)
 
 
 def gate_account(account: AccountDep) -> Account:

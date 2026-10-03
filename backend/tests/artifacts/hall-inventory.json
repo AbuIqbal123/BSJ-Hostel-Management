@@ -1,5 +1,5 @@
 {
-  "user_version": 12,
+  "user_version": 13,
   "tables": [
     "audit_log",
     "blocks",
@@ -119,7 +119,8 @@
       "created_at",
       "updated_at",
       "cancelled_at",
-      "hall_date"
+      "hall_date",
+      "starts_at"
     ],
     "permissions": [
       "id",

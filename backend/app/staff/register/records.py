@@ -323,6 +323,7 @@ SELECT
   outings.type,
   outings.status,
   outings.place,
+  outings.starts_at,
   outings.expected_return_at,
   outings.grace_ends_at,
   outings.exited_at,

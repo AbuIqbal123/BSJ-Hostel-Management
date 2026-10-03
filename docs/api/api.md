@@ -26,7 +26,7 @@ Do not edit this page by hand.
   - [GET `/api/v1/auth/onboard/options` — Onboard room picker](#get-api-v1-auth-onboard-options)
 - [Resident](#tag-resident)
   - [GET `/api/v1/me/home` — Resident home](#get-api-v1-me-home)
-  - [GET `/api/v1/me/hall-pass` — Permanent hall pass](#get-api-v1-me-hall-pass)
+  - [GET `/api/v1/me/hall-pass` — Hall pass for the outing in its window](#get-api-v1-me-hall-pass)
   - [GET `/api/v1/me/history` — Own exit and return history](#get-api-v1-me-history)
   - [GET `/api/v1/destinations` — Ordinary outing destinations](#get-api-v1-destinations)
   - [GET `/api/v1/me/outings` — Ordinary outing plans](#get-api-v1-me-outings)
@@ -208,7 +208,7 @@ Body: [Ready](#schema-ready).
 ```json
 {
   "status": "ready",
-  "user_version": 12
+  "user_version": 13
 }
 ```
 
@@ -735,7 +735,7 @@ The resident phone. Ordinary outings, home, destinations, and the hall pass.
 | Method | Path | Purpose | Who |
 |---|---|---|---|
 | GET | `/api/v1/me/home` | [Resident home](#get-api-v1-me-home) | resident |
-| GET | `/api/v1/me/hall-pass` | [Permanent hall pass](#get-api-v1-me-hall-pass) | resident |
+| GET | `/api/v1/me/hall-pass` | [Hall pass for the outing in its window](#get-api-v1-me-hall-pass) | resident |
 | GET | `/api/v1/me/history` | [Own exit and return history](#get-api-v1-me-history) | resident |
 | GET | `/api/v1/destinations` | [Ordinary outing destinations](#get-api-v1-destinations) | Signed-in account |
 | GET | `/api/v1/me/outings` | [Ordinary outing plans](#get-api-v1-me-outings) | resident |
@@ -750,11 +750,12 @@ The resident phone. Ordinary outings, home, destinations, and the hall pass.
 
 **Who.** resident. Bearer access token.
 
-Caller: resident. Presence, room, the open outing if there is one, the
-permission the resident is waiting on or cleared to use, and the last
-ten exit and return lines. Does not cancel passed plans or expire
-permissions; call POST /api/v1/me/expire-passed first when the phone
-needs a fresh home screen.
+Caller: resident. Her name, block, and room, whether an ordinary
+outing is inside its show window now (`ordinary_outing_active`),
+presence, the open outing if there is one, the permission the resident
+is waiting on or cleared to use, and the last ten exit and return
+lines. Does not cancel passed plans or expire permissions; call POST
+/api/v1/me/expire-passed first when the phone needs a fresh home screen.
 
 **Responses**
 
@@ -766,7 +767,8 @@ Body: [ResidentHome](#schema-residenthome).
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `resident` | yes | [ResidentSummary](#schema-residentsummary) |  |
+| `resident` | yes | [HomeResident](#schema-homeresident) |  |
+| `ordinary_outing_active` | yes | boolean | True when one of her ordinary outings is inside its show window now. That window opens 30 minutes before `starts_at` (immediately when the start is within 5 minutes, because the lead has already begun) and lasts until the outing ends. |
 | `current_outing` | yes | [Outing](#schema-outing) or null |  |
 | `active_permission` | yes | [Permission](#schema-permission) or null | The newest permission in `pending`, `approved`, or `in_use`, if any. |
 | `recent_history` | yes | list of [HistoryEvent](#schema-historyevent) |  |
@@ -776,12 +778,14 @@ Body: [ResidentHome](#schema-residenthome).
 ```json
 {
   "resident": {
+    "full_name": "Aisha Khan",
     "enrolment_number": "24-GLLB-118",
     "course": "B.A. LL.B. (Hons.)",
     "room_label": "B-204",
     "block_name": "Block-B",
     "presence": "inside"
   },
+  "ordinary_outing_active": false,
   "current_outing": null,
   "active_permission": null,
   "recent_history": [
@@ -810,15 +814,23 @@ The signed-in role cannot call this operation.
 Body: [ErrorResponse](#schema-errorresponse).
 
 
-### <a id="get-api-v1-me-hall-pass"></a>GET `/api/v1/me/hall-pass` — Permanent hall pass
+### <a id="get-api-v1-me-hall-pass"></a>GET `/api/v1/me/hall-pass` — Hall pass for the outing in its window
 
 `resident_hall_pass`
 
 **Who.** resident. Bearer access token.
 
-Caller: resident. Returns the payload the phone encodes as a QR image.
-The same payload is used to leave and to come back. It changes only when
-the provost reissues it.
+Caller: resident. The hall-pass code is still the resident's permanent
+token (the gate scans that same code). The phone shows it for one
+outing only. `qr_payload` is set only while that window is open.
+
+An ordinary outing's window opens 30 minutes before `starts_at`. If
+`starts_at` is within 5 minutes, the 30-minute lead has already begun,
+so the QR is shown immediately. A planned outing's window ends at
+`expected_return_at`. An outside outing has not ended until the return
+scan, so the payload stays available until then, including a permission
+outing she is already outside on. The gate scan still decides whether
+the movement is recorded.
 
 **Responses**
 
@@ -826,13 +838,17 @@ the provost reissues it.
 
 Hall pass payload.
 
-Body: [HallPass](#schema-hallpass).
+Body: [ResidentHallPass](#schema-residenthallpass).
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `qr_payload` | yes | string | Text encoded in the QR image. Prefix `bsj:v1:`. |
+| `qr_payload` | yes | string or null | Permanent hall-pass text (`bsj:v1:` plus the token) when `qr_visible` is true. Null when the phone must not show a QR yet. The gate still scans this same text. |
 | `full_name` | yes | string |  |
 | `room_label` | yes | string |  |
+| `outing_id` | yes | uuid or null | The outing this pass is for, if she has a planned or outside outing. |
+| `qr_visible` | yes | boolean |  |
+| `qr_visible_from` | yes | date-time or null | When the QR may be shown. Null when she has no upcoming ordinary outing. |
+| `qr_visible_until` | yes | date-time or null | Planned ordinary outings close at `expected_return_at`. Null while she is outside, because the outing ends at the return scan. |
 
 **Example**
 
@@ -840,7 +856,11 @@ Body: [HallPass](#schema-hallpass).
 {
   "qr_payload": "bsj:v1:example-token",
   "full_name": "Aisha Khan",
-  "room_label": "B-204"
+  "room_label": "B-204",
+  "outing_id": "00000000-0000-4000-8000-000000000001",
+  "qr_visible": true,
+  "qr_visible_from": "2026-09-30T07:30:00Z",
+  "qr_visible_until": "2026-09-30T13:00:00Z"
 }
 ```
 
@@ -1053,25 +1073,26 @@ Body: [ErrorResponse](#schema-errorresponse).
 **Who.** resident. Bearer access token.
 
 Caller: resident. This is required before an ordinary exit scan. The
-scan does not ask for a destination or an expected return. She may plan
-several returns, including two on the same hall day, such as noon and
-5:00 PM. She may already be outside. Two planned or outside outings
-cannot end at the same instant.
+scan does not ask for a destination or an expected return. She may hold
+several future ordinary outings, including two on the same hall day.
+She cannot start another while one ordinary outing is inside its show
+window. Two planned or outside outings cannot end at the same instant.
 
-Sets destination and expected return. Does not record the exit. The gate
-scan does that. No warden approval. Grace is the hall's `grace_minutes`
-added to the expected return, and is returned on the outing so the phone
-can show when the guardian would be told.
+Sets destination, start, and expected return. Does not record the exit.
+The gate scan does that. No warden approval. Grace is the hall's
+`grace_minutes` added to the expected return, and is returned on the
+outing so the phone can show when the guardian would be told.
 
-The expected return must be in the future and inside ordinary hours on
-that hall date. The start of the window is not included. The end is
-included. Summer, 1 April through 30 September, is 6:30 AM to 6:30 PM.
-Winter, 1 October through 31 March, is 6:30 AM to 5:30 PM. A return at
-or before the start is outside ordinary hours. A return after the end
-needs late-night permission or home going. When the chosen destination
-is the Other row, `destination_text` is required. A planned outing
-whose expected return has already passed is cancelled by the system,
-with no staff member, before this plan is saved.
+`starts_at` and `expected_return_at` must both be in the future, the
+return after the start, on the same hall day, and inside ordinary hours
+on that hall date. The start of ordinary hours is not included. The end
+is included. Summer, 1 April through 30 September, is 6:30 AM to 6:30 PM.
+Winter, 1 October through 31 March, is 6:30 AM to 5:30 PM. A time at or
+before the start is outside ordinary hours. A time after the end needs
+late-night permission or home going. When the chosen destination is the
+Other row, `destination_text` is required. A planned outing whose
+expected return has already passed is cancelled by the system, with no
+staff member, before this plan is saved.
 
 **Request.** Required.
 
@@ -1081,6 +1102,7 @@ Body: [PlanOutingRequest](#schema-planoutingrequest).
 |---|---|---|---|
 | `destination_id` | yes | uuid |  |
 | `destination_text` | no | string | Required when the destination is the Other row. Ignored otherwise. 1–120 characters. |
+| `starts_at` | yes | date-time | When she plans to leave. UTC instant. Same hall day as the expected return, inside ordinary hours. |
 | `expected_return_at` | yes | date-time |  |
 
 **Example**
@@ -1088,6 +1110,7 @@ Body: [PlanOutingRequest](#schema-planoutingrequest).
 ```json
 {
   "destination_id": "fc2da7c5-8d65-5680-8034-d8acb69745eb",
+  "starts_at": "2026-09-30T08:00:00Z",
   "expected_return_at": "2026-09-30T13:00:00Z"
 }
 ```
@@ -1107,6 +1130,10 @@ Body: [Outing](#schema-outing).
 | `outing_type` | yes | `ordinary` or `late_night` or `home_going` |  |
 | `status` | yes | `planned` or `outside` or `returned` or `cancelled` |  |
 | `place` | yes | string | List name, the words typed for Other, or the permission's short place. |
+| `starts_at` | yes | date-time or null | When she planned to leave. Empty on a permission outing and on an ordinary outing saved before this field existed. |
+| `qr_visible` | yes | boolean | True when the phone may show this outing's hall-pass QR now. Ordinary only. Opens 30 minutes before `starts_at` (immediately when the start is within 5 minutes) and lasts until the outing ends. |
+| `qr_visible_from` | yes | date-time or null |  |
+| `qr_visible_until` | yes | date-time or null | `expected_return_at` while the ordinary outing is still planned. Null while she is outside, until the return scan. |
 | `expected_return_at` | yes | date-time | UTC instant. Clients show India time on a 12-hour clock. |
 | `grace_ends_at` | yes | date-time |  |
 | `exited_at` | no | date-time or null | Empty only while an ordinary outing is still planned. Required once the resident has left. |
@@ -1130,10 +1157,12 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 #### 409
 
-`return_already_planned` says she already has an outing ending at
-that time. `outside_ordinary_hours` says that return is outside
-ordinary hours. `permission_required` says that return is outside
-ordinary hours. Please submit a permission request.
+`outing_window_open` says she cannot start another outing while one
+is inside its window. `return_already_planned` says she already has
+an outing ending at that time. `outside_ordinary_hours` says that
+start or return is outside ordinary hours. `permission_required`
+says that start or return is outside ordinary hours. Please submit
+a permission request.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
@@ -1216,6 +1245,10 @@ Body: [Outing](#schema-outing).
 | `outing_type` | yes | `ordinary` or `late_night` or `home_going` |  |
 | `status` | yes | `planned` or `outside` or `returned` or `cancelled` |  |
 | `place` | yes | string | List name, the words typed for Other, or the permission's short place. |
+| `starts_at` | yes | date-time or null | When she planned to leave. Empty on a permission outing and on an ordinary outing saved before this field existed. |
+| `qr_visible` | yes | boolean | True when the phone may show this outing's hall-pass QR now. Ordinary only. Opens 30 minutes before `starts_at` (immediately when the start is within 5 minutes) and lasts until the outing ends. |
+| `qr_visible_from` | yes | date-time or null |  |
+| `qr_visible_until` | yes | date-time or null | `expected_return_at` while the ordinary outing is still planned. Null while she is outside, until the return scan. |
 | `expected_return_at` | yes | date-time | UTC instant. Clients show India time on a 12-hour clock. |
 | `grace_ends_at` | yes | date-time |  |
 | `exited_at` | no | date-time or null | Empty only while an ordinary outing is still planned. Required once the resident has left. |
@@ -5092,11 +5125,23 @@ One of: `inside`, `outside`.
 
 One of: `inside`, `outside`, `late`.
 
+### <a id="schema-homeresident"></a>HomeResident
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `full_name` | yes | string |  |
+| `enrolment_number` | yes | string |  |
+| `course` | no | string or null |  |
+| `room_label` | yes | string |  |
+| `block_name` | yes | string |  |
+| `presence` | yes | `inside` or `outside` |  |
+
 ### <a id="schema-residenthome"></a>ResidentHome
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `resident` | yes | [ResidentSummary](#schema-residentsummary) |  |
+| `resident` | yes | [HomeResident](#schema-homeresident) |  |
+| `ordinary_outing_active` | yes | boolean | True when one of her ordinary outings is inside its show window now. That window opens 30 minutes before `starts_at` (immediately when the start is within 5 minutes, because the lead has already begun) and lasts until the outing ends. |
 | `current_outing` | yes | [Outing](#schema-outing) or null |  |
 | `active_permission` | yes | [Permission](#schema-permission) or null | The newest permission in `pending`, `approved`, or `in_use`, if any. |
 | `recent_history` | yes | list of [HistoryEvent](#schema-historyevent) |  |
@@ -5108,6 +5153,18 @@ One of: `inside`, `outside`, `late`.
 | `qr_payload` | yes | string | Text encoded in the QR image. Prefix `bsj:v1:`. |
 | `full_name` | yes | string |  |
 | `room_label` | yes | string |  |
+
+### <a id="schema-residenthallpass"></a>ResidentHallPass
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `qr_payload` | yes | string or null | Permanent hall-pass text (`bsj:v1:` plus the token) when `qr_visible` is true. Null when the phone must not show a QR yet. The gate still scans this same text. |
+| `full_name` | yes | string |  |
+| `room_label` | yes | string |  |
+| `outing_id` | yes | uuid or null | The outing this pass is for, if she has a planned or outside outing. |
+| `qr_visible` | yes | boolean |  |
+| `qr_visible_from` | yes | date-time or null | When the QR may be shown. Null when she has no upcoming ordinary outing. |
+| `qr_visible_until` | yes | date-time or null | Planned ordinary outings close at `expected_return_at`. Null while she is outside, because the outing ends at the return scan. |
 
 ### <a id="schema-historyevent"></a>HistoryEvent
 
@@ -5165,6 +5222,7 @@ One of: `inside`, `outside`, `late`.
 |---|---|---|---|
 | `destination_id` | yes | uuid |  |
 | `destination_text` | no | string | Required when the destination is the Other row. Ignored otherwise. 1–120 characters. |
+| `starts_at` | yes | date-time | When she plans to leave. UTC instant. Same hall day as the expected return, inside ordinary hours. |
 | `expected_return_at` | yes | date-time |  |
 
 ### <a id="schema-outingtype"></a>OutingType
@@ -5186,6 +5244,10 @@ One of: `planned`, `outside`, `returned`, `cancelled`.
 | `outing_type` | yes | `ordinary` or `late_night` or `home_going` |  |
 | `status` | yes | `planned` or `outside` or `returned` or `cancelled` |  |
 | `place` | yes | string | List name, the words typed for Other, or the permission's short place. |
+| `starts_at` | yes | date-time or null | When she planned to leave. Empty on a permission outing and on an ordinary outing saved before this field existed. |
+| `qr_visible` | yes | boolean | True when the phone may show this outing's hall-pass QR now. Ordinary only. Opens 30 minutes before `starts_at` (immediately when the start is within 5 minutes) and lasts until the outing ends. |
+| `qr_visible_from` | yes | date-time or null |  |
+| `qr_visible_until` | yes | date-time or null | `expected_return_at` while the ordinary outing is still planned. Null while she is outside, until the return scan. |
 | `expected_return_at` | yes | date-time | UTC instant. Clients show India time on a 12-hour clock. |
 | `grace_ends_at` | yes | date-time |  |
 | `exited_at` | no | date-time or null | Empty only while an ordinary outing is still planned. Required once the resident has left. |

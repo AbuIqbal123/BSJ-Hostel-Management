@@ -219,21 +219,21 @@ def test_cancel_outing(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
         planned = client.post(
             "/api/v1/me/outings",
             headers={"Authorization": f"Bearer {resident}"},
-            json={"destination_id": LIBRARY, "expected_return_at": "2026-09-30T13:00:00Z"},
+            json={"destination_id": LIBRARY, "starts_at": "2026-09-30T09:00:00Z", "expected_return_at": "2026-09-30T13:00:00Z"},
         )
         assert planned.status_code == 201
         outing_id = planned.json()["id"]
         later = client.post(
             "/api/v1/me/outings",
             headers={"Authorization": f"Bearer {resident}"},
-            json={"destination_id": SHAMSHAD, "expected_return_at": "2026-10-02T10:30:00Z"},
+            json={"destination_id": SHAMSHAD, "starts_at": "2026-10-02T05:00:00Z", "expected_return_at": "2026-10-02T10:30:00Z"},
         )
         assert later.status_code == 201
         later_id = later.json()["id"]
         afternoon = client.post(
             "/api/v1/me/outings",
             headers={"Authorization": f"Bearer {resident}"},
-            json={"destination_id": WOMENS, "expected_return_at": "2026-09-30T10:30:00Z"},
+            json={"destination_id": WOMENS, "starts_at": "2026-09-30T09:00:00Z", "expected_return_at": "2026-09-30T10:30:00Z"},
         )
         assert afternoon.status_code == 201
         afternoon_id = afternoon.json()["id"]

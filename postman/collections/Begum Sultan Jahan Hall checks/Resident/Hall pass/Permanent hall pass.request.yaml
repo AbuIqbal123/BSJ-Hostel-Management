@@ -3,4 +3,4 @@ method: GET
 url: '{{baseUrl}}/api/v1/me/hall-pass'
 order: 1000
 description: |-
-  Caller: resident. Returns the payload the phone encodes as a QR image. The same payload is used to leave and to come back. It changes only when the provost reissues it. A gate, warden, or provost account is refused.
+  Caller: resident. Returns the permanent hall-pass code only while an outing's show window is open: 30 minutes before starts_at (immediately when the start is within 5 minutes) until the outing ends. qr_payload is null outside that window. The gate scan still decides the movement. A gate, warden, or provost account is refused.

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Literal
 from zoneinfo import ZoneInfo
 
@@ -20,6 +20,10 @@ class OutingBody(BaseModel):
     outing_type: Literal["ordinary", "late_night", "home_going"]
     status: Literal["planned", "outside", "returned", "cancelled"]
     place: str
+    starts_at: str | None
+    qr_visible: bool
+    qr_visible_from: str | None
+    qr_visible_until: str | None
     expected_return_at: str
     grace_ends_at: str
     exited_at: str | None
@@ -36,13 +40,72 @@ def outing_lateness(status: str, grace_ends_at: str) -> Literal["on_time", "late
     return "on_time"
 
 
+_QR_LEAD = timedelta(minutes=30)
+_QR_IMMEDIATE = timedelta(minutes=5)
+
+
+def _parse_instant(value: str) -> datetime:
+    return datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+
+
+def qr_window(
+    *,
+    outing_type: str,
+    status: str,
+    starts_at: str | None,
+    expected_return_at: str,
+    exited_at: str | None,
+    now: datetime,
+) -> tuple[bool, str | None, str | None]:
+    """QR show window for one outing.
+
+    An ordinary outing opens 30 minutes before `starts_at`. When `starts_at`
+    is within 5 minutes, that lead has already begun, so the QR is shown
+    immediately. A planned outing closes at `expected_return_at`. An outside
+    ordinary outing stays open until the return scan. Other types have no
+    ordinary window.
+    """
+    if outing_type != "ordinary":
+        return False, None, None
+    if starts_at is None:
+        if status == "outside":
+            return True, exited_at, None
+        return False, None, None
+    start = _parse_instant(starts_at)
+    visible_from = clock.format_instant(start - _QR_LEAD)
+    if status == "outside":
+        return True, visible_from, None
+    visible_until = expected_return_at
+    if status != "planned":
+        return False, visible_from, visible_until
+    if now >= _parse_instant(expected_return_at):
+        return False, visible_from, visible_until
+    lead_open = now >= start - _QR_LEAD
+    starts_within_five = timedelta(0) <= (start - now) <= _QR_IMMEDIATE
+    if lead_open or starts_within_five:
+        return True, visible_from, visible_until
+    return False, visible_from, visible_until
+
+
 def outing_from_row(row: sqlite3.Row) -> OutingBody:
+    visible, visible_from, visible_until = qr_window(
+        outing_type=row["type"],
+        status=row["status"],
+        starts_at=row["starts_at"],
+        expected_return_at=row["expected_return_at"],
+        exited_at=row["exited_at"],
+        now=clock.utc_now(),
+    )
     return OutingBody(
         id=row["id"],
         permission_id=row["permission_id"],
         outing_type=row["type"],
         status=row["status"],
         place=row["place"],
+        starts_at=row["starts_at"],
+        qr_visible=visible,
+        qr_visible_from=visible_from,
+        qr_visible_until=visible_until,
         expected_return_at=row["expected_return_at"],
         grace_ends_at=row["grace_ends_at"],
         exited_at=row["exited_at"],
@@ -61,6 +124,7 @@ SELECT
   outings.type,
   outings.status,
   outings.place,
+  outings.starts_at,
   outings.expected_return_at,
   outings.grace_ends_at,
   outings.exited_at,
@@ -81,6 +145,33 @@ def hall_day(moment: datetime, timezone_name: str) -> str:
 def _timezone(connection: sqlite3.Connection) -> str:
     row = connection.execute("SELECT timezone FROM hall_settings WHERE id = 'hall'").fetchone()
     return row["timezone"]
+
+
+def ordinary_window_is_open(
+    connection: sqlite3.Connection, resident_id: str, now: datetime
+) -> bool:
+    rows = connection.execute(
+        """
+        SELECT type, status, starts_at, expected_return_at, exited_at
+        FROM outings
+        WHERE resident_id = ?
+          AND type = 'ordinary'
+          AND status IN ('planned', 'outside')
+        """,
+        (resident_id,),
+    ).fetchall()
+    for row in rows:
+        visible, _, _ = qr_window(
+            outing_type=row["type"],
+            status=row["status"],
+            starts_at=row["starts_at"],
+            expected_return_at=row["expected_return_at"],
+            exited_at=row["exited_at"],
+            now=now,
+        )
+        if visible:
+            return True
+    return False
 
 
 def return_is_taken(connection: sqlite3.Connection, resident_id: str, expected_return_at: str) -> bool:
