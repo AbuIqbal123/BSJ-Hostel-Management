@@ -424,7 +424,10 @@ export default function SignInScreen() {
               onPress={() => router.push("/onboard")}
               style={styles.onboard}
             >
-              <Text style={[text.body, { color: colors.forest }]}>Don't have an account? Sign up</Text>
+              <Text style={[text.body, { color: colors.ink }]}>
+                Don't have an account?{" "}
+                <Text style={{ color: colors.forest }}>Sign up</Text>
+              </Text>
             </Pressable>
           </View>
         </View>
