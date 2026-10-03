@@ -420,11 +420,11 @@ export default function SignInScreen() {
             </View>
             <Pressable
               accessibilityRole="link"
-              accessibilityLabel="Onboard"
+              accessibilityLabel="Don't have an account? Sign up"
               onPress={() => router.push("/onboard")}
               style={styles.onboard}
             >
-              <Text style={[text.body, { color: colors.forest }]}>Onboard</Text>
+              <Text style={[text.body, { color: colors.forest }]}>Don't have an account? Sign up</Text>
             </Pressable>
           </View>
         </View>

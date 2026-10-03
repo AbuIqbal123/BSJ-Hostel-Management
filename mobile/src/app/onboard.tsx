@@ -8,9 +8,22 @@ import { hallFetch, useSession } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
-const READY = "Your account is ready. Sign in with your enrolment number and password.";
 const PHONE = /^\+[1-9][0-9]{7,14}$/;
 const STEP_MS = 220;
+const TRAVEL = 28;
+const STEPS = ["Person", "Contact", "Room"] as const;
+
+const PASSWORD_RULES: { label: string; test: (value: string) => boolean }[] = [
+  { label: "Use at least 10 characters.", test: (value) => value.length >= 10 },
+  {
+    label: "Include an uppercase letter, a lowercase letter, a number, and a symbol.",
+    test: (value) =>
+      /[A-Z]/.test(value) &&
+      /[a-z]/.test(value) &&
+      /[0-9]/.test(value) &&
+      /[^A-Za-z0-9]/.test(value),
+  },
+];
 
 type RoomOption = {
   id: string;
@@ -25,6 +38,7 @@ type BlockOption = {
 
 const EMPTY_ROOMS = "No rooms are open.";
 const HALL_UNREACHABLE = "The hall could not be reached.";
+const PHONE_LINE = "Use an Indian mobile: +91 and exactly 10 digits.";
 
 async function apiMessage(response: Response): Promise<string> {
   try {
@@ -79,6 +93,14 @@ function readOptions(value: unknown): BlockOption[] | null {
   return blocks;
 }
 
+function openingBlockId(options: BlockOption[]): string | null {
+  const opening = options.find((item) => {
+    const name = item.name.trim().toLowerCase();
+    return name === "b" || name === "block b";
+  });
+  return opening?.id ?? null;
+}
+
 function trimmedLength(value: string): number {
   return value.trim().length;
 }
@@ -105,19 +127,22 @@ function enrolmentError(value: string): string | null {
   return null;
 }
 
-function passwordError(value: string): string | null {
-  if (value.length < 10) {
-    return "Use at least 10 characters.";
-  }
-  if (value.length > 200) {
-    return "Use 200 characters or fewer.";
-  }
-  return null;
+function passwordRulesMet(value: string): boolean {
+  return PASSWORD_RULES.every((rule) => rule.test(value));
+}
+
+function dialDigits(value: string): string {
+  return value.replace(/\s/g, "");
+}
+
+function e164(value: string): string {
+  return `+91${dialDigits(value)}`;
 }
 
 function phoneError(value: string): string | null {
-  if (!PHONE.test(value.trim())) {
-    return "Enter the phone number with the country code.";
+  const digits = dialDigits(value);
+  if (!/^\d{10}$/.test(digits) || !PHONE.test(e164(value))) {
+    return PHONE_LINE;
   }
   return null;
 }
@@ -127,6 +152,18 @@ function courseError(value: string): string | null {
     return "Use 120 characters or fewer.";
   }
   return null;
+}
+
+
+function dialCode(ink: string) {
+  return (
+    <View style={styles.dial}>
+      <Text style={styles.flag} accessible={false}>
+        🇮🇳
+      </Text>
+      <Text style={[text.field, { color: ink }]}>+91</Text>
+    </View>
+  );
 }
 
 export default function OnboardScreen() {
@@ -146,13 +183,20 @@ export default function OnboardScreen() {
   const [listNote, setListNote] = useState<string | null>(null);
   const [blockId, setBlockId] = useState<string | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
-  const [opacity] = useState(() => new Animated.Value(1));
+  const [roomQuery, setRoomQuery] = useState("");
+  const opacity = useRef(new Animated.Value(1)).current;
+  const shift = useRef(new Animated.Value(0)).current;
   const moving = useRef(false);
   const pending = useRef(false);
 
   const block = blocks.find((item) => item.id === blockId) ?? null;
   const room = block?.rooms.find((item) => item.id === roomId) ?? null;
   const rooms = block?.rooms ?? [];
+  const roomNeedle = roomQuery.trim().toLowerCase();
+  const roomMatches =
+    roomNeedle.length === 0
+      ? []
+      : rooms.filter((item) => item.label.toLowerCase().includes(roomNeedle));
 
   useEffect(() => {
     let active = true;
@@ -180,6 +224,7 @@ export default function OnboardScreen() {
           return;
         }
         setBlocks(parsed);
+        setBlockId((current) => current ?? openingBlockId(parsed));
         setListNote(parsed.length === 0 ? EMPTY_ROOMS : null);
       })
       .catch(() => {
@@ -200,43 +245,90 @@ export default function OnboardScreen() {
 
   const showStep = useCallback(
     (next: number) => {
-      if (moving.current || next === step) {
+      if (moving.current || next === step || next < 0 || next > 2) {
         return;
       }
       moving.current = true;
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: STEP_MS / 2,
-        useNativeDriver: true,
-      }).start(({ finished }) => {
+      const forward = next > step;
+      Animated.parallel([
+        Animated.timing(opacity, {
+          toValue: 0.4,
+          duration: STEP_MS / 2,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shift, {
+          toValue: forward ? -TRAVEL : TRAVEL,
+          duration: STEP_MS / 2,
+          useNativeDriver: true,
+        }),
+      ]).start(({ finished }) => {
         if (!finished) {
           moving.current = false;
           return;
         }
+        shift.setValue(forward ? TRAVEL : -TRAVEL);
+        opacity.setValue(0.4);
         setStep(next);
         setError(null);
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: STEP_MS / 2,
-          useNativeDriver: true,
-        }).start(() => {
-          moving.current = false;
+        requestAnimationFrame(() => {
+          Animated.parallel([
+            Animated.timing(opacity, {
+              toValue: 1,
+              duration: STEP_MS / 2,
+              useNativeDriver: true,
+            }),
+            Animated.timing(shift, {
+              toValue: 0,
+              duration: STEP_MS / 2,
+              useNativeDriver: true,
+            }),
+          ]).start(() => {
+            moving.current = false;
+          });
         });
       });
     },
-    [opacity, step],
+    [opacity, shift, step],
   );
 
-  const chooseBlock = useCallback((id: string) => {
-    setBlockId(id);
-    setRoomId(null);
-    setError(null);
-  }, []);
+  const chooseBlock = useCallback(
+    (id: string) => {
+      if (id !== blockId) {
+        setBlockId(id);
+        setRoomId(null);
+        setRoomQuery("");
+      }
+      setError(null);
+    },
+    [blockId],
+  );
 
   const chooseRoom = useCallback((id: string) => {
     setRoomId(id);
     setError(null);
   }, []);
+
+  const onRoomQuery = useCallback(
+    (value: string) => {
+      setRoomQuery(value);
+      setError(null);
+      const needle = value.trim().toLowerCase();
+      setRoomId((current) => {
+        if (!current) {
+          return null;
+        }
+        const selected = rooms.find((item) => item.id === current);
+        if (!selected) {
+          return null;
+        }
+        if (needle.length === 0 || !selected.label.toLowerCase().includes(needle)) {
+          return null;
+        }
+        return current;
+      });
+    },
+    [rooms],
+  );
 
   const submit = useCallback(async () => {
     const selectedBlock = blocks.find((item) => item.id === blockId) ?? null;
@@ -247,7 +339,7 @@ export default function OnboardScreen() {
     const problem =
       personError(fullName, "Enter your full name.") ??
       enrolmentError(enrolment) ??
-      passwordError(password) ??
+      (password.length > 200 ? "Use 200 characters or fewer." : null) ??
       phoneError(phone) ??
       personError(guardianName, "Enter the guardian name.") ??
       phoneError(guardianPhone) ??
@@ -256,14 +348,17 @@ export default function OnboardScreen() {
       setError(problem);
       return;
     }
+    if (!passwordRulesMet(password)) {
+      return;
+    }
     pending.current = true;
     const message = await onboard({
       full_name: fullName,
       enrolment_number: enrolment,
       password,
-      phone,
+      phone: e164(phone),
       guardian_name: guardianName,
-      guardian_phone: guardianPhone,
+      guardian_phone: e164(guardianPhone),
       course,
       block_id: selectedBlock.id,
       room_id: selectedRoom.id,
@@ -293,21 +388,24 @@ export default function OnboardScreen() {
       const problem =
         personError(fullName, "Enter your full name.") ??
         enrolmentError(enrolment) ??
-        passwordError(password);
+        (password.length > 200 ? "Use 200 characters or fewer." : null);
       if (problem) {
         setError(problem);
+        return;
+      }
+      if (!passwordRulesMet(password)) {
         return;
       }
       showStep(1);
       return;
     }
     if (step === 1) {
-      const problem =
-        phoneError(phone) ??
-        personError(guardianName, "Enter the guardian name.") ??
-        phoneError(guardianPhone);
-      if (problem) {
-        setError(problem);
+      const nameProblem = personError(guardianName, "Enter the guardian name.");
+      if (phoneError(phone) !== null || phoneError(guardianPhone) !== null) {
+        return;
+      }
+      if (nameProblem) {
+        setError(nameProblem);
         return;
       }
       showStep(2);
@@ -322,16 +420,33 @@ export default function OnboardScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text selectable style={[text.body, { color: colors.ink }]}>
-          {READY}
-        </Text>
-        <HallButton label="Sign in" onPress={() => router.replace("/sign-in")} />
+        <View style={styles.ready}>
+          <Text selectable style={[text.body, { color: colors.ink }]}>
+            Account created.
+          </Text>
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel="Sign in"
+            onPress={() => router.replace("/sign-in")}
+            style={styles.signIn}
+          >
+            <Text style={[text.body, { color: colors.forest }]}>Sign in</Text>
+          </Pressable>
+        </View>
       </ScrollView>
     );
   }
 
   const canSubmit = block !== null && room !== null;
-  const action = step < 2 ? "Continue" : "Onboard";
+  const phonesReady = phoneError(phone) === null && phoneError(guardianPhone) === null;
+  const showPhoneLine =
+    (phone.length > 0 && phoneError(phone) !== null) ||
+    (guardianPhone.length > 0 && phoneError(guardianPhone) !== null);
+  const action = step < 2 ? "Continue" : "Sign up";
+  const actionDisabled =
+    (step === 0 && !passwordRulesMet(password)) ||
+    (step === 1 && !phonesReady) ||
+    (step === 2 && !canSubmit);
 
   return (
     <ScrollView
@@ -341,7 +456,29 @@ export default function OnboardScreen() {
       keyboardDismissMode="interactive"
       showsVerticalScrollIndicator={false}
     >
-      <Animated.View style={[styles.fields, { opacity }]}>
+      <View style={styles.tracker}>
+        {STEPS.map((label, index) => {
+          const current = index === step;
+          const earlier = index < step;
+          const color = current ? colors.forest : earlier ? colors.ink : colors.inkFaint;
+          return (
+            <Pressable
+              key={label}
+              accessibilityRole="button"
+              accessibilityLabel={label}
+              accessibilityState={{ selected: current }}
+              onPress={() => {
+                if (index < step) {
+                  showStep(index);
+                }
+              }}
+            >
+              <Text style={[text.label, { color }]}>{label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      <Animated.View style={[styles.fields, { opacity, transform: [{ translateX: shift }] }]}>
         {step === 0 ? (
           <>
             <TextField
@@ -365,19 +502,30 @@ export default function OnboardScreen() {
               autoComplete="off"
               returnKeyType="next"
             />
-            <TextField
-              label="Password"
-              value={password}
-              onChangeText={(value) => {
-                setPassword(value);
-                clearError();
-              }}
-              secureTextEntry
-              autoComplete="password"
-              textContentType="password"
-              returnKeyType="go"
-              onSubmitEditing={advance}
-            />
+            <View style={styles.passwordBlock}>
+              <TextField
+                label="Password"
+                value={password}
+                onChangeText={(value) => {
+                  setPassword(value);
+                  clearError();
+                }}
+                secureTextEntry
+                autoComplete="password"
+                textContentType="password"
+                returnKeyType="go"
+                onSubmitEditing={advance}
+              />
+              {password.length > 0 && PASSWORD_RULES.some((rule) => !rule.test(password)) ? (
+                <View style={styles.rules}>
+                  {PASSWORD_RULES.filter((rule) => !rule.test(password)).map((rule) => (
+                    <Text key={rule.label} style={[text.error, { color: colors.inkSoft }]}>
+                      {rule.label}
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
+            </View>
           </>
         ) : null}
         {step === 1 ? (
@@ -390,6 +538,8 @@ export default function OnboardScreen() {
                 clearError();
               }}
               autoComplete="off"
+              keyboardType="number-pad"
+              prefix={dialCode(colors.ink)}
               returnKeyType="next"
             />
             <TextField
@@ -411,9 +561,14 @@ export default function OnboardScreen() {
                 clearError();
               }}
               autoComplete="off"
+              keyboardType="number-pad"
+              prefix={dialCode(colors.ink)}
               returnKeyType="go"
               onSubmitEditing={advance}
             />
+            {showPhoneLine ? (
+              <Text style={[text.error, { color: colors.inkSoft }]}>{PHONE_LINE}</Text>
+            ) : null}
           </>
         ) : null}
         {step === 2 ? (
@@ -444,34 +599,42 @@ export default function OnboardScreen() {
                 );
               })}
             </View>
-            <View style={styles.choice}>
-              <Text style={[text.label, { color: colors.inkSoft }]}>Room</Text>
-              {rooms.map((item) => {
-                const selected = item.id === roomId;
-                return (
-                  <Pressable
-                    key={item.id}
-                    accessibilityRole="button"
-                    accessibilityLabel={item.label}
-                    accessibilityState={{ selected }}
-                    onPress={() => chooseRoom(item.id)}
-                    style={[
-                      styles.option,
-                      {
-                        backgroundColor: colors.surface,
-                        borderColor: selected ? colors.forest : colors.line,
-                      },
-                    ]}
-                  >
-                    <Text style={[text.field, { color: selected ? colors.forest : colors.ink }]}>
-                      {item.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
             {listNote ? (
               <Text style={[text.body, { color: colors.inkSoft }]}>{listNote}</Text>
+            ) : null}
+            <TextField
+              label="Room"
+              value={roomQuery}
+              onChangeText={onRoomQuery}
+              autoComplete="off"
+              returnKeyType="next"
+            />
+            {roomMatches.length > 0 ? (
+              <View style={styles.choice}>
+                {roomMatches.map((item) => {
+                  const selected = item.id === roomId;
+                  return (
+                    <Pressable
+                      key={item.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={item.label}
+                      accessibilityState={{ selected }}
+                      onPress={() => chooseRoom(item.id)}
+                      style={[
+                        styles.option,
+                        {
+                          backgroundColor: colors.surface,
+                          borderColor: selected ? colors.forest : colors.line,
+                        },
+                      ]}
+                    >
+                      <Text style={[text.field, { color: selected ? colors.forest : colors.ink }]}>
+                        {item.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             ) : null}
             <TextField
               label="Course"
@@ -492,7 +655,7 @@ export default function OnboardScreen() {
         <View>
           <HallButton
             label={action}
-            disabled={step === 2 && !canSubmit}
+            disabled={actionDisabled}
             onPress={() => {
               if (step < 2) {
                 advance();
@@ -522,16 +685,6 @@ export default function OnboardScreen() {
             </Text>
           </View>
         </View>
-        {step > 0 ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-            onPress={() => showStep(step - 1)}
-            style={styles.back}
-          >
-            <Text style={[text.body, { color: colors.forest }]}>Back</Text>
-          </Pressable>
-        ) : null}
       </Animated.View>
     </ScrollView>
   );
@@ -545,7 +698,21 @@ const styles = StyleSheet.create({
     paddingTop: 28,
     paddingBottom: 28,
   },
+  tracker: {
+    flexDirection: "row",
+    gap: 20,
+    marginBottom: 20,
+  },
   fields: { gap: 16 },
+  passwordBlock: { gap: 8 },
+  rules: { gap: 2 },
+  dial: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingLeft: 14,
+  },
+  flag: { fontSize: 18 },
   choice: { gap: 8 },
   option: {
     minHeight: 52,
@@ -567,8 +734,6 @@ const styles = StyleSheet.create({
     borderCurve: "continuous",
     padding: 12,
   },
-  back: {
-    alignItems: "center",
-    marginTop: 64,
-  },
+  ready: { gap: 16 },
+  signIn: { alignSelf: "flex-start" },
 });

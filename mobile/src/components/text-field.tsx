@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState, type Ref } from "react";
+import { memo, useCallback, useMemo, useState, type ReactNode, type Ref } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 
 import { useHallColors } from "@/theme/colors";
@@ -21,6 +21,9 @@ type TextFieldProps = {
   onBlur?: () => void;
   /** When false, keep the idle border even while focused (e.g. during raise). */
   showOutline?: boolean;
+  keyboardType?: "default" | "number-pad";
+  /** Locked leading content inside the field. Sign-in does not use this. */
+  prefix?: ReactNode;
 };
 
 export const TextField = memo(function TextField({
@@ -39,18 +42,29 @@ export const TextField = memo(function TextField({
   onFocus,
   onBlur,
   showOutline = true,
+  keyboardType,
+  prefix,
 }: TextFieldProps) {
   const colors = useHallColors();
   const [focused, setFocused] = useState(false);
   const labelStyle = useMemo(() => [text.label, { color: colors.inkSoft }], [colors]);
-  const inputStyle = useMemo(() => [styles.input, text.field, { color: colors.ink }], [colors]);
+  const inputStyle = useMemo(
+    () => [
+      styles.input,
+      prefix ? styles.inputFill : styles.inputPad,
+      text.field,
+      { color: colors.ink },
+    ],
+    [colors, prefix],
+  );
   const painted = focused && showOutline;
   const shellStyle = useMemo(
     () => [
       styles.shell,
+      prefix ? styles.shellRow : null,
       { backgroundColor: colors.surface, borderColor: painted ? colors.forest : colors.line },
     ],
-    [colors, painted],
+    [colors, painted, prefix],
   );
   const showFocus = useCallback(() => {
     setFocused(true);
@@ -65,6 +79,7 @@ export const TextField = memo(function TextField({
     <View style={styles.field}>
       <Text style={labelStyle}>{label}</Text>
       <View style={shellStyle}>
+        {prefix}
         <TextInput
           ref={inputRef}
           value={value}
@@ -81,6 +96,7 @@ export const TextField = memo(function TextField({
           returnKeyType={returnKeyType}
           submitBehavior={submitBehavior}
           onSubmitEditing={onSubmitEditing}
+          keyboardType={keyboardType}
           placeholder={label}
           placeholderTextColor={colors.inkFaint}
           selectionColor={colors.forest}
@@ -101,9 +117,21 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderCurve: "continuous",
   },
+  shellRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   input: {
     height: "100%",
-    paddingHorizontal: 14,
     paddingVertical: 0,
+  },
+  inputPad: {
+    paddingHorizontal: 14,
+  },
+  inputFill: {
+    flex: 1,
+    minWidth: 0,
+    paddingLeft: 8,
+    paddingRight: 14,
   },
 });

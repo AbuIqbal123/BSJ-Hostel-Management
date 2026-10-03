@@ -8,6 +8,22 @@ import { useSession } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
+const PASSWORD_RULES: { label: string; test: (value: string) => boolean }[] = [
+  { label: "Use at least 10 characters.", test: (value) => value.length >= 10 },
+  {
+    label: "Include an uppercase letter, a lowercase letter, a number, and a symbol.",
+    test: (value) =>
+      /[A-Z]/.test(value) &&
+      /[a-z]/.test(value) &&
+      /[0-9]/.test(value) &&
+      /[^A-Za-z0-9]/.test(value),
+  },
+];
+
+function passwordRulesMet(value: string): boolean {
+  return PASSWORD_RULES.every((rule) => rule.test(value));
+}
+
 export default function ChangePasswordScreen() {
   const colors = useHallColors();
   const { user, changePassword } = useSession();
@@ -24,12 +40,11 @@ export default function ChangePasswordScreen() {
       setError("Enter your current password.");
       return;
     }
-    if (newPassword.length < 10) {
-      setError("Use at least 10 characters.");
-      return;
-    }
     if (newPassword.length > 200) {
       setError("Use 200 characters or fewer.");
+      return;
+    }
+    if (!passwordRulesMet(newPassword)) {
       return;
     }
     pending.current = true;
@@ -67,23 +82,34 @@ export default function ChangePasswordScreen() {
           textContentType="password"
           returnKeyType="next"
         />
-        <TextField
-          label="New password"
-          value={newPassword}
-          onChangeText={(value) => {
-            setNewPassword(value);
-            setError(null);
-          }}
-          secureTextEntry
-          autoComplete="password"
-          textContentType="password"
-          returnKeyType="go"
-          onSubmitEditing={() => {
-            void submit();
-          }}
-        />
+        <View style={styles.passwordBlock}>
+          <TextField
+            label="New password"
+            value={newPassword}
+            onChangeText={(value) => {
+              setNewPassword(value);
+              setError(null);
+            }}
+            secureTextEntry
+            autoComplete="password"
+            textContentType="password"
+            returnKeyType="go"
+            onSubmitEditing={() => {
+              void submit();
+            }}
+          />
+          {newPassword.length > 0 && PASSWORD_RULES.some((rule) => !rule.test(newPassword)) ? (
+            <View style={styles.rules}>
+              {PASSWORD_RULES.filter((rule) => !rule.test(newPassword)).map((rule) => (
+                <Text key={rule.label} style={[text.error, { color: colors.inkSoft }]}>
+                  {rule.label}
+                </Text>
+              ))}
+            </View>
+          ) : null}
+        </View>
         <View>
-          <HallButton label="Change password" onPress={() => void submit()} />
+          <HallButton label="Change password" disabled={!passwordRulesMet(newPassword)} onPress={() => void submit()} />
           <View
             pointerEvents="none"
             accessibilityElementsHidden={error === null}
@@ -119,6 +145,8 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
   },
   fields: { gap: 16 },
+  passwordBlock: { gap: 8 },
+  rules: { gap: 2 },
   errorSlot: {
     position: "absolute",
     left: 0,
