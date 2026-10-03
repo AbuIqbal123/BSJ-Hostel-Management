@@ -1,0 +1,27 @@
+{
+  "response": {
+    "enrolment_number": "24-GLLB-220",
+    "status": "active",
+    "message": "Your account is ready. Sign in with your enrolment number and password."
+  },
+  "stored": {
+    "role": "resident",
+    "username": "24-GLLB-220",
+    "full_name": "Fatima Noor",
+    "status": "active",
+    "course": "B.A. LL.B. (Hons.)",
+    "phone": "+919811112222",
+    "guardian_name": "Rashid Khan",
+    "guardian_phone": "+919876543210",
+    "presence": "inside",
+    "room_label": "B-204",
+    "block_name": "Block-B",
+    "created_at": "2026-09-30T12:00:00Z",
+    "updated_at": "2026-09-30T12:00:00Z",
+    "last_login_at": "2026-09-30T12:00:00Z"
+  },
+  "taken_message": "Username or password is wrong.",
+  "room_message": "That room is not in the selected block.",
+  "short_password_message": "Use at least 10 characters.",
+  "missing_phone_message": "Phone is required."
+}

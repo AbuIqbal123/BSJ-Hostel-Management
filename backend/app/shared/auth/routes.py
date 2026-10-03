@@ -16,6 +16,7 @@ from app.shared import clock
 from app.shared.db import get_connection
 from app.shared.errors import ApiError
 from app.shared.auth.rate_limit import client_key, login_limiter, refresh_limiter
+from app.staff.office.records import new_hall_pass_token, room_has_capacity
 from app.shared.auth.security import (
     ACCESS_TOKEN_SECONDS,
     REFRESH_TOKEN_DAYS,
@@ -339,3 +340,105 @@ def change_password(
     )
     _revoke_live(connection, account.id, stamp)
     return Response(status_code=204)
+
+
+_ONBOARD_READY = "Your account is ready. Sign in with your enrolment number and password."
+_ROOM_BLOCK = "That room is not in the selected block."
+_ROOM_INACTIVE = "That room is not in use."
+_ROOM_FULL = "This room already has as many residents as it has beds."
+
+
+class ResidentOnboardRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    full_name: str = Field(min_length=1, max_length=120)
+    enrolment_number: str = Field(min_length=1, max_length=40)
+    password: str = Field(min_length=10, max_length=200)
+    course: str | None = Field(default=None, max_length=120)
+    phone: str = Field(pattern=r"^\+[1-9][0-9]{7,14}$")
+    block_id: str
+    room_id: str
+    guardian_name: str = Field(min_length=1, max_length=120)
+    guardian_phone: str = Field(pattern=r"^\+[1-9][0-9]{7,14}$")
+
+
+class ResidentOnboardResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enrolment_number: str
+    status: Literal["active"]
+    message: str
+
+
+@router.post("/onboard", status_code=201)
+def onboard_resident(
+    body: ResidentOnboardRequest,
+    request: Request,
+    connection: ConnectionDep,
+) -> ResidentOnboardResponse:
+    login_limiter.check(client_key(request.client.host if request.client else None))
+    full_name = body.full_name.strip()
+    enrolment = body.enrolment_number.strip()
+    guardian_name = body.guardian_name.strip()
+    course = None if body.course is None else body.course.strip() or None
+    if not full_name or not enrolment or not guardian_name:
+        raise ApiError(422, "validation_error", "Required fields are missing.")
+    room = connection.execute(
+        "SELECT block_id, is_active FROM rooms WHERE id = ?",
+        (body.room_id,),
+    ).fetchone()
+    if room is None or room["block_id"] != body.block_id:
+        raise ApiError(422, "validation_error", _ROOM_BLOCK, field="room_id")
+    if int(room["is_active"]) != 1:
+        raise ApiError(422, "validation_error", _ROOM_INACTIVE, field="room_id")
+    if not room_has_capacity(connection, body.room_id):
+        raise ApiError(422, "validation_error", _ROOM_FULL, field="room_id")
+
+    user_id = str(uuid.uuid4())
+    now_text = clock.format_instant(clock.utc_now())
+    try:
+        connection.execute(
+            """
+            INSERT INTO users (
+              id, role, username, full_name, password_hash, status, created_at, updated_at
+            ) VALUES (?, 'resident', ?, ?, ?, 'active', ?, ?)
+            """,
+            (
+                user_id,
+                enrolment,
+                full_name,
+                hash_password(body.password),
+                now_text,
+                now_text,
+            ),
+        )
+        connection.execute(
+            """
+            INSERT INTO residents (
+              user_id, enrolment_number, course, room_id, phone, guardian_name, guardian_phone,
+              qr_token, presence, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'inside', ?, ?)
+            """,
+            (
+                user_id,
+                enrolment,
+                course,
+                body.room_id,
+                body.phone,
+                guardian_name,
+                body.guardian_phone,
+                new_hall_pass_token(),
+                now_text,
+                now_text,
+            ),
+        )
+    except sqlite3.IntegrityError as exc:
+        message = str(exc).lower()
+        if "unique" in message:
+            raise ApiError(401, "unauthenticated", _BAD_CREDENTIALS) from exc
+        if "beds" in message:
+            raise ApiError(422, "validation_error", _ROOM_FULL, field="room_id") from exc
+        raise
+    return ResidentOnboardResponse(
+        enrolment_number=enrolment,
+        status="active",
+        message=_ONBOARD_READY,
+    )
