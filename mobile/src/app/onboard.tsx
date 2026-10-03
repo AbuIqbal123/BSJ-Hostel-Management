@@ -900,7 +900,7 @@ export default function OnboardScreen() {
         selectedId={course}
         onPick={chooseCourse}
         colors={colors}
-        openShowsAll
+        openShowsAll={false}
         note={courseNote}
       />
     </View>
