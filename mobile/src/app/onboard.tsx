@@ -315,9 +315,9 @@ let signupDraft = emptySignupDraft();
 export default function OnboardScreen() {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
-  const { onboard } = useSession();
+  const { onboard, signIn } = useSession();
   const [step, setStep] = useState(signupDraft.step);
-  const [ready, setReady] = useState(false);
+  const [entered, setEntered] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [choiceAttempt, setChoiceAttempt] = useState(false);
@@ -464,7 +464,7 @@ export default function OnboardScreen() {
   );
   showStepRef.current = showStep;
 
-  usePreventRemove(step > 0 && !ready, () => {
+  usePreventRemove(step > 0 && !entered, () => {
     if (backLock.current) {
       return;
     }
@@ -474,6 +474,12 @@ export default function OnboardScreen() {
       backLock.current = false;
     });
   });
+
+  useEffect(() => {
+    if (entered) {
+      router.replace("/home");
+    }
+  }, [entered]);
 
   const onViewport = useCallback(
     (event: LayoutChangeEvent) => {
@@ -631,9 +637,14 @@ export default function OnboardScreen() {
         setError(message);
         return;
       }
+      const signInError = await signIn(enrolment, password);
+      if (signInError) {
+        setError(signInError);
+        return;
+      }
       keepDraft.current = false;
       signupDraft = emptySignupDraft();
-      setReady(true);
+      setEntered(true);
     } finally {
       pending.current = false;
       setBusy(false);
@@ -649,6 +660,7 @@ export default function OnboardScreen() {
     guardianPhone,
     onboard,
     password,
+    signIn,
     personInvalid,
     phone,
     revealContact,
@@ -711,31 +723,6 @@ export default function OnboardScreen() {
     paddingTop: insets.top + 28,
     paddingBottom: insets.bottom + 28,
   };
-
-  if (ready) {
-    return (
-      <ScrollView
-        style={[styles.screen, { backgroundColor: colors.paper }]}
-        contentContainerStyle={[styles.content, frame]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.ready}>
-          <Text selectable style={[text.body, { color: colors.ink }]}>
-            Account created.
-          </Text>
-          <Pressable
-            accessibilityRole="link"
-            accessibilityLabel="Sign in"
-            onPress={() => router.replace("/sign-in")}
-            style={styles.signIn}
-          >
-            <Text style={[text.body, { color: colors.forest }]}>Sign in</Text>
-          </Pressable>
-        </View>
-      </ScrollView>
-    );
-  }
 
   const nameNote = shown(fullNameField.visible, personError(fullName, "Enter your full name."));
   const enrolmentNote = shown(enrolmentField.visible, enrolmentError(enrolment));
@@ -1047,6 +1034,4 @@ const styles = StyleSheet.create({
     borderCurve: "continuous",
     padding: 12,
   },
-  ready: { gap: 16 },
-  signIn: { alignSelf: "flex-start" },
 });
