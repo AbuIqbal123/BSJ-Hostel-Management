@@ -14,11 +14,15 @@ const TRAVEL = 28;
 const STEPS = ["Person", "Contact", "Room"] as const;
 
 const PASSWORD_RULES: { label: string; test: (value: string) => boolean }[] = [
-  { label: "10 characters", test: (value) => value.length >= 10 },
-  { label: "Uppercase letter", test: (value) => /[A-Z]/.test(value) },
-  { label: "Lowercase letter", test: (value) => /[a-z]/.test(value) },
-  { label: "Number", test: (value) => /[0-9]/.test(value) },
-  { label: "Symbol", test: (value) => /[^A-Za-z0-9]/.test(value) },
+  { label: "Use at least 10 characters.", test: (value) => value.length >= 10 },
+  {
+    label: "Include an uppercase letter, a lowercase letter, a number, and a symbol.",
+    test: (value) =>
+      /[A-Z]/.test(value) &&
+      /[a-z]/.test(value) &&
+      /[0-9]/.test(value) &&
+      /[^A-Za-z0-9]/.test(value),
+  },
 ];
 
 type RoomOption = {
@@ -34,7 +38,7 @@ type BlockOption = {
 
 const EMPTY_ROOMS = "No rooms are open.";
 const HALL_UNREACHABLE = "The hall could not be reached.";
-const PHONE_LINE = "Enter 10 digits.";
+const PHONE_LINE = "Use an Indian mobile: +91 and exactly 10 digits.";
 
 async function apiMessage(response: Response): Promise<string> {
   try {
@@ -150,11 +154,23 @@ function courseError(value: string): string | null {
   return null;
 }
 
+
+function phoneColor(
+  value: string,
+  colors: { forest: string; danger: string; inkSoft: string },
+  noted: boolean,
+): string {
+  if (phoneError(value) === null) {
+    return colors.forest;
+  }
+  return noted ? colors.danger : colors.inkSoft;
+}
+
 function dialCode(ink: string) {
   return (
     <View style={styles.dial}>
       <Text style={styles.flag} accessible={false}>
-        "🇮🇳"
+        🇮🇳
       </Text>
       <Text style={[text.field, { color: ink }]}>+91</Text>
     </View>
@@ -168,6 +184,7 @@ export default function OnboardScreen() {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [passwordNoted, setPasswordNoted] = useState(false);
+  const [phoneNoted, setPhoneNoted] = useState(false);
   const [fullName, setFullName] = useState("");
   const [enrolment, setEnrolment] = useState("");
   const [password, setPassword] = useState("");
@@ -400,12 +417,17 @@ export default function OnboardScreen() {
       return;
     }
     if (step === 1) {
-      const problem =
-        phoneError(phone) ??
-        personError(guardianName, "Enter the guardian name.") ??
-        phoneError(guardianPhone);
-      if (problem) {
-        setError(problem);
+      const nameProblem = personError(guardianName, "Enter the guardian name.");
+      const phoneBad = phoneError(phone) !== null || phoneError(guardianPhone) !== null;
+      if (phoneBad) {
+        setPhoneNoted(true);
+      }
+      if (nameProblem) {
+        setError(nameProblem);
+        return;
+      }
+      if (phoneBad) {
+        setError(null);
         return;
       }
       showStep(2);
@@ -525,18 +547,24 @@ export default function OnboardScreen() {
         ) : null}
         {step === 1 ? (
           <>
-            <TextField
-              label="Phone"
-              value={phone}
-              onChangeText={(value) => {
-                setPhone(value);
-                clearError();
-              }}
-              autoComplete="off"
-              keyboardType="number-pad"
-              prefix={dialCode(colors.ink)}
-              returnKeyType="next"
-            />
+            <View style={styles.passwordBlock}>
+              <TextField
+                label="Phone"
+                value={phone}
+                onChangeText={(value) => {
+                  setPhone(value);
+                  setPhoneNoted(false);
+                  clearError();
+                }}
+                autoComplete="off"
+                keyboardType="number-pad"
+                prefix={dialCode(colors.ink)}
+                returnKeyType="next"
+              />
+              <Text style={[text.error, { color: phoneColor(phone, colors, phoneNoted) }]}>
+                {PHONE_LINE}
+              </Text>
+            </View>
             <TextField
               label="Guardian name"
               value={guardianName}
@@ -548,19 +576,25 @@ export default function OnboardScreen() {
               autoComplete="off"
               returnKeyType="next"
             />
-            <TextField
-              label="Guardian phone"
-              value={guardianPhone}
-              onChangeText={(value) => {
-                setGuardianPhone(value);
-                clearError();
-              }}
-              autoComplete="off"
-              keyboardType="number-pad"
-              prefix={dialCode(colors.ink)}
-              returnKeyType="go"
-              onSubmitEditing={advance}
-            />
+            <View style={styles.passwordBlock}>
+              <TextField
+                label="Guardian phone"
+                value={guardianPhone}
+                onChangeText={(value) => {
+                  setGuardianPhone(value);
+                  setPhoneNoted(false);
+                  clearError();
+                }}
+                autoComplete="off"
+                keyboardType="number-pad"
+                prefix={dialCode(colors.ink)}
+                returnKeyType="go"
+                onSubmitEditing={advance}
+              />
+              <Text style={[text.error, { color: phoneColor(guardianPhone, colors, phoneNoted) }]}>
+                {PHONE_LINE}
+              </Text>
+            </View>
           </>
         ) : null}
         {step === 2 ? (

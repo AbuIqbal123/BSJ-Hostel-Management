@@ -9,11 +9,15 @@ import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
 const PASSWORD_RULES: { label: string; test: (value: string) => boolean }[] = [
-  { label: "10 characters", test: (value) => value.length >= 10 },
-  { label: "Uppercase letter", test: (value) => /[A-Z]/.test(value) },
-  { label: "Lowercase letter", test: (value) => /[a-z]/.test(value) },
-  { label: "Number", test: (value) => /[0-9]/.test(value) },
-  { label: "Symbol", test: (value) => /[^A-Za-z0-9]/.test(value) },
+  { label: "Use at least 10 characters.", test: (value) => value.length >= 10 },
+  {
+    label: "Include an uppercase letter, a lowercase letter, a number, and a symbol.",
+    test: (value) =>
+      /[A-Z]/.test(value) &&
+      /[a-z]/.test(value) &&
+      /[0-9]/.test(value) &&
+      /[^A-Za-z0-9]/.test(value),
+  },
 ];
 
 function passwordRulesMet(value: string): boolean {
