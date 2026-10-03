@@ -22,6 +22,8 @@ type TextFieldProps = {
   /** When false, keep the idle border even while focused (e.g. during raise). */
   showOutline?: boolean;
   keyboardType?: "default" | "number-pad";
+  /** Refuses another character past this count. Sign-in does not use this. */
+  maxLength?: number;
   /** Locked leading content inside the field. Sign-in does not use this. */
   prefix?: ReactNode;
 };
@@ -43,6 +45,7 @@ export const TextField = memo(function TextField({
   onBlur,
   showOutline = true,
   keyboardType,
+  maxLength,
   prefix,
 }: TextFieldProps) {
   const colors = useHallColors();
@@ -97,6 +100,7 @@ export const TextField = memo(function TextField({
           submitBehavior={submitBehavior}
           onSubmitEditing={onSubmitEditing}
           keyboardType={keyboardType}
+          maxLength={maxLength}
           placeholder={label}
           placeholderTextColor={colors.inkFaint}
           selectionColor={colors.forest}

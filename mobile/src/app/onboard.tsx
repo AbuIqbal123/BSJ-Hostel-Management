@@ -1,17 +1,28 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { router } from "expo-router";
-import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { usePreventRemove } from "expo-router/react-navigation";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  Animated,
+  Easing,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type LayoutChangeEvent,
+} from "react-native";
 
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
 import { hallFetch, useSession } from "@/session";
-import { useHallColors } from "@/theme/colors";
+import { useHallColors, type HallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
 const PHONE = /^\+[1-9][0-9]{7,14}$/;
 const STEP_MS = 220;
-const TRAVEL = 28;
-const STEPS = ["Person", "Contact", "Room"] as const;
+const PAUSE_MS = 600;
 
 const PASSWORD_RULES: { label: string; test: (value: string) => boolean }[] = [
   { label: "Use at least 10 characters.", test: (value) => value.length >= 10 },
@@ -25,6 +36,26 @@ const PASSWORD_RULES: { label: string; test: (value: string) => boolean }[] = [
   },
 ];
 
+const COURSES = [
+  "BA LLB",
+  "LLM",
+  "BSc Industrial Chemistry",
+  "MSc Industrial Chemistry",
+  "MSc Wildlife and Biodiversity",
+  "MTech Agricultural Process and Food Engineering",
+  "MBA",
+  "MBA International Business",
+  "PG Islamic Banking and Finance",
+  "BA Theology (Sunni)",
+  "BA Theology (Shia)",
+  "PhD Agriculture",
+  "PhD Arts",
+  "PhD Commerce",
+  "PhD Law",
+  "PhD Life Sciences",
+  "PhD Theology",
+] as const;
+
 type RoomOption = {
   id: string;
   label: string;
@@ -34,6 +65,11 @@ type BlockOption = {
   id: string;
   name: string;
   rooms: RoomOption[];
+};
+
+type Choice = {
+  id: string;
+  label: string;
 };
 
 const EMPTY_ROOMS = "No rooms are open.";
@@ -54,6 +90,20 @@ async function apiMessage(response: Response): Promise<string> {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function hallBlockKey(name: string): string | null {
+  const normalized = name
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+  const match = /^(?:block\s+)?([abcd])$/.exec(normalized);
+  return match?.[1] ?? null;
+}
+
+function isHallBlock(name: string): boolean {
+  return hallBlockKey(name) !== null;
 }
 
 function readOptions(value: unknown): BlockOption[] | null {
@@ -85,20 +135,21 @@ function readOptions(value: unknown): BlockOption[] | null {
       }
       rooms.push({ id: room.id, label: room.label });
     }
-    if (rooms.length === 0) {
-      return null;
+    if (!isHallBlock(item.name)) {
+      continue;
     }
     blocks.push({ id: item.id, name: item.name, rooms });
   }
   return blocks;
 }
 
-function openingBlockId(options: BlockOption[]): string | null {
-  const opening = options.find((item) => {
-    const name = item.name.trim().toLowerCase();
-    return name === "b" || name === "block b";
-  });
-  return opening?.id ?? null;
+function openingBlock(options: BlockOption[]): BlockOption | null {
+  return (
+    options.find((item) => {
+      const name = item.name.trim().toLowerCase();
+      return name === "b" || name === "block b" || name === "block-b";
+    }) ?? null
+  );
 }
 
 function trimmedLength(value: string): number {
@@ -127,33 +178,84 @@ function enrolmentError(value: string): string | null {
   return null;
 }
 
-function passwordRulesMet(value: string): boolean {
-  return PASSWORD_RULES.every((rule) => rule.test(value));
+function failingPasswordRule(value: string): string | null {
+  for (const rule of PASSWORD_RULES) {
+    if (!rule.test(value)) {
+      return rule.label;
+    }
+  }
+  return null;
 }
 
-function dialDigits(value: string): string {
-  return value.replace(/\s/g, "");
+function passwordRulesMet(value: string): boolean {
+  return value.length > 0 && failingPasswordRule(value) === null && value.length <= 200;
+}
+
+function digits(value: string): string {
+  return value.replace(/\D/g, "").slice(0, 10);
 }
 
 function e164(value: string): string {
-  return `+91${dialDigits(value)}`;
+  return `+91${digits(value)}`;
 }
 
 function phoneError(value: string): string | null {
-  const digits = dialDigits(value);
-  if (!/^\d{10}$/.test(digits) || !PHONE.test(e164(value))) {
+  const dial = digits(value);
+  if (!/^\d{10}$/.test(dial) || !PHONE.test(e164(dial))) {
     return PHONE_LINE;
   }
   return null;
 }
 
-function courseError(value: string): string | null {
-  if (value.trim().length > 120) {
-    return "Use 120 characters or fewer.";
+function phoneNote(value: string, visible: boolean): string | null {
+  if (!visible || phoneError(value) === null) {
+    return null;
   }
-  return null;
+  return PHONE_LINE;
 }
 
+function shown(visible: boolean, message: string | null): string | null {
+  return visible ? message : null;
+}
+
+function isCourse(value: string | null): value is (typeof COURSES)[number] {
+  return value !== null && (COURSES as readonly string[]).includes(value);
+}
+
+function useFieldMessage(): { visible: boolean; reveal: () => void; onEdit: () => void } {
+  const [visible, setVisible] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const onEdit = useCallback(() => {
+    setVisible(false);
+    if (timer.current) {
+      clearTimeout(timer.current);
+    }
+    timer.current = setTimeout(() => {
+      timer.current = null;
+      setVisible(true);
+    }, PAUSE_MS);
+  }, []);
+
+  const reveal = useCallback(() => {
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+    setVisible(true);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (timer.current) {
+        clearTimeout(timer.current);
+      }
+    },
+    [],
+  );
+
+  return { visible, reveal, onEdit };
+}
 
 function dialCode(ink: string) {
   return (
@@ -166,37 +268,191 @@ function dialCode(ink: string) {
   );
 }
 
+function OptionList({
+  items,
+  selectedId,
+  onPick,
+  colors,
+}: {
+  items: Choice[];
+  selectedId: string | null;
+  onPick: (id: string) => void;
+  colors: HallColors;
+}) {
+  if (items.length === 0) {
+    return null;
+  }
+  return (
+    <View style={styles.choice}>
+      {items.map((item) => {
+        const selected = item.id === selectedId;
+        return (
+          <Pressable
+            key={item.id}
+            accessibilityRole="button"
+            accessibilityLabel={item.label}
+            accessibilityState={{ selected }}
+            onPress={() => onPick(item.id)}
+            style={[
+              styles.option,
+              {
+                backgroundColor: colors.surface,
+                borderColor: selected ? colors.forest : colors.line,
+              },
+            ]}
+          >
+            <Text style={[text.field, { color: selected ? colors.forest : colors.ink }]}>
+              {item.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+function ChoiceField({
+  label,
+  valueLabel,
+  items,
+  selectedId,
+  onPick,
+  colors,
+  openShowsAll,
+  note,
+  hint,
+}: {
+  label: string;
+  valueLabel: string | null;
+  items: Choice[];
+  selectedId: string | null;
+  onPick: (id: string) => void;
+  colors: HallColors;
+  openShowsAll: boolean;
+  note: string | null;
+  hint?: string | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const hits = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (needle.length === 0) {
+      return openShowsAll ? items : [];
+    }
+    return items.filter((item) => item.label.toLowerCase().includes(needle));
+  }, [items, openShowsAll, query]);
+
+  const pick = useCallback(
+    (id: string) => {
+      onPick(id);
+      setOpen(false);
+      setQuery("");
+    },
+    [onPick],
+  );
+
+  return (
+    <View style={styles.noteBlock}>
+      <Text style={[text.label, { color: colors.inkSoft }]}>{label}</Text>
+      {open ? (
+        <View
+          style={[
+            styles.shell,
+            { backgroundColor: colors.surface, borderColor: colors.forest },
+          ]}
+        >
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            autoFocus
+            autoCorrect={false}
+            spellCheck={false}
+            autoCapitalize="none"
+            placeholder={label}
+            placeholderTextColor={colors.inkFaint}
+            selectionColor={colors.forest}
+            cursorColor={colors.forest}
+            accessibilityLabel={label}
+            style={[styles.shellInput, text.field, { color: colors.ink }]}
+          />
+        </View>
+      ) : (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={valueLabel ? `${label}, ${valueLabel}` : label}
+          onPress={() => {
+            setQuery("");
+            setOpen(true);
+          }}
+          style={[
+            styles.shell,
+            styles.shellPad,
+            { backgroundColor: colors.surface, borderColor: colors.line },
+          ]}
+        >
+          <Text style={[text.field, { color: valueLabel ? colors.ink : colors.inkFaint }]}>
+            {valueLabel ?? label}
+          </Text>
+        </Pressable>
+      )}
+      {open ? (
+        <OptionList items={hits} selectedId={selectedId} onPick={pick} colors={colors} />
+      ) : null}
+      {hint ? <Text style={[text.body, { color: colors.inkSoft }]}>{hint}</Text> : null}
+      {note ? <Text style={[text.error, { color: colors.inkSoft }]}>{note}</Text> : null}
+    </View>
+  );
+}
+
 export default function OnboardScreen() {
   const colors = useHallColors();
+  const insets = useSafeAreaInsets();
   const { onboard } = useSession();
   const [step, setStep] = useState(0);
   const [ready, setReady] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [choiceAttempt, setChoiceAttempt] = useState(false);
   const [fullName, setFullName] = useState("");
   const [enrolment, setEnrolment] = useState("");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [guardianName, setGuardianName] = useState("");
   const [guardianPhone, setGuardianPhone] = useState("");
-  const [course, setCourse] = useState("");
+  const [course, setCourse] = useState<string | null>(null);
   const [blocks, setBlocks] = useState<BlockOption[]>([]);
   const [listNote, setListNote] = useState<string | null>(null);
   const [blockId, setBlockId] = useState<string | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
-  const [roomQuery, setRoomQuery] = useState("");
-  const opacity = useRef(new Animated.Value(1)).current;
-  const shift = useRef(new Animated.Value(0)).current;
-  const moving = useRef(false);
+  const [paneWidth, setPaneWidth] = useState(0);
+  const offset = useRef(new Animated.Value(0)).current;
+  const widthRef = useRef(0);
+  const stepRef = useRef(0);
+  const showStepRef = useRef<(next: number) => void>(() => {});
+  const backLock = useRef(false);
+  const blockTouched = useRef(false);
   const pending = useRef(false);
+  const fullNameField = useFieldMessage();
+  const enrolmentField = useFieldMessage();
+  const phoneField = useFieldMessage();
+  const passwordField = useFieldMessage();
+  const guardianNameField = useFieldMessage();
+  const guardianPhoneField = useFieldMessage();
 
   const block = blocks.find((item) => item.id === blockId) ?? null;
   const room = block?.rooms.find((item) => item.id === roomId) ?? null;
   const rooms = block?.rooms ?? [];
-  const roomNeedle = roomQuery.trim().toLowerCase();
-  const roomMatches =
-    roomNeedle.length === 0
-      ? []
-      : rooms.filter((item) => item.label.toLowerCase().includes(roomNeedle));
+  const blockItems = useMemo(
+    () => blocks.map((item) => ({ id: item.id, label: item.name })),
+    [blocks],
+  );
+  const courseItems = useMemo(
+    () => COURSES.map((label) => ({ id: label, label })),
+    [],
+  );
+
+  stepRef.current = step;
 
   useEffect(() => {
     let active = true;
@@ -224,7 +480,10 @@ export default function OnboardScreen() {
           return;
         }
         setBlocks(parsed);
-        setBlockId((current) => current ?? openingBlockId(parsed));
+        if (!blockTouched.current) {
+          const opening = openingBlock(parsed);
+          setBlockId(opening?.id ?? null);
+        }
         setListNote(parsed.length === 0 ? EMPTY_ROOMS : null);
       })
       .catch(() => {
@@ -239,139 +498,190 @@ export default function OnboardScreen() {
     };
   }, []);
 
-  const clearError = useCallback(() => {
-    setError(null);
-  }, []);
-
   const showStep = useCallback(
     (next: number) => {
-      if (moving.current || next === step || next < 0 || next > 2) {
+      if (next === stepRef.current || next < 0 || next > 2) {
         return;
       }
-      moving.current = true;
-      const forward = next > step;
-      Animated.parallel([
-        Animated.timing(opacity, {
-          toValue: 0.4,
-          duration: STEP_MS / 2,
-          useNativeDriver: true,
-        }),
-        Animated.timing(shift, {
-          toValue: forward ? -TRAVEL : TRAVEL,
-          duration: STEP_MS / 2,
-          useNativeDriver: true,
-        }),
-      ]).start(({ finished }) => {
-        if (!finished) {
-          moving.current = false;
-          return;
-        }
-        shift.setValue(forward ? TRAVEL : -TRAVEL);
-        opacity.setValue(0.4);
-        setStep(next);
-        setError(null);
-        requestAnimationFrame(() => {
-          Animated.parallel([
-            Animated.timing(opacity, {
-              toValue: 1,
-              duration: STEP_MS / 2,
-              useNativeDriver: true,
-            }),
-            Animated.timing(shift, {
-              toValue: 0,
-              duration: STEP_MS / 2,
-              useNativeDriver: true,
-            }),
-          ]).start(() => {
-            moving.current = false;
-          });
-        });
-      });
+      stepRef.current = next;
+      setStep(next);
+      setError(null);
+      const width = widthRef.current;
+      if (width <= 0) {
+        return;
+      }
+      Animated.timing(offset, {
+        toValue: -next * width,
+        duration: STEP_MS,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
     },
-    [opacity, shift, step],
+    [offset],
+  );
+  showStepRef.current = showStep;
+
+  usePreventRemove(step > 0 && !ready, () => {
+    if (backLock.current) {
+      return;
+    }
+    backLock.current = true;
+    showStepRef.current(stepRef.current - 1);
+    requestAnimationFrame(() => {
+      backLock.current = false;
+    });
+  });
+
+  const onViewport = useCallback(
+    (event: LayoutChangeEvent) => {
+      const next = Math.round(event.nativeEvent.layout.width);
+      if (next <= 0 || next === widthRef.current) {
+        return;
+      }
+      widthRef.current = next;
+      setPaneWidth(next);
+      offset.setValue(-stepRef.current * next);
+    },
+    [offset],
   );
 
   const chooseBlock = useCallback(
     (id: string) => {
-      if (id !== blockId) {
-        setBlockId(id);
-        setRoomId(null);
-        setRoomQuery("");
+      const item = blocks.find((entry) => entry.id === id);
+      if (!item) {
+        return;
       }
+      blockTouched.current = true;
+      if (id !== blockId) {
+        setRoomId(null);
+      }
+      setBlockId(id);
       setError(null);
     },
-    [blockId],
+    [blockId, blocks],
   );
 
-  const chooseRoom = useCallback((id: string) => {
-    setRoomId(id);
-    setError(null);
-  }, []);
-
-  const onRoomQuery = useCallback(
-    (value: string) => {
-      setRoomQuery(value);
+  const chooseRoom = useCallback(
+    (id: string) => {
+      if (!rooms.some((entry) => entry.id === id)) {
+        return;
+      }
+      setRoomId(id);
       setError(null);
-      const needle = value.trim().toLowerCase();
-      setRoomId((current) => {
-        if (!current) {
-          return null;
-        }
-        const selected = rooms.find((item) => item.id === current);
-        if (!selected) {
-          return null;
-        }
-        if (needle.length === 0 || !selected.label.toLowerCase().includes(needle)) {
-          return null;
-        }
-        return current;
-      });
     },
     [rooms],
   );
 
+  const chooseCourse = useCallback((label: string) => {
+    if (!isCourse(label)) {
+      return;
+    }
+    setCourse(label);
+    setError(null);
+  }, []);
+
+  const onPhone = useCallback(
+    (value: string) => {
+      const next = digits(value);
+      if (next === phone) {
+        return;
+      }
+      setPhone(next);
+      phoneField.onEdit();
+      setError(null);
+    },
+    [phone, phoneField],
+  );
+
+  const onGuardianPhone = useCallback(
+    (value: string) => {
+      const next = digits(value);
+      if (next === guardianPhone) {
+        return;
+      }
+      setGuardianPhone(next);
+      guardianPhoneField.onEdit();
+      setError(null);
+    },
+    [guardianPhone, guardianPhoneField],
+  );
+
+  const personInvalid = useCallback(() => {
+    return (
+      personError(fullName, "Enter your full name.") !== null ||
+      enrolmentError(enrolment) !== null ||
+      password.length > 200 ||
+      phoneError(phone) !== null ||
+      !passwordRulesMet(password)
+    );
+  }, [enrolment, fullName, password, phone]);
+
+  const contactInvalid = useCallback(() => {
+    return (
+      personError(guardianName, "Enter the guardian name.") !== null ||
+      phoneError(guardianPhone) !== null
+    );
+  }, [guardianName, guardianPhone]);
+
+  const revealPerson = useCallback(() => {
+    fullNameField.reveal();
+    enrolmentField.reveal();
+    phoneField.reveal();
+    passwordField.reveal();
+  }, [enrolmentField, fullNameField, passwordField, phoneField]);
+
+  const revealContact = useCallback(() => {
+    guardianNameField.reveal();
+    guardianPhoneField.reveal();
+  }, [guardianNameField, guardianPhoneField]);
+
   const submit = useCallback(async () => {
+    if (pending.current) {
+      return;
+    }
     const selectedBlock = blocks.find((item) => item.id === blockId) ?? null;
     const selectedRoom = selectedBlock?.rooms.find((item) => item.id === roomId) ?? null;
-    if (pending.current || !selectedBlock || !selectedRoom) {
+    if (personInvalid()) {
+      revealPerson();
+      showStep(0);
       return;
     }
-    const problem =
-      personError(fullName, "Enter your full name.") ??
-      enrolmentError(enrolment) ??
-      (password.length > 200 ? "Use 200 characters or fewer." : null) ??
-      phoneError(phone) ??
-      personError(guardianName, "Enter the guardian name.") ??
-      phoneError(guardianPhone) ??
-      courseError(course);
-    if (problem) {
-      setError(problem);
+    if (contactInvalid()) {
+      revealContact();
+      showStep(1);
       return;
     }
-    if (!passwordRulesMet(password)) {
+    if (!selectedBlock || !selectedRoom || !isCourse(course)) {
+      setChoiceAttempt(true);
       return;
     }
     pending.current = true;
-    const message = await onboard({
-      full_name: fullName,
-      enrolment_number: enrolment,
-      password,
-      phone: e164(phone),
-      guardian_name: guardianName,
-      guardian_phone: e164(guardianPhone),
-      course,
-      block_id: selectedBlock.id,
-      room_id: selectedRoom.id,
-    });
-    pending.current = false;
-    if (message) {
-      setError(message);
-      return;
+    setBusy(true);
+    try {
+      const message = await onboard({
+        full_name: fullName,
+        enrolment_number: enrolment,
+        password,
+        phone: e164(phone),
+        guardian_name: guardianName,
+        guardian_phone: e164(guardianPhone),
+        course,
+        block_id: selectedBlock.id,
+        room_id: selectedRoom.id,
+      });
+      if (message) {
+        setError(message);
+        return;
+      }
+      setReady(true);
+    } finally {
+      pending.current = false;
+      setBusy(false);
     }
-    setReady(true);
   }, [
     blockId,
     blocks,
+    contactInvalid,
     course,
     enrolment,
     fullName,
@@ -379,44 +689,45 @@ export default function OnboardScreen() {
     guardianPhone,
     onboard,
     password,
+    personInvalid,
     phone,
+    revealContact,
+    revealPerson,
     roomId,
+    showStep,
   ]);
 
   const advance = useCallback(() => {
+    if (pending.current) {
+      return;
+    }
     if (step === 0) {
-      const problem =
-        personError(fullName, "Enter your full name.") ??
-        enrolmentError(enrolment) ??
-        (password.length > 200 ? "Use 200 characters or fewer." : null);
-      if (problem) {
-        setError(problem);
-        return;
-      }
-      if (!passwordRulesMet(password)) {
+      revealPerson();
+      if (personInvalid()) {
         return;
       }
       showStep(1);
       return;
     }
     if (step === 1) {
-      const nameProblem = personError(guardianName, "Enter the guardian name.");
-      if (phoneError(phone) !== null || phoneError(guardianPhone) !== null) {
-        return;
-      }
-      if (nameProblem) {
-        setError(nameProblem);
+      revealContact();
+      if (contactInvalid()) {
         return;
       }
       showStep(2);
     }
-  }, [enrolment, fullName, guardianName, guardianPhone, password, phone, showStep, step]);
+  }, [contactInvalid, personInvalid, revealContact, revealPerson, showStep, step]);
+
+  const frame = {
+    paddingTop: insets.top + 28,
+    paddingBottom: insets.bottom + 28,
+  };
 
   if (ready) {
     return (
       <ScrollView
         style={[styles.screen, { backgroundColor: colors.paper }]}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, frame]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -437,255 +748,260 @@ export default function OnboardScreen() {
     );
   }
 
-  const canSubmit = block !== null && room !== null;
-  const phonesReady = phoneError(phone) === null && phoneError(guardianPhone) === null;
-  const showPhoneLine =
-    (phone.length > 0 && phoneError(phone) !== null) ||
-    (guardianPhone.length > 0 && phoneError(guardianPhone) !== null);
+  const nameNote = shown(fullNameField.visible, personError(fullName, "Enter your full name."));
+  const enrolmentNote = shown(enrolmentField.visible, enrolmentError(enrolment));
+  const passwordLengthNote = shown(
+    passwordField.visible,
+    password.length > 200 ? "Use 200 characters or fewer." : null,
+  );
+  const passwordRuleNote = shown(passwordField.visible, failingPasswordRule(password));
+  const ownPhoneNote = phoneNote(phone, phoneField.visible);
+  const guardianNameNote = shown(
+    guardianNameField.visible,
+    personError(guardianName, "Enter the guardian name."),
+  );
+  const guardianPhoneNote = phoneNote(guardianPhone, guardianPhoneField.visible);
+  const blockNote = choiceAttempt && block === null ? "Choose a block." : null;
+  const roomNote = choiceAttempt && room === null ? "Choose a room." : null;
+  const courseNote = choiceAttempt && !isCourse(course) ? "Choose a course." : null;
   const action = step < 2 ? "Continue" : "Sign up";
-  const actionDisabled =
-    (step === 0 && !passwordRulesMet(password)) ||
-    (step === 1 && !phonesReady) ||
-    (step === 2 && !canSubmit);
+
+  const person = (
+    <View style={styles.fields}>
+      <View style={styles.noteBlock}>
+        <TextField
+          label="Full name"
+          value={fullName}
+          onChangeText={(value) => {
+            setFullName(value);
+            fullNameField.onEdit();
+            setError(null);
+          }}
+          autoCapitalize="sentences"
+          autoComplete="off"
+          returnKeyType="next"
+        />
+        {nameNote ? <Text style={[text.error, { color: colors.inkSoft }]}>{nameNote}</Text> : null}
+      </View>
+      <View style={styles.noteBlock}>
+        <TextField
+          label="Enrolment number"
+          value={enrolment}
+          onChangeText={(value) => {
+            setEnrolment(value);
+            enrolmentField.onEdit();
+            setError(null);
+          }}
+          autoComplete="off"
+          returnKeyType="next"
+        />
+        {enrolmentNote ? (
+          <Text style={[text.error, { color: colors.inkSoft }]}>{enrolmentNote}</Text>
+        ) : null}
+      </View>
+      <View style={styles.noteBlock}>
+        <TextField
+          label="Phone"
+          value={phone}
+          onChangeText={onPhone}
+          autoComplete="off"
+          keyboardType="number-pad"
+          maxLength={10}
+          prefix={dialCode(colors.ink)}
+          returnKeyType="next"
+        />
+        {ownPhoneNote ? (
+          <Text style={[text.error, { color: colors.inkSoft }]}>{ownPhoneNote}</Text>
+        ) : null}
+      </View>
+      <View style={styles.noteBlock}>
+        <TextField
+          label="Password"
+          value={password}
+          onChangeText={(value) => {
+            setPassword(value);
+            passwordField.onEdit();
+            setError(null);
+          }}
+          secureTextEntry
+          autoComplete="password"
+          textContentType="password"
+          returnKeyType="go"
+          onSubmitEditing={advance}
+        />
+        {passwordLengthNote || passwordRuleNote ? (
+          <View style={styles.rules}>
+            {passwordLengthNote ? (
+              <Text style={[text.error, { color: colors.inkSoft }]}>{passwordLengthNote}</Text>
+            ) : null}
+            {passwordRuleNote ? (
+              <Text style={[text.error, { color: colors.inkSoft }]}>{passwordRuleNote}</Text>
+            ) : null}
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
+
+  const contact = (
+    <View style={styles.fields}>
+      <View style={styles.noteBlock}>
+        <TextField
+          label="Guardian name"
+          value={guardianName}
+          onChangeText={(value) => {
+            setGuardianName(value);
+            guardianNameField.onEdit();
+            setError(null);
+          }}
+          autoCapitalize="sentences"
+          autoComplete="off"
+          returnKeyType="next"
+        />
+        {guardianNameNote ? (
+          <Text style={[text.error, { color: colors.inkSoft }]}>{guardianNameNote}</Text>
+        ) : null}
+      </View>
+      <View style={styles.noteBlock}>
+        <TextField
+          label="Guardian phone"
+          value={guardianPhone}
+          onChangeText={onGuardianPhone}
+          autoComplete="off"
+          keyboardType="number-pad"
+          maxLength={10}
+          prefix={dialCode(colors.ink)}
+          returnKeyType="go"
+          onSubmitEditing={advance}
+        />
+        {guardianPhoneNote ? (
+          <Text style={[text.error, { color: colors.inkSoft }]}>{guardianPhoneNote}</Text>
+        ) : null}
+      </View>
+    </View>
+  );
+
+  const roomStep = (
+    <View style={styles.fields}>
+      <ChoiceField
+        label="Block"
+        valueLabel={block?.name ?? null}
+        items={blockItems}
+        selectedId={blockId}
+        onPick={chooseBlock}
+        colors={colors}
+        openShowsAll
+        hint={listNote}
+        note={blockNote}
+      />
+      <ChoiceField
+        label="Room"
+        valueLabel={room?.label ?? null}
+        items={rooms}
+        selectedId={roomId}
+        onPick={chooseRoom}
+        colors={colors}
+        openShowsAll
+        hint={block && rooms.length === 0 ? EMPTY_ROOMS : null}
+        note={roomNote}
+      />
+      <ChoiceField
+        label="Course"
+        valueLabel={course}
+        items={courseItems}
+        selectedId={course}
+        onPick={chooseCourse}
+        colors={colors}
+        openShowsAll
+        note={courseNote}
+      />
+    </View>
+  );
 
   return (
     <ScrollView
       style={[styles.screen, { backgroundColor: colors.paper }]}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, frame]}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="interactive"
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.tracker}>
-        {STEPS.map((label, index) => {
-          const current = index === step;
-          const earlier = index < step;
-          const color = current ? colors.forest : earlier ? colors.ink : colors.inkFaint;
-          return (
+      <View style={styles.progress}>
+        <View style={styles.track}>
+          {[0, 1, 2].map((index) => (
+            <View
+              key={index}
+              style={[
+                styles.segment,
+                { backgroundColor: index < step ? colors.forest : colors.line },
+              ]}
+            />
+          ))}
+        </View>
+        <View style={styles.hits}>
+          {[0, 1, 2].map((index) => (
             <Pressable
-              key={label}
+              key={index}
+              style={styles.hit}
               accessibilityRole="button"
-              accessibilityLabel={label}
-              accessibilityState={{ selected: current }}
+              accessibilityState={{ selected: index === step }}
               onPress={() => {
                 if (index < step) {
                   showStep(index);
                 }
               }}
-            >
-              <Text style={[text.label, { color }]}>{label}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
-      <Animated.View style={[styles.fields, { opacity, transform: [{ translateX: shift }] }]}>
-        {step === 0 ? (
-          <>
-            <TextField
-              label="Full name"
-              value={fullName}
-              onChangeText={(value) => {
-                setFullName(value);
-                clearError();
-              }}
-              autoCapitalize="sentences"
-              autoComplete="off"
-              returnKeyType="next"
             />
-            <TextField
-              label="Enrolment number"
-              value={enrolment}
-              onChangeText={(value) => {
-                setEnrolment(value);
-                clearError();
-              }}
-              autoComplete="off"
-              returnKeyType="next"
-            />
-            <View style={styles.passwordBlock}>
-              <TextField
-                label="Password"
-                value={password}
-                onChangeText={(value) => {
-                  setPassword(value);
-                  clearError();
-                }}
-                secureTextEntry
-                autoComplete="password"
-                textContentType="password"
-                returnKeyType="go"
-                onSubmitEditing={advance}
-              />
-              {password.length > 0 && PASSWORD_RULES.some((rule) => !rule.test(password)) ? (
-                <View style={styles.rules}>
-                  {PASSWORD_RULES.filter((rule) => !rule.test(password)).map((rule) => (
-                    <Text key={rule.label} style={[text.error, { color: colors.inkSoft }]}>
-                      {rule.label}
-                    </Text>
-                  ))}
-                </View>
-              ) : null}
-            </View>
-          </>
-        ) : null}
-        {step === 1 ? (
-          <>
-            <TextField
-              label="Phone"
-              value={phone}
-              onChangeText={(value) => {
-                setPhone(value);
-                clearError();
-              }}
-              autoComplete="off"
-              keyboardType="number-pad"
-              prefix={dialCode(colors.ink)}
-              returnKeyType="next"
-            />
-            <TextField
-              label="Guardian name"
-              value={guardianName}
-              onChangeText={(value) => {
-                setGuardianName(value);
-                clearError();
-              }}
-              autoCapitalize="sentences"
-              autoComplete="off"
-              returnKeyType="next"
-            />
-            <TextField
-              label="Guardian phone"
-              value={guardianPhone}
-              onChangeText={(value) => {
-                setGuardianPhone(value);
-                clearError();
-              }}
-              autoComplete="off"
-              keyboardType="number-pad"
-              prefix={dialCode(colors.ink)}
-              returnKeyType="go"
-              onSubmitEditing={advance}
-            />
-            {showPhoneLine ? (
-              <Text style={[text.error, { color: colors.inkSoft }]}>{PHONE_LINE}</Text>
-            ) : null}
-          </>
-        ) : null}
-        {step === 2 ? (
-          <>
-            <View style={styles.choice}>
-              <Text style={[text.label, { color: colors.inkSoft }]}>Block</Text>
-              {blocks.map((item) => {
-                const selected = item.id === blockId;
-                return (
-                  <Pressable
-                    key={item.id}
-                    accessibilityRole="button"
-                    accessibilityLabel={item.name}
-                    accessibilityState={{ selected }}
-                    onPress={() => chooseBlock(item.id)}
-                    style={[
-                      styles.option,
-                      {
-                        backgroundColor: colors.surface,
-                        borderColor: selected ? colors.forest : colors.line,
-                      },
-                    ]}
-                  >
-                    <Text style={[text.field, { color: selected ? colors.forest : colors.ink }]}>
-                      {item.name}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            {listNote ? (
-              <Text style={[text.body, { color: colors.inkSoft }]}>{listNote}</Text>
-            ) : null}
-            <TextField
-              label="Room"
-              value={roomQuery}
-              onChangeText={onRoomQuery}
-              autoComplete="off"
-              returnKeyType="next"
-            />
-            {roomMatches.length > 0 ? (
-              <View style={styles.choice}>
-                {roomMatches.map((item) => {
-                  const selected = item.id === roomId;
-                  return (
-                    <Pressable
-                      key={item.id}
-                      accessibilityRole="button"
-                      accessibilityLabel={item.label}
-                      accessibilityState={{ selected }}
-                      onPress={() => chooseRoom(item.id)}
-                      style={[
-                        styles.option,
-                        {
-                          backgroundColor: colors.surface,
-                          borderColor: selected ? colors.forest : colors.line,
-                        },
-                      ]}
-                    >
-                      <Text style={[text.field, { color: selected ? colors.forest : colors.ink }]}>
-                        {item.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ) : null}
-            <TextField
-              label="Course"
-              value={course}
-              onChangeText={(value) => {
-                setCourse(value);
-                clearError();
-              }}
-              autoCapitalize="sentences"
-              autoComplete="off"
-              returnKeyType="go"
-              onSubmitEditing={() => {
-                void submit();
-              }}
-            />
-          </>
-        ) : null}
-        <View>
-          <HallButton
-            label={action}
-            disabled={actionDisabled}
-            onPress={() => {
-              if (step < 2) {
-                advance();
-                return;
-              }
-              void submit();
-            }}
-          />
-          <View
-            pointerEvents="none"
-            accessibilityElementsHidden={error === null}
-            style={styles.errorSlot}
-          >
-            <Text
-              selectable={error !== null}
-              style={[
-                text.error,
-                styles.error,
-                {
-                  color: colors.danger,
-                  backgroundColor: colors.dangerBg,
-                  opacity: error ? 1 : 0,
-                },
-              ]}
-            >
-              {error ?? " "}
-            </Text>
-          </View>
+          ))}
         </View>
-      </Animated.View>
+      </View>
+      <View style={styles.viewport} onLayout={onViewport}>
+        <Animated.View
+          style={[
+            styles.row,
+            {
+              width: paneWidth > 0 ? paneWidth * 3 : undefined,
+              transform: [{ translateX: offset }],
+            },
+          ]}
+        >
+          <View style={[styles.pane, paneWidth > 0 ? { width: paneWidth } : null]}>{person}</View>
+          <View style={[styles.pane, paneWidth > 0 ? { width: paneWidth } : null]}>{contact}</View>
+          <View style={[styles.pane, paneWidth > 0 ? { width: paneWidth } : null]}>{roomStep}</View>
+        </Animated.View>
+      </View>
+      <View style={styles.action}>
+        <HallButton
+          label={action}
+          disabled={busy}
+          onPress={() => {
+            if (step < 2) {
+              advance();
+              return;
+            }
+            void submit();
+          }}
+        />
+        <View
+          pointerEvents="none"
+          accessibilityElementsHidden={error === null}
+          style={styles.errorSlot}
+        >
+          <Text
+            selectable={error !== null}
+            style={[
+              text.error,
+              styles.error,
+              {
+                color: colors.danger,
+                backgroundColor: colors.dangerBg,
+                opacity: error ? 1 : 0,
+              },
+            ]}
+          >
+            {error ?? " "}
+          </Text>
+        </View>
+      </View>
     </ScrollView>
   );
 }
@@ -695,17 +1011,31 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     paddingHorizontal: 28,
-    paddingTop: 28,
-    paddingBottom: 28,
   },
-  tracker: {
-    flexDirection: "row",
-    gap: 20,
+  progress: {
+    height: 28,
+    justifyContent: "center",
     marginBottom: 20,
   },
+  track: {
+    flexDirection: "row",
+    height: 4,
+    borderRadius: 2,
+    overflow: "hidden",
+  },
+  segment: { flex: 1 },
+  hits: {
+    ...StyleSheet.absoluteFill,
+    flexDirection: "row",
+  },
+  hit: { flex: 1 },
+  viewport: { overflow: "hidden" },
+  row: { flexDirection: "row", flexShrink: 0 },
+  pane: { flexShrink: 0 },
   fields: { gap: 16 },
-  passwordBlock: { gap: 8 },
+  noteBlock: { gap: 8 },
   rules: { gap: 2 },
+  action: { marginTop: 16 },
   dial: {
     flexDirection: "row",
     alignItems: "center",
@@ -713,6 +1043,19 @@ const styles = StyleSheet.create({
     paddingLeft: 14,
   },
   flag: { fontSize: 18 },
+  shell: {
+    height: 52,
+    borderWidth: 1,
+    borderRadius: 12,
+    borderCurve: "continuous",
+    justifyContent: "center",
+  },
+  shellPad: { paddingHorizontal: 14 },
+  shellInput: {
+    height: "100%",
+    paddingVertical: 0,
+    paddingHorizontal: 14,
+  },
   choice: { gap: 8 },
   option: {
     minHeight: 52,
