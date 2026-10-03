@@ -267,7 +267,7 @@ The resident's own phone is separate from the guardian phone. Self-onboard and o
 | created_at | Instant | Yes | System | When the profile was created. |
 | updated_at | Instant | Yes | System | When it last changed. |
 
-Activating a pending resident requires a room. At that moment the system sets status to active, stores the room, and issues the first hall-pass code. The hall pass then stays the same from outing to outing. It changes only when the provost issues a new one. The provost does that on the resident's record, for example after a lost phone or because someone else has seen the code. The provost does not type the new code. The system makes a new random code, puts it in place of the old one at that moment, and writes an audit log entry. The old code stops working immediately. The resident's phone shows the new code the next time it loads the pass.
+A future Hall Office activation of a pending account would assign a room and issue the first hall-pass code at that moment; that workflow is deferred. The hall pass stays the same from outing to outing. It changes only when the provost issues a new one. The provost does that on the resident's record, for example after a lost phone or because someone else has seen the code. The provost does not type the new code. The system makes a new random code, puts it in place of the old one at that moment, and writes an audit log entry. The old code stops working immediately. The resident's phone shows the new code the next time it loads the pass.
 
 ### Staff
 
@@ -523,7 +523,6 @@ This is the audit log: the record of who did what. Each entry is one action that
 | Resident self-onboarded | auth.onboard |
 | Resident created | resident.created |
 | Resident updated | resident.updated |
-| Resident activated | resident.activated |
 | Resident suspended | resident.suspended |
 | Resident reinstated | resident.reinstated |
 | Hall pass reissued | hall_pass.reissued |
@@ -558,6 +557,8 @@ This is the audit log: the record of who did what. Each entry is one action that
 | Late guardian message | sms.late_notice |
 | Return guardian message | sms.return_notice |
 
+`resident.activated` is reserved for a future Hall Office activation workflow; it is not used on the current self-onboard (active) path.
+
 ## Who can do what
 
 What a person may do comes from her or his role.
@@ -573,7 +574,7 @@ A warden or the provost approves or rejects a permission and a guest stay, sees 
 | Scan a hall pass, record a guest's arrival and departure | | Yes | Yes | Yes |
 | Register, late list, waiting decisions, mark a guest paid, upload or clear optional payment evidence | | | Yes | Yes |
 | Export the register | | | | Yes |
-| Create and edit residents, activate pending residents, create staff, rooms, blocks, destinations, and settings | | | | Yes |
+| Create and edit residents, create staff, rooms, blocks, destinations, and settings | | | | Yes |
 | Issue a new hall pass, reset a password | | | | Yes |
 | Read guardian messages and the audit log | | | | Yes |
 

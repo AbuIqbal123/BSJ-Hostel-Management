@@ -13,7 +13,7 @@ Read these three first.
 | [`docs/design/design-system.md`](docs/design/design-system.md) | Visual design lock for the Expo client |
 | [`docs/design/workflows.md`](docs/design/workflows.md) | Product workflows (auth, home, permissions, register, gate, guests) |
 
-Swagger serves the same HTTP contract at http://localhost:8000/docs from `backend/openapi.yaml`. The test catalog is [`docs/tests/tests.md`](docs/tests/tests.md) (thirty-one recorded checks).
+Swagger serves the same HTTP contract at http://localhost:8000/docs from `backend/openapi.yaml`. The test catalog is [`docs/tests/tests.md`](docs/tests/tests.md) (thirty-four recorded checks).
 
 ## Repository
 
@@ -66,7 +66,7 @@ Paths in `backend/openapi.yaml` that the process serves today:
 
 | Area | Paths |
 |---|---|
-| Auth | `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, `POST /api/v1/auth/logout`, `GET /api/v1/auth/me`, `POST /api/v1/auth/change-password` |
+| Auth | `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, `POST /api/v1/auth/logout`, `GET /api/v1/auth/me`, `POST /api/v1/auth/change-password`. `POST /api/v1/auth/onboard` is in OpenAPI (contract only; not served yet) |
 | Resident | `GET /api/v1/me/home`, `GET /api/v1/me/history`, `GET /api/v1/me/hall-pass`, `GET /api/v1/destinations`, ordinary outings under `/api/v1/me/outings*`, permissions under `/api/v1/me/permissions*`, guest stays under `/api/v1/me/guest-stays*` |
 | Register | `GET /api/v1/register/summary`, `GET /api/v1/register/residents`, `GET /api/v1/register/residents/{resident_id}`, `GET /api/v1/register/late` |
 | Permissions (staff) | `GET /api/v1/permissions`, `GET /api/v1/permissions/{permission_id}`, `POST /api/v1/permissions/{permission_id}/decision` |

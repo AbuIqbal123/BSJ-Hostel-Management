@@ -1,6 +1,6 @@
 # Agent notes
 
-Begum Sultan Jahan Hall hostel management. Residents, wardens, gate staff, and the provost. React Native and Docker are later. The current work is the local FastAPI contract.
+Begum Sultan Jahan Hall hostel management. Residents, wardens, gate staff, and the provost. A `mobile/` Expo sign-in shell exists; full React Native product work and Docker are later. The current focus is the local FastAPI contract.
 
 Before changing API behavior, the database, or the shape of the system, follow `.grok/skills/contract-maintenance/SKILL.md` and the rules below.
 
