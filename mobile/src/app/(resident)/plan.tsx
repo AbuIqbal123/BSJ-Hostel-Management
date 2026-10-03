@@ -1,12 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
-import DateTimePicker, {
-  DateTimePickerAndroid,
-} from "@react-native-community/datetimepicker";
 import {
   Alert,
   BackHandler,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -18,32 +14,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
-import { formatWhen, utcInstant } from "@/format-when";
+import { utcInstant } from "@/format-when";
+import { OTHER_NAME, WhenField, leaveNote, returnNote } from "@/outing-when";
 import { lockOuting, useSession, type DestinationItem } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
-
-// Seeded catalog name. backend/app/shared/migrations/0001_create_hall.sql stores 'Other'.
-export const OTHER_NAME = "Other";
-
-// hall_day() is the calendar date in hall_settings.timezone, seeded Asia/Kolkata.
-// Ordinary hours are the seeded summer and winter outing clocks. The start is
-// not included. The end is included. A later time is not a permission flow.
-const HALL_ZONE = "Asia/Kolkata";
-const SUMMER_START = "04-01";
-const WINTER_START = "10-01";
-const DAY_START = "06:30";
-const SUMMER_END = "18:30";
-const WINTER_END = "17:30";
-
-const START_FUTURE = "The outing start must be in the future.";
-const RETURN_FUTURE = "The expected return must be in the future.";
-const RETURN_AFTER = "The expected return must be after the start.";
-const SAME_DAY = "An ordinary outing starts and returns on the same hall day.";
-const START_EARLY = "That start is outside ordinary hours.";
-const START_LATE = "That start is outside ordinary hours. Please submit a permission request.";
-const RETURN_EARLY = "That return is outside ordinary hours.";
-const RETURN_LATE = "That return is outside ordinary hours. Please submit a permission request.";
 
 function paramText(value: string | string[] | undefined): string {
   if (Array.isArray(value)) {
@@ -63,161 +38,6 @@ function instant(value: string): Date | null {
   return date;
 }
 
-function hallPart(date: Date, type: Intl.DateTimeFormatPartTypes): string {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: HALL_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(date);
-  return parts.find((item) => item.type === type)?.value ?? "";
-}
-
-export function hallDay(date: Date): string {
-  return `${hallPart(date, "year")}-${hallPart(date, "month")}-${hallPart(date, "day")}`;
-}
-
-function hallClock(date: Date): string {
-  return `${hallPart(date, "hour")}:${hallPart(date, "minute")}:${hallPart(date, "second")}`;
-}
-
-function monthDay(date: Date): string {
-  return `${hallPart(date, "month")}-${hallPart(date, "day")}`;
-}
-
-function hoursNote(date: Date, kind: "start" | "return"): string | null {
-  const day = monthDay(date);
-  const summer = SUMMER_START <= day && day < WINTER_START;
-  const end = summer ? SUMMER_END : WINTER_END;
-  const clock = hallClock(date);
-  if (clock <= `${DAY_START}:00`) {
-    return kind === "start" ? START_EARLY : RETURN_EARLY;
-  }
-  if (clock > `${end}:00`) {
-    return kind === "start" ? START_LATE : RETURN_LATE;
-  }
-  return null;
-}
-
-export function leaveNote(leaveAt: Date | null): string | null {
-  if (!leaveAt) {
-    return null;
-  }
-  if (leaveAt.getTime() <= Date.now()) {
-    return START_FUTURE;
-  }
-  return hoursNote(leaveAt, "start");
-}
-
-export function returnNote(leaveAt: Date | null, backBy: Date | null): string | null {
-  if (!backBy) {
-    return null;
-  }
-  if (backBy.getTime() <= Date.now()) {
-    return RETURN_FUTURE;
-  }
-  if (leaveAt && backBy.getTime() <= leaveAt.getTime()) {
-    return RETURN_AFTER;
-  }
-  if (leaveAt && hallDay(leaveAt) !== hallDay(backBy)) {
-    return SAME_DAY;
-  }
-  return hoursNote(backBy, "return");
-}
-
-export function WhenField({
-  label,
-  value,
-  onChange,
-  pastNote,
-}: {
-  label: string;
-  value: Date | null;
-  onChange: (date: Date) => void;
-  pastNote: string | null;
-}) {
-  const colors = useHallColors();
-  const [iosOpen, setIosOpen] = useState(false);
-
-  useEffect(() => {
-    if (value === null) {
-      setIosOpen(false);
-    }
-  }, [value]);
-
-  const open = () => {
-    if (Platform.OS === "android") {
-      const seed = value ?? new Date();
-      DateTimePickerAndroid.open({
-        value: seed,
-        mode: "date",
-        onValueChange: (_event, date) => {
-          if (!date) {
-            return;
-          }
-          DateTimePickerAndroid.open({
-            value: date,
-            mode: "time",
-            onValueChange: (_timeEvent, time) => {
-              if (!time) {
-                return;
-              }
-              const next = new Date(date);
-              next.setHours(time.getHours(), time.getMinutes(), 0, 0);
-              onChange(next);
-            },
-          });
-        },
-      });
-      return;
-    }
-    if (!value) {
-      onChange(new Date());
-    }
-    setIosOpen(true);
-  };
-
-  const showPicker = Platform.OS !== "android" && iosOpen;
-
-  return (
-    <View style={styles.field}>
-      <Text style={[text.label, { color: colors.inkSoft }]}>{label}</Text>
-      {showPicker ? (
-        <DateTimePicker
-          value={value ?? new Date()}
-          mode="datetime"
-          display="compact"
-          onValueChange={(_event, date) => {
-            if (date) {
-              onChange(date);
-            }
-          }}
-        />
-      ) : (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={value ? `${label}, ${formatWhen(utcInstant(value))}` : label}
-          onPress={open}
-          style={[
-            styles.shell,
-            styles.shellPad,
-            { backgroundColor: colors.surface, borderColor: colors.line },
-          ]}
-        >
-          <Text style={[text.field, { color: value ? colors.ink : colors.inkFaint }]}>
-            {value ? formatWhen(utcInstant(value)) : label}
-          </Text>
-        </Pressable>
-      )}
-      {pastNote ? <Text style={[text.error, { color: colors.danger }]}>{pastNote}</Text> : null}
-    </View>
-  );
-}
-
 export default function PlanScreen() {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
@@ -229,7 +49,7 @@ export default function PlanScreen() {
   }>();
   const outingId = paramText(params.outing);
   const editing = outingId.length > 0;
-  const { loadDestinations, planOuting, updateOuting, cancelOuting } = useSession();
+  const { loadDestinations, updateOuting, cancelOuting } = useSession();
   const [loadError, setLoadError] = useState<string | null>(null);
   const [places, setPlaces] = useState<DestinationItem[] | null>(null);
   const [destinationId, setDestinationId] = useState<string | null>(null);
@@ -237,7 +57,6 @@ export default function PlanScreen() {
   const [backBy, setBackBy] = useState<Date | null>(null);
   const [where, setWhere] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [planned, setPlanned] = useState(false);
   const pending = useRef(false);
   const seeded = useRef<string | null>(null);
   const seenOuting = useRef<string>("");
@@ -278,7 +97,6 @@ export default function PlanScreen() {
       setBackBy(null);
       setWhere("");
       setError(null);
-      setPlanned(false);
       seeded.current = null;
     }
     seenOuting.current = outingId;
@@ -301,12 +119,10 @@ export default function PlanScreen() {
     setLeaveAt(instant(paramText(params.startsAt)));
     setBackBy(instant(paramText(params.expectedReturnAt)));
     setError(null);
-    setPlanned(false);
   }, [editing, outingId, params.expectedReturnAt, params.place, params.startsAt, places]);
 
   const clearResult = useCallback(() => {
     setError(null);
-    setPlanned(false);
   }, []);
 
   const chosen = places?.find((item) => item.id === destinationId) ?? null;
@@ -320,67 +136,43 @@ export default function PlanScreen() {
   }, []);
 
   const submit = useCallback(async () => {
-    if (pending.current) {
+    if (pending.current || !editing) {
       return;
     }
     if (!destinationId) {
-      setPlanned(false);
       setError("Choose a place.");
       return;
     }
     if (!leaveAt) {
-      setPlanned(false);
       setError("Choose when you will leave.");
       return;
     }
     if (!backBy) {
-      setPlanned(false);
       setError("Choose when you will be back.");
       return;
     }
     if (leaveNote(leaveAt) || returnNote(leaveAt, backBy)) {
-      setPlanned(false);
       setError(null);
       return;
     }
     const placeText = where.trim();
     if (other && placeText.length === 0) {
-      setPlanned(false);
       setError("Say where.");
       return;
     }
     pending.current = true;
-    const startsAt = utcInstant(leaveAt);
-    const expectedReturnAt = utcInstant(backBy);
-    const message = editing
-      ? await updateOuting(outingId, {
-          destination_id: destinationId,
-          starts_at: startsAt,
-          expected_return_at: expectedReturnAt,
-          ...(other ? { destination_text: placeText } : {}),
-        })
-      : await planOuting({
-          destination_id: destinationId,
-          starts_at: startsAt,
-          expected_return_at: expectedReturnAt,
-          ...(other ? { destination_text: placeText } : {}),
-        });
+    const message = await updateOuting(outingId, {
+      destination_id: destinationId,
+      starts_at: utcInstant(leaveAt),
+      expected_return_at: utcInstant(backBy),
+      ...(other ? { destination_text: placeText } : {}),
+    });
     pending.current = false;
     if (message) {
-      setPlanned(false);
       setError(message);
       return;
     }
-    if (editing) {
-      backHome();
-      return;
-    }
-    setDestinationId(null);
-    setLeaveAt(null);
-    setBackBy(null);
-    setWhere("");
-    setError(null);
-    setPlanned(true);
+    backHome();
   }, [
     backBy,
     backHome,
@@ -389,7 +181,6 @@ export default function PlanScreen() {
     leaveAt,
     other,
     outingId,
-    planOuting,
     updateOuting,
     where,
   ]);
@@ -411,7 +202,6 @@ export default function PlanScreen() {
       backHome();
       return;
     }
-    setPlanned(false);
     setError(failure.message);
   }, [backHome, cancelOuting, editing, outingId]);
 
@@ -522,9 +312,6 @@ export default function PlanScreen() {
                 void submit();
               }}
             />
-            {!editing && planned ? (
-              <Text style={[text.body, { color: colors.ink }]}>Outing planned.</Text>
-            ) : null}
             {editing ? (
               <Pressable
                 accessibilityRole="button"
@@ -564,16 +351,7 @@ const styles = StyleSheet.create({
   dismiss: { flexGrow: 1, gap: 16 },
   block: { gap: 28 },
   fields: { gap: 16 },
-  field: { gap: 8 },
   action: { gap: 16 },
-  shell: {
-    height: 52,
-    borderWidth: 1,
-    borderRadius: 12,
-    borderCurve: "continuous",
-    justifyContent: "center",
-  },
-  shellPad: { paddingHorizontal: 14 },
   error: {
     borderRadius: 12,
     borderCurve: "continuous",

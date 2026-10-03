@@ -19,13 +19,7 @@ import { formatWhen, utcInstant } from "@/format-when";
 import { outingLocked, useSession, type UpcomingOuting } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
-import {
-  OTHER_NAME,
-  WhenField,
-  hallDay,
-  leaveNote,
-  returnNote,
-} from "@/app/(resident)/plan";
+import { OTHER_NAME, WhenField, hallDay, leaveNote, returnNote } from "@/outing-when";
 
 const WHERE_MS = 220;
 

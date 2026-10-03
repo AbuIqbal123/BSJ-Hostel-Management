@@ -66,7 +66,6 @@ export type ResidentHomeResult =
 export type HallPass = {
   fullName: string;
   roomLabel: string;
-  outingId: string | null;
   qrVisible: boolean;
   qrPayload: string | null;
   qrVisibleFrom: string | null;
@@ -275,9 +274,6 @@ function readHallPass(value: unknown): HallPass | null {
   if (typeof value.room_label !== "string") {
     return null;
   }
-  if (value.outing_id !== null && typeof value.outing_id !== "string") {
-    return null;
-  }
   if (value.qr_payload !== null && typeof value.qr_payload !== "string") {
     return null;
   }
@@ -294,7 +290,6 @@ function readHallPass(value: unknown): HallPass | null {
   return {
     fullName: value.full_name,
     roomLabel: value.room_label,
-    outingId: typeof value.outing_id === "string" && value.outing_id.length > 0 ? value.outing_id : null,
     qrVisible: value.qr_visible,
     qrPayload: value.qr_visible ? payload : null,
     qrVisibleFrom: typeof value.qr_visible_from === "string" ? value.qr_visible_from : null,
