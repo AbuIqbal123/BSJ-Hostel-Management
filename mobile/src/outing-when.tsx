@@ -188,7 +188,6 @@ export function WhenField({
   const dayText = comma === -1 ? printed : printed.slice(0, comma);
   const clockText = comma === -1 ? "" : printed.slice(comma + 2);
   const ink = value ? colors.ink : colors.inkFaint;
-  const offset = Math.round((wallUtc(shown) - shown.getTime()) / 60000);
 
   const commit = (date: Date) => {
     if (sameHallMinute(date, shown)) {
@@ -209,8 +208,10 @@ export function WhenField({
         style={styles.row}
       >
         <Text style={[text.label, { color: open ? colors.forest : colors.inkSoft }]}>{label}</Text>
-        <Text style={[text.field, { color: ink }]}>{dayText}</Text>
-        <Text style={[text.field, { color: ink }]}>{clockText}</Text>
+        <View style={styles.when}>
+          <Text style={[text.field, { color: ink }]}>{dayText}</Text>
+          <Text style={[text.field, { color: ink }]}>{clockText}</Text>
+        </View>
       </Pressable>
       {open ? (
         <View onStartShouldSetResponder={() => true}>
@@ -241,7 +242,6 @@ export function WhenField({
               mode="datetime"
               display="spinner"
               timeZoneName={HALL_ZONE}
-              timeZoneOffsetInMinutes={offset}
               onValueChange={(_event, date) => {
                 commit(date);
               }}
@@ -261,6 +261,15 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     gap: 12,
+  },
+  when: {
+    flex: 1,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+    columnGap: 12,
+    rowGap: 2,
   },
 });
