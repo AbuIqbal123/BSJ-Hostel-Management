@@ -395,8 +395,19 @@ export default function SignInScreen() {
               onBlur={onFieldBlur}
               showOutline={outlineReady}
             />
-            <View>
+            <View style={styles.submit}>
               <HallButton label="Sign in" onPress={submit} />
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel="Don't have an account? Sign up"
+                onPress={() => router.push("/onboard")}
+                style={styles.onboard}
+              >
+                <Text style={[text.body, { color: colors.ink }]}>
+                  Don't have an account?{" "}
+                  <Text style={{ color: colors.forest }}>Sign up</Text>
+                </Text>
+              </Pressable>
               <View
                 pointerEvents="none"
                 accessibilityElementsHidden={error === null}
@@ -418,17 +429,6 @@ export default function SignInScreen() {
                 </Text>
               </View>
             </View>
-            <Pressable
-              accessibilityRole="link"
-              accessibilityLabel="Don't have an account? Sign up"
-              onPress={() => router.push("/onboard")}
-              style={styles.onboard}
-            >
-              <Text style={[text.body, { color: colors.ink }]}>
-                Don't have an account?{" "}
-                <Text style={{ color: colors.forest }}>Sign up</Text>
-              </Text>
-            </Pressable>
           </View>
         </View>
       </View>
@@ -452,9 +452,9 @@ const styles = StyleSheet.create({
   block: { gap: 28 },
   mark: { alignItems: "center", gap: 12 },
   fields: { gap: 16 },
+  submit: { gap: 16 },
   onboard: {
     alignItems: "center",
-    marginTop: 64,
   },
   errorSlot: {
     position: "absolute",
