@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import Constants from "expo-constants";
 import { router } from "expo-router";
-import { Animated, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
-import { useSession } from "@/session";
+import { hallFetch, useSession } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
@@ -24,53 +23,8 @@ type BlockOption = {
   rooms: RoomOption[];
 };
 
-const LOCAL_HALL = "http://127.0.0.1:8000";
 const EMPTY_ROOMS = "No rooms are open.";
 const HALL_UNREACHABLE = "The hall could not be reached.";
-
-function explicitHall(): string | null {
-  const configured = process.env.EXPO_PUBLIC_API_URL;
-  if (!configured) {
-    return null;
-  }
-  return configured.replace(/\/$/, "");
-}
-
-function devMachineHall(): string | null {
-  const host = Constants.expoConfig?.hostUri?.split(":")[0];
-  if (host && host !== "localhost" && host !== "127.0.0.1") {
-    return `http://${host}:8000`;
-  }
-  if (Platform.OS === "android") {
-    return "http://10.0.2.2:8000";
-  }
-  return null;
-}
-
-let resolvedHall: string | null = null;
-
-async function hallFetch(path: string, init: RequestInit): Promise<Response> {
-  const explicit = explicitHall();
-  if (explicit) {
-    return fetch(`${explicit}${path}`, init);
-  }
-  if (resolvedHall) {
-    return fetch(`${resolvedHall}${path}`, init);
-  }
-  try {
-    const response = await fetch(`${LOCAL_HALL}${path}`, init);
-    resolvedHall = LOCAL_HALL;
-    return response;
-  } catch {
-    const fallback = devMachineHall();
-    if (!fallback) {
-      throw new Error(HALL_UNREACHABLE);
-    }
-    const response = await fetch(`${fallback}${path}`, init);
-    resolvedHall = fallback;
-    return response;
-  }
-}
 
 async function apiMessage(response: Response): Promise<string> {
   try {
