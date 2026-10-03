@@ -137,8 +137,25 @@ def gate_guests(
     payment_status: Annotated[Literal["paid", "unpaid"] | None, Query()] = None,
 ) -> GateGuestList:
     today = hall_today(connection, clock.utc_now())
+    clauses = ["guest_stays.status = 'approved'"]
+    params: list[object] = []
+    if bucket == "expected":
+        # Timing only: approved stay within dates, not yet arrived.
+        # (Payment is not required for the expected list; card bucket stays "expected".)
+        clauses.append("guest_stays.arrived_at IS NULL")
+        clauses.append("guest_stays.departed_at IS NULL")
+        clauses.append("guest_stays.guest_start_date <= ?")
+        clauses.append("? <= guest_stays.guest_end_date")
+        params.extend([today, today])
+    else:
+        # Dining set: arrived and not departed (includes should_have_left).
+        clauses.append("guest_stays.arrived_at IS NOT NULL")
+        clauses.append("guest_stays.departed_at IS NULL")
+    if payment_status is not None:
+        clauses.append("guest_stays.payment_status = ?")
+        params.append(payment_status)
     rows = connection.execute(
-        """
+        f"""
         SELECT
           guest_stays.id,
           guest_stays.guest_name,
@@ -154,36 +171,25 @@ def gate_guests(
         JOIN users AS host ON host.id = guest_stays.host_resident_id
         JOIN residents ON residents.user_id = guest_stays.host_resident_id
         JOIN rooms ON rooms.id = residents.room_id
-        WHERE guest_stays.status = 'approved'
+        WHERE {' AND '.join(clauses)}
         ORDER BY guest_stays.guest_start_date, guest_stays.guest_name, guest_stays.id
-        """
+        """,
+        params,
     ).fetchall()
     items: list[GateGuestCard] = []
     for row in rows:
-        derived = derive_bucket(
-            status=row["status"],
-            payment_status=row["payment_status"],
-            start_date=row["guest_start_date"],
-            end_date=row["guest_end_date"],
-            arrived_at=row["arrived_at"],
-            departed_at=row["departed_at"],
-            today=today,
-        )
         if bucket == "expected":
-            # Timing only: approved stay within dates, not yet arrived.
-            if not (
-                row["arrived_at"] is None
-                and row["guest_start_date"] <= today <= row["guest_end_date"]
-            ):
-                continue
             card_bucket = "expected"
         else:
-            # Dining set: arrived and not departed (includes should_have_left).
-            if row["arrived_at"] is None or row["departed_at"] is not None:
-                continue
-            card_bucket = derived
-        if payment_status is not None and row["payment_status"] != payment_status:
-            continue
+            card_bucket = derive_bucket(
+                status=row["status"],
+                payment_status=row["payment_status"],
+                start_date=row["guest_start_date"],
+                end_date=row["guest_end_date"],
+                arrived_at=row["arrived_at"],
+                departed_at=row["departed_at"],
+                today=today,
+            )
         items.append(
             GateGuestCard(
                 id=row["id"],
