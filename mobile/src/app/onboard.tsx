@@ -140,15 +140,6 @@ function readOptions(value: unknown): BlockOption[] | null {
   return blocks;
 }
 
-function openingBlock(options: BlockOption[]): BlockOption | null {
-  return (
-    options.find((item) => {
-      const name = item.name.trim().toLowerCase();
-      return name === "b" || name === "block b" || name === "block-b";
-    }) ?? null
-  );
-}
-
 function trimmedLength(value: string): number {
   return value.trim().length;
 }
@@ -340,8 +331,12 @@ export default function OnboardScreen() {
   const [course, setCourse] = useState<string | null>(signupDraft.course);
   const [blocks, setBlocks] = useState<BlockOption[]>([]);
   const [listNote, setListNote] = useState<string | null>(null);
-  const [blockId, setBlockId] = useState<string | null>(signupDraft.blockId);
-  const [roomId, setRoomId] = useState<string | null>(signupDraft.roomId);
+  const [blockId, setBlockId] = useState<string | null>(
+    signupDraft.blockTouched ? signupDraft.blockId : null,
+  );
+  const [roomId, setRoomId] = useState<string | null>(
+    signupDraft.blockTouched ? signupDraft.roomId : null,
+  );
   const [paneWidth, setPaneWidth] = useState(0);
   const offset = useRef(new Animated.Value(0)).current;
   const widthRef = useRef(0);
@@ -429,10 +424,6 @@ export default function OnboardScreen() {
           return;
         }
         setBlocks(parsed);
-        if (!blockTouched.current) {
-          const opening = openingBlock(parsed);
-          setBlockId(opening?.id ?? null);
-        }
         setListNote(parsed.length === 0 ? EMPTY_ROOMS : null);
       })
       .catch(() => {
@@ -879,6 +870,7 @@ export default function OnboardScreen() {
     <View style={styles.fields}>
       <ChoiceField
         label="Block"
+        placeholder="Select your block"
         valueLabel={block?.name ?? null}
         items={blockItems}
         selectedId={blockId}
