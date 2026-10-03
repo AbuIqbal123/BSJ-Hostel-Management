@@ -62,6 +62,7 @@ export const ChoiceField = memo(function ChoiceField({
   openShowsAll,
   note,
   hint,
+  placeholder,
 }: {
   label: string;
   valueLabel: string | null;
@@ -72,7 +73,9 @@ export const ChoiceField = memo(function ChoiceField({
   openShowsAll: boolean;
   note: string | null;
   hint?: string | null;
+  placeholder?: string;
 }) {
+  const blank = placeholder ?? label;
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
@@ -110,7 +113,7 @@ export const ChoiceField = memo(function ChoiceField({
             autoCorrect={false}
             spellCheck={false}
             autoCapitalize="none"
-            placeholder={label}
+            placeholder={blank}
             placeholderTextColor={colors.inkFaint}
             selectionColor={colors.forest}
             cursorColor={colors.forest}
@@ -121,7 +124,7 @@ export const ChoiceField = memo(function ChoiceField({
       ) : (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={valueLabel ? `${label}, ${valueLabel}` : label}
+          accessibilityLabel={valueLabel ? `${label}, ${valueLabel}` : blank}
           onPress={() => {
             setQuery("");
             setOpen(true);
@@ -133,7 +136,7 @@ export const ChoiceField = memo(function ChoiceField({
           ]}
         >
           <Text style={[text.field, { color: valueLabel ? colors.ink : colors.inkFaint }]}>
-            {valueLabel ?? label}
+            {valueLabel ?? blank}
           </Text>
         </Pressable>
       )}
@@ -141,7 +144,7 @@ export const ChoiceField = memo(function ChoiceField({
         <OptionList items={hits} selectedId={selectedId} onPick={pick} colors={colors} />
       ) : null}
       {hint ? <Text style={[text.body, { color: colors.inkSoft }]}>{hint}</Text> : null}
-      {note ? <Text style={[text.error, { color: colors.inkSoft }]}>{note}</Text> : null}
+      {note ? <Text style={[text.error, { color: colors.danger }]}>{note}</Text> : null}
     </View>
   );
 });

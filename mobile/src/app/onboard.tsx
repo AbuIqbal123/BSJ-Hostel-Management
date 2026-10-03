@@ -140,15 +140,6 @@ function readOptions(value: unknown): BlockOption[] | null {
   return blocks;
 }
 
-function openingBlock(options: BlockOption[]): BlockOption | null {
-  return (
-    options.find((item) => {
-      const name = item.name.trim().toLowerCase();
-      return name === "b" || name === "block b" || name === "block-b";
-    }) ?? null
-  );
-}
-
 function trimmedLength(value: string): number {
   return value.trim().length;
 }
@@ -301,6 +292,7 @@ type SignupDraft = {
   blockId: string | null;
   roomId: string | null;
   blockTouched: boolean;
+  accountCreated: boolean;
 };
 
 function emptySignupDraft(): SignupDraft {
@@ -316,6 +308,7 @@ function emptySignupDraft(): SignupDraft {
     blockId: null,
     roomId: null,
     blockTouched: false,
+    accountCreated: false,
   };
 }
 
@@ -324,9 +317,9 @@ let signupDraft = emptySignupDraft();
 export default function OnboardScreen() {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
-  const { onboard } = useSession();
+  const { onboard, signIn } = useSession();
   const [step, setStep] = useState(signupDraft.step);
-  const [ready, setReady] = useState(false);
+  const [entered, setEntered] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [choiceAttempt, setChoiceAttempt] = useState(false);
@@ -340,8 +333,12 @@ export default function OnboardScreen() {
   const [course, setCourse] = useState<string | null>(signupDraft.course);
   const [blocks, setBlocks] = useState<BlockOption[]>([]);
   const [listNote, setListNote] = useState<string | null>(null);
-  const [blockId, setBlockId] = useState<string | null>(signupDraft.blockId);
-  const [roomId, setRoomId] = useState<string | null>(signupDraft.roomId);
+  const [blockId, setBlockId] = useState<string | null>(
+    signupDraft.blockTouched ? signupDraft.blockId : null,
+  );
+  const [roomId, setRoomId] = useState<string | null>(
+    signupDraft.blockTouched ? signupDraft.roomId : null,
+  );
   const [paneWidth, setPaneWidth] = useState(0);
   const offset = useRef(new Animated.Value(0)).current;
   const widthRef = useRef(0);
@@ -350,6 +347,7 @@ export default function OnboardScreen() {
   const showStepRef = useRef<(next: number) => void>(() => {});
   const backLock = useRef(false);
   const blockTouched = useRef(signupDraft.blockTouched);
+  const accountCreated = useRef(signupDraft.accountCreated);
   const pending = useRef(false);
   const keepDraft = useRef(true);
   const fullNameField = useFieldMessage();
@@ -389,6 +387,7 @@ export default function OnboardScreen() {
       blockId,
       roomId,
       blockTouched: blockTouched.current,
+      accountCreated: accountCreated.current,
     };
   }, [
     blockId,
@@ -429,10 +428,6 @@ export default function OnboardScreen() {
           return;
         }
         setBlocks(parsed);
-        if (!blockTouched.current) {
-          const opening = openingBlock(parsed);
-          setBlockId(opening?.id ?? null);
-        }
         setListNote(parsed.length === 0 ? EMPTY_ROOMS : null);
       })
       .catch(() => {
@@ -473,7 +468,7 @@ export default function OnboardScreen() {
   );
   showStepRef.current = showStep;
 
-  usePreventRemove(step > 0 && !ready, () => {
+  usePreventRemove(step > 0 && !entered, () => {
     if (backLock.current) {
       return;
     }
@@ -483,6 +478,12 @@ export default function OnboardScreen() {
       backLock.current = false;
     });
   });
+
+  useEffect(() => {
+    if (entered) {
+      router.replace("/home");
+    }
+  }, [entered]);
 
   const onViewport = useCallback(
     (event: LayoutChangeEvent) => {
@@ -625,24 +626,33 @@ export default function OnboardScreen() {
     pending.current = true;
     setBusy(true);
     try {
-      const message = await onboard({
-        full_name: fullName,
-        enrolment_number: enrolment,
-        password,
-        phone: e164(phone),
-        guardian_name: guardianName,
-        guardian_phone: e164(guardianPhone),
-        course,
-        block_id: selectedBlock.id,
-        room_id: selectedRoom.id,
-      });
-      if (message) {
-        setError(message);
+      if (!accountCreated.current) {
+        const message = await onboard({
+          full_name: fullName,
+          enrolment_number: enrolment,
+          password,
+          phone: e164(phone),
+          guardian_name: guardianName,
+          guardian_phone: e164(guardianPhone),
+          course,
+          block_id: selectedBlock.id,
+          room_id: selectedRoom.id,
+        });
+        if (message) {
+          setError(message);
+          return;
+        }
+        accountCreated.current = true;
+        signupDraft = { ...signupDraft, accountCreated: true };
+      }
+      const signInError = await signIn(enrolment, password);
+      if (signInError) {
+        setError(signInError);
         return;
       }
       keepDraft.current = false;
       signupDraft = emptySignupDraft();
-      setReady(true);
+      setEntered(true);
     } finally {
       pending.current = false;
       setBusy(false);
@@ -658,6 +668,7 @@ export default function OnboardScreen() {
     guardianPhone,
     onboard,
     password,
+    signIn,
     personInvalid,
     phone,
     revealContact,
@@ -721,38 +732,12 @@ export default function OnboardScreen() {
     paddingBottom: insets.bottom + 28,
   };
 
-  if (ready) {
-    return (
-      <ScrollView
-        style={[styles.screen, { backgroundColor: colors.paper }]}
-        contentContainerStyle={[styles.content, frame]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.ready}>
-          <Text selectable style={[text.body, { color: colors.ink }]}>
-            Account created.
-          </Text>
-          <Pressable
-            accessibilityRole="link"
-            accessibilityLabel="Sign in"
-            onPress={() => router.replace("/sign-in")}
-            style={styles.signIn}
-          >
-            <Text style={[text.body, { color: colors.forest }]}>Sign in</Text>
-          </Pressable>
-        </View>
-      </ScrollView>
-    );
-  }
-
   const nameNote = shown(fullNameField.visible, personError(fullName, "Enter your full name."));
   const enrolmentNote = shown(enrolmentField.visible, enrolmentError(enrolment));
-  const passwordLengthNote = shown(
+  const passwordNote = shown(
     passwordField.visible,
-    password.length > 200 ? "Use 200 characters or fewer." : null,
+    password.length > 200 ? "Use 200 characters or fewer." : failingPasswordRule(password),
   );
-  const passwordRuleNote = shown(passwordField.visible, failingPasswordRule(password));
   const ownPhoneNote = phoneNote(phone, phoneField.visible);
   const guardianNameNote = shown(
     guardianNameField.visible,
@@ -779,7 +764,7 @@ export default function OnboardScreen() {
           autoComplete="off"
           returnKeyType="next"
         />
-        {nameNote ? <Text style={[text.error, { color: colors.inkSoft }]}>{nameNote}</Text> : null}
+        {nameNote ? <Text style={[text.error, { color: colors.danger }]}>{nameNote}</Text> : null}
       </View>
       <View style={styles.noteBlock}>
         <TextField
@@ -794,7 +779,7 @@ export default function OnboardScreen() {
           returnKeyType="next"
         />
         {enrolmentNote ? (
-          <Text style={[text.error, { color: colors.inkSoft }]}>{enrolmentNote}</Text>
+          <Text style={[text.error, { color: colors.danger }]}>{enrolmentNote}</Text>
         ) : null}
       </View>
       <View style={styles.noteBlock}>
@@ -809,7 +794,7 @@ export default function OnboardScreen() {
           returnKeyType="next"
         />
         {ownPhoneNote ? (
-          <Text style={[text.error, { color: colors.inkSoft }]}>{ownPhoneNote}</Text>
+          <Text style={[text.error, { color: colors.danger }]}>{ownPhoneNote}</Text>
         ) : null}
       </View>
       <View style={styles.noteBlock}>
@@ -823,15 +808,8 @@ export default function OnboardScreen() {
           returnKeyType="go"
           onSubmitEditing={advance}
         />
-        {passwordLengthNote || passwordRuleNote ? (
-          <View style={styles.rules}>
-            {passwordLengthNote ? (
-              <Text style={[text.error, { color: colors.inkSoft }]}>{passwordLengthNote}</Text>
-            ) : null}
-            {passwordRuleNote ? (
-              <Text style={[text.error, { color: colors.inkSoft }]}>{passwordRuleNote}</Text>
-            ) : null}
-          </View>
+        {passwordNote ? (
+          <Text style={[text.error, { color: colors.danger }]}>{passwordNote}</Text>
         ) : null}
       </View>
     </View>
@@ -853,7 +831,7 @@ export default function OnboardScreen() {
           returnKeyType="next"
         />
         {guardianNameNote ? (
-          <Text style={[text.error, { color: colors.inkSoft }]}>{guardianNameNote}</Text>
+          <Text style={[text.error, { color: colors.danger }]}>{guardianNameNote}</Text>
         ) : null}
       </View>
       <View style={styles.noteBlock}>
@@ -869,7 +847,7 @@ export default function OnboardScreen() {
           onSubmitEditing={advance}
         />
         {guardianPhoneNote ? (
-          <Text style={[text.error, { color: colors.inkSoft }]}>{guardianPhoneNote}</Text>
+          <Text style={[text.error, { color: colors.danger }]}>{guardianPhoneNote}</Text>
         ) : null}
       </View>
     </View>
@@ -879,6 +857,7 @@ export default function OnboardScreen() {
     <View style={styles.fields}>
       <ChoiceField
         label="Block"
+        placeholder="Select your block"
         valueLabel={block?.name ?? null}
         items={blockItems}
         selectedId={blockId}
@@ -1033,7 +1012,6 @@ const styles = StyleSheet.create({
   pane: { flexShrink: 0 },
   fields: { gap: 16 },
   noteBlock: { gap: 8 },
-  rules: { gap: 2 },
   action: { marginTop: 16 },
   dial: {
     flexDirection: "row",
@@ -1055,6 +1033,4 @@ const styles = StyleSheet.create({
     borderCurve: "continuous",
     padding: 12,
   },
-  ready: { gap: 16 },
-  signIn: { alignSelf: "flex-start" },
 });
