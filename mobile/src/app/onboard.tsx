@@ -292,6 +292,7 @@ type SignupDraft = {
   blockId: string | null;
   roomId: string | null;
   blockTouched: boolean;
+  accountCreated: boolean;
 };
 
 function emptySignupDraft(): SignupDraft {
@@ -307,6 +308,7 @@ function emptySignupDraft(): SignupDraft {
     blockId: null,
     roomId: null,
     blockTouched: false,
+    accountCreated: false,
   };
 }
 
@@ -345,6 +347,7 @@ export default function OnboardScreen() {
   const showStepRef = useRef<(next: number) => void>(() => {});
   const backLock = useRef(false);
   const blockTouched = useRef(signupDraft.blockTouched);
+  const accountCreated = useRef(signupDraft.accountCreated);
   const pending = useRef(false);
   const keepDraft = useRef(true);
   const fullNameField = useFieldMessage();
@@ -384,6 +387,7 @@ export default function OnboardScreen() {
       blockId,
       roomId,
       blockTouched: blockTouched.current,
+      accountCreated: accountCreated.current,
     };
   }, [
     blockId,
@@ -622,20 +626,24 @@ export default function OnboardScreen() {
     pending.current = true;
     setBusy(true);
     try {
-      const message = await onboard({
-        full_name: fullName,
-        enrolment_number: enrolment,
-        password,
-        phone: e164(phone),
-        guardian_name: guardianName,
-        guardian_phone: e164(guardianPhone),
-        course,
-        block_id: selectedBlock.id,
-        room_id: selectedRoom.id,
-      });
-      if (message) {
-        setError(message);
-        return;
+      if (!accountCreated.current) {
+        const message = await onboard({
+          full_name: fullName,
+          enrolment_number: enrolment,
+          password,
+          phone: e164(phone),
+          guardian_name: guardianName,
+          guardian_phone: e164(guardianPhone),
+          course,
+          block_id: selectedBlock.id,
+          room_id: selectedRoom.id,
+        });
+        if (message) {
+          setError(message);
+          return;
+        }
+        accountCreated.current = true;
+        signupDraft = { ...signupDraft, accountCreated: true };
       }
       const signInError = await signIn(enrolment, password);
       if (signInError) {

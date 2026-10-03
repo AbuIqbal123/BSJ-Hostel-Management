@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router/stack";
 import * as SplashScreen from "expo-splash-screen";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SourceSans3_400Regular, SourceSans3_600SemiBold } from "@expo-google-fonts/source-sans-3";
 import { SourceSerif4_600SemiBold } from "@expo-google-fonts/source-serif-4";
 import { IBMPlexMono_500Medium } from "@expo-google-fonts/ibm-plex-mono";
@@ -31,26 +32,28 @@ export default function RootLayout() {
   }
 
   return (
-    <SessionProvider>
-      <Stack
-        screenOptions={{
-          headerShadowVisible: false,
-          headerStyle: { backgroundColor: colors.paper },
-          headerTintColor: colors.ink,
-          contentStyle: { backgroundColor: colors.paper },
-          headerTitleStyle: { fontFamily: "SourceSans3_600SemiBold", color: colors.ink },
-          // Auth gate: fade avoids a push slide on boot / replace.
-          animation: "fade",
-          animationDuration: 220,
-        }}
-      >
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="sign-in" options={{ headerShown: false }} />
-        <Stack.Screen name="onboard" options={{ headerShown: false }} />
-        <Stack.Screen name="change-password" options={{ title: "Change password" }} />
-        <Stack.Screen name="(resident)" options={{ headerShown: false }} />
-        <Stack.Screen name="signed-in" options={{ title: "Signed in", headerBackVisible: false }} />
-      </Stack>
-    </SessionProvider>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.paper }}>
+      <SessionProvider>
+        <Stack
+          screenOptions={{
+            headerShadowVisible: false,
+            headerStyle: { backgroundColor: colors.paper },
+            headerTintColor: colors.ink,
+            contentStyle: { backgroundColor: colors.paper },
+            headerTitleStyle: { fontFamily: "SourceSans3_600SemiBold", color: colors.ink },
+            // Auth gate: fade avoids a push slide on boot / replace.
+            animation: "fade",
+            animationDuration: 220,
+          }}
+        >
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+          <Stack.Screen name="onboard" options={{ headerShown: false }} />
+          <Stack.Screen name="change-password" options={{ title: "Change password" }} />
+          <Stack.Screen name="(resident)" options={{ headerShown: false }} />
+          <Stack.Screen name="signed-in" options={{ title: "Signed in", headerBackVisible: false }} />
+        </Stack>
+      </SessionProvider>
+    </GestureHandlerRootView>
   );
 }
