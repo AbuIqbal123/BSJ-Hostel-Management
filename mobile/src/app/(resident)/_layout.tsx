@@ -1,9 +1,14 @@
+import { Feather } from "@expo/vector-icons";
 import { Redirect, router } from "expo-router";
 import { Tabs } from "expo-router/js-tabs";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, type ColorValue } from "react-native";
 
 import { useSession } from "@/session";
 import { useHallColors } from "@/theme/colors";
+
+function TabIcon({ name, color }: { name: "home" | "calendar" | "credit-card" | "settings"; color: ColorValue }) {
+  return <Feather name={name} size={24} color={color} />;
+}
 
 export default function ResidentLayout() {
   const colors = useHallColors();
@@ -24,6 +29,8 @@ export default function ResidentLayout() {
       initialRouteName="home"
       screenOptions={{
         headerShown: false,
+        animation: "none",
+        tabBarShowLabel: true,
         tabBarActiveTintColor: colors.forest,
         tabBarInactiveTintColor: colors.inkFaint,
         tabBarStyle: {
@@ -38,23 +45,54 @@ export default function ResidentLayout() {
           fontSize: 12,
         },
       }}
+      screenListeners={({ navigation }) => ({
+        tabPress: (event) => {
+          if (navigation.isFocused()) {
+            event.preventDefault();
+          }
+        },
+      })}
     >
-      <Tabs.Screen name="home" options={{ title: "Home" }} />
+      <Tabs.Screen
+        name="home"
+        options={{
+          title: "Home",
+          tabBarIcon: ({ color }) => <TabIcon name="home" color={color} />,
+        }}
+      />
       <Tabs.Screen
         name="plan"
-        options={{ title: "Plan an outing" }}
-        listeners={{
+        options={{
+          title: "Plan an outing",
+          tabBarIcon: ({ color }) => <TabIcon name="calendar" color={color} />,
+        }}
+        listeners={({ navigation }) => ({
           tabPress: (event) => {
             event.preventDefault();
+            if (navigation.isFocused()) {
+              return;
+            }
             router.navigate({
               pathname: "/plan",
               params: { outing: "", place: "", startsAt: "", expectedReturnAt: "" },
             });
           },
+        })}
+      />
+      <Tabs.Screen
+        name="pass"
+        options={{
+          title: "My hall pass",
+          tabBarIcon: ({ color }) => <TabIcon name="credit-card" color={color} />,
         }}
       />
-      <Tabs.Screen name="pass" options={{ title: "My hall pass" }} />
-      <Tabs.Screen name="settings" options={{ title: "Settings" }} />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: "Settings",
+          tabBarIcon: ({ color }) => <TabIcon name="settings" color={color} />,
+        }}
+      />
     </Tabs>
   );
 }

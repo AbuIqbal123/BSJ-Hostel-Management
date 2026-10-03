@@ -97,7 +97,7 @@ type SessionValue = {
   loadDestinations: () => Promise<DestinationResult>;
   planOuting: (body: PlanOutingBody) => Promise<string | null>;
   updateOuting: (outingId: string, body: UpdateOutingBody) => Promise<string | null>;
-  cancelOuting: (outingId: string) => Promise<string | null>;
+  cancelOuting: (outingId: string) => Promise<HallFailure | null>;
 };
 
 const SessionContext = createContext<SessionValue | null>(null);
@@ -150,16 +150,37 @@ export async function hallFetch(path: string, init: RequestInit): Promise<Respon
   }
 }
 
+type HallFailure = {
+  code: string | null;
+  message: string;
+};
+
 async function errorMessage(response: Response): Promise<string> {
+  return (await hallFailure(response)).message;
+}
+
+async function hallFailure(response: Response): Promise<HallFailure> {
   try {
-    const body = (await response.json()) as { error?: { message?: unknown } };
-    if (typeof body.error?.message === "string" && body.error.message.length > 0) {
-      return body.error.message;
-    }
+    const body = (await response.json()) as { error?: { code?: unknown; message?: unknown } };
+    const message =
+      typeof body.error?.message === "string" && body.error.message.length > 0
+        ? body.error.message
+        : "The hall could not be reached.";
+    const code = typeof body.error?.code === "string" ? body.error.code : null;
+    return { code, message };
   } catch {
-    // The hall answered without a message.
+    return { code: null, message: "The hall could not be reached." };
   }
-  return "The hall could not be reached.";
+}
+
+const lockedOutingIds = new Set<string>();
+
+export function lockOuting(id: string) {
+  lockedOutingIds.add(id);
+}
+
+export function outingLocked(id: string): boolean {
+  return lockedOutingIds.has(id);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -521,7 +542,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const cancelOuting = useCallback(async (outingId: string) => {
     const current = sessionRef.current;
     if (!current) {
-      return "Sign in again.";
+      return { code: null, message: "Sign in again." };
     }
     try {
       const response = await hallFetch(`/api/v1/me/outings/${outingId}/cancel`, {
@@ -531,9 +552,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (response.status === 200 || response.status === 201) {
         return null;
       }
-      return await errorMessage(response);
+      return await hallFailure(response);
     } catch {
-      return "The hall could not be reached.";
+      return { code: null, message: "The hall could not be reached." };
     }
   }, []);
 

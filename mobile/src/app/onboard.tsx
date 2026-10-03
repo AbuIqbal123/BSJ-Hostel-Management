@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import {
   Animated,
+  BackHandler,
   Easing,
   Platform,
   Pressable,
@@ -15,7 +16,7 @@ import {
   type LayoutChangeEvent,
 } from "react-native";
 
-import { ChoiceField } from "@/components/choice-field";
+import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
 import { hallFetch, useSession } from "@/session";
@@ -468,7 +469,15 @@ export default function OnboardScreen() {
   );
   showStepRef.current = showStep;
 
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => dismissOpenChoice());
+    return () => subscription.remove();
+  }, []);
+
   usePreventRemove(step > 0 && !entered, () => {
+    if (dismissOpenChoice()) {
+      return;
+    }
     if (backLock.current) {
       return;
     }
@@ -902,6 +911,7 @@ export default function OnboardScreen() {
       keyboardDismissMode="interactive"
       showsVerticalScrollIndicator={false}
     >
+      <Pressable style={styles.dismiss} onPress={dismissOpenChoice}>
       <View style={styles.progress}>
         <View style={styles.track}>
           {[0, 1, 2].map((index) => (
@@ -980,12 +990,14 @@ export default function OnboardScreen() {
           </Text>
         </View>
       </View>
+      </Pressable>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  dismiss: { flexGrow: 1 },
   content: {
     flexGrow: 1,
     paddingHorizontal: 28,
