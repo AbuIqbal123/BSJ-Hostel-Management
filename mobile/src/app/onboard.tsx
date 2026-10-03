@@ -92,6 +92,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function isHallBlock(name: string): boolean {
+  const normalized = name
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+  return /^(?:block\s+)?([abcd])$/.test(normalized);
+}
+
 function readOptions(value: unknown): BlockOption[] | null {
   if (!Array.isArray(value)) {
     return null;
@@ -121,7 +130,10 @@ function readOptions(value: unknown): BlockOption[] | null {
       }
       rooms.push({ id: room.id, label: room.label });
     }
-    if (item.name.trim().toLowerCase() === "utility") {
+    if (rooms.length === 0) {
+      continue;
+    }
+    if (!isHallBlock(item.name)) {
       continue;
     }
     blocks.push({ id: item.id, name: item.name, rooms });
