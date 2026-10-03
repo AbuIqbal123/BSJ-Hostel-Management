@@ -326,13 +326,11 @@ export default function SignInScreen() {
     pendingRef.current = false;
     if (message) {
       setError(message);
-      return;
     }
-    router.replace("/signed-in");
   }, [password, signIn, username]);
 
   if (user) {
-    return <Redirect href="/signed-in" />;
+    return <Redirect href={user.role === "resident" ? "/home" : "/signed-in"} />;
   }
 
   return (
