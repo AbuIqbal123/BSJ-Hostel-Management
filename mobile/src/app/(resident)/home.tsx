@@ -3,24 +3,10 @@ import { router, useFocusEffect } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { formatWhen } from "@/format-when";
 import { useSession, type UpcomingOuting } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
-
-const whenFormat = new Intl.DateTimeFormat(undefined, {
-  day: "numeric",
-  month: "short",
-  hour: "numeric",
-  minute: "2-digit",
-});
-
-function formatWhen(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) {
-    return iso;
-  }
-  return whenFormat.format(date);
-}
 
 function outingWhen(item: UpcomingOuting): string {
   const back = `Back ${formatWhen(item.expectedReturnAt)}`;

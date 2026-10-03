@@ -54,6 +54,7 @@ export type ResidentHome = {
   blockName: string | null;
   roomLabel: string | null;
   out: boolean;
+  windowOpen: boolean;
   upcoming: UpcomingOuting[];
 };
 
@@ -72,6 +73,7 @@ export type DestinationResult =
 
 export type PlanOutingBody = {
   destination_id: string;
+  starts_at: string;
   expected_return_at: string;
   destination_text?: string;
 };
@@ -194,7 +196,12 @@ function readUpcoming(value: Record<string, unknown>): UpcomingOuting[] {
 }
 
 function readResidentHome(value: unknown): ResidentHome | null {
-  if (!isRecord(value) || !isRecord(value.resident) || !("current_outing" in value)) {
+  if (
+    !isRecord(value) ||
+    !isRecord(value.resident) ||
+    !("current_outing" in value) ||
+    typeof value.ordinary_outing_active !== "boolean"
+  ) {
     return null;
   }
   const resident = value.resident;
@@ -214,6 +221,7 @@ function readResidentHome(value: unknown): ResidentHome | null {
     blockName,
     roomLabel,
     out: resident.presence === "outside" || outingOutside,
+    windowOpen: value.ordinary_outing_active,
     upcoming: readUpcoming(value),
   };
 }
@@ -475,6 +483,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
     const payload: Record<string, string> = {
       destination_id: body.destination_id,
+      starts_at: body.starts_at,
       expected_return_at: body.expected_return_at,
     };
     if (body.destination_text !== undefined) {

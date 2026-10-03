@@ -9,24 +9,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChoiceField } from "@/components/choice-field";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
+import { formatWhen, utcInstant } from "@/format-when";
 import { useSession, type DestinationItem } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
 // Seeded catalog name. backend/app/shared/migrations/0001_create_hall.sql stores 'Other'.
 const OTHER_NAME = "Other";
-
-const backByFormat = new Intl.DateTimeFormat(undefined, {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-});
-
-function formatBackBy(date: Date): string {
-  return backByFormat.format(date);
-}
 
 function paramText(value: string | string[] | undefined): string {
   if (Array.isArray(value)) {
@@ -105,7 +94,7 @@ function WhenField({
       ) : (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={value ? `${label}, ${formatBackBy(value)}` : label}
+          accessibilityLabel={value ? `${label}, ${formatWhen(utcInstant(value))}` : label}
           onPress={open}
           style={[
             styles.shell,
@@ -114,7 +103,7 @@ function WhenField({
           ]}
         >
           <Text style={[text.field, { color: value ? colors.ink : colors.inkFaint }]}>
-            {value ? formatBackBy(value) : label}
+            {value ? formatWhen(utcInstant(value)) : label}
           </Text>
         </Pressable>
       )}
@@ -134,7 +123,7 @@ export default function PlanScreen() {
   const outingId = paramText(params.outing);
   const editing = outingId.length > 0;
   const { loadResidentHome, loadDestinations, planOuting, updateOuting, cancelOuting } = useSession();
-  const [gate, setGate] = useState<"loading" | "in" | "out">("loading");
+  const [gate, setGate] = useState<"loading" | "in" | "out" | "window">("loading");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [places, setPlaces] = useState<DestinationItem[] | null>(null);
   const [destinationId, setDestinationId] = useState<string | null>(null);
@@ -163,7 +152,13 @@ export default function PlanScreen() {
           return;
         }
         setLoadError(null);
-        setGate(result.home.out ? "out" : "in");
+        if (result.home.out) {
+          setGate("out");
+        } else if (result.home.windowOpen) {
+          setGate("window");
+        } else {
+          setGate("in");
+        }
       });
       return () => {
         active = false;
@@ -255,7 +250,7 @@ export default function PlanScreen() {
       setError("Choose a place.");
       return;
     }
-    if (editing && !leaveAt) {
+    if (!leaveAt) {
       setPlanned(false);
       setError("Choose when you will leave.");
       return;
@@ -272,16 +267,19 @@ export default function PlanScreen() {
       return;
     }
     pending.current = true;
+    const startsAt = utcInstant(leaveAt);
+    const expectedReturnAt = utcInstant(backBy);
     const message = editing
       ? await updateOuting(outingId, {
           destination_id: destinationId,
-          starts_at: leaveAt ? leaveAt.toISOString() : "",
-          expected_return_at: backBy.toISOString(),
+          starts_at: startsAt,
+          expected_return_at: expectedReturnAt,
           ...(other ? { destination_text: placeText } : {}),
         })
       : await planOuting({
           destination_id: destinationId,
-          expected_return_at: backBy.toISOString(),
+          starts_at: startsAt,
+          expected_return_at: expectedReturnAt,
           ...(other ? { destination_text: placeText } : {}),
         });
     pending.current = false;
@@ -345,6 +343,11 @@ export default function PlanScreen() {
       {!editing && gate === "out" ? (
         <Text style={[text.body, { color: colors.ink }]}>You are out.</Text>
       ) : null}
+      {!editing && gate === "window" ? (
+        <Text style={[text.body, { color: colors.ink }]}>
+          You cannot start another outing while one is inside its window.
+        </Text>
+      ) : null}
       {loadError ? (
         <Text
           selectable
@@ -376,16 +379,14 @@ export default function PlanScreen() {
               openShowsAll
               note={null}
             />
-            {editing ? (
-              <WhenField
-                label="Leave at"
-                value={leaveAt}
-                onChange={(date) => {
-                  setLeaveAt(date);
-                  clearResult();
-                }}
-              />
-            ) : null}
+            <WhenField
+              label="Leave at"
+              value={leaveAt}
+              onChange={(date) => {
+                setLeaveAt(date);
+                clearResult();
+              }}
+            />
             <WhenField
               label="Back by"
               value={backBy}
