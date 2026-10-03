@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react";
-import DateTimePicker, {
-  DateTimePickerAndroid,
-} from "@react-native-community/datetimepicker";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { BackHandler, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
+import { dismissOpenChoice } from "@/components/choice-field";
 import { formatWhen, utcInstant } from "@/format-when";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
@@ -25,10 +24,8 @@ const START_FUTURE = "The outing start must be in the future.";
 const RETURN_FUTURE = "The expected return must be in the future.";
 const RETURN_AFTER = "The expected return must be after the start.";
 const SAME_DAY = "An ordinary outing starts and returns on the same hall day.";
-const START_EARLY = "That start is outside ordinary hours.";
-const START_LATE = "That start is outside ordinary hours. Please submit a permission request.";
-const RETURN_EARLY = "That return is outside ordinary hours.";
-const RETURN_LATE = "That return is outside ordinary hours. Please submit a permission request.";
+const START_HOURS = "That start is outside ordinary hours.";
+const RETURN_HOURS = "That return is outside ordinary hours.";
 
 function hallPart(date: Date, type: Intl.DateTimeFormatPartTypes): string {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -56,16 +53,27 @@ function monthDay(date: Date): string {
   return `${hallPart(date, "month")}-${hallPart(date, "day")}`;
 }
 
+function wallUtc(date: Date): number {
+  return new Date(
+    `${hallDay(date)}T${hallPart(date, "hour")}:${hallPart(date, "minute")}:${hallPart(date, "second")}Z`,
+  ).getTime();
+}
+
+function proposalWhen(): Date {
+  const hour = Number(DAY_START.slice(0, 2)) + 1;
+  const day = hallDay(new Date());
+  const [year, month, date] = day.split("-").map(Number);
+  const guess = new Date(Date.UTC(year, month - 1, date, hour, 0, 0));
+  return new Date(guess.getTime() - (wallUtc(guess) - guess.getTime()));
+}
+
 function hoursNote(date: Date, kind: "start" | "return"): string | null {
   const day = monthDay(date);
   const summer = SUMMER_START <= day && day < WINTER_START;
   const end = summer ? SUMMER_END : WINTER_END;
   const clock = hallClock(date);
-  if (clock <= `${DAY_START}:00`) {
-    return kind === "start" ? START_EARLY : RETURN_EARLY;
-  }
-  if (clock > `${end}:00`) {
-    return kind === "start" ? START_LATE : RETURN_LATE;
+  if (clock <= `${DAY_START}:00` || clock > `${end}:00`) {
+    return kind === "start" ? START_HOURS : RETURN_HOURS;
   }
   return null;
 }
@@ -96,6 +104,58 @@ export function returnNote(leaveAt: Date | null, backBy: Date | null): string | 
   return hoursNote(backBy, "return");
 }
 
+type Closer = () => void;
+
+let closeOpenWhen: Closer | null = null;
+
+export function dismissOpenWhen(): boolean {
+  if (closeOpenWhen === null) {
+    return false;
+  }
+  closeOpenWhen();
+  return true;
+}
+
+function bindOpenWhen(close: Closer) {
+  if (closeOpenWhen && closeOpenWhen !== close) {
+    closeOpenWhen();
+  }
+  closeOpenWhen = close;
+}
+
+function unbindOpenWhen(close: Closer) {
+  if (closeOpenWhen === close) {
+    closeOpenWhen = null;
+  }
+}
+
+export function useOneOpen(open: boolean, close: Closer) {
+  useEffect(() => {
+    if (!open) {
+      unbindOpenWhen(close);
+      return;
+    }
+    dismissOpenChoice();
+    bindOpenWhen(close);
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      close();
+      return true;
+    });
+    return () => {
+      subscription.remove();
+      unbindOpenWhen(close);
+    };
+  }, [close, open]);
+}
+
+function sameHallMinute(left: Date, right: Date): boolean {
+  return (
+    hallDay(left) === hallDay(right) &&
+    hallPart(left, "hour") === hallPart(right, "hour") &&
+    hallPart(left, "minute") === hallPart(right, "minute")
+  );
+}
+
 export function WhenField({
   label,
   value,
@@ -108,91 +168,91 @@ export function WhenField({
   pastNote: string | null;
 }) {
   const colors = useHallColors();
-  const [iosOpen, setIosOpen] = useState(false);
+  const [open, setOpen] = useState(false);
+  const close = useCallback(() => {
+    setOpen(false);
+  }, []);
+  useOneOpen(open, close);
 
-  useEffect(() => {
-    if (value === null) {
-      setIosOpen(false);
-    }
-  }, [value]);
+  const shown = value ?? proposalWhen();
+  const printed = formatWhen(utcInstant(shown));
+  const comma = printed.lastIndexOf(", ");
+  const dayText = comma === -1 ? printed : printed.slice(0, comma);
+  const clockText = comma === -1 ? "" : printed.slice(comma + 2);
+  const ink = value ? colors.ink : colors.inkFaint;
+  const offset = Math.round((wallUtc(shown) - shown.getTime()) / 60000);
 
-  const open = () => {
-    if (Platform.OS === "android") {
-      const seed = value ?? new Date();
-      DateTimePickerAndroid.open({
-        value: seed,
-        mode: "date",
-        onValueChange: (_event, date) => {
-          if (!date) {
-            return;
-          }
-          DateTimePickerAndroid.open({
-            value: date,
-            mode: "time",
-            onValueChange: (_timeEvent, time) => {
-              if (!time) {
-                return;
-              }
-              const next = new Date(date);
-              next.setHours(time.getHours(), time.getMinutes(), 0, 0);
-              onChange(next);
-            },
-          });
-        },
-      });
+  const commit = (date: Date) => {
+    if (sameHallMinute(date, shown)) {
       return;
     }
-    if (!value) {
-      onChange(new Date());
-    }
-    setIosOpen(true);
+    onChange(date);
   };
-
-  const showPicker = Platform.OS !== "android" && iosOpen;
 
   return (
     <View style={styles.field}>
-      <Text style={[text.label, { color: colors.inkSoft }]}>{label}</Text>
-      {showPicker ? (
-        <DateTimePicker
-          value={value ?? new Date()}
-          mode="datetime"
-          display="compact"
-          onValueChange={(_event, date) => {
-            if (date) {
-              onChange(date);
-            }
-          }}
-        />
-      ) : (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={value ? `${label}, ${formatWhen(utcInstant(value))}` : label}
-          onPress={open}
-          style={[
-            styles.shell,
-            styles.shellPad,
-            { backgroundColor: colors.surface, borderColor: colors.line },
-          ]}
-        >
-          <Text style={[text.field, { color: value ? colors.ink : colors.inkFaint }]}>
-            {value ? formatWhen(utcInstant(value)) : label}
-          </Text>
-        </Pressable>
-      )}
-      {pastNote ? <Text style={[text.error, { color: colors.danger }]}>{pastNote}</Text> : null}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        accessibilityLabel={value ? `${label}, ${dayText} ${clockText}` : label}
+        onPress={() => {
+          setOpen((current) => !current);
+        }}
+        style={styles.row}
+      >
+        <Text style={[text.label, { color: open ? colors.forest : colors.inkSoft }]}>{label}</Text>
+        <Text style={[text.field, { color: ink }]}>{dayText}</Text>
+        <Text style={[text.field, { color: ink }]}>{clockText}</Text>
+      </Pressable>
+      {open ? (
+        <View onStartShouldSetResponder={() => true}>
+          {Platform.OS === "android" ? (
+            <View>
+              <DateTimePicker
+                value={shown}
+                mode="date"
+                display="spinner"
+                timeZoneName={HALL_ZONE}
+                onValueChange={(_event, date) => {
+                  commit(date);
+                }}
+              />
+              <DateTimePicker
+                value={shown}
+                mode="time"
+                display="spinner"
+                timeZoneName={HALL_ZONE}
+                onValueChange={(_event, date) => {
+                  commit(date);
+                }}
+              />
+            </View>
+          ) : (
+            <DateTimePicker
+              value={shown}
+              mode="datetime"
+              display="spinner"
+              timeZoneName={HALL_ZONE}
+              timeZoneOffsetInMinutes={offset}
+              onValueChange={(_event, date) => {
+                commit(date);
+              }}
+            />
+          )}
+        </View>
+      ) : null}
+      {value && pastNote ? (
+        <Text style={[text.error, { color: colors.danger }]}>{pastNote}</Text>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   field: { gap: 8 },
-  shell: {
-    height: 52,
-    borderWidth: 1,
-    borderRadius: 12,
-    borderCurve: "continuous",
-    justifyContent: "center",
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
-  shellPad: { paddingHorizontal: 14 },
 });

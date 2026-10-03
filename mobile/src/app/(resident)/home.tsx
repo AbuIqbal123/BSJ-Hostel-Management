@@ -13,13 +13,21 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
+import { dismissOpenChoice } from "@/components/choice-field";
 import { TextField } from "@/components/text-field";
 import { formatWhen, utcInstant } from "@/format-when";
 import { outingLocked, useSession, type UpcomingOuting } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
-import { OTHER_NAME, WhenField, hallDay, leaveNote, returnNote } from "@/outing-when";
+import {
+  OTHER_NAME,
+  WhenField,
+  dismissOpenWhen,
+  hallDay,
+  leaveNote,
+  returnNote,
+  useOneOpen,
+} from "@/outing-when";
 
 const WHERE_MS = 220;
 
@@ -89,7 +97,7 @@ export default function HomeScreen() {
   const [leaveAt, setLeaveAt] = useState<Date | null>(null);
   const [backBy, setBackBy] = useState<Date | null>(null);
   const [where, setWhere] = useState("");
-  const [reveal, setReveal] = useState(false);
+  const [placeOpen, setPlaceOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [whereHeight, setWhereHeight] = useState(0);
   const whereOpen = useRef(new Animated.Value(0)).current;
@@ -98,7 +106,12 @@ export default function HomeScreen() {
   const refresh = useCallback(() => {
     let active = true;
     void loadResidentHome().then((result) => {
-      if (!active || result.error !== null) {
+      if (!active) {
+        return;
+      }
+      if (result.error !== null) {
+        setError(result.error);
+        setLoaded(true);
         return;
       }
       setFullName(result.home.fullName);
@@ -116,7 +129,9 @@ export default function HomeScreen() {
   useFocusEffect(refresh);
 
   useEffect(() => {
-    const subscription = BackHandler.addEventListener("hardwareBackPress", () => dismissOpenChoice());
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      return dismissOpenWhen() || dismissOpenChoice();
+    });
     return () => subscription.remove();
   }, []);
 
@@ -155,11 +170,16 @@ export default function HomeScreen() {
 
   const today = upcoming.filter(leaveIsToday);
   const later = upcoming.filter((item) => !leaveIsToday(item));
-  const fieldsOpen = mayPlan && (today.length === 0 || reveal);
   const whereReady = !other || where.trim().length > 0;
-  const planReady = destinationId !== null && leaveAt !== null && backBy !== null && whereReady;
   const leaveProblem = leaveNote(leaveAt);
   const returnProblem = returnNote(leaveAt, backBy);
+  const planReady =
+    destinationId !== null &&
+    leaveAt !== null &&
+    backBy !== null &&
+    whereReady &&
+    leaveProblem === null &&
+    returnProblem === null;
 
   const submit = useCallback(async () => {
     if (pending.current || !planReady || !destinationId || !leaveAt || !backBy) {
@@ -186,11 +206,12 @@ export default function HomeScreen() {
       setError(message);
       return;
     }
+    dismissOpenWhen();
     setDestinationId(null);
     setLeaveAt(null);
     setBackBy(null);
     setWhere("");
-    setReveal(false);
+    setPlaceOpen(false);
     setError(null);
     refresh();
   }, [backBy, destinationId, leaveAt, other, planOuting, planReady, refresh, where]);
@@ -202,6 +223,11 @@ export default function HomeScreen() {
     }
   }, []);
 
+  const closePlace = useCallback(() => {
+    setPlaceOpen(false);
+  }, []);
+  useOneOpen(placeOpen, closePlace);
+
   if (!user) {
     return null;
   }
@@ -210,24 +236,100 @@ export default function HomeScreen() {
   const rows = (items: UpcomingOuting[]) =>
     items.map((item) => <OutingRow key={item.id} item={item} />);
 
-  const fields = fieldsOpen && places ? (
+  const planCard = mayPlan && places ? (
     <View style={styles.fields}>
-      <ChoiceField
-        label="Place"
-        valueLabel={chosen?.name ?? null}
-        items={places.map((item) => ({ id: item.id, label: item.name }))}
-        selectedId={destinationId}
-        onPick={(id) => {
-          setDestinationId(id);
-          if (places.find((item) => item.id === id)?.name !== OTHER_NAME) {
-            setWhere("");
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Plan an outing"
+        onPress={() => {
+          if (!planReady) {
+            return;
           }
-          setError(null);
+          void submit();
         }}
-        colors={colors}
-        openShowsAll
-        note={null}
-      />
+      >
+        <Text
+          style={[
+            text.button,
+            styles.planTitle,
+            { color: planReady ? colors.forest : colors.ink },
+          ]}
+        >
+          Plan an outing
+        </Text>
+      </Pressable>
+      <View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={chosen ? `Place, ${chosen.name}` : "Place, Choose a place"}
+          accessibilityState={{ expanded: placeOpen }}
+          onPress={() => {
+            setPlaceOpen((current) => !current);
+          }}
+          style={styles.row}
+        >
+          <Text style={[text.label, { color: placeOpen ? colors.forest : colors.inkSoft }]}>Place</Text>
+          <Text style={[text.field, { color: chosen ? colors.ink : colors.inkFaint }]}>
+            {chosen?.name ?? "Choose a place"}
+          </Text>
+        </Pressable>
+        {placeOpen ? (
+          <View style={styles.choices}>
+            {places.map((item) => (
+              <Pressable
+                key={item.id}
+                accessibilityRole="button"
+                accessibilityLabel={item.name}
+                accessibilityState={{ selected: item.id === destinationId }}
+                onPress={() => {
+                  setDestinationId(item.id);
+                  if (item.name !== OTHER_NAME) {
+                    setWhere("");
+                  }
+                  setError(null);
+                  setPlaceOpen(false);
+                }}
+              >
+                <Text style={[text.field, { color: item.id === destinationId ? colors.forest : colors.ink }]}>
+                  {item.name}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+        <Animated.View
+          pointerEvents={other ? "auto" : "none"}
+          style={{
+            height: whereOpen.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, whereHeight],
+            }),
+            marginTop: whereOpen.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 16],
+            }),
+            opacity: whereOpen,
+            overflow: "hidden",
+          }}
+        >
+          <View onLayout={onWhereLayout}>
+            <TextField
+              label="Where"
+              value={where}
+              onChangeText={(value) => {
+                setWhere(value);
+                setError(null);
+              }}
+              autoCapitalize="sentences"
+              autoComplete="off"
+              returnKeyType="go"
+              onSubmitEditing={() => {
+                void submit();
+              }}
+            />
+          </View>
+        </Animated.View>
+      </View>
       <WhenField
         label="Leave at"
         value={leaveAt}
@@ -246,54 +348,7 @@ export default function HomeScreen() {
           setError(null);
         }}
       />
-      <Animated.View
-        pointerEvents={other ? "auto" : "none"}
-        style={{
-          height: whereOpen.interpolate({
-            inputRange: [0, 1],
-            outputRange: [0, whereHeight],
-          }),
-          opacity: whereOpen,
-          overflow: "hidden",
-        }}
-      >
-        <View onLayout={onWhereLayout}>
-          <TextField
-            label="Where"
-            value={where}
-            onChangeText={(value) => {
-              setWhere(value);
-              setError(null);
-            }}
-            autoCapitalize="sentences"
-            autoComplete="off"
-            returnKeyType="go"
-            onSubmitEditing={() => {
-              void submit();
-            }}
-          />
-        </View>
-      </Animated.View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Plan"
-        accessibilityState={{ disabled: !planReady }}
-        disabled={!planReady}
-        onPress={() => {
-          if (!destinationId) {
-            setError("Choose a place.");
-            return;
-          }
-          if (other && where.trim().length === 0) {
-            setError("Say where.");
-            return;
-          }
-          void submit();
-        }}
-      >
-        <Text style={[text.body, { color: planReady ? colors.forest : colors.inkFaint }]}>Plan</Text>
-      </Pressable>
-      {error ? <Text style={[text.error, { color: colors.danger }]}>{error}</Text> : null}
+      {error ? <Text style={[text.error, styles.planNote, { color: colors.danger }]}>{error}</Text> : null}
     </View>
   ) : null;
 
@@ -308,20 +363,27 @@ export default function HomeScreen() {
       keyboardDismissMode="interactive"
       showsVerticalScrollIndicator={false}
     >
-      <Pressable style={styles.dismiss} onPress={dismissOpenChoice}>
+      <Pressable
+        style={styles.dismiss}
+        onPress={() => {
+          dismissOpenWhen();
+          dismissOpenChoice();
+        }}
+      >
         <View style={styles.block}>
           <View style={styles.identity}>
-            {fullName ? (
-              <Text selectable style={[text.hallName, styles.title, { color: colors.ink }]}>
-                {`Welcome, ${fullName}`}
-              </Text>
-            ) : null}
+            <Text selectable style={[text.hallName, styles.title, { color: colors.ink }]}>
+              {`Welcome, ${fullName ?? user.full_name}`}
+            </Text>
             {room ? (
               <Text selectable style={[text.body, { color: colors.inkSoft }]}>
                 {room}
               </Text>
             ) : null}
           </View>
+          {error && !planCard ? (
+            <Text style={[text.error, { color: colors.danger }]}>{error}</Text>
+          ) : null}
           {loaded && out ? (
             <Text style={[text.body, { color: colors.ink }]}>You are out.</Text>
           ) : null}
@@ -330,25 +392,13 @@ export default function HomeScreen() {
               You cannot start another outing while one is inside its window.
             </Text>
           ) : null}
-          {today.length === 0 && mayPlan ? fields : null}
           {today.length > 0 || later.length > 0 ? (
             <View style={styles.list}>
               {rows(today)}
               {rows(later)}
             </View>
           ) : null}
-          {today.length > 0 && mayPlan ? (
-            <View style={styles.fields}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Plan an outing"
-                onPress={() => setReveal(true)}
-              >
-                <Text style={[text.body, { color: colors.ink }]}>Plan an outing</Text>
-              </Pressable>
-              {reveal ? fields : null}
-            </View>
-          ) : null}
+          {planCard}
         </View>
       </Pressable>
     </ScrollView>
@@ -366,6 +416,14 @@ const styles = StyleSheet.create({
   identity: { gap: 16 },
   title: { textAlign: "left" },
   fields: { gap: 16 },
+  planTitle: { textAlign: "left" },
+  planNote: { textAlign: "center" },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  choices: { gap: 16, marginTop: 16 },
   list: { gap: 16 },
   rowLines: { gap: 2 },
   place: {

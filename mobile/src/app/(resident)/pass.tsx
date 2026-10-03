@@ -3,6 +3,7 @@ import { useFocusEffect } from "expo-router";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { Animated, Easing, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import QRCode from "react-native-qrcode-svg";
+import Svg, { Rect } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { formatWhen } from "@/format-when";
@@ -11,11 +12,25 @@ import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
 const FADE_MS = 220;
+const BORDER_MS = 3200;
 const AWAKE = "hall-pass";
+const BORDER = 14;
+const AnimatedRect = Animated.createAnimatedComponent(Rect);
+
+function borderLength(frame: number): number {
+  const stroke = 2;
+  const radius = 18;
+  const side = frame - stroke;
+  return 2 * (side + side - radius * 2) + 2 * Math.PI * radius;
+}
 
 function PassCode({ value, size }: { value: string; size: number }) {
+  const colors = useHallColors();
   const opacity = useRef(new Animated.Value(0)).current;
+  const travel = useRef(new Animated.Value(0)).current;
   const faded = useRef<string | null>(null);
+  const frame = size + BORDER * 2;
+  const length = borderLength(frame);
 
   useEffect(() => {
     if (faded.current === value) {
@@ -32,14 +47,57 @@ function PassCode({ value, size }: { value: string; size: number }) {
   }, [opacity, value]);
 
   useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(travel, {
+        toValue: 1,
+        duration: BORDER_MS,
+        easing: Easing.linear,
+        useNativeDriver: false,
+      }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [travel]);
+
+  useEffect(() => {
     void activateKeepAwakeAsync(AWAKE);
     return () => {
       void deactivateKeepAwake(AWAKE);
     };
   }, []);
 
+  const offset = travel.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -length],
+  });
+
   return (
-    <Animated.View style={[styles.code, { opacity }]} accessibilityLabel="Hall pass">
+    <Animated.View style={[styles.code, { width: frame, height: frame, opacity }]} accessibilityLabel="Hall pass">
+      <Svg width={frame} height={frame} style={styles.border}>
+        <Rect
+          x={1}
+          y={1}
+          width={frame - 2}
+          height={frame - 2}
+          rx={18}
+          fill="none"
+          stroke={colors.line}
+          strokeWidth={1}
+        />
+        <AnimatedRect
+          x={1}
+          y={1}
+          width={frame - 2}
+          height={frame - 2}
+          rx={18}
+          fill="none"
+          stroke={colors.forest}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeDasharray={`${Math.round(length * 0.18)} ${Math.round(length * 0.82)}`}
+          strokeDashoffset={offset}
+        />
+      </Svg>
       <QRCode
         value={value}
         size={size}
@@ -105,7 +163,7 @@ export default function HallPassScreen() {
   const before = pass && !pass.qrVisible && pass.qrVisibleFrom ? pass.qrVisibleFrom : null;
   const empty = pass !== null && code === null && before === null;
   const quiet = 16;
-  const codeSize = Math.max(0, width - 28 * 2 - quiet * 2);
+  const codeSize = Math.max(0, width - 28 * 2 - quiet * 2 - BORDER * 2);
 
   return (
     <ScrollView
@@ -163,6 +221,15 @@ const styles = StyleSheet.create({
   title: { textAlign: "left" },
   codeBlock: { gap: 16, alignItems: "center" },
   code: {
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: "#FFFFFF",
+    borderRadius: 22,
+    borderCurve: "continuous",
+  },
+  border: {
+    position: "absolute",
+    top: 0,
+    left: 0,
   },
 });
