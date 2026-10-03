@@ -19,25 +19,13 @@ import {
 import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
-import { hallFetch, useSession } from "@/session";
+import { PASSWORD_RULES } from "@/password-rules";
+import { errorMessage, hallFetch, useSession } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
-const PHONE = /^\+[1-9][0-9]{7,14}$/;
 const STEP_MS = 220;
 const PAUSE_MS = 600;
-
-const PASSWORD_RULES: { label: string; test: (value: string) => boolean }[] = [
-  { label: "Use at least 10 characters.", test: (value) => value.length >= 10 },
-  {
-    label: "Include an uppercase letter, a lowercase letter, a number, and a symbol.",
-    test: (value) =>
-      /[A-Z]/.test(value) &&
-      /[a-z]/.test(value) &&
-      /[0-9]/.test(value) &&
-      /[^A-Za-z0-9]/.test(value),
-  },
-];
 
 const COURSES = [
   "BA LLB",
@@ -73,18 +61,6 @@ type BlockOption = {
 const EMPTY_ROOMS = "No rooms are open.";
 const HALL_UNREACHABLE = "The hall could not be reached.";
 const PHONE_LINE = "Use an Indian mobile: +91 and exactly 10 digits.";
-
-async function apiMessage(response: Response): Promise<string> {
-  try {
-    const body = (await response.json()) as { error?: { message?: unknown } };
-    if (typeof body.error?.message === "string" && body.error.message.length > 0) {
-      return body.error.message;
-    }
-  } catch {
-    // The hall answered without a message.
-  }
-  return HALL_UNREACHABLE;
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -213,18 +189,10 @@ function e164(value: string): string {
 }
 
 function phoneError(value: string): string | null {
-  const dial = digits(value);
-  if (!/^\d{10}$/.test(dial) || !PHONE.test(e164(dial))) {
+  if (!/^\d{10}$/.test(digits(value))) {
     return PHONE_LINE;
   }
   return null;
-}
-
-function phoneNote(value: string, visible: boolean): string | null {
-  if (!visible || phoneError(value) === null) {
-    return null;
-  }
-  return PHONE_LINE;
 }
 
 function shown(visible: boolean, message: string | null): string | null {
@@ -411,7 +379,7 @@ export default function OnboardScreen() {
           return;
         }
         if (!response.ok) {
-          const message = await apiMessage(response);
+          const message = await errorMessage(response);
           if (!active) {
             return;
           }
@@ -587,7 +555,6 @@ export default function OnboardScreen() {
     return (
       personError(fullName, "Enter your full name.") !== null ||
       enrolmentError(enrolment) !== null ||
-      password.length > 200 ||
       phoneError(phone) !== null ||
       !passwordRulesMet(password)
     );
@@ -750,12 +717,12 @@ export default function OnboardScreen() {
     passwordField.visible,
     password.length > 200 ? "Use 200 characters or fewer." : failingPasswordRule(password),
   );
-  const ownPhoneNote = phoneNote(phone, phoneField.visible);
+  const ownPhoneNote = shown(phoneField.visible, phoneError(phone));
   const guardianNameNote = shown(
     guardianNameField.visible,
     personError(guardianName, "Enter the guardian name."),
   );
-  const guardianPhoneNote = phoneNote(guardianPhone, guardianPhoneField.visible);
+  const guardianPhoneNote = shown(guardianPhoneField.visible, phoneError(guardianPhone));
   const blockNote = choiceAttempt && block === null ? "Choose a block." : null;
   const roomNote = choiceAttempt && room === null ? "Choose a room." : null;
   const courseNote = choiceAttempt && !isCourse(course) ? "Choose a course." : null;
@@ -875,7 +842,6 @@ export default function OnboardScreen() {
         selectedId={blockId}
         onPick={chooseBlock}
         colors={colors}
-        openShowsAll
         hint={listNote}
         note={blockNote}
       />
@@ -886,7 +852,6 @@ export default function OnboardScreen() {
         selectedId={roomId}
         onPick={chooseRoom}
         colors={colors}
-        openShowsAll
         hint={block && rooms.length === 0 ? EMPTY_ROOMS : null}
         note={roomNote}
       />
@@ -897,7 +862,6 @@ export default function OnboardScreen() {
         selectedId={course}
         onPick={chooseCourse}
         colors={colors}
-        openShowsAll
         note={courseNote}
       />
     </View>

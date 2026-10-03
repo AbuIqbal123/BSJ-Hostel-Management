@@ -36,7 +36,7 @@ router = APIRouter(prefix="/api/v1", tags=["Resident"])
 def _active_destinations(connection: sqlite3.Connection) -> list[Destination]:
     rows = connection.execute(
         """
-        SELECT id, name, is_other, is_active
+        SELECT id, name, is_other
         FROM destinations
         WHERE is_active = 1
         ORDER BY is_other, name COLLATE NOCASE, id
@@ -47,7 +47,7 @@ def _active_destinations(connection: sqlite3.Connection) -> list[Destination]:
             id=row["id"],
             name=row["name"],
             source="custom" if row["is_other"] else "preset",
-            status="active" if row["is_active"] else "inactive",
+            status="active",
         )
         for row in rows
     ]

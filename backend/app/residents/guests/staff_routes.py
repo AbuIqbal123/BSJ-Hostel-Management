@@ -179,22 +179,7 @@ def mark_guest_payment(
     connection: ConnectionDep,
 ) -> GuestStayBody:
     now_text = clock.format_instant(clock.utc_now())
-    existing = connection.execute(
-        """
-        SELECT id, status, guest_name, arrived_at, departed_at, payment_evidence_path
-        FROM guest_stays
-        WHERE id = ?
-        """,
-        (guest_stay_id,),
-    ).fetchone()
-    if existing is None:
-        raise ApiError(404, "not_found", "That record was not found.")
-    if not _payment_mutable(existing):
-        raise ApiError(
-            409,
-            "payment_locked",
-            "Payment cannot be changed after the guest has arrived or the stay is closed.",
-        )
+    existing = _require_mutable_stay(connection, guest_stay_id)
     previous_evidence = existing["payment_evidence_path"]
     note = None if body.payment_note is None else body.payment_note.strip() or None
     if body.payment_status == "paid":

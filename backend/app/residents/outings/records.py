@@ -52,7 +52,6 @@ def outing_lateness(status: str, grace_ends_at: str) -> Literal["on_time", "late
 
 
 _QR_LEAD = timedelta(minutes=30)
-_QR_IMMEDIATE = timedelta(minutes=5)
 
 
 def _parse_instant(value: str) -> datetime:
@@ -70,11 +69,9 @@ def qr_window(
 ) -> tuple[bool, str | None, str | None]:
     """QR show window for one outing.
 
-    An ordinary outing opens 30 minutes before `starts_at`. When `starts_at`
-    is within 5 minutes, that lead has already begun, so the QR is shown
-    immediately. A planned outing closes at `expected_return_at`. An outside
-    ordinary outing stays open until the return scan. Other types have no
-    ordinary window.
+    An ordinary outing opens 30 minutes before starts_at. A planned outing
+    closes at expected_return_at. An outside ordinary outing stays open until
+    the return scan. Other types have no ordinary window.
     """
     if outing_type != "ordinary":
         return False, None, None
@@ -91,9 +88,7 @@ def qr_window(
         return False, visible_from, visible_until
     if now >= _parse_instant(expected_return_at):
         return False, visible_from, visible_until
-    lead_open = now >= start - _QR_LEAD
-    starts_within_five = timedelta(0) <= (start - now) <= _QR_IMMEDIATE
-    if lead_open or starts_within_five:
+    if now >= start - _QR_LEAD:
         return True, visible_from, visible_until
     return False, visible_from, visible_until
 

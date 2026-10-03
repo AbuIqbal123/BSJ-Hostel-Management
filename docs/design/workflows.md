@@ -60,7 +60,7 @@ Keep this document Fowler-simple: one workflow per section, steps a person can n
 | **Warden** | Hall pulse | Register summary counts; shortcuts to Late, Permissions waiting, Guest stays waiting | Quiet night vs busy late list | Counts match `GET /api/v1/register/summary` |
 | **Provost** | Same as warden + office entry | Warden home + Hall office | (none special) | Office reachable without burying register |
 
-The resident phone home shows her name, her block, and her room, then each upcoming ordinary outing. She opens a row in Plan only when she can still change it. Plan asks for the place, when she will leave, and when she will be back, and sends those as `starts_at` and `expected_return_at`. While she is outside, or while one ordinary outing is inside its show window, Plan does not show the form. My hall pass and Settings are empty. Staff still use the signed-in screen.
+The resident phone home shows her name and her room, then the plan form when she may plan, then each upcoming ordinary outing. She opens a row in Plan only when she can still change it, and that screen pushes in over the tabs. Plan asks for the place, when she will leave, and when she will be back, and sends those as `starts_at` and `expected_return_at`. An Other place opens with Other selected and the typed where filled in. While she is outside, or while one ordinary outing is inside its show window, Plan does not show the form. The hall pass shows her name and room. Before the code is visible it says she has a planned outing and that her QR code appears 30 minutes before she leaves. Settings offers change password, the privacy policy, and sign out. Staff still use the signed-in screen.
 
 ---
 

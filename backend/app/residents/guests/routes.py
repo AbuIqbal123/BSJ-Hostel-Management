@@ -57,19 +57,13 @@ def _parse_date(value: str, *, field: str) -> str:
             f"Use a calendar date for {field}, such as 2026-10-02.",
         )
     try:
-        parsed = date.fromisoformat(value)
+        date.fromisoformat(value)
     except ValueError:
         raise ApiError(
             422,
             "validation_error",
             f"Use a calendar date for {field}, such as 2026-10-02.",
         ) from None
-    if parsed.isoformat() != value:
-        raise ApiError(
-            422,
-            "validation_error",
-            f"Use a calendar date for {field}, such as 2026-10-02.",
-        )
     return value
 
 
@@ -79,6 +73,7 @@ def _validate_stay_window(
     start: str,
     end: str,
     require_lead: bool,
+    today: str | None = None,
 ) -> None:
     if end < start:
         raise ApiError(
@@ -87,9 +82,9 @@ def _validate_stay_window(
             "The end date must be on or after the start date.",
         )
     settings = guest_settings(connection)
-    today = hall_today(connection, clock.utc_now())
     if require_lead:
-        earliest = earliest_start_date(today, int(settings["guest_min_lead_days"]))
+        hall_date = today if today is not None else hall_today(connection, clock.utc_now())
+        earliest = earliest_start_date(hall_date, int(settings["guest_min_lead_days"]))
         if start < earliest:
             raise ApiError(
                 422,
@@ -98,7 +93,7 @@ def _validate_stay_window(
             )
     days = inclusive_days(start, end)
     maximum = int(settings["guest_max_inclusive_days"])
-    if days < 1 or days > maximum:
+    if days > maximum:
         raise ApiError(
             422,
             "validation_error",
@@ -131,30 +126,9 @@ def submit_guest_stay(
 ) -> GuestStayBody:
     start = _parse_date(body.guest_start_date, field="guest_start_date")
     end = _parse_date(body.guest_end_date, field="guest_end_date")
-    if end < start:
-        raise ApiError(
-            422,
-            "validation_error",
-            "The end date must be on or after the start date.",
-        )
-    settings = guest_settings(connection)
     now = clock.utc_now()
     today = hall_today(connection, now)
-    earliest = earliest_start_date(today, int(settings["guest_min_lead_days"]))
-    if start < earliest:
-        raise ApiError(
-            422,
-            "validation_error",
-            "The start date must be at least the hall lead time after today's hall date.",
-        )
-    days = inclusive_days(start, end)
-    maximum = int(settings["guest_max_inclusive_days"])
-    if days < 1 or days > maximum:
-        raise ApiError(
-            422,
-            "validation_error",
-            f"A guest stay must last from 1 to {maximum} days, counting the first and last day.",
-        )
+    _validate_stay_window(connection, start=start, end=end, require_lead=True, today=today)
     stay_id = str(uuid.uuid4())
     now_text = clock.format_instant(now)
     guest_name = body.guest_name.strip()
@@ -243,13 +217,6 @@ def edit_guest_stay(
             "Only a pending or approved guest stay can be edited "
             f"(current status: {row['status']}).",
         )
-    if row["status"] not in {"pending", "approved"}:
-        raise ApiError(
-            409,
-            "not_editable",
-            "Only a pending or approved guest stay can be edited "
-            f"(current status: {row['status']}).",
-        )
 
     provided = body.model_fields_set
     if not provided:
@@ -259,12 +226,6 @@ def edit_guest_stay(
     if arrived:
         locked = {"guest_name", "relation", "reason"} & provided
         if locked:
-            raise ApiError(
-                422,
-                "validation_error",
-                "After the guest has arrived, only guest_start_date and guest_end_date may be edited.",
-            )
-        if not ({"guest_start_date", "guest_end_date"} & provided):
             raise ApiError(
                 422,
                 "validation_error",

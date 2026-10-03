@@ -1,34 +1,50 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { router, useFocusEffect } from "expo-router";
-import {
-  Animated,
-  BackHandler,
-  Easing,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  type LayoutChangeEvent,
-} from "react-native";
+import { BackHandler, InteractionManager, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import Animated, { Easing, FadeIn, FadeOut, LinearTransition, ReduceMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { TextField } from "@/components/text-field";
-import { formatWhen, utcInstant } from "@/format-when";
-import { outingLocked, useSession, type UpcomingOuting } from "@/session";
+import { formatWhenParts, utcInstant } from "@/format-when";
+import { outingLocked, takeOutingLeft, useSession, type UpcomingOuting } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 import { OTHER_NAME, WhenField, hallDay, leaveNote, returnNote } from "@/outing-when";
 
-const WHERE_MS = 220;
+const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
+const ROW_ENTER = FadeIn.duration(180).easing(EASE_OUT).reduceMotion(ReduceMotion.System);
+const ROW_EXIT = FadeOut.duration(160).easing(EASE_OUT).reduceMotion(ReduceMotion.System);
+const ROW_MOVE = LinearTransition.duration(220).easing(EASE_OUT).reduceMotion(ReduceMotion.System);
+let rowsMayEnter = false;
 
-function outingWhen(item: UpcomingOuting): string {
-  const back = `Back ${formatWhen(item.expectedReturnAt)}`;
-  if (!item.startsAt) {
-    return back;
+function OutingFrame({ item }: { item: UpcomingOuting }) {
+  const entering = useRef(rowsMayEnter ? ROW_ENTER : undefined);
+  return (
+    <Animated.View
+      collapsable={false}
+      entering={entering.current}
+      exiting={ROW_EXIT}
+      layout={ROW_MOVE}
+    >
+      <OutingRow item={item} />
+    </Animated.View>
+  );
+}
+
+function outingWhen(item: UpcomingOuting): { day: string; span: string } {
+  const back = formatWhenParts(item.expectedReturnAt);
+  const leave = item.startsAt ? formatWhenParts(item.startsAt) : null;
+  if (!back) {
+    return { day: item.expectedReturnAt, span: "" };
   }
-  return `Leave ${formatWhen(item.startsAt)}. ${back}`;
+  if (!leave) {
+    return { day: back.day, span: `Back ${back.clock}` };
+  }
+  if (leave.day === back.day) {
+    return { day: leave.day, span: `${leave.clock} to ${back.clock}` };
+  }
+  return { day: leave.day, span: `${leave.clock} to ${back.clock}, ${back.day}` };
 }
 
 function leaveIsToday(item: UpcomingOuting): boolean {
@@ -44,21 +60,25 @@ function leaveIsToday(item: UpcomingOuting): boolean {
 
 function OutingRow({ item }: { item: UpcomingOuting }) {
   const colors = useHallColors();
+  const when = outingWhen(item);
   const lines = (
     <View style={styles.rowLines}>
       <Text style={[styles.place, { color: colors.ink }]}>{item.place}</Text>
-      <Text style={[text.body, { color: colors.inkSoft }]}>{outingWhen(item)}</Text>
+      <Text style={[text.body, { color: colors.inkSoft }]}>{when.day}</Text>
+      {when.span ? <Text style={[text.mono, { color: colors.ink }]}>{when.span}</Text> : null}
     </View>
   );
+  const shell = [styles.outing, { backgroundColor: colors.surface, borderColor: colors.line }];
   if (!item.canModify || outingLocked(item.id)) {
-    return lines;
+    return <View style={shell}>{lines}</View>;
   }
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${item.place}. ${outingWhen(item)}`}
+      accessibilityLabel={`${item.place}. ${when.day}. ${when.span}`}
+      style={shell}
       onPress={() => {
-        router.navigate({
+        router.push({
           pathname: "/plan",
           params: {
             outing: item.id,
@@ -90,12 +110,15 @@ export default function HomeScreen() {
   const [backBy, setBackBy] = useState<Date | null>(null);
   const [where, setWhere] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [whereHeight, setWhereHeight] = useState(0);
-  const whereOpen = useRef(new Animated.Value(0)).current;
   const pending = useRef(false);
+  const holdConfirm = useRef(0);
 
   const refresh = useCallback(() => {
     let active = true;
+    const left = takeOutingLeft();
+    if (left) {
+      setUpcoming((items) => items.filter((item) => item.id !== left));
+    }
     void loadResidentHome().then((result) => {
       if (!active) {
         return;
@@ -117,10 +140,35 @@ export default function HomeScreen() {
     };
   }, [loadResidentHome]);
 
-  useFocusEffect(refresh);
+  const opened = useRef(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!opened.current) {
+        opened.current = true;
+        return refresh();
+      }
+      let stop = () => {};
+      const task = InteractionManager.runAfterInteractions(() => {
+        stop = refresh();
+      });
+      return () => {
+        task.cancel();
+        stop();
+      };
+    }, [refresh]),
+  );
 
   useEffect(() => {
-    const subscription = BackHandler.addEventListener("hardwareBackPress", () => dismissOpenChoice());
+    if (loaded) {
+      rowsMayEnter = true;
+    }
+  }, [loaded]);
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      return dismissOpenChoice();
+    });
     return () => subscription.remove();
   }, []);
 
@@ -148,15 +196,6 @@ export default function HomeScreen() {
     };
   }, [loadDestinations, mayPlan, places]);
 
-  useEffect(() => {
-    Animated.timing(whereOpen, {
-      toValue: other ? 1 : 0,
-      duration: WHERE_MS,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: false,
-    }).start();
-  }, [other, whereHeight, whereOpen]);
-
   const today = upcoming.filter(leaveIsToday);
   const later = upcoming.filter((item) => !leaveIsToday(item));
   const whereReady = !other || where.trim().length > 0;
@@ -170,17 +209,15 @@ export default function HomeScreen() {
     leaveProblem === null &&
     returnProblem === null;
 
+  const holdPlan = useCallback(() => {
+    holdConfirm.current = Date.now() + 700;
+  }, []);
+
   const submit = useCallback(async () => {
+    if (Date.now() < holdConfirm.current) {
+      return;
+    }
     if (pending.current || !planReady || !destinationId || !leaveAt || !backBy) {
-      return;
-    }
-    if (leaveNote(leaveAt) || returnNote(leaveAt, backBy)) {
-      setError(null);
-      return;
-    }
-    const placeText = where.trim();
-    if (other && placeText.length === 0) {
-      setError("Say where.");
       return;
     }
     pending.current = true;
@@ -188,7 +225,7 @@ export default function HomeScreen() {
       destination_id: destinationId,
       starts_at: utcInstant(leaveAt),
       expected_return_at: utcInstant(backBy),
-      ...(other ? { destination_text: placeText } : {}),
+      ...(other ? { destination_text: where.trim() } : {}),
     });
     pending.current = false;
     if (message) {
@@ -203,43 +240,17 @@ export default function HomeScreen() {
     refresh();
   }, [backBy, destinationId, leaveAt, other, planOuting, planReady, refresh, where]);
 
-  const onWhereLayout = useCallback((event: LayoutChangeEvent) => {
-    const height = Math.ceil(event.nativeEvent.layout.height);
-    if (height > 0) {
-      setWhereHeight(height);
-    }
-  }, []);
-
   if (!user) {
     return null;
   }
 
   const room = roomLabel && roomLabel.length > 0 ? roomLabel : null;
   const rows = (items: UpcomingOuting[]) =>
-    items.map((item) => <OutingRow key={item.id} item={item} />);
+    items.map((item) => <OutingFrame key={item.id} item={item} />);
 
   const planCard = mayPlan && places ? (
     <View style={styles.fields}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Plan an outing"
-        onPress={() => {
-          if (!planReady) {
-            return;
-          }
-          void submit();
-        }}
-      >
-        <Text
-          style={[
-            text.button,
-            styles.planTitle,
-            { color: planReady ? colors.forest : colors.ink },
-          ]}
-        >
-          Plan an outing
-        </Text>
-      </Pressable>
+      <Text style={[text.button, styles.title, { color: colors.ink }]}>Plan an outing</Text>
       <ChoiceField
         label="Place"
         valueLabel={chosen?.name ?? null}
@@ -253,45 +264,30 @@ export default function HomeScreen() {
           setError(null);
         }}
         colors={colors}
-        openShowsAll
         note={null}
+        placeholder="Choose a place"
       />
-      <Animated.View
-          pointerEvents={other ? "auto" : "none"}
-          style={{
-            height: whereOpen.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, whereHeight],
-            }),
-            marginTop: whereOpen.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 16],
-            }),
-            opacity: whereOpen,
-            overflow: "hidden",
+      {other ? (
+        <TextField
+          label="Where"
+          value={where}
+          onChangeText={(value) => {
+            setWhere(value);
+            setError(null);
           }}
-        >
-          <View onLayout={onWhereLayout}>
-            <TextField
-              label="Where"
-              value={where}
-              onChangeText={(value) => {
-                setWhere(value);
-                setError(null);
-              }}
-              autoCapitalize="sentences"
-              autoComplete="off"
-              returnKeyType="go"
-              onSubmitEditing={() => {
-                void submit();
-              }}
-            />
-          </View>
-      </Animated.View>
+          autoCapitalize="sentences"
+          autoComplete="off"
+          returnKeyType="go"
+          onSubmitEditing={() => {
+            void submit();
+          }}
+        />
+      ) : null}
       <WhenField
         label="Leave at"
         value={leaveAt}
-        pastNote={leaveProblem}
+        note={leaveProblem}
+        onAdjust={holdPlan}
         onChange={(date) => {
           setLeaveAt(date);
           setError(null);
@@ -300,12 +296,30 @@ export default function HomeScreen() {
       <WhenField
         label="Back by"
         value={backBy}
-        pastNote={returnProblem}
+        note={returnProblem}
+        onAdjust={holdPlan}
         onChange={(date) => {
           setBackBy(date);
           setError(null);
         }}
       />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Confirm"
+        accessibilityState={{ disabled: !planReady }}
+        disabled={!planReady}
+        hitSlop={12}
+        onPress={() => {
+          setTimeout(() => {
+            void submit();
+          }, 50);
+        }}
+        style={styles.confirm}
+      >
+        <Text style={[text.button, { color: planReady ? colors.forest : colors.inkFaint }]}>
+          Confirm
+        </Text>
+      </Pressable>
       {error ? <Text style={[text.error, styles.planNote, { color: colors.danger }]}>{error}</Text> : null}
     </View>
   ) : null;
@@ -347,13 +361,39 @@ export default function HomeScreen() {
               You cannot start another outing while one is inside its window.
             </Text>
           ) : null}
-          {today.length > 0 || later.length > 0 ? (
-            <View style={styles.list}>
-              {rows(today)}
-              {rows(later)}
-            </View>
-          ) : null}
           {planCard}
+          {today.length > 0 || later.length > 0 ? (
+            <Animated.View
+              collapsable={false}
+              layout={ROW_MOVE}
+              exiting={ROW_EXIT}
+              style={[styles.upcoming, { borderTopColor: colors.line }]}
+            >
+              <Text style={[text.button, { color: colors.ink }]}>Upcoming outings</Text>
+              <Animated.View style={styles.list} layout={ROW_MOVE}>
+                {today.length > 0 && later.length > 0 ? (
+                  <Animated.Text
+                    exiting={ROW_EXIT}
+                    layout={ROW_MOVE}
+                    style={[text.label, { color: colors.inkSoft }]}
+                  >
+                    Today
+                  </Animated.Text>
+                ) : null}
+                {rows(today)}
+                {today.length > 0 && later.length > 0 ? (
+                  <Animated.Text
+                    exiting={ROW_EXIT}
+                    layout={ROW_MOVE}
+                    style={[text.label, { color: colors.inkSoft }]}
+                  >
+                    Later
+                  </Animated.Text>
+                ) : null}
+                {rows(later)}
+              </Animated.View>
+            </Animated.View>
+          ) : null}
         </View>
       </Pressable>
     </ScrollView>
@@ -371,10 +411,22 @@ const styles = StyleSheet.create({
   identity: { gap: 16 },
   title: { textAlign: "left" },
   fields: { gap: 16 },
-  planTitle: { textAlign: "left" },
+  confirm: { alignSelf: "flex-start" },
   planNote: { textAlign: "center" },
-  list: { gap: 16 },
-  rowLines: { gap: 2 },
+  upcoming: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: 22,
+    gap: 14,
+  },
+  list: { gap: 12 },
+  outing: {
+    borderWidth: 1,
+    borderRadius: 12,
+    borderCurve: "continuous",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  rowLines: { gap: 4 },
   place: {
     fontFamily: "SourceSerif4_600SemiBold",
     fontSize: 17,

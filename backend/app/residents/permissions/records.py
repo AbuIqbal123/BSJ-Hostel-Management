@@ -8,8 +8,6 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
-from app.shared import clock
-
 PermissionType = Literal["late_night", "home_going"]
 PermissionStatus = Literal[
     "pending",
