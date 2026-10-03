@@ -335,14 +335,17 @@ async function readSession(): Promise<StoredSession | null> {
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [session, setSession] = useState<StoredSession | null>(null);
+  const sessionRef = useRef(session);
 
   useEffect(() => {
     let active = true;
     readSession()
       .then((stored) => {
-        if (active) {
-          setSession(stored);
+        if (!active) {
+          return;
         }
+        sessionRef.current = stored;
+        setSession(stored);
       })
       .finally(() => {
         if (active) {
@@ -354,7 +357,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const sessionRef = useRef(session);
   useEffect(() => {
     sessionRef.current = session;
   }, [session]);
@@ -474,18 +476,60 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const loadResidentHome = useCallback(async (): Promise<ResidentHomeResult> => {
+  const renew = useCallback(async (): Promise<StoredSession | null> => {
     const current = sessionRef.current;
+    if (!current?.refreshToken) {
+      return null;
+    }
+    try {
+      const response = await hallFetch("/api/v1/auth/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: current.refreshToken }),
+      });
+      if (!response.ok) {
+        return null;
+      }
+      const body = (await response.json()) as {
+        access_token: string;
+        refresh_token: string;
+        user: HallUser;
+      };
+      const next: StoredSession = {
+        accessToken: body.access_token,
+        refreshToken: body.refresh_token,
+        user: body.user,
+      };
+      sessionRef.current = next;
+      await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(next));
+      setSession(next);
+      return next;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const loadResidentHome = useCallback(async (): Promise<ResidentHomeResult> => {
+    let current = sessionRef.current;
     if (!current) {
       return { error: "Sign in again." };
     }
-    const headers = { Authorization: `Bearer ${current.accessToken}` };
+    const call = (token: string, path: string, method: string) =>
+      hallFetch(path, { method, headers: { Authorization: `Bearer ${token}` } });
     try {
-      const expired = await hallFetch("/api/v1/me/expire-passed", { method: "POST", headers });
+      let expired = await call(current.accessToken, "/api/v1/me/expire-passed", "POST");
+      if (expired.status === 401) {
+        const renewed = await renew();
+        if (!renewed) {
+          return { error: "Sign in again." };
+        }
+        current = renewed;
+        expired = await call(current.accessToken, "/api/v1/me/expire-passed", "POST");
+      }
       if (!expired.ok) {
         return { error: await errorMessage(expired) };
       }
-      const homeResponse = await hallFetch("/api/v1/me/home", { method: "GET", headers });
+      const homeResponse = await call(current.accessToken, "/api/v1/me/home", "GET");
       if (!homeResponse.ok) {
         return { error: await errorMessage(homeResponse) };
       }
@@ -497,7 +541,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     } catch {
       return { error: "The hall could not be reached." };
     }
-  }, []);
+  }, [renew]);
 
   const loadHallPass = useCallback(async (): Promise<HallPassResult> => {
     const current = sessionRef.current;

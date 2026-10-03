@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useFonts } from "expo-font";
-import { router } from "expo-router";
+import { router, useSegments } from "expo-router";
 import { Stack } from "expo-router/stack";
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -19,20 +19,41 @@ export const unstable_settings = {
   initialRouteName: "index",
 };
 
-// Once, after the stored session is known. A later Sign up tap may open /onboard.
+// The dev client restores the last route, which can be signup. Send a stored
+// session home, and a logged-out open to sign-in. Sign up stays available
+// once she has actually been on sign-in.
 function LaunchGate() {
   const { ready, user } = useSession();
-  const launched = useRef(false);
+  const segments = useSegments();
+  const openedFromSignIn = useRef(false);
 
   useEffect(() => {
-    if (!ready || launched.current) {
+    if (!ready) {
       return;
     }
-    launched.current = true;
-    if (!user) {
-      router.replace("/sign-in");
+    const here = segments[0];
+    if (!here) {
+      return;
     }
-  }, [ready, user]);
+    if (user) {
+      if (here === "index" || here === "onboard" || here === "sign-in") {
+        router.replace(user.role === "resident" ? "/home" : "/signed-in");
+        return;
+      }
+      SplashScreen.hideAsync();
+      return;
+    }
+    if (here === "sign-in") {
+      openedFromSignIn.current = true;
+      SplashScreen.hideAsync();
+      return;
+    }
+    if (here === "onboard" && openedFromSignIn.current) {
+      SplashScreen.hideAsync();
+      return;
+    }
+    router.replace("/sign-in");
+  }, [ready, user, segments]);
 
   return null;
 }
@@ -47,11 +68,6 @@ export default function RootLayout() {
     IBMPlexMono_500Medium,
   });
 
-  useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, fontError]);
 
   if (!fontsLoaded && !fontError) {
     return null;
