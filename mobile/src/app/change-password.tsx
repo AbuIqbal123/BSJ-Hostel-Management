@@ -8,12 +8,25 @@ import { useSession } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
+const PASSWORD_RULES: { label: string; test: (value: string) => boolean }[] = [
+  { label: "10 characters", test: (value) => value.length >= 10 },
+  { label: "Uppercase letter", test: (value) => /[A-Z]/.test(value) },
+  { label: "Lowercase letter", test: (value) => /[a-z]/.test(value) },
+  { label: "Number", test: (value) => /[0-9]/.test(value) },
+  { label: "Symbol", test: (value) => /[^A-Za-z0-9]/.test(value) },
+];
+
+function passwordRulesMet(value: string): boolean {
+  return PASSWORD_RULES.every((rule) => rule.test(value));
+}
+
 export default function ChangePasswordScreen() {
   const colors = useHallColors();
   const { user, changePassword } = useSession();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [rulesNoted, setRulesNoted] = useState(false);
   const pending = useRef(false);
 
   const submit = useCallback(async () => {
@@ -24,12 +37,13 @@ export default function ChangePasswordScreen() {
       setError("Enter your current password.");
       return;
     }
-    if (newPassword.length < 10) {
-      setError("Use at least 10 characters.");
-      return;
-    }
     if (newPassword.length > 200) {
       setError("Use 200 characters or fewer.");
+      return;
+    }
+    if (!passwordRulesMet(newPassword)) {
+      setRulesNoted(true);
+      setError(null);
       return;
     }
     pending.current = true;
@@ -67,21 +81,35 @@ export default function ChangePasswordScreen() {
           textContentType="password"
           returnKeyType="next"
         />
-        <TextField
-          label="New password"
-          value={newPassword}
-          onChangeText={(value) => {
-            setNewPassword(value);
-            setError(null);
-          }}
-          secureTextEntry
-          autoComplete="password"
-          textContentType="password"
-          returnKeyType="go"
-          onSubmitEditing={() => {
-            void submit();
-          }}
-        />
+        <View style={styles.passwordBlock}>
+          <TextField
+            label="New password"
+            value={newPassword}
+            onChangeText={(value) => {
+              setNewPassword(value);
+              setRulesNoted(false);
+              setError(null);
+            }}
+            secureTextEntry
+            autoComplete="password"
+            textContentType="password"
+            returnKeyType="go"
+            onSubmitEditing={() => {
+              void submit();
+            }}
+          />
+          <View style={styles.rules}>
+            {PASSWORD_RULES.map((rule) => {
+              const met = rule.test(newPassword);
+              const color = met ? colors.forest : rulesNoted ? colors.danger : colors.inkSoft;
+              return (
+                <Text key={rule.label} style={[text.error, { color }]}>
+                  {rule.label}
+                </Text>
+              );
+            })}
+          </View>
+        </View>
         <View>
           <HallButton label="Change password" onPress={() => void submit()} />
           <View
@@ -119,6 +147,8 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
   },
   fields: { gap: 16 },
+  passwordBlock: { gap: 8 },
+  rules: { gap: 2 },
   errorSlot: {
     position: "absolute",
     left: 0,
