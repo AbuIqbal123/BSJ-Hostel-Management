@@ -51,6 +51,7 @@ export type UpcomingOuting = {
 };
 
 export type ResidentHome = {
+  fullName: string;
   blockName: string | null;
   roomLabel: string | null;
   out: boolean;
@@ -208,6 +209,9 @@ function readResidentHome(value: unknown): ResidentHome | null {
   if (resident.presence !== "inside" && resident.presence !== "outside") {
     return null;
   }
+  if (typeof resident.full_name !== "string" || resident.full_name.length === 0) {
+    return null;
+  }
   const blockName = typeof resident.block_name === "string" ? resident.block_name : null;
   const roomLabel = typeof resident.room_label === "string" ? resident.room_label : null;
   let outingOutside = false;
@@ -218,6 +222,7 @@ function readResidentHome(value: unknown): ResidentHome | null {
     outingOutside = value.current_outing.status === "outside";
   }
   return {
+    fullName: resident.full_name,
     blockName,
     roomLabel,
     out: resident.presence === "outside" || outingOutside,
@@ -403,24 +408,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-
-  const rememberName = useCallback(async (fullName: string) => {
-    const current = sessionRef.current;
-    if (!current || current.user.full_name === fullName) {
-      return;
-    }
-    const next: StoredSession = {
-      ...current,
-      user: { ...current.user, full_name: fullName },
-    };
-    sessionRef.current = next;
-    setSession(next);
-    await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(next));
-    if (sessionRef.current === null) {
-      await SecureStore.deleteItemAsync(SESSION_KEY);
-    }
-  }, []);
-
   const loadResidentHome = useCallback(async (): Promise<ResidentHomeResult> => {
     const current = sessionRef.current;
     if (!current) {
@@ -440,18 +427,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (!home) {
         return { error: "The hall could not be reached." };
       }
-      const meResponse = await hallFetch("/api/v1/auth/me", { method: "GET", headers });
-      if (meResponse.ok) {
-        const me = (await meResponse.json()) as unknown;
-        if (isRecord(me) && typeof me.full_name === "string" && me.full_name.length > 0) {
-          await rememberName(me.full_name);
-        }
-      }
       return { error: null, home };
     } catch {
       return { error: "The hall could not be reached." };
     }
-  }, [rememberName]);
+  }, []);
 
   const loadDestinations = useCallback(async (): Promise<DestinationResult> => {
     const current = sessionRef.current;
