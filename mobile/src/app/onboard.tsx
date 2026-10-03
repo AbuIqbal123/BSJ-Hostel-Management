@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { router } from "expo-router";
-import { usePreventRemove } from "expo-router/build/react-navigation/core";
+import { usePreventRemove } from "expo-router/react-navigation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Animated,
@@ -9,6 +9,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
   type LayoutChangeEvent,
 } from "react-native";
@@ -210,23 +211,6 @@ function isCourse(value: string | null): value is (typeof COURSES)[number] {
   return value !== null && (COURSES as readonly string[]).includes(value);
 }
 
-function searchHits(query: string, items: Choice[], selectedLabel: string | null): Choice[] {
-  const needle = query.trim().toLowerCase();
-  if (needle.length === 0) {
-    return [];
-  }
-  const hits = items.filter((item) => item.label.toLowerCase().includes(needle));
-  if (
-    selectedLabel !== null &&
-    selectedLabel.toLowerCase() === needle &&
-    hits.length === 1 &&
-    hits[0]?.label.toLowerCase() === needle
-  ) {
-    return [];
-  }
-  return hits;
-}
-
 function useFieldMessage(): { visible: boolean; reveal: () => void; onEdit: () => void } {
   const [visible, setVisible] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -316,6 +300,100 @@ function OptionList({
   );
 }
 
+function ChoiceField({
+  label,
+  valueLabel,
+  items,
+  selectedId,
+  onPick,
+  colors,
+  openShowsAll,
+  note,
+  hint,
+}: {
+  label: string;
+  valueLabel: string | null;
+  items: Choice[];
+  selectedId: string | null;
+  onPick: (id: string) => void;
+  colors: HallColors;
+  openShowsAll: boolean;
+  note: string | null;
+  hint?: string | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const hits = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (needle.length === 0) {
+      return openShowsAll ? items : [];
+    }
+    return items.filter((item) => item.label.toLowerCase().includes(needle));
+  }, [items, openShowsAll, query]);
+
+  const pick = useCallback(
+    (id: string) => {
+      onPick(id);
+      setOpen(false);
+      setQuery("");
+    },
+    [onPick],
+  );
+
+  return (
+    <View style={styles.noteBlock}>
+      <Text style={[text.label, { color: colors.inkSoft }]}>{label}</Text>
+      {open ? (
+        <View
+          style={[
+            styles.shell,
+            { backgroundColor: colors.surface, borderColor: colors.forest },
+          ]}
+        >
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            autoFocus
+            autoCorrect={false}
+            spellCheck={false}
+            autoCapitalize="none"
+            placeholder={label}
+            placeholderTextColor={colors.inkFaint}
+            selectionColor={colors.forest}
+            cursorColor={colors.forest}
+            accessibilityLabel={label}
+            style={[styles.shellInput, text.field, { color: colors.ink }]}
+          />
+        </View>
+      ) : (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={valueLabel ? `${label}, ${valueLabel}` : label}
+          onPress={() => {
+            setQuery("");
+            setOpen(true);
+          }}
+          style={[
+            styles.shell,
+            styles.shellPad,
+            { backgroundColor: colors.surface, borderColor: colors.line },
+          ]}
+        >
+          <Text style={[text.field, { color: valueLabel ? colors.ink : colors.inkFaint }]}>
+            {valueLabel ?? label}
+          </Text>
+        </Pressable>
+      )}
+      {open ? (
+        <OptionList items={hits} selectedId={selectedId} onPick={pick} colors={colors} />
+      ) : null}
+      {hint ? <Text style={[text.body, { color: colors.inkSoft }]}>{hint}</Text> : null}
+      {note ? <Text style={[text.error, { color: colors.inkSoft }]}>{note}</Text> : null}
+    </View>
+  );
+}
+
 export default function OnboardScreen() {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
@@ -332,13 +410,10 @@ export default function OnboardScreen() {
   const [guardianName, setGuardianName] = useState("");
   const [guardianPhone, setGuardianPhone] = useState("");
   const [course, setCourse] = useState<string | null>(null);
-  const [courseQuery, setCourseQuery] = useState("");
   const [blocks, setBlocks] = useState<BlockOption[]>([]);
   const [listNote, setListNote] = useState<string | null>(null);
   const [blockId, setBlockId] = useState<string | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
-  const [blockQuery, setBlockQuery] = useState("");
-  const [roomQuery, setRoomQuery] = useState("");
   const [paneWidth, setPaneWidth] = useState(0);
   const offset = useRef(new Animated.Value(0)).current;
   const widthRef = useRef(0);
@@ -357,16 +432,13 @@ export default function OnboardScreen() {
   const block = blocks.find((item) => item.id === blockId) ?? null;
   const room = block?.rooms.find((item) => item.id === roomId) ?? null;
   const rooms = block?.rooms ?? [];
-  const blockMatches = searchHits(
-    blockQuery,
-    blocks.map((item) => ({ id: item.id, label: item.name })),
-    block?.name ?? null,
+  const blockItems = useMemo(
+    () => blocks.map((item) => ({ id: item.id, label: item.name })),
+    [blocks],
   );
-  const roomMatches = searchHits(roomQuery, rooms, room?.label ?? null);
-  const courseMatches = searchHits(
-    courseQuery,
-    COURSES.map((label) => ({ id: label, label })),
-    course,
+  const courseItems = useMemo(
+    () => COURSES.map((label) => ({ id: label, label })),
+    [],
   );
 
   stepRef.current = step;
@@ -400,7 +472,6 @@ export default function OnboardScreen() {
         if (!blockTouched.current) {
           const opening = openingBlock(parsed);
           setBlockId(opening?.id ?? null);
-          setBlockQuery(opening?.name ?? "");
         }
         setListNote(parsed.length === 0 ? EMPTY_ROOMS : null);
       })
@@ -463,24 +534,6 @@ export default function OnboardScreen() {
     [offset],
   );
 
-  const onBlockQuery = useCallback(
-    (value: string) => {
-      blockTouched.current = true;
-      setBlockQuery(value);
-      setError(null);
-      const needle = value.trim().toLowerCase();
-      const selected = blocks.find((item) => item.id === blockId) ?? null;
-      const still =
-        selected !== null && needle.length > 0 && selected.name.toLowerCase().includes(needle);
-      if (!still && blockId !== null) {
-        setBlockId(null);
-        setRoomId(null);
-        setRoomQuery("");
-      }
-    },
-    [blockId, blocks],
-  );
-
   const chooseBlock = useCallback(
     (id: string) => {
       const item = blocks.find((entry) => entry.id === id);
@@ -490,71 +543,29 @@ export default function OnboardScreen() {
       blockTouched.current = true;
       if (id !== blockId) {
         setRoomId(null);
-        setRoomQuery("");
       }
       setBlockId(id);
-      setBlockQuery(item.name);
       setError(null);
     },
     [blockId, blocks],
   );
 
-  const onRoomQuery = useCallback(
-    (value: string) => {
-      setRoomQuery(value);
-      setError(null);
-      const needle = value.trim().toLowerCase();
-      setRoomId((current) => {
-        if (!current) {
-          return null;
-        }
-        const selected = rooms.find((item) => item.id === current);
-        if (!selected) {
-          return null;
-        }
-        if (needle.length === 0 || !selected.label.toLowerCase().includes(needle)) {
-          return null;
-        }
-        return current;
-      });
-    },
-    [rooms],
-  );
-
   const chooseRoom = useCallback(
     (id: string) => {
-      const item = rooms.find((entry) => entry.id === id);
-      if (!item) {
+      if (!rooms.some((entry) => entry.id === id)) {
         return;
       }
       setRoomId(id);
-      setRoomQuery(item.label);
       setError(null);
     },
     [rooms],
   );
-
-  const onCourseQuery = useCallback((value: string) => {
-    setCourseQuery(value);
-    setError(null);
-    const needle = value.trim().toLowerCase();
-    setCourse((current) => {
-      if (!current) {
-        return null;
-      }
-      if (needle.length === 0 || !current.toLowerCase().includes(needle)) {
-        return null;
-      }
-      return current;
-    });
-  }, []);
 
   const chooseCourse = useCallback((label: string) => {
     if (!isCourse(label)) {
       return;
     }
     setCourse(label);
-    setCourseQuery(label);
     setError(null);
   }, []);
 
@@ -861,50 +872,37 @@ export default function OnboardScreen() {
 
   const roomStep = (
     <View style={styles.fields}>
-      <View style={styles.noteBlock}>
-        <TextField
-          label="Block"
-          value={blockQuery}
-          onChangeText={onBlockQuery}
-          autoComplete="off"
-          returnKeyType="next"
-        />
-        <OptionList items={blockMatches} selectedId={blockId} onPick={chooseBlock} colors={colors} />
-        {listNote ? <Text style={[text.body, { color: colors.inkSoft }]}>{listNote}</Text> : null}
-        {blockNote ? <Text style={[text.error, { color: colors.inkSoft }]}>{blockNote}</Text> : null}
-      </View>
-      <View style={styles.noteBlock}>
-        <TextField
-          label="Room"
-          value={roomQuery}
-          onChangeText={onRoomQuery}
-          autoComplete="off"
-          returnKeyType="next"
-        />
-        <OptionList items={roomMatches} selectedId={roomId} onPick={chooseRoom} colors={colors} />
-        {roomNote ? <Text style={[text.error, { color: colors.inkSoft }]}>{roomNote}</Text> : null}
-      </View>
-      <View style={styles.noteBlock}>
-        <TextField
-          label="Course"
-          value={courseQuery}
-          onChangeText={onCourseQuery}
-          autoComplete="off"
-          returnKeyType="go"
-          onSubmitEditing={() => {
-            void submit();
-          }}
-        />
-        <OptionList
-          items={courseMatches}
-          selectedId={course}
-          onPick={chooseCourse}
-          colors={colors}
-        />
-        {courseNote ? (
-          <Text style={[text.error, { color: colors.inkSoft }]}>{courseNote}</Text>
-        ) : null}
-      </View>
+      <ChoiceField
+        label="Block"
+        valueLabel={block?.name ?? null}
+        items={blockItems}
+        selectedId={blockId}
+        onPick={chooseBlock}
+        colors={colors}
+        openShowsAll
+        hint={listNote}
+        note={blockNote}
+      />
+      <ChoiceField
+        label="Room"
+        valueLabel={room?.label ?? null}
+        items={rooms}
+        selectedId={roomId}
+        onPick={chooseRoom}
+        colors={colors}
+        openShowsAll={false}
+        note={roomNote}
+      />
+      <ChoiceField
+        label="Course"
+        valueLabel={course}
+        items={courseItems}
+        selectedId={course}
+        onPick={chooseCourse}
+        colors={colors}
+        openShowsAll
+        note={courseNote}
+      />
     </View>
   );
 
@@ -1033,6 +1031,19 @@ const styles = StyleSheet.create({
     paddingLeft: 14,
   },
   flag: { fontSize: 18 },
+  shell: {
+    height: 52,
+    borderWidth: 1,
+    borderRadius: 12,
+    borderCurve: "continuous",
+    justifyContent: "center",
+  },
+  shellPad: { paddingHorizontal: 14 },
+  shellInput: {
+    height: "100%",
+    paddingVertical: 0,
+    paddingHorizontal: 14,
+  },
   choice: { gap: 8 },
   option: {
     minHeight: 52,
