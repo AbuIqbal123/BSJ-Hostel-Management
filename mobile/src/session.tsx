@@ -78,7 +78,7 @@ function devMachineHall(): string | null {
 
 let resolvedHall: string | null = null;
 
-async function hallFetch(path: string, init: RequestInit): Promise<Response> {
+export async function hallFetch(path: string, init: RequestInit): Promise<Response> {
   const explicit = explicitHall();
   if (explicit) {
     return fetch(`${explicit}${path}`, init);
