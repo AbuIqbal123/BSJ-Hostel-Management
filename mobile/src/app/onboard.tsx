@@ -65,7 +65,17 @@ type BlockOption = {
   id: string;
   name: string;
   rooms: RoomOption[];
+  roomCount?: number;
 };
+
+const BLOCK_ROOM_COUNTS: Record<string, number> = {
+  a: 50,
+  b: 58,
+  c: 42,
+  d: 40,
+};
+const ROOM_COUNT_MAX = 200;
+const ROOM_CLOSED = "That room isn't open.";
 
 type Choice = {
   id: string;
@@ -92,13 +102,62 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function isHallBlock(name: string): boolean {
+function hallBlockKey(name: string): string | null {
   const normalized = name
     .trim()
     .toLowerCase()
     .replace(/[_-]+/g, " ")
     .replace(/\s+/g, " ");
-  return /^(?:block\s+)?([abcd])$/.test(normalized);
+  const match = /^(?:block\s+)?([abcd])$/.exec(normalized);
+  return match?.[1] ?? null;
+}
+
+function isHallBlock(name: string): boolean {
+  return hallBlockKey(name) !== null;
+}
+
+function readRoomCount(item: Record<string, unknown>): number | undefined {
+  for (const key of ["room_count", "count"] as const) {
+    const value = item[key];
+    if (typeof value === "number" && Number.isInteger(value) && value > 0) {
+      return Math.min(value, ROOM_COUNT_MAX);
+    }
+  }
+  return undefined;
+}
+
+function roomCountForBlock(block: BlockOption): number {
+  if (typeof block.roomCount === "number" && block.roomCount > 0) {
+    return Math.min(block.roomCount, ROOM_COUNT_MAX);
+  }
+  const letter = hallBlockKey(block.name);
+  return letter ? (BLOCK_ROOM_COUNTS[letter] ?? 0) : 0;
+}
+
+function doorChoices(count: number): Choice[] {
+  const items: Choice[] = [];
+  for (let n = 1; n <= count; n += 1) {
+    items.push({ id: String(n), label: String(n) });
+  }
+  return items;
+}
+
+function doorNumberFromLabel(label: string): number | null {
+  const match = /(\d+)\s*$/.exec(label.trim());
+  if (!match) {
+    return null;
+  }
+  const value = Number(match[1]);
+  return Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function roomIdForDoor(rooms: RoomOption[], door: number): string | null {
+  for (const room of rooms) {
+    if (doorNumberFromLabel(room.label) === door) {
+      return room.id;
+    }
+  }
+  return null;
 }
 
 function readOptions(value: unknown): BlockOption[] | null {
@@ -130,13 +189,15 @@ function readOptions(value: unknown): BlockOption[] | null {
       }
       rooms.push({ id: room.id, label: room.label });
     }
-    if (rooms.length === 0) {
-      continue;
-    }
     if (!isHallBlock(item.name)) {
       continue;
     }
-    blocks.push({ id: item.id, name: item.name, rooms });
+    const roomCount = readRoomCount(item);
+    blocks.push(
+      roomCount === undefined
+        ? { id: item.id, name: item.name, rooms }
+        : { id: item.id, name: item.name, rooms, roomCount },
+    );
   }
   return blocks;
 }
@@ -425,7 +486,8 @@ export default function OnboardScreen() {
   const [blocks, setBlocks] = useState<BlockOption[]>([]);
   const [listNote, setListNote] = useState<string | null>(null);
   const [blockId, setBlockId] = useState<string | null>(null);
-  const [roomId, setRoomId] = useState<string | null>(null);
+  const [roomNumber, setRoomNumber] = useState<string | null>(null);
+  const [roomUnavailable, setRoomUnavailable] = useState(false);
   const [paneWidth, setPaneWidth] = useState(0);
   const offset = useRef(new Animated.Value(0)).current;
   const widthRef = useRef(0);
@@ -442,8 +504,8 @@ export default function OnboardScreen() {
   const guardianPhoneField = useFieldMessage();
 
   const block = blocks.find((item) => item.id === blockId) ?? null;
-  const room = block?.rooms.find((item) => item.id === roomId) ?? null;
-  const rooms = block?.rooms ?? [];
+  const roomDoorCount = block ? roomCountForBlock(block) : 0;
+  const roomItems = useMemo(() => doorChoices(roomDoorCount), [roomDoorCount]);
   const blockItems = useMemo(
     () => blocks.map((item) => ({ id: item.id, label: item.name })),
     [blocks],
@@ -554,7 +616,8 @@ export default function OnboardScreen() {
       }
       blockTouched.current = true;
       if (id !== blockId) {
-        setRoomId(null);
+        setRoomNumber(null);
+        setRoomUnavailable(false);
       }
       setBlockId(id);
       setError(null);
@@ -564,13 +627,14 @@ export default function OnboardScreen() {
 
   const chooseRoom = useCallback(
     (id: string) => {
-      if (!rooms.some((entry) => entry.id === id)) {
+      if (!roomItems.some((entry) => entry.id === id)) {
         return;
       }
-      setRoomId(id);
+      setRoomNumber(id);
+      setRoomUnavailable(false);
       setError(null);
     },
-    [rooms],
+    [roomItems],
   );
 
   const chooseCourse = useCallback((label: string) => {
@@ -641,7 +705,8 @@ export default function OnboardScreen() {
       return;
     }
     const selectedBlock = blocks.find((item) => item.id === blockId) ?? null;
-    const selectedRoom = selectedBlock?.rooms.find((item) => item.id === roomId) ?? null;
+    const door =
+      roomNumber !== null && /^\d+$/.test(roomNumber) ? Number(roomNumber) : null;
     if (personInvalid()) {
       revealPerson();
       showStep(0);
@@ -652,8 +717,14 @@ export default function OnboardScreen() {
       showStep(1);
       return;
     }
-    if (!selectedBlock || !selectedRoom || !isCourse(course)) {
+    if (!selectedBlock || door === null || !isCourse(course)) {
       setChoiceAttempt(true);
+      return;
+    }
+    const selectedRoomId = roomIdForDoor(selectedBlock.rooms, door);
+    if (selectedRoomId === null) {
+      setChoiceAttempt(true);
+      setRoomUnavailable(true);
       return;
     }
     pending.current = true;
@@ -668,7 +739,7 @@ export default function OnboardScreen() {
         guardian_phone: e164(guardianPhone),
         course,
         block_id: selectedBlock.id,
-        room_id: selectedRoom.id,
+        room_id: selectedRoomId,
       });
       if (message) {
         setError(message);
@@ -694,7 +765,7 @@ export default function OnboardScreen() {
     phone,
     revealContact,
     revealPerson,
-    roomId,
+    roomNumber,
     showStep,
   ]);
 
@@ -763,7 +834,11 @@ export default function OnboardScreen() {
   );
   const guardianPhoneNote = phoneNote(guardianPhone, guardianPhoneField.visible);
   const blockNote = choiceAttempt && block === null ? "Choose a block." : null;
-  const roomNote = choiceAttempt && room === null ? "Choose a room." : null;
+  const roomNote = roomUnavailable
+    ? ROOM_CLOSED
+    : choiceAttempt && roomNumber === null
+      ? "Choose a room."
+      : null;
   const courseNote = choiceAttempt && !isCourse(course) ? "Choose a course." : null;
   const action = step < 2 ? "Continue" : "Sign up";
 
@@ -897,9 +972,9 @@ export default function OnboardScreen() {
       />
       <ChoiceField
         label="Room"
-        valueLabel={room?.label ?? null}
-        items={rooms}
-        selectedId={roomId}
+        valueLabel={roomNumber}
+        items={roomItems}
+        selectedId={roomNumber}
         onPick={chooseRoom}
         colors={colors}
         openShowsAll
