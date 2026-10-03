@@ -442,3 +442,42 @@ def onboard_resident(
         status="active",
         message=_ONBOARD_READY,
     )
+
+
+class OnboardRoomOption(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str
+    label: str
+
+
+class OnboardBlockOption(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str
+    name: str
+    rooms: list[OnboardRoomOption]
+
+
+@router.get("/onboard/options")
+def onboard_options(request: Request, connection: ConnectionDep) -> list[OnboardBlockOption]:
+    login_limiter.check(client_key(request.client.host if request.client else None))
+    rows = connection.execute(
+        """
+        SELECT blocks.id AS block_id, blocks.name AS block_name, rooms.id AS room_id, rooms.label AS room_label
+        FROM blocks
+        JOIN rooms ON rooms.block_id = blocks.id
+        WHERE blocks.is_active = 1
+          AND rooms.is_active = 1
+          AND NOT EXISTS (
+            SELECT 1 FROM residents WHERE residents.room_id = rooms.id
+          )
+        ORDER BY blocks.name, rooms.label
+        """
+    ).fetchall()
+    blocks: list[OnboardBlockOption] = []
+    current: OnboardBlockOption | None = None
+    for row in rows:
+        if current is None or current.id != row["block_id"]:
+            current = OnboardBlockOption(id=row["block_id"], name=row["block_name"], rooms=[])
+            blocks.append(current)
+        current.rooms.append(OnboardRoomOption(id=row["room_id"], label=row["room_label"]))
+    return blocks

@@ -66,7 +66,7 @@ Paths in `backend/openapi.yaml` that the process serves today:
 
 | Area | Paths |
 |---|---|
-| Auth | `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, `POST /api/v1/auth/logout`, `GET /api/v1/auth/me`, `POST /api/v1/auth/change-password`. `POST /api/v1/auth/onboard` (public; active resident; no tokens) |
+| Auth | `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, `POST /api/v1/auth/logout`, `GET /api/v1/auth/me`, `POST /api/v1/auth/change-password`. `POST /api/v1/auth/onboard` (public; active resident; no tokens), `GET /api/v1/auth/onboard/options` (public room picker) |
 | Resident | `GET /api/v1/me/home`, `GET /api/v1/me/history`, `GET /api/v1/me/hall-pass`, `GET /api/v1/destinations`, ordinary outings under `/api/v1/me/outings*`, permissions under `/api/v1/me/permissions*`, guest stays under `/api/v1/me/guest-stays*` |
 | Register | `GET /api/v1/register/summary`, `GET /api/v1/register/residents`, `GET /api/v1/register/residents/{resident_id}`, `GET /api/v1/register/late` |
 | Permissions (staff) | `GET /api/v1/permissions`, `GET /api/v1/permissions/{permission_id}`, `POST /api/v1/permissions/{permission_id}/decision` |
