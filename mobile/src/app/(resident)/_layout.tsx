@@ -69,7 +69,7 @@ export default function ResidentLayout() {
           shadowOpacity: 0,
           height: 52 + tabBottom,
           paddingBottom: tabBottom,
-          paddingTop: 0,
+          paddingTop: 8,
         },
       }}
       tabBar={({ state, descriptors, navigation }) => (
@@ -80,7 +80,7 @@ export default function ResidentLayout() {
                 backgroundColor: colors.paper,
                 borderTopColor: colors.line,
                 height: 52 + tabBottom,
-                paddingTop: 0,
+                paddingTop: 8,
                 paddingBottom: tabBottom,
               },
             ]}
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "flex-start",
-    paddingTop: 0,
+    paddingTop: 8,
     paddingHorizontal: 0,
     borderTopWidth: StyleSheet.hairlineWidth,
     elevation: 0,
