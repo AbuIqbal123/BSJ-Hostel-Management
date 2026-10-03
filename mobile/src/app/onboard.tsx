@@ -2,9 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { router } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
 import {
   Animated,
   Easing,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -186,6 +188,30 @@ function passwordRulesMet(value: string): boolean {
   return value.length > 0 && failingPasswordRule(value) === null && value.length <= 200;
 }
 
+function droppedOneCharacter(previous: string, incoming: string): boolean {
+  if (incoming.length !== previous.length - 1) {
+    return false;
+  }
+  let index = 0;
+  while (index < incoming.length && previous[index] === incoming[index]) {
+    index += 1;
+  }
+  return previous.slice(index + 1) === incoming.slice(index);
+}
+
+function securePasswordEdit(previous: string, incoming: string): string {
+  if (incoming.startsWith(previous)) {
+    return incoming;
+  }
+  if (droppedOneCharacter(previous, incoming)) {
+    return incoming;
+  }
+  if (incoming.length === 0) {
+    return previous;
+  }
+  return previous + incoming;
+}
+
 function digits(value: string): string {
   return value.replace(/\D/g, "").slice(0, 10);
 }
@@ -263,34 +289,69 @@ function dialCode(ink: string) {
   );
 }
 
+type SignupDraft = {
+  step: number;
+  fullName: string;
+  enrolment: string;
+  password: string;
+  phone: string;
+  guardianName: string;
+  guardianPhone: string;
+  course: string | null;
+  blockId: string | null;
+  roomId: string | null;
+  blockTouched: boolean;
+};
+
+function emptySignupDraft(): SignupDraft {
+  return {
+    step: 0,
+    fullName: "",
+    enrolment: "",
+    password: "",
+    phone: "",
+    guardianName: "",
+    guardianPhone: "",
+    course: null,
+    blockId: null,
+    roomId: null,
+    blockTouched: false,
+  };
+}
+
+let signupDraft = emptySignupDraft();
+
 export default function OnboardScreen() {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
   const { onboard } = useSession();
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(signupDraft.step);
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [choiceAttempt, setChoiceAttempt] = useState(false);
-  const [fullName, setFullName] = useState("");
-  const [enrolment, setEnrolment] = useState("");
-  const [password, setPassword] = useState("");
-  const [phone, setPhone] = useState("");
-  const [guardianName, setGuardianName] = useState("");
-  const [guardianPhone, setGuardianPhone] = useState("");
-  const [course, setCourse] = useState<string | null>(null);
+  const [fullName, setFullName] = useState(signupDraft.fullName);
+  const [enrolment, setEnrolment] = useState(signupDraft.enrolment);
+  const [password, setPassword] = useState(signupDraft.password);
+  const passwordRef = useRef(signupDraft.password);
+  const [phone, setPhone] = useState(signupDraft.phone);
+  const [guardianName, setGuardianName] = useState(signupDraft.guardianName);
+  const [guardianPhone, setGuardianPhone] = useState(signupDraft.guardianPhone);
+  const [course, setCourse] = useState<string | null>(signupDraft.course);
   const [blocks, setBlocks] = useState<BlockOption[]>([]);
   const [listNote, setListNote] = useState<string | null>(null);
-  const [blockId, setBlockId] = useState<string | null>(null);
-  const [roomId, setRoomId] = useState<string | null>(null);
+  const [blockId, setBlockId] = useState<string | null>(signupDraft.blockId);
+  const [roomId, setRoomId] = useState<string | null>(signupDraft.roomId);
   const [paneWidth, setPaneWidth] = useState(0);
   const offset = useRef(new Animated.Value(0)).current;
   const widthRef = useRef(0);
-  const stepRef = useRef(0);
+  const stepRef = useRef(signupDraft.step);
+  const furthestRef = useRef(signupDraft.step);
   const showStepRef = useRef<(next: number) => void>(() => {});
   const backLock = useRef(false);
-  const blockTouched = useRef(false);
+  const blockTouched = useRef(signupDraft.blockTouched);
   const pending = useRef(false);
+  const keepDraft = useRef(true);
   const fullNameField = useFieldMessage();
   const enrolmentField = useFieldMessage();
   const phoneField = useFieldMessage();
@@ -311,6 +372,36 @@ export default function OnboardScreen() {
   );
 
   stepRef.current = step;
+
+  useEffect(() => {
+    if (!keepDraft.current) {
+      return;
+    }
+    signupDraft = {
+      step,
+      fullName,
+      enrolment,
+      password,
+      phone,
+      guardianName,
+      guardianPhone,
+      course,
+      blockId,
+      roomId,
+      blockTouched: blockTouched.current,
+    };
+  }, [
+    blockId,
+    course,
+    enrolment,
+    fullName,
+    guardianName,
+    guardianPhone,
+    password,
+    phone,
+    roomId,
+    step,
+  ]);
 
   useEffect(() => {
     let active = true;
@@ -362,6 +453,9 @@ export default function OnboardScreen() {
         return;
       }
       stepRef.current = next;
+      if (next > furthestRef.current) {
+        furthestRef.current = next;
+      }
       setStep(next);
       setError(null);
       const width = widthRef.current;
@@ -451,6 +545,21 @@ export default function OnboardScreen() {
     [phone, phoneField],
   );
 
+  const onPassword = useCallback(
+    (value: string) => {
+      const previous = passwordRef.current;
+      const next = Platform.OS === "ios" ? securePasswordEdit(previous, value) : value;
+      if (next === previous) {
+        return;
+      }
+      passwordRef.current = next;
+      setPassword(next);
+      passwordField.onEdit();
+      setError(null);
+    },
+    [passwordField],
+  );
+
   const onGuardianPhone = useCallback(
     (value: string) => {
       const next = digits(value);
@@ -531,6 +640,8 @@ export default function OnboardScreen() {
         setError(message);
         return;
       }
+      keepDraft.current = false;
+      signupDraft = emptySignupDraft();
       setReady(true);
     } finally {
       pending.current = false;
@@ -575,6 +686,35 @@ export default function OnboardScreen() {
       showStep(2);
     }
   }, [contactInvalid, personInvalid, revealContact, revealPerson, showStep, step]);
+
+  const onStepSwipe = useCallback(
+    (translationX: number, translationY: number) => {
+      if (Math.abs(translationX) < 48 || Math.abs(translationY) > Math.abs(translationX)) {
+        return;
+      }
+      if (translationX > 0) {
+        const previous = stepRef.current - 1;
+        if (previous >= 0 && furthestRef.current > previous) {
+          showStep(previous);
+        }
+        return;
+      }
+      advance();
+    },
+    [advance, showStep],
+  );
+
+  const stepSwipe = usePanGesture({
+    runOnJS: true,
+    activeOffsetX: [-24, 24],
+    failOffsetY: [-16, 16],
+    onDeactivate: (event) => {
+      if (event.canceled) {
+        return;
+      }
+      onStepSwipe(event.translationX, event.translationY);
+    },
+  });
 
   const frame = {
     paddingTop: insets.top + 28,
@@ -676,11 +816,7 @@ export default function OnboardScreen() {
         <TextField
           label="Password"
           value={password}
-          onChangeText={(value) => {
-            setPassword(value);
-            passwordField.onEdit();
-            setError(null);
-          }}
+          onChangeText={onPassword}
           secureTextEntry
           autoComplete="password"
           textContentType="password"
@@ -812,21 +948,23 @@ export default function OnboardScreen() {
           ))}
         </View>
       </View>
-      <View style={styles.viewport} onLayout={onViewport}>
-        <Animated.View
-          style={[
-            styles.row,
-            {
-              width: paneWidth > 0 ? paneWidth * 3 : undefined,
-              transform: [{ translateX: offset }],
-            },
-          ]}
-        >
-          <View style={[styles.pane, paneWidth > 0 ? { width: paneWidth } : null]}>{person}</View>
-          <View style={[styles.pane, paneWidth > 0 ? { width: paneWidth } : null]}>{contact}</View>
-          <View style={[styles.pane, paneWidth > 0 ? { width: paneWidth } : null]}>{roomStep}</View>
-        </Animated.View>
-      </View>
+      <GestureDetector gesture={stepSwipe}>
+        <View style={styles.viewport} onLayout={onViewport}>
+          <Animated.View
+            style={[
+              styles.row,
+              {
+                width: paneWidth > 0 ? paneWidth * 3 : undefined,
+                transform: [{ translateX: offset }],
+              },
+            ]}
+          >
+            <View style={[styles.pane, paneWidth > 0 ? { width: paneWidth } : null]}>{person}</View>
+            <View style={[styles.pane, paneWidth > 0 ? { width: paneWidth } : null]}>{contact}</View>
+            <View style={[styles.pane, paneWidth > 0 ? { width: paneWidth } : null]}>{roomStep}</View>
+          </Animated.View>
+        </View>
+      </GestureDetector>
       <View style={styles.action}>
         <HallButton
           label={action}
@@ -877,11 +1015,14 @@ const styles = StyleSheet.create({
   },
   track: {
     flexDirection: "row",
+    gap: 4,
+    height: 4,
+  },
+  segment: {
+    flex: 1,
     height: 4,
     borderRadius: 2,
-    overflow: "hidden",
   },
-  segment: { flex: 1 },
   hits: {
     ...StyleSheet.absoluteFill,
     flexDirection: "row",
