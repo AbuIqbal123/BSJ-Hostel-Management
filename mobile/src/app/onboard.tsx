@@ -16,6 +16,7 @@ import {
 import { ChoiceField } from "@/components/choice-field";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
+import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
 import { hallFetch, useSession } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
@@ -344,6 +345,7 @@ export default function OnboardScreen() {
   const offset = useRef(new Animated.Value(0)).current;
   const widthRef = useRef(0);
   const stepRef = useRef(signupDraft.step);
+  const furthestRef = useRef(signupDraft.step);
   const showStepRef = useRef<(next: number) => void>(() => {});
   const backLock = useRef(false);
   const blockTouched = useRef(signupDraft.blockTouched);
@@ -450,6 +452,9 @@ export default function OnboardScreen() {
         return;
       }
       stepRef.current = next;
+      if (next > furthestRef.current) {
+        furthestRef.current = next;
+      }
       setStep(next);
       setError(null);
       const width = widthRef.current;
@@ -680,6 +685,35 @@ export default function OnboardScreen() {
       showStep(2);
     }
   }, [contactInvalid, personInvalid, revealContact, revealPerson, showStep, step]);
+
+  const onStepSwipe = useCallback(
+    (translationX: number, translationY: number) => {
+      if (Math.abs(translationX) < 48 || Math.abs(translationY) > Math.abs(translationX)) {
+        return;
+      }
+      if (translationX > 0) {
+        const previous = stepRef.current - 1;
+        if (previous >= 0 && furthestRef.current > previous) {
+          showStep(previous);
+        }
+        return;
+      }
+      advance();
+    },
+    [advance, showStep],
+  );
+
+  const stepSwipe = usePanGesture({
+    runOnJS: true,
+    activeOffsetX: [-24, 24],
+    failOffsetY: [-16, 16],
+    onDeactivate: (event) => {
+      if (event.canceled) {
+        return;
+      }
+      onStepSwipe(event.translationX, event.translationY);
+    },
+  });
 
   const frame = {
     paddingTop: insets.top + 28,
@@ -913,21 +947,23 @@ export default function OnboardScreen() {
           ))}
         </View>
       </View>
-      <View style={styles.viewport} onLayout={onViewport}>
-        <Animated.View
-          style={[
-            styles.row,
-            {
-              width: paneWidth > 0 ? paneWidth * 3 : undefined,
-              transform: [{ translateX: offset }],
-            },
-          ]}
-        >
-          <View style={[styles.pane, paneWidth > 0 ? { width: paneWidth } : null]}>{person}</View>
-          <View style={[styles.pane, paneWidth > 0 ? { width: paneWidth } : null]}>{contact}</View>
-          <View style={[styles.pane, paneWidth > 0 ? { width: paneWidth } : null]}>{roomStep}</View>
-        </Animated.View>
-      </View>
+      <GestureDetector gesture={stepSwipe}>
+        <View style={styles.viewport} onLayout={onViewport}>
+          <Animated.View
+            style={[
+              styles.row,
+              {
+                width: paneWidth > 0 ? paneWidth * 3 : undefined,
+                transform: [{ translateX: offset }],
+              },
+            ]}
+          >
+            <View style={[styles.pane, paneWidth > 0 ? { width: paneWidth } : null]}>{person}</View>
+            <View style={[styles.pane, paneWidth > 0 ? { width: paneWidth } : null]}>{contact}</View>
+            <View style={[styles.pane, paneWidth > 0 ? { width: paneWidth } : null]}>{roomStep}</View>
+          </Animated.View>
+        </View>
+      </GestureDetector>
       <View style={styles.action}>
         <HallButton
           label={action}
