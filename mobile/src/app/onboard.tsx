@@ -287,35 +287,68 @@ function dialCode(ink: string) {
   );
 }
 
+type SignupDraft = {
+  step: number;
+  fullName: string;
+  enrolment: string;
+  password: string;
+  phone: string;
+  guardianName: string;
+  guardianPhone: string;
+  course: string | null;
+  blockId: string | null;
+  roomId: string | null;
+  blockTouched: boolean;
+};
+
+function emptySignupDraft(): SignupDraft {
+  return {
+    step: 0,
+    fullName: "",
+    enrolment: "",
+    password: "",
+    phone: "",
+    guardianName: "",
+    guardianPhone: "",
+    course: null,
+    blockId: null,
+    roomId: null,
+    blockTouched: false,
+  };
+}
+
+let signupDraft = emptySignupDraft();
+
 export default function OnboardScreen() {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
   const { onboard } = useSession();
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(signupDraft.step);
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [choiceAttempt, setChoiceAttempt] = useState(false);
-  const [fullName, setFullName] = useState("");
-  const [enrolment, setEnrolment] = useState("");
-  const [password, setPassword] = useState("");
-  const passwordRef = useRef("");
-  const [phone, setPhone] = useState("");
-  const [guardianName, setGuardianName] = useState("");
-  const [guardianPhone, setGuardianPhone] = useState("");
-  const [course, setCourse] = useState<string | null>(null);
+  const [fullName, setFullName] = useState(signupDraft.fullName);
+  const [enrolment, setEnrolment] = useState(signupDraft.enrolment);
+  const [password, setPassword] = useState(signupDraft.password);
+  const passwordRef = useRef(signupDraft.password);
+  const [phone, setPhone] = useState(signupDraft.phone);
+  const [guardianName, setGuardianName] = useState(signupDraft.guardianName);
+  const [guardianPhone, setGuardianPhone] = useState(signupDraft.guardianPhone);
+  const [course, setCourse] = useState<string | null>(signupDraft.course);
   const [blocks, setBlocks] = useState<BlockOption[]>([]);
   const [listNote, setListNote] = useState<string | null>(null);
-  const [blockId, setBlockId] = useState<string | null>(null);
-  const [roomId, setRoomId] = useState<string | null>(null);
+  const [blockId, setBlockId] = useState<string | null>(signupDraft.blockId);
+  const [roomId, setRoomId] = useState<string | null>(signupDraft.roomId);
   const [paneWidth, setPaneWidth] = useState(0);
   const offset = useRef(new Animated.Value(0)).current;
   const widthRef = useRef(0);
-  const stepRef = useRef(0);
+  const stepRef = useRef(signupDraft.step);
   const showStepRef = useRef<(next: number) => void>(() => {});
   const backLock = useRef(false);
-  const blockTouched = useRef(false);
+  const blockTouched = useRef(signupDraft.blockTouched);
   const pending = useRef(false);
+  const keepDraft = useRef(true);
   const fullNameField = useFieldMessage();
   const enrolmentField = useFieldMessage();
   const phoneField = useFieldMessage();
@@ -336,6 +369,36 @@ export default function OnboardScreen() {
   );
 
   stepRef.current = step;
+
+  useEffect(() => {
+    if (!keepDraft.current) {
+      return;
+    }
+    signupDraft = {
+      step,
+      fullName,
+      enrolment,
+      password,
+      phone,
+      guardianName,
+      guardianPhone,
+      course,
+      blockId,
+      roomId,
+      blockTouched: blockTouched.current,
+    };
+  }, [
+    blockId,
+    course,
+    enrolment,
+    fullName,
+    guardianName,
+    guardianPhone,
+    password,
+    phone,
+    roomId,
+    step,
+  ]);
 
   useEffect(() => {
     let active = true;
@@ -571,6 +634,8 @@ export default function OnboardScreen() {
         setError(message);
         return;
       }
+      keepDraft.current = false;
+      signupDraft = emptySignupDraft();
       setReady(true);
     } finally {
       pending.current = false;
