@@ -3,4 +3,4 @@ method: GET
 url: '{{baseUrl}}/api/v1/me/home'
 order: 1000
 description: |-
-  Caller: resident. Presence, room, the open outing if there is one, the permission the resident is waiting on or cleared to use, and the last ten exit and return lines. A planned outing whose expected return has passed is cancelled by this read, with no staff member, before the screen is built. A gate, warden, or provost account is refused.
+  Caller: resident. Her name, block, and room, whether an ordinary outing is inside its show window, the open outing if there is one, upcoming_outings (planned future ordinary outings, soonest start first), the permission she is waiting on or cleared to use, and the last ten exit and return lines. Each upcoming item has id, place, starts_at, expected_return_at, and can_modify. can_modify is false once that outing's hall-pass window is open. This read does not cancel passed plans. A gate, warden, or provost account is refused.

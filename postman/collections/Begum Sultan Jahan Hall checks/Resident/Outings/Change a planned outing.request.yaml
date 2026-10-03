@@ -1,0 +1,17 @@
+$kind: http-request
+method: PATCH
+url: '{{baseUrl}}/api/v1/me/outings/{{outingId}}'
+order: 3500
+description: |-
+  Caller: resident. Changes the plan in `outingId`. The body is the same as planning: destination, start, and expected return. Allowed only while that outing is still planned and its hall-pass window is not open. Once the window is open, this call says she cannot change this outing while its window is open. If she is already outside on this outing, this call says she is already outside. Another plan ending at the new return says she already has an outing ending at that time. Grace is recalculated from the new expected return. Bearer uses {{token_resident}}.
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "destination_id": "{{destinationId}}",
+      "starts_at": "2026-10-01T06:30:00Z",
+      "expected_return_at": "2026-10-01T10:30:00Z"
+    }

@@ -1,4 +1,4 @@
-"""Ordinary outings. The destination list, plans for each return, and cancelling one plan."""
+"""Ordinary outings. The destination list, plans for each return, and changing or cancelling one plan."""
 
 from __future__ import annotations
 
@@ -18,6 +18,7 @@ from app.shared.errors import ApiError
 from app.residents.home.routes import ResidentDep
 from app.residents.outings.records import (
     OutingBody,
+    can_modify_outing,
     return_is_taken,
     expire_passed_plans,
     hall_day,
@@ -110,19 +111,13 @@ def _destination(connection: sqlite3.Connection, destination_id: str) -> sqlite3
     return row
 
 
-@router.post("/me/outings", status_code=201, response_model=OutingBody)
-def plan_outing(
-    body: PlanOutingRequest,
-    account: ResidentDep,
-    connection: ConnectionDep,
-) -> OutingBody:
+def _require_ordinary_times(
+    body: PlanOutingRequest, settings: sqlite3.Row, now_text: str
+) -> tuple[datetime, datetime]:
     moment = _instant(body.expected_return_at)
     start = _instant(body.starts_at)
-    now = clock.utc_now()
-    now_text = clock.format_instant(now)
     if body.expected_return_at <= now_text:
         raise ApiError(422, "validation_error", "The expected return must be in the future.")
-    settings = _settings(connection)
     refusal = hours_refusal(moment, settings)
     if refusal is not None:
         raise ApiError(409, refusal, _WINDOW_MESSAGE[refusal])
@@ -145,15 +140,64 @@ def plan_outing(
             start_refusal,
             "That start is outside ordinary hours. Please submit a permission request.",
         )
+    return start, moment
+
+
+def _remembered_place(connection: sqlite3.Connection, body: PlanOutingRequest) -> tuple[str | None, str]:
     destination = _destination(connection, body.destination_id)
     if destination["is_other"]:
         place = (body.destination_text or "").strip()
         if not place:
             raise ApiError(422, "validation_error", "Destination text is required.")
-        destination_id = None
-    else:
-        place = destination["name"]
-        destination_id = destination["id"]
+        return None, place
+    return destination["id"], destination["name"]
+
+
+def _own_outing(connection: sqlite3.Connection, outing_id: str, resident_id: str) -> sqlite3.Row:
+    row = connection.execute(
+        """
+        SELECT id, resident_id, type, status, place, starts_at, expected_return_at, exited_at
+        FROM outings
+        WHERE id = ?
+        """,
+        (outing_id,),
+    ).fetchone()
+    if row is None or row["resident_id"] != resident_id:
+        raise ApiError(404, "not_found", "That record was not found.")
+    return row
+
+
+def _refuse_unless_changeable(row: sqlite3.Row, now: datetime) -> None:
+    if row["status"] == "outside":
+        raise ApiError(409, "already_outside", "You are already outside.")
+    if row["status"] != "planned" or row["type"] != "ordinary":
+        raise ApiError(409, "no_outing_planned", "There is no planned outing.")
+    if not can_modify_outing(
+        outing_type=row["type"],
+        status=row["status"],
+        starts_at=row["starts_at"],
+        expected_return_at=row["expected_return_at"],
+        exited_at=row["exited_at"],
+        now=now,
+    ):
+        raise ApiError(
+            409,
+            "outing_window_open",
+            "You cannot change this outing while its window is open.",
+        )
+
+
+@router.post("/me/outings", status_code=201, response_model=OutingBody)
+def plan_outing(
+    body: PlanOutingRequest,
+    account: ResidentDep,
+    connection: ConnectionDep,
+) -> OutingBody:
+    now = clock.utc_now()
+    now_text = clock.format_instant(now)
+    settings = _settings(connection)
+    _start, moment = _require_ordinary_times(body, settings, now_text)
+    destination_id, place = _remembered_place(connection, body)
     expire_passed_plans(connection, account.id, now_text)
     day = hall_day(moment, settings["timezone"])
     if ordinary_window_is_open(connection, account.id, now):
@@ -205,6 +249,63 @@ def plan_outing(
     return load_outing(connection, outing_id)
 
 
+@router.patch("/me/outings/{outing_id}", response_model=OutingBody)
+def update_outing(
+    outing_id: str,
+    body: PlanOutingRequest,
+    account: ResidentDep,
+    connection: ConnectionDep,
+) -> OutingBody:
+    now = clock.utc_now()
+    now_text = clock.format_instant(now)
+    expire_passed_plans(connection, account.id, now_text)
+    connection.commit()
+    outing = _own_outing(connection, outing_id, account.id)
+    _refuse_unless_changeable(outing, now)
+    settings = _settings(connection)
+    _start, moment = _require_ordinary_times(body, settings, now_text)
+    destination_id, place = _remembered_place(connection, body)
+    if return_is_taken(
+        connection,
+        account.id,
+        body.expected_return_at,
+        except_outing_id=outing_id,
+    ):
+        raise ApiError(409, "return_already_planned", "You already have an outing ending at that time.")
+    grace_ends_at = clock.format_instant(moment + timedelta(minutes=int(settings["grace_minutes"])))
+    day = hall_day(moment, settings["timezone"])
+    changed = connection.execute(
+        """
+        UPDATE outings
+        SET destination_id = ?, place = ?, starts_at = ?, expected_return_at = ?,
+            grace_ends_at = ?, hall_date = ?, updated_at = ?
+        WHERE id = ? AND resident_id = ? AND type = 'ordinary' AND status = 'planned'
+        """,
+        (
+            destination_id,
+            place,
+            body.starts_at,
+            body.expected_return_at,
+            grace_ends_at,
+            day,
+            now_text,
+            outing_id,
+            account.id,
+        ),
+    )
+    if changed.rowcount != 1:
+        raise ApiError(409, "no_outing_planned", "There is no planned outing.")
+    record_outing(
+        connection,
+        now_text,
+        account.id,
+        "outing.updated",
+        outing_id,
+        f"{account.full_name} changed a planned outing to {place}.",
+    )
+    return load_outing(connection, outing_id)
+
+
 class CurrentOuting(BaseModel):
     model_config = ConfigDict(extra="forbid")
     outing: OutingBody | None
@@ -243,20 +344,13 @@ def current_outing(account: ResidentDep, connection: ConnectionDep) -> CurrentOu
 
 @router.post("/me/outings/{outing_id}/cancel", response_model=OutingBody)
 def cancel_outing(outing_id: str, account: ResidentDep, connection: ConnectionDep) -> OutingBody:
-    now_text = clock.format_instant(clock.utc_now())
+    now = clock.utc_now()
+    now_text = clock.format_instant(now)
     expire_passed_plans(connection, account.id, now_text)
     # A passed plan is already cancelled. Keep that if this request is refused.
     connection.commit()
-    outing = connection.execute(
-        "SELECT id, resident_id, status, place FROM outings WHERE id = ?",
-        (outing_id,),
-    ).fetchone()
-    if outing is None or outing["resident_id"] != account.id:
-        raise ApiError(404, "not_found", "That record was not found.")
-    if outing["status"] == "outside":
-        raise ApiError(409, "already_outside", "You are already outside.")
-    if outing["status"] != "planned":
-        raise ApiError(409, "no_outing_planned", "There is no planned outing.")
+    outing = _own_outing(connection, outing_id, account.id)
+    _refuse_unless_changeable(outing, now)
     connection.execute(
         """
         UPDATE outings

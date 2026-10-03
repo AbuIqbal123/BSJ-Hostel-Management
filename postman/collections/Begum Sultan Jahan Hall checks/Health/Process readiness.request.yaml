@@ -12,5 +12,5 @@ scripts:
           pm.response.to.have.status(200);
           const body = pm.response.json();
           pm.expect(body.status).to.eql("ready");
-          pm.expect(body.user_version).to.eql(13);
+          pm.expect(body.user_version).to.eql(14);
       });

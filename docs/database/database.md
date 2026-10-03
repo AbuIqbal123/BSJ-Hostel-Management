@@ -371,7 +371,7 @@ Created when the resident confirms a destination, a start, and an expected retur
 
 The start and the expected return must both be in the future at the moment she confirms them, the return after the start, and both on the same hall day. Each must fall after that day's ordinary-hours start and at or before that day's ordinary-hours end. The season is the one that contains that hall date. If either time would be outside that window, the plan is refused and she asks for late-night permission or home going instead. If one ordinary outing is already inside its show window, the plan is refused. The show window opens 30 minutes before `starts_at`. When `starts_at` is within 5 minutes, that lead has already opened, so the hall-pass QR is shown immediately. A planned outing's window ends at the expected return. An outside ordinary outing's window stays open until the return scan. If she already has a planned or outside outing ending at that same instant, the plan is refused. After that outing is cancelled or returned, she may plan that instant again.
 
-The outing stays planned until the gate scans the hall pass. She may cancel one planned outing by choosing it. Her other plans stay planned. If the expected return passes and she has not been scanned out, the system cancels that plan only, and writes an audit log entry with no staff member.
+The outing stays planned until the gate scans the hall pass. She may change or cancel one planned outing by choosing it, until that outing's show window opens. Once the window is open, or she is outside on it, she cannot change or cancel it here. Her other plans stay planned, and she can still change one whose window is shut. Changing a plan stores the new destination, start, and expected return, and recalculates grace from that return. If the expected return passes and she has not been scanned out, the system cancels that plan only, and writes an audit log entry with no staff member.
 
 ### Leaving on a permission
 
@@ -537,6 +537,7 @@ This is the audit log: the record of who did what. Each entry is one action that
 | Destination updated | destination.updated |
 | Settings updated | settings.updated |
 | Outing planned | outing.planned |
+| Outing changed | outing.updated |
 | Outing cancelled | outing.cancelled |
 | Exit recorded | outing.exit |
 | Return recorded | outing.return |

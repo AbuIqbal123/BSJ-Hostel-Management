@@ -32,6 +32,7 @@ Do not edit this page by hand.
   - [GET `/api/v1/me/outings` — Ordinary outing plans](#get-api-v1-me-outings)
   - [POST `/api/v1/me/outings` — Plan an ordinary outing](#post-api-v1-me-outings)
   - [GET `/api/v1/me/outings/current` — Open outing](#get-api-v1-me-outings-current)
+  - [PATCH `/api/v1/me/outings/{outing_id}` — Change a planned outing](#patch-api-v1-me-outings-outing_id)
   - [POST `/api/v1/me/outings/{outing_id}/cancel` — Cancel a planned outing](#post-api-v1-me-outings-outing_id-cancel)
   - [POST `/api/v1/me/expire-passed` — Expire own passed plans and permissions](#post-api-v1-me-expire-passed)
 - [Permissions](#tag-permissions)
@@ -208,7 +209,7 @@ Body: [Ready](#schema-ready).
 ```json
 {
   "status": "ready",
-  "user_version": 13
+  "user_version": 14
 }
 ```
 
@@ -741,6 +742,7 @@ The resident phone. Ordinary outings, home, destinations, and the hall pass.
 | GET | `/api/v1/me/outings` | [Ordinary outing plans](#get-api-v1-me-outings) | resident |
 | POST | `/api/v1/me/outings` | [Plan an ordinary outing](#post-api-v1-me-outings) | resident |
 | GET | `/api/v1/me/outings/current` | [Open outing](#get-api-v1-me-outings-current) | resident |
+| PATCH | `/api/v1/me/outings/{outing_id}` | [Change a planned outing](#patch-api-v1-me-outings-outing_id) | resident |
 | POST | `/api/v1/me/outings/{outing_id}/cancel` | [Cancel a planned outing](#post-api-v1-me-outings-outing_id-cancel) | resident |
 | POST | `/api/v1/me/expire-passed` | [Expire own passed plans and permissions](#post-api-v1-me-expire-passed) | resident |
 
@@ -752,10 +754,15 @@ The resident phone. Ordinary outings, home, destinations, and the hall pass.
 
 Caller: resident. Her name, block, and room, whether an ordinary
 outing is inside its show window now (`ordinary_outing_active`),
-presence, the open outing if there is one, the permission the resident
-is waiting on or cleared to use, and the last ten exit and return
-lines. Does not cancel passed plans or expire permissions; call POST
-/api/v1/me/expire-passed first when the phone needs a fresh home screen.
+presence, the open outing if there is one, her planned future ordinary
+outings (`upcoming_outings`), the permission the resident is waiting
+on or cleared to use, and the last ten exit and return lines.
+`upcoming_outings` is soonest start first. It leaves off returned,
+cancelled, outside, and plans whose expected return has already
+passed. A plan inside its show window stays on the list with
+`can_modify` false. Does not cancel passed plans or expire
+permissions; call POST /api/v1/me/expire-passed first when the phone
+needs a fresh home screen.
 
 **Responses**
 
@@ -770,6 +777,7 @@ Body: [ResidentHome](#schema-residenthome).
 | `resident` | yes | [HomeResident](#schema-homeresident) |  |
 | `ordinary_outing_active` | yes | boolean | True when one of her ordinary outings is inside its show window now. That window opens 30 minutes before `starts_at` (immediately when the start is within 5 minutes, because the lead has already begun) and lasts until the outing ends. |
 | `current_outing` | yes | [Outing](#schema-outing) or null |  |
+| `upcoming_outings` | yes | list of [UpcomingOuting](#schema-upcomingouting) | Planned ordinary outings whose expected return is still in the future. Soonest start first. Not returned, cancelled, outside, or already past. |
 | `active_permission` | yes | [Permission](#schema-permission) or null | The newest permission in `pending`, `approved`, or `in_use`, if any. |
 | `recent_history` | yes | list of [HistoryEvent](#schema-historyevent) |  |
 
@@ -787,6 +795,15 @@ Body: [ResidentHome](#schema-residenthome).
   },
   "ordinary_outing_active": false,
   "current_outing": null,
+  "upcoming_outings": [
+    {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "place": "Women's College",
+      "starts_at": "2026-10-01T04:00:00Z",
+      "expected_return_at": "2026-10-01T08:00:00Z",
+      "can_modify": true
+    }
+  ],
   "active_permission": null,
   "recent_history": [
     {
@@ -1211,6 +1228,112 @@ The signed-in role cannot call this operation.
 Body: [ErrorResponse](#schema-errorresponse).
 
 
+### <a id="patch-api-v1-me-outings-outing_id"></a>PATCH `/api/v1/me/outings/{outing_id}` — Change a planned outing
+
+`update_outing`
+
+**Who.** resident. Bearer access token.
+
+Caller: resident. She chooses which ordinary plan. The body is the
+same as planning: destination, start, and expected return. Allowed
+only while that outing is still `planned` and its hall-pass window
+is not open. Once the window is open, or she is already outside on
+it, this call is refused. Her other plans stay as they are. The same
+hour and return rules as planning apply. Grace is recalculated from
+the new expected return and the hall's current grace. A passed plan
+is cancelled by the system first, with no staff member.
+
+**Parameters**
+
+| Name | In | Required | Type | Notes |
+|---|---|---|---|---|
+| `outing_id` | path | yes | uuid |  |
+
+**Request.** Required.
+
+Body: [PlanOutingRequest](#schema-planoutingrequest).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `destination_id` | yes | uuid |  |
+| `destination_text` | no | string | Required when the destination is the Other row. Ignored otherwise. 1–120 characters. |
+| `starts_at` | yes | date-time | When she plans to leave. UTC instant. Same hall day as the expected return, inside ordinary hours. |
+| `expected_return_at` | yes | date-time |  |
+
+**Example**
+
+```json
+{
+  "destination_id": "df29c4b7-63c5-525d-a9ec-798a980c64c8",
+  "starts_at": "2026-09-30T09:30:00Z",
+  "expected_return_at": "2026-09-30T12:00:00Z"
+}
+```
+
+**Responses**
+
+#### 200
+
+Outing changed. Her presence is unchanged.
+
+Body: [Outing](#schema-outing).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `id` | yes | uuid |  |
+| `permission_id` | no | uuid or null | Empty for an ordinary outing. Set when the exit used a permission. |
+| `outing_type` | yes | `ordinary` or `late_night` or `home_going` |  |
+| `status` | yes | `planned` or `outside` or `returned` or `cancelled` |  |
+| `place` | yes | string | List name, the words typed for Other, or the permission's short place. |
+| `starts_at` | yes | date-time or null | When she planned to leave. Empty on a permission outing and on an ordinary outing saved before this field existed. |
+| `qr_visible` | yes | boolean | True when the phone may show this outing's hall-pass QR now. Ordinary only. Opens 30 minutes before `starts_at` (immediately when the start is within 5 minutes) and lasts until the outing ends. |
+| `qr_visible_from` | yes | date-time or null |  |
+| `qr_visible_until` | yes | date-time or null | `expected_return_at` while the ordinary outing is still planned. Null while she is outside, until the return scan. |
+| `expected_return_at` | yes | date-time | UTC instant. Clients show India time on a 12-hour clock. |
+| `grace_ends_at` | yes | date-time |  |
+| `exited_at` | no | date-time or null | Empty only while an ordinary outing is still planned. Required once the resident has left. |
+| `exit_recorded_by_name` | no | string or null | Staff member who scanned the exit. Empty only while exited_at is empty. |
+| `returned_at` | no | date-time or null | Empty until the return scan. Required once the resident has returned. |
+| `return_recorded_by_name` | no | string or null | Staff member who scanned the return. Empty only while returned_at is empty. |
+| `lateness` | yes | `on_time` or `late` | For a planned or outside outing, `late` when now is after `grace_ends_at`; otherwise `on_time`. Returned and cancelled outings keep the value at read time. |
+| `created_at` | yes | date-time |  |
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 404
+
+No record with that id is visible to the caller.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 409
+
+`outing_window_open` says she cannot change this outing while its
+window is open. `already_outside` says she is already outside.
+`no_outing_planned` says there is no planned outing.
+`return_already_planned` says she already has an outing ending at
+that time. `outside_ordinary_hours` and `permission_required` are
+the same refusals as planning.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 422
+
+The JSON is the wrong shape, or a field fails a constraint that does not depend on existing rows.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
 ### <a id="post-api-v1-me-outings-outing_id-cancel"></a>POST `/api/v1/me/outings/{outing_id}/cancel` — Cancel a planned outing
 
 `cancel_outing`
@@ -1218,11 +1341,12 @@ Body: [ErrorResponse](#schema-errorresponse).
 **Who.** resident. Bearer access token.
 
 Caller: resident. She chooses which plan. Allowed only while that
-outing is `planned`. Other plans stay planned, including another return
-today. An exit that has already
-been scanned is closed by a return scan, not by cancel. A plan whose
-expected return has already passed is cancelled by the system first,
-with no staff member.
+outing is `planned` and its hall-pass window is not open. Once the
+window is open, or she is already outside on it, this call is refused.
+Other plans stay planned, including another return today. An exit that
+has already been scanned is closed by a return scan, not by cancel. A
+plan whose expected return has already passed is cancelled by the
+system first, with no staff member.
 
 **Parameters**
 
@@ -1278,8 +1402,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 #### 409
 
-`no_outing_planned` says there is no planned outing. `already_outside`
-says she is already outside.
+`outing_window_open` says she cannot change this outing while its
+window is open. `no_outing_planned` says there is no planned outing.
+`already_outside` says she is already outside.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
@@ -5143,6 +5268,7 @@ One of: `inside`, `outside`, `late`.
 | `resident` | yes | [HomeResident](#schema-homeresident) |  |
 | `ordinary_outing_active` | yes | boolean | True when one of her ordinary outings is inside its show window now. That window opens 30 minutes before `starts_at` (immediately when the start is within 5 minutes, because the lead has already begun) and lasts until the outing ends. |
 | `current_outing` | yes | [Outing](#schema-outing) or null |  |
+| `upcoming_outings` | yes | list of [UpcomingOuting](#schema-upcomingouting) | Planned ordinary outings whose expected return is still in the future. Soonest start first. Not returned, cancelled, outside, or already past. |
 | `active_permission` | yes | [Permission](#schema-permission) or null | The newest permission in `pending`, `approved`, or `in_use`, if any. |
 | `recent_history` | yes | list of [HistoryEvent](#schema-historyevent) |  |
 
@@ -5224,6 +5350,16 @@ One of: `inside`, `outside`, `late`.
 | `destination_text` | no | string | Required when the destination is the Other row. Ignored otherwise. 1–120 characters. |
 | `starts_at` | yes | date-time | When she plans to leave. UTC instant. Same hall day as the expected return, inside ordinary hours. |
 | `expected_return_at` | yes | date-time |  |
+
+### <a id="schema-upcomingouting"></a>UpcomingOuting
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `id` | yes | uuid |  |
+| `place` | yes | string | List name, or the words typed for Other. |
+| `starts_at` | yes | date-time or null | When she plans to leave. Empty only on an ordinary plan saved before this field existed. |
+| `expected_return_at` | yes | date-time | When she plans to be back. |
+| `can_modify` | yes | boolean | True only while she may still change or cancel this outing. False once its hall-pass window is open, and false while she is outside on it. The phone does not decide this from the clock. |
 
 ### <a id="schema-outingtype"></a>OutingType
 

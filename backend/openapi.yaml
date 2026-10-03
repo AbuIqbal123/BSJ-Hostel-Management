@@ -115,7 +115,7 @@ paths:
                 $ref: "#/components/schemas/Ready"
               example:
                 status: ready
-                user_version: 13
+                user_version: 14
         "503":
           description: The database could not be opened.
           content:
@@ -438,10 +438,15 @@ paths:
       description: |
         Caller: resident. Her name, block, and room, whether an ordinary
         outing is inside its show window now (`ordinary_outing_active`),
-        presence, the open outing if there is one, the permission the resident
-        is waiting on or cleared to use, and the last ten exit and return
-        lines. Does not cancel passed plans or expire permissions; call POST
-        /api/v1/me/expire-passed first when the phone needs a fresh home screen.
+        presence, the open outing if there is one, her planned future ordinary
+        outings (`upcoming_outings`), the permission the resident is waiting
+        on or cleared to use, and the last ten exit and return lines.
+        `upcoming_outings` is soonest start first. It leaves off returned,
+        cancelled, outside, and plans whose expected return has already
+        passed. A plan inside its show window stays on the list with
+        `can_modify` false. Does not cancel passed plans or expire
+        permissions; call POST /api/v1/me/expire-passed first when the phone
+        needs a fresh home screen.
       responses:
         "200":
           description: Home screen.
@@ -459,6 +464,12 @@ paths:
                   presence: inside
                 ordinary_outing_active: false
                 current_outing: null
+                upcoming_outings:
+                  - id: 00000000-0000-4000-8000-000000000002
+                    place: Women's College
+                    starts_at: "2026-10-01T04:00:00Z"
+                    expected_return_at: "2026-10-01T08:00:00Z"
+                    can_modify: true
                 active_permission: null
                 recent_history:
                   - event: returned
@@ -702,6 +713,61 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+
+  /api/v1/me/outings/{outing_id}:
+    patch:
+      tags: [Resident]
+      operationId: update_outing
+      summary: Change a planned outing
+      description: |
+        Caller: resident. She chooses which ordinary plan. The body is the
+        same as planning: destination, start, and expected return. Allowed
+        only while that outing is still `planned` and its hall-pass window
+        is not open. Once the window is open, or she is already outside on
+        it, this call is refused. Her other plans stay as they are. The same
+        hour and return rules as planning apply. Grace is recalculated from
+        the new expected return and the hall's current grace. A passed plan
+        is cancelled by the system first, with no staff member.
+      parameters:
+        - $ref: "#/components/parameters/OutingId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlanOutingRequest"
+            example:
+              destination_id: df29c4b7-63c5-525d-a9ec-798a980c64c8
+              starts_at: "2026-09-30T09:30:00Z"
+              expected_return_at: "2026-09-30T12:00:00Z"
+      responses:
+        "200":
+          description: Outing changed. Her presence is unchanged.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Outing"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: |
+            `outing_window_open` says she cannot change this outing while its
+            window is open. `already_outside` says she is already outside.
+            `no_outing_planned` says there is no planned outing.
+            `return_already_planned` says she already has an outing ending at
+            that time. `outside_ordinary_hours` and `permission_required` are
+            the same refusals as planning.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+
   /api/v1/me/outings/{outing_id}/cancel:
     post:
       tags: [Resident]
@@ -709,11 +775,12 @@ paths:
       summary: Cancel a planned outing
       description: |
         Caller: resident. She chooses which plan. Allowed only while that
-        outing is `planned`. Other plans stay planned, including another return
-        today. An exit that has already
-        been scanned is closed by a return scan, not by cancel. A plan whose
-        expected return has already passed is cancelled by the system first,
-        with no staff member.
+        outing is `planned` and its hall-pass window is not open. Once the
+        window is open, or she is already outside on it, this call is refused.
+        Other plans stay planned, including another return today. An exit that
+        has already been scanned is closed by a return scan, not by cancel. A
+        plan whose expected return has already passed is cancelled by the
+        system first, with no staff member.
       parameters:
         - $ref: "#/components/parameters/OutingId"
       responses:
@@ -731,8 +798,9 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           description: |
-            `no_outing_planned` says there is no planned outing. `already_outside`
-            says she is already outside.
+            `outing_window_open` says she cannot change this outing while its
+            window is open. `no_outing_planned` says there is no planned outing.
+            `already_outside` says she is already outside.
           content:
             application/json:
               schema:
@@ -3177,7 +3245,7 @@ components:
     ResidentHome:
       type: object
       additionalProperties: false
-      required: [resident, ordinary_outing_active, current_outing, active_permission, recent_history]
+      required: [resident, ordinary_outing_active, current_outing, upcoming_outings, active_permission, recent_history]
       properties:
         resident:
           $ref: "#/components/schemas/HomeResident"
@@ -3192,6 +3260,14 @@ components:
           oneOf:
             - $ref: "#/components/schemas/Outing"
             - type: "null"
+        upcoming_outings:
+          type: array
+          description: |
+            Planned ordinary outings whose expected return is still in the
+            future. Soonest start first. Not returned, cancelled, outside, or
+            already past.
+          items:
+            $ref: "#/components/schemas/UpcomingOuting"
         active_permission:
           oneOf:
             - $ref: "#/components/schemas/Permission"
@@ -3387,6 +3463,35 @@ components:
         expected_return_at:
           type: string
           format: date-time
+
+
+    UpcomingOuting:
+      type: object
+      additionalProperties: false
+      required: [id, place, starts_at, expected_return_at, can_modify]
+      properties:
+        id:
+          type: string
+          format: uuid
+        place:
+          type: string
+          description: List name, or the words typed for Other.
+        starts_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: "null"
+          description: When she plans to leave. Empty only on an ordinary plan saved before this field existed.
+        expected_return_at:
+          type: string
+          format: date-time
+          description: When she plans to be back.
+        can_modify:
+          type: boolean
+          description: |
+            True only while she may still change or cancel this outing.
+            False once its hall-pass window is open, and false while she is
+            outside on it. The phone does not decide this from the clock.
 
     OutingType:
       type: string

@@ -13,6 +13,17 @@ from pydantic import BaseModel, ConfigDict
 from app.shared import clock
 
 
+class UpcomingOuting(BaseModel):
+    """A planned ordinary outing still in the future, for the home list."""
+
+    model_config = ConfigDict(extra="forbid")
+    id: str
+    place: str
+    starts_at: str | None
+    expected_return_at: str
+    can_modify: bool
+
+
 class OutingBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: str
@@ -174,16 +185,51 @@ def ordinary_window_is_open(
     return False
 
 
-def return_is_taken(connection: sqlite3.Connection, resident_id: str, expected_return_at: str) -> bool:
-    row = connection.execute(
-        """
+def can_modify_outing(
+    *,
+    outing_type: str,
+    status: str,
+    starts_at: str | None,
+    expected_return_at: str,
+    exited_at: str | None,
+    now: datetime,
+) -> bool:
+    """True only while she may still change or cancel this outing.
+
+    False once its hall-pass window is open, and false while she is outside
+    on it. Only a planned ordinary outing can be true.
+    """
+    if outing_type != "ordinary" or status != "planned":
+        return False
+    visible, _, _ = qr_window(
+        outing_type=outing_type,
+        status=status,
+        starts_at=starts_at,
+        expected_return_at=expected_return_at,
+        exited_at=exited_at,
+        now=now,
+    )
+    return not visible
+
+
+def return_is_taken(
+    connection: sqlite3.Connection,
+    resident_id: str,
+    expected_return_at: str,
+    *,
+    except_outing_id: str | None = None,
+) -> bool:
+    sql = """
         SELECT 1 FROM outings
         WHERE resident_id = ?
           AND expected_return_at = ?
           AND status IN ('planned', 'outside')
-        """,
-        (resident_id, expected_return_at),
-    ).fetchone()
+    """
+    params: list[str] = [resident_id, expected_return_at]
+    if except_outing_id is not None:
+        sql += " AND id != ?"
+        params.append(except_outing_id)
+    row = connection.execute(sql, params).fetchone()
     return row is not None
 
 
@@ -222,6 +268,46 @@ def load_upcoming(connection: sqlite3.Connection, resident_id: str) -> list[Outi
         (resident_id,),
     ).fetchall()
     return [outing_from_row(row) for row in rows]
+
+
+def load_upcoming_outings(
+    connection: sqlite3.Connection, resident_id: str, now: datetime
+) -> list[UpcomingOuting]:
+    """Planned ordinary outings whose expected return is still ahead.
+
+    Soonest start first. Returned, cancelled, outside, and passed plans are
+    left off. A plan inside its show window stays, with can_modify false.
+    """
+    now_text = clock.format_instant(now)
+    rows = connection.execute(
+        """
+        SELECT id, type, status, place, starts_at, expected_return_at, exited_at
+        FROM outings
+        WHERE resident_id = ?
+          AND type = 'ordinary'
+          AND status = 'planned'
+          AND expected_return_at > ?
+        ORDER BY COALESCE(starts_at, expected_return_at), id
+        """,
+        (resident_id, now_text),
+    ).fetchall()
+    return [
+        UpcomingOuting(
+            id=row["id"],
+            place=row["place"],
+            starts_at=row["starts_at"],
+            expected_return_at=row["expected_return_at"],
+            can_modify=can_modify_outing(
+                outing_type=row["type"],
+                status=row["status"],
+                starts_at=row["starts_at"],
+                expected_return_at=row["expected_return_at"],
+                exited_at=row["exited_at"],
+                now=now,
+            ),
+        )
+        for row in rows
+    ]
 
 
 def load_outing(connection: sqlite3.Connection, outing_id: str) -> OutingBody:

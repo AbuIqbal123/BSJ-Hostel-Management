@@ -310,6 +310,34 @@ def test_cancel_outing(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
         assert other_day.json()["id"] == later_id
         assert other_day.json()["status"] == "cancelled"
 
+        near = client.post(
+            "/api/v1/me/outings",
+            headers={"Authorization": f"Bearer {resident}"},
+            json={
+                "destination_id": LIBRARY,
+                "starts_at": "2026-09-30T08:04:00Z",
+                "expected_return_at": "2026-09-30T10:00:00Z",
+            },
+        )
+        assert near.status_code == 201
+        assert near.json()["qr_visible"] is True
+        near_id = near.json()["id"]
+        assert_error(
+            cancel(client, resident, near_id),
+            409,
+            "outing_window_open",
+            "You cannot change this outing while its window is open.",
+        )
+        connection = sqlite3.connect(database_path)
+        connection.row_factory = sqlite3.Row
+        still = connection.execute(
+            "SELECT status, cancelled_at FROM outings WHERE id = ?",
+            (near_id,),
+        ).fetchone()
+        connection.close()
+        assert still["status"] == "planned"
+        assert still["cancelled_at"] is None
+
         insert_outside(database_path)
         assert_error(cancel(client, resident, OUTSIDE_ID), 409, "already_outside", "You are already outside.")
         connection = sqlite3.connect(database_path)

@@ -493,19 +493,26 @@ def test_cannot_plan_while_an_outing_window_is_open(
             "outing_window_open",
             "You cannot start another outing while one is inside its window.",
         )
-        cancelled = client.post(
-            f"/api/v1/me/outings/{body['id']}/cancel",
-            headers={"Authorization": f"Bearer {resident}"},
+        assert_error(
+            client.post(
+                f"/api/v1/me/outings/{body['id']}/cancel",
+                headers={"Authorization": f"Bearer {resident}"},
+            ),
+            409,
+            "outing_window_open",
+            "You cannot change this outing while its window is open.",
         )
-        assert cancelled.status_code == 200
-        second = plan(
-            client,
-            resident,
-            {
-                "destination_id": SHAMSHAD,
-                "starts_at": "2026-09-30T04:00:00Z",
-                "expected_return_at": "2026-09-30T08:00:00Z",
-            },
+        assert_error(
+            plan(
+                client,
+                resident,
+                {
+                    "destination_id": SHAMSHAD,
+                    "starts_at": "2026-09-30T04:00:00Z",
+                    "expected_return_at": "2026-09-30T08:00:00Z",
+                },
+            ),
+            409,
+            "outing_window_open",
+            "You cannot start another outing while one is inside its window.",
         )
-        assert second.status_code == 201
-        assert second.json()["qr_visible"] is False

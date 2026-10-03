@@ -11,7 +11,8 @@
     "current_outing": null,
     "active_permission": null,
     "recent_history": [],
-    "ordinary_outing_active": false
+    "ordinary_outing_active": false,
+    "upcoming_outings": []
   },
   "outside": {
     "resident": {
@@ -137,6 +138,7 @@
         "recorded_by": "Fatima Khan"
       }
     ],
-    "ordinary_outing_active": true
+    "ordinary_outing_active": true,
+    "upcoming_outings": []
   }
 }
