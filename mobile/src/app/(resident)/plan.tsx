@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Redirect, router, useLocalSearchParams } from "expo-router";
+import { Redirect, router, useLocalSearchParams, useNavigation } from "expo-router";
 import {
   Alert,
   BackHandler,
+  InteractionManager,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,7 +17,7 @@ import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
 import { utcInstant } from "@/format-when";
 import { OTHER_NAME, WhenField, leaveNote, returnNote } from "@/outing-when";
-import { lockOuting, useSession, type DestinationItem } from "@/session";
+import { lockOuting, noteOutingLeft, useSession, type DestinationItem } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
@@ -57,7 +58,12 @@ export default function PlanScreen() {
   const [backBy, setBackBy] = useState<Date | null>(null);
   const [where, setWhere] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const navigation = useNavigation();
   const pending = useRef(false);
+  const holdSave = useRef(0);
+  const leaving = useRef(false);
+  const alertAt = useRef(0);
+  const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const seeded = useRef<string | null>(null);
   const seenOuting = useRef<string>("");
 
@@ -108,10 +114,14 @@ export default function PlanScreen() {
     }
     seeded.current = outingId;
     const place = paramText(params.place);
-    const match = places.find((item) => item.name === place) ?? null;
-    if (match) {
-      setDestinationId(match.id);
-      setWhere(match.name === OTHER_NAME ? place : "");
+    const named = places.find((item) => item.name === place && item.name !== OTHER_NAME) ?? null;
+    const otherPlace = places.find((item) => item.name === OTHER_NAME) ?? null;
+    if (named) {
+      setDestinationId(named.id);
+      setWhere("");
+    } else if (otherPlace && place.length > 0) {
+      setDestinationId(otherPlace.id);
+      setWhere(place);
     } else {
       setDestinationId(null);
       setWhere("");
@@ -121,22 +131,49 @@ export default function PlanScreen() {
     setError(null);
   }, [editing, outingId, params.expectedReturnAt, params.place, params.startsAt, places]);
 
-  const clearResult = useCallback(() => {
-    setError(null);
-  }, []);
-
   const chosen = places?.find((item) => item.id === destinationId) ?? null;
   const other = chosen?.name === OTHER_NAME;
   const leaveProblem = leaveNote(leaveAt);
   const returnProblem = returnNote(leaveAt, backBy);
 
   const backHome = useCallback(() => {
-    router.setParams({ outing: "", place: "", startsAt: "", expectedReturnAt: "" });
+    if (leaving.current) {
+      return;
+    }
+    leaving.current = true;
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
     router.navigate("/home");
+  }, [navigation]);
+
+  // The alert is still closing when a fast cancel returns. Navigating then
+  // drops the pop, so Home replaces itself instead of sliding back.
+  const leaveWhenStill = useCallback(() => {
+    const wait = Math.max(0, 250 - (Date.now() - alertAt.current));
+    if (leaveTimer.current) {
+      clearTimeout(leaveTimer.current);
+    }
+    leaveTimer.current = setTimeout(() => {
+      InteractionManager.runAfterInteractions(backHome);
+    }, wait);
+  }, [backHome]);
+
+  useEffect(() => {
+    return () => {
+      if (leaveTimer.current) {
+        clearTimeout(leaveTimer.current);
+      }
+    };
+  }, []);
+
+  const holdPlan = useCallback(() => {
+    holdSave.current = Date.now() + 700;
   }, []);
 
   const submit = useCallback(async () => {
-    if (pending.current || !editing) {
+    if (Date.now() < holdSave.current || pending.current) {
       return;
     }
     if (!destinationId) {
@@ -172,60 +209,60 @@ export default function PlanScreen() {
       setError(message);
       return;
     }
-    backHome();
+    leaveWhenStill();
   }, [
     backBy,
-    backHome,
     destinationId,
-    editing,
     leaveAt,
     other,
     outingId,
+    leaveWhenStill,
     updateOuting,
     where,
   ]);
 
   const confirmCancel = useCallback(async () => {
-    if (pending.current || !editing) {
+    if (pending.current) {
       return;
     }
     pending.current = true;
     const failure = await cancelOuting(outingId);
     pending.current = false;
     if (!failure) {
-      backHome();
+      noteOutingLeft(outingId);
+      leaveWhenStill();
       return;
     }
     if (failure.code === "outing_window_open" || failure.code === "already_outside") {
       lockOuting(outingId);
       setError(null);
-      backHome();
+      leaveWhenStill();
       return;
     }
     setError(failure.message);
-  }, [backHome, cancelOuting, editing, outingId]);
+  }, [cancelOuting, leaveWhenStill, outingId]);
 
   const cancel = useCallback(() => {
-    if (pending.current || !editing) {
+    if (pending.current) {
       return;
     }
     Alert.alert("Cancel outing", undefined, [
       { text: "Back", style: "cancel" },
       {
         text: "Cancel outing",
+        style: "destructive",
         onPress: () => {
+          alertAt.current = Date.now();
           void confirmCancel();
         },
       },
     ]);
-  }, [confirmCancel, editing]);
+  }, [confirmCancel]);
 
   const frame = {
     paddingTop: insets.top + 28,
     paddingBottom: insets.bottom + 28,
   };
-  const showForm = editing && places !== null;
-
   if (!editing) {
     return <Redirect href="/home" />;
   }
@@ -239,6 +276,14 @@ export default function PlanScreen() {
       showsVerticalScrollIndicator={false}
     >
       <Pressable style={styles.dismiss} onPress={dismissOpenChoice}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Back"
+        onPress={backHome}
+        style={styles.back}
+      >
+        <Text style={[text.button, { color: colors.inkSoft }]}>Back</Text>
+      </Pressable>
       {loadError ? (
         <Text
           selectable
@@ -251,7 +296,7 @@ export default function PlanScreen() {
           {loadError}
         </Text>
       ) : null}
-      {showForm && places ? (
+      {places ? (
         <View style={styles.block}>
           <View style={styles.fields}>
             <ChoiceField
@@ -264,28 +309,29 @@ export default function PlanScreen() {
                 if (places.find((item) => item.id === id)?.name !== OTHER_NAME) {
                   setWhere("");
                 }
-                clearResult();
+                setError(null);
               }}
               colors={colors}
-              openShowsAll
               note={null}
             />
             <WhenField
               label="Leave at"
               value={leaveAt}
-              pastNote={leaveProblem}
+              note={leaveProblem}
+              onAdjust={holdPlan}
               onChange={(date) => {
                 setLeaveAt(date);
-                clearResult();
+                setError(null);
               }}
             />
             <WhenField
               label="Back by"
               value={backBy}
-              pastNote={returnProblem}
+              note={returnProblem}
+              onAdjust={holdPlan}
               onChange={(date) => {
                 setBackBy(date);
-                clearResult();
+                setError(null);
               }}
             />
             {other ? (
@@ -294,7 +340,7 @@ export default function PlanScreen() {
                 value={where}
                 onChangeText={(value) => {
                   setWhere(value);
-                  clearResult();
+                  setError(null);
                 }}
                 autoCapitalize="sentences"
                 autoComplete="off"
@@ -309,18 +355,18 @@ export default function PlanScreen() {
             <HallButton
               label="Save"
               onPress={() => {
-                void submit();
+                setTimeout(() => {
+                  void submit();
+                }, 50);
               }}
             />
-            {editing ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Cancel outing"
-                onPress={cancel}
-              >
-                <Text style={[text.body, { color: colors.inkSoft }]}>Cancel outing</Text>
-              </Pressable>
-            ) : null}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Cancel outing"
+              onPress={cancel}
+            >
+              <Text style={[text.button, { color: colors.danger }]}>Cancel outing</Text>
+            </Pressable>
             {error ? (
               <Text
                 selectable
@@ -349,6 +395,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   dismiss: { flexGrow: 1, gap: 16 },
+  back: { alignSelf: "flex-start", minHeight: 44, justifyContent: "center" },
   block: { gap: 28 },
   fields: { gap: 16 },
   action: { gap: 16 },

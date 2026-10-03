@@ -84,7 +84,6 @@ export const ChoiceField = memo(function ChoiceField({
   selectedId,
   onPick,
   colors,
-  openShowsAll,
   note,
   hint,
   placeholder,
@@ -95,7 +94,6 @@ export const ChoiceField = memo(function ChoiceField({
   selectedId: string | null;
   onPick: (id: string) => void;
   colors: HallColors;
-  openShowsAll: boolean;
   note: string | null;
   hint?: string | null;
   placeholder?: string;
@@ -125,8 +123,6 @@ export const ChoiceField = memo(function ChoiceField({
     [onPick],
   );
 
-  const shown = open && openShowsAll ? items : [];
-
   return (
     <View style={styles.noteBlock}>
       <Text style={[text.label, { color: colors.inkSoft }]}>{label}</Text>
@@ -151,7 +147,7 @@ export const ChoiceField = memo(function ChoiceField({
         </Text>
       </Pressable>
       {open ? (
-        <OptionList items={shown} selectedId={selectedId} onPick={pick} colors={colors} />
+        <OptionList items={items} selectedId={selectedId} onPick={pick} colors={colors} />
       ) : null}
       {hint ? <Text style={[text.body, { color: colors.inkSoft }]}>{hint}</Text> : null}
       {note ? <Text style={[text.error, { color: colors.danger }]}>{note}</Text> : null}

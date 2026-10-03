@@ -193,15 +193,20 @@ export default function HallPassScreen() {
           <Text style={[text.body, { color: colors.inkSoft }]}>No pass right now.</Text>
         ) : null}
         {before ? (
-          <Text style={[text.body, { color: colors.ink }]}>{`Shows at ${formatWhen(before)}.`}</Text>
+          <View style={styles.note}>
+            <Text style={[text.body, { color: colors.ink }]}>You have a planned outing.</Text>
+            <Text style={[text.body, { color: colors.ink }]}>
+              {`Your QR code appears at ${formatWhen(before)}, 30 minutes before you leave.`}
+            </Text>
+          </View>
         ) : null}
         {code ? (
           <View style={styles.codeBlock}>
             <PassCode value={code} size={codeSize} />
             <Text style={[text.body, { color: colors.ink }]}>
               {pass?.qrVisibleUntil
-                ? `Until ${formatWhen(pass.qrVisibleUntil)}.`
-                : "Until you are back."}
+                ? `Show your QR code until ${formatWhen(pass.qrVisibleUntil)}.`
+                : "Show your QR code until you are back."}
             </Text>
           </View>
         ) : null}
@@ -219,6 +224,7 @@ const styles = StyleSheet.create({
   block: { gap: 28 },
   identity: { gap: 16 },
   title: { textAlign: "left" },
+  note: { gap: 12 },
   codeBlock: { gap: 16, alignItems: "center" },
   code: {
     alignItems: "center",

@@ -10,8 +10,6 @@ from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict
 
-from app.shared import clock
-
 GuestStatus = Literal["pending", "approved", "rejected", "cancelled", "departed"]
 PaymentStatus = Literal["unpaid", "paid"]
 GuestBucket = Literal[
@@ -293,17 +291,27 @@ def _body_from_row(row: sqlite3.Row, today: str) -> GuestStayBody:
     )
 
 
-def _summary_from_body(body: GuestStayBody) -> GuestStaySummaryBody:
+def _summary_from_row(row: sqlite3.Row, today: str) -> GuestStaySummaryBody:
+    start = row["guest_start_date"]
+    end = row["guest_end_date"]
     return GuestStaySummaryBody(
-        id=body.id,
-        guest_name=body.guest_name,
-        host_name=body.host_name,
-        host_room_label=body.host_room_label,
-        guest_start_date=body.guest_start_date,
-        guest_end_date=body.guest_end_date,
-        status=body.status,
-        payment_status=body.payment_status,
-        bucket=body.bucket,
+        id=row["id"],
+        guest_name=row["guest_name"],
+        host_name=row["host_name"],
+        host_room_label=row["host_room_label"],
+        guest_start_date=start,
+        guest_end_date=end,
+        status=row["status"],
+        payment_status=row["payment_status"],
+        bucket=derive_bucket(
+            status=row["status"],
+            payment_status=row["payment_status"],
+            start_date=start,
+            end_date=end,
+            arrived_at=row["arrived_at"],
+            departed_at=row["departed_at"],
+            today=today,
+        ),
     )
 
 
@@ -357,7 +365,7 @@ def list_guest_stays(
         """,
         [*params, limit, offset],
     ).fetchall()
-    items = [_summary_from_body(_body_from_row(row, today)) for row in rows]
+    items = [_summary_from_row(row, today) for row in rows]
     return GuestStayPageBody(
         total=int(total),
         limit=limit,

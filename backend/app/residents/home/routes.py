@@ -12,7 +12,7 @@ from app.shared import clock
 from app.shared.auth.routes import Account, AccountDep, ConnectionDep
 from app.shared.errors import ApiError
 from app.residents.outings.records import OutingBody, UpcomingOuting, expire_passed_plans, load_current_outing, load_upcoming, load_upcoming_outings
-from app.residents.permissions.records import PermissionBody, expire_passed_permissions
+from app.residents.permissions.records import PermissionBody, expire_passed_permissions, permission_from_row
 
 router = APIRouter(prefix="/api/v1", tags=["Resident"])
 
@@ -79,20 +79,7 @@ def _active_permission(connection: sqlite3.Connection, resident_id: str) -> Perm
     ).fetchone()
     if row is None:
         return None
-    return PermissionBody(
-        id=row["id"],
-        permission_type=row["type"],
-        status=row["status"],
-        short_place=row["short_place"],
-        destination_detail=row["destination_detail"],
-        address=row["address"],
-        reason=row["reason"],
-        departure_at=row["departure_at"],
-        expected_return_at=row["expected_return_at"],
-        decision_note=row["decision_note"],
-        decided_at=row["decided_at"],
-        created_at=row["created_at"],
-    )
+    return permission_from_row(row)
 
 
 _HISTORY_EVENTS_SQL = """
@@ -161,10 +148,6 @@ def load_history(
     )
 
 
-def _recent_history(connection: sqlite3.Connection, resident_id: str) -> list[HistoryEvent]:
-    return load_history(connection, resident_id, limit=10, offset=0).items
-
-
 @router.get("/me/home", response_model=ResidentHome)
 def resident_home(account: ResidentDep, connection: ConnectionDep) -> ResidentHome:
     now = clock.utc_now()
@@ -184,7 +167,7 @@ def resident_home(account: ResidentDep, connection: ConnectionDep) -> ResidentHo
         current_outing=load_current_outing(connection, account.id, now),
         upcoming_outings=load_upcoming_outings(connection, account.id, now),
         active_permission=_active_permission(connection, account.id),
-        recent_history=_recent_history(connection, account.id),
+        recent_history=load_history(connection, account.id, limit=10, offset=0).items,
     )
 
 
