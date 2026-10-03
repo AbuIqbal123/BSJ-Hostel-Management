@@ -418,6 +418,14 @@ export default function SignInScreen() {
                 </Text>
               </View>
             </View>
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel="Onboard"
+              onPress={() => router.push("/onboard")}
+              style={styles.onboard}
+            >
+              <Text style={[text.body, { color: colors.forest }]}>Onboard</Text>
+            </Pressable>
           </View>
         </View>
       </View>
@@ -441,6 +449,10 @@ const styles = StyleSheet.create({
   block: { gap: 28 },
   mark: { alignItems: "center", gap: 12 },
   fields: { gap: 16 },
+  onboard: {
+    alignItems: "center",
+    marginTop: 40,
+  },
   errorSlot: {
     position: "absolute",
     left: 0,

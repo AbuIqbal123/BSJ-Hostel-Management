@@ -30,11 +30,24 @@ type StoredSession = {
   user: HallUser;
 };
 
+export type OnboardBody = {
+  full_name: string;
+  enrolment_number: string;
+  password: string;
+  phone: string;
+  block_id: string;
+  room_id: string;
+  guardian_name: string;
+  guardian_phone: string;
+  course?: string;
+};
+
 type SessionValue = {
   ready: boolean;
   user: HallUser | null;
   signIn: (username: string, password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
+  onboard: (body: OnboardBody) => Promise<string | null>;
 };
 
 const SessionContext = createContext<SessionValue | null>(null);
@@ -166,7 +179,48 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const sessionRef = useRef(session);
-  sessionRef.current = session;
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
+
+  const onboard = useCallback(async (body: OnboardBody) => {
+    const payload: Record<string, string> = {
+      full_name: body.full_name.trim(),
+      enrolment_number: body.enrolment_number.trim(),
+      password: body.password,
+      phone: body.phone.trim(),
+      block_id: body.block_id,
+      room_id: body.room_id,
+      guardian_name: body.guardian_name.trim(),
+      guardian_phone: body.guardian_phone.trim(),
+    };
+    const course = body.course?.trim();
+    if (course) {
+      payload.course = course;
+    }
+    try {
+      const response = await hallFetch("/api/v1/auth/onboard", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      // Ready copy only after a real 201. This call returns no tokens.
+      if (response.status === 201) {
+        return null;
+      }
+      const message = await errorMessage(response);
+      const lowered = message.toLowerCase();
+      if (lowered.includes("already in use") || lowered.includes("enrolment already")) {
+        return "Username or password is wrong.";
+      }
+      if (response.status === 401 && message === "The hall could not be reached.") {
+        return "Username or password is wrong.";
+      }
+      return message;
+    } catch {
+      return "The hall could not be reached.";
+    }
+  }, []);
 
   const signOut = useCallback(async () => {
     const current = sessionRef.current;
@@ -191,8 +245,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       user: session?.user ?? null,
       signIn,
       signOut,
+      onboard,
     }),
-    [ready, session, signIn, signOut],
+    [ready, session, signIn, signOut, onboard],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
