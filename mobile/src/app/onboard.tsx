@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { router } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import {
   Animated,
   Easing,
@@ -715,17 +715,20 @@ export default function OnboardScreen() {
     [advance, showStep],
   );
 
-  const stepSwipe = usePanGesture({
-    runOnJS: true,
-    activeOffsetX: [-24, 24],
-    failOffsetY: [-16, 16],
-    onDeactivate: (event) => {
-      if (event.canceled) {
-        return;
-      }
-      onStepSwipe(event.translationX, event.translationY);
-    },
-  });
+  const stepSwipe = useMemo(
+    () =>
+      Gesture.Pan()
+        .runOnJS(true)
+        .activeOffsetX([-24, 24])
+        .failOffsetY([-16, 16])
+        .onEnd((event, success) => {
+          if (!success) {
+            return;
+          }
+          onStepSwipe(event.translationX, event.translationY);
+        }),
+    [onStepSwipe],
+  );
 
   const frame = {
     paddingTop: insets.top + 28,
