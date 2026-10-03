@@ -1,6 +1,7 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Constants from "expo-constants";
 import { router } from "expo-router";
-import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Animated, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
@@ -23,9 +24,106 @@ type BlockOption = {
   rooms: RoomOption[];
 };
 
-// GET /api/v1/auth/onboard/options is not served on dev yet.
-// Shape only: block id and name, room id and label. Do not call it, and do not invent rooms.
-const blocks: BlockOption[] = [];
+const LOCAL_HALL = "http://127.0.0.1:8000";
+const EMPTY_ROOMS = "No rooms are open.";
+const HALL_UNREACHABLE = "The hall could not be reached.";
+
+function explicitHall(): string | null {
+  const configured = process.env.EXPO_PUBLIC_API_URL;
+  if (!configured) {
+    return null;
+  }
+  return configured.replace(/\/$/, "");
+}
+
+function devMachineHall(): string | null {
+  const host = Constants.expoConfig?.hostUri?.split(":")[0];
+  if (host && host !== "localhost" && host !== "127.0.0.1") {
+    return `http://${host}:8000`;
+  }
+  if (Platform.OS === "android") {
+    return "http://10.0.2.2:8000";
+  }
+  return null;
+}
+
+let resolvedHall: string | null = null;
+
+async function hallFetch(path: string, init: RequestInit): Promise<Response> {
+  const explicit = explicitHall();
+  if (explicit) {
+    return fetch(`${explicit}${path}`, init);
+  }
+  if (resolvedHall) {
+    return fetch(`${resolvedHall}${path}`, init);
+  }
+  try {
+    const response = await fetch(`${LOCAL_HALL}${path}`, init);
+    resolvedHall = LOCAL_HALL;
+    return response;
+  } catch {
+    const fallback = devMachineHall();
+    if (!fallback) {
+      throw new Error(HALL_UNREACHABLE);
+    }
+    const response = await fetch(`${fallback}${path}`, init);
+    resolvedHall = fallback;
+    return response;
+  }
+}
+
+async function apiMessage(response: Response): Promise<string> {
+  try {
+    const body = (await response.json()) as { error?: { message?: unknown } };
+    if (typeof body.error?.message === "string" && body.error.message.length > 0) {
+      return body.error.message;
+    }
+  } catch {
+    // The hall answered without a message.
+  }
+  return HALL_UNREACHABLE;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function readOptions(value: unknown): BlockOption[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+  const blocks: BlockOption[] = [];
+  for (const item of value) {
+    if (
+      !isRecord(item) ||
+      typeof item.id !== "string" ||
+      item.id.length === 0 ||
+      typeof item.name !== "string" ||
+      item.name.length === 0 ||
+      !Array.isArray(item.rooms)
+    ) {
+      return null;
+    }
+    const rooms: RoomOption[] = [];
+    for (const room of item.rooms) {
+      if (
+        !isRecord(room) ||
+        typeof room.id !== "string" ||
+        room.id.length === 0 ||
+        typeof room.label !== "string" ||
+        room.label.length === 0
+      ) {
+        return null;
+      }
+      rooms.push({ id: room.id, label: room.label });
+    }
+    if (rooms.length === 0) {
+      return null;
+    }
+    blocks.push({ id: item.id, name: item.name, rooms });
+  }
+  return blocks;
+}
 
 function trimmedLength(value: string): number {
   return value.trim().length;
@@ -90,6 +188,8 @@ export default function OnboardScreen() {
   const [guardianName, setGuardianName] = useState("");
   const [guardianPhone, setGuardianPhone] = useState("");
   const [course, setCourse] = useState("");
+  const [blocks, setBlocks] = useState<BlockOption[]>([]);
+  const [listNote, setListNote] = useState<string | null>(null);
   const [blockId, setBlockId] = useState<string | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
   const [opacity] = useState(() => new Animated.Value(1));
@@ -97,7 +197,48 @@ export default function OnboardScreen() {
   const pending = useRef(false);
 
   const block = blocks.find((item) => item.id === blockId) ?? null;
+  const room = block?.rooms.find((item) => item.id === roomId) ?? null;
   const rooms = block?.rooms ?? [];
+
+  useEffect(() => {
+    let active = true;
+    hallFetch("/api/v1/auth/onboard/options", { method: "GET" })
+      .then(async (response) => {
+        if (!active) {
+          return;
+        }
+        if (!response.ok) {
+          const message = await apiMessage(response);
+          if (!active) {
+            return;
+          }
+          setBlocks([]);
+          setListNote(message);
+          return;
+        }
+        const parsed = readOptions((await response.json()) as unknown);
+        if (!active) {
+          return;
+        }
+        if (!parsed) {
+          setBlocks([]);
+          setListNote(HALL_UNREACHABLE);
+          return;
+        }
+        setBlocks(parsed);
+        setListNote(parsed.length === 0 ? EMPTY_ROOMS : null);
+      })
+      .catch(() => {
+        if (!active) {
+          return;
+        }
+        setBlocks([]);
+        setListNote(HALL_UNREACHABLE);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const clearError = useCallback(() => {
     setError(null);
@@ -144,7 +285,9 @@ export default function OnboardScreen() {
   }, []);
 
   const submit = useCallback(async () => {
-    if (pending.current || !blockId || !roomId) {
+    const selectedBlock = blocks.find((item) => item.id === blockId) ?? null;
+    const selectedRoom = selectedBlock?.rooms.find((item) => item.id === roomId) ?? null;
+    if (pending.current || !selectedBlock || !selectedRoom) {
       return;
     }
     const problem =
@@ -168,8 +311,8 @@ export default function OnboardScreen() {
       guardian_name: guardianName,
       guardian_phone: guardianPhone,
       course,
-      block_id: blockId,
-      room_id: roomId,
+      block_id: selectedBlock.id,
+      room_id: selectedRoom.id,
     });
     pending.current = false;
     if (message) {
@@ -179,6 +322,7 @@ export default function OnboardScreen() {
     setReady(true);
   }, [
     blockId,
+    blocks,
     course,
     enrolment,
     fullName,
@@ -232,7 +376,7 @@ export default function OnboardScreen() {
     );
   }
 
-  const canSubmit = blockId !== null && roomId !== null;
+  const canSubmit = block !== null && room !== null;
   const action = step < 2 ? "Continue" : "Onboard";
 
   return (
@@ -372,10 +516,8 @@ export default function OnboardScreen() {
                 );
               })}
             </View>
-            {blocks.length === 0 ? (
-              <Text style={[text.body, { color: colors.inkSoft }]}>
-                The block and room list is not available yet.
-              </Text>
+            {listNote ? (
+              <Text style={[text.body, { color: colors.inkSoft }]}>{listNote}</Text>
             ) : null}
             <TextField
               label="Course"
