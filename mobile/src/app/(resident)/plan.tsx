@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import DateTimePicker, {
   DateTimePickerAndroid,
 } from "@react-native-community/datetimepicker";
@@ -28,10 +28,30 @@ function formatBackBy(date: Date): string {
   return backByFormat.format(date);
 }
 
-function BackByField({
+function paramText(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) {
+    return value[0] ?? "";
+  }
+  return value ?? "";
+}
+
+function instant(value: string): Date | null {
+  if (value.length === 0) {
+    return null;
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  return date;
+}
+
+function WhenField({
+  label,
   value,
   onChange,
 }: {
+  label: string;
   value: Date | null;
   onChange: (date: Date) => void;
 }) {
@@ -74,7 +94,7 @@ function BackByField({
 
   return (
     <View style={styles.field}>
-      <Text style={[text.label, { color: colors.inkSoft }]}>Back by</Text>
+      <Text style={[text.label, { color: colors.inkSoft }]}>{label}</Text>
       {showPicker ? (
         <DateTimePicker
           value={value ?? new Date()}
@@ -85,7 +105,7 @@ function BackByField({
       ) : (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={value ? `Back by, ${formatBackBy(value)}` : "Back by"}
+          accessibilityLabel={value ? `${label}, ${formatBackBy(value)}` : label}
           onPress={open}
           style={[
             styles.shell,
@@ -94,7 +114,7 @@ function BackByField({
           ]}
         >
           <Text style={[text.field, { color: value ? colors.ink : colors.inkFaint }]}>
-            {value ? formatBackBy(value) : "Back by"}
+            {value ? formatBackBy(value) : label}
           </Text>
         </Pressable>
       )}
@@ -105,19 +125,33 @@ function BackByField({
 export default function PlanScreen() {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
-  const { loadResidentHome, loadDestinations, planOuting } = useSession();
+  const params = useLocalSearchParams<{
+    outing?: string | string[];
+    place?: string | string[];
+    startsAt?: string | string[];
+    expectedReturnAt?: string | string[];
+  }>();
+  const outingId = paramText(params.outing);
+  const editing = outingId.length > 0;
+  const { loadResidentHome, loadDestinations, planOuting, updateOuting, cancelOuting } = useSession();
   const [gate, setGate] = useState<"loading" | "in" | "out">("loading");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [places, setPlaces] = useState<DestinationItem[] | null>(null);
   const [destinationId, setDestinationId] = useState<string | null>(null);
+  const [leaveAt, setLeaveAt] = useState<Date | null>(null);
   const [backBy, setBackBy] = useState<Date | null>(null);
   const [where, setWhere] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [planned, setPlanned] = useState(false);
   const pending = useRef(false);
+  const seeded = useRef<string | null>(null);
+  const seenOuting = useRef<string>("");
 
   useFocusEffect(
     useCallback(() => {
+      if (editing) {
+        return;
+      }
       let active = true;
       void loadResidentHome().then((result) => {
         if (!active) {
@@ -134,11 +168,14 @@ export default function PlanScreen() {
       return () => {
         active = false;
       };
-    }, [loadResidentHome]),
+    }, [editing, loadResidentHome]),
   );
 
   useEffect(() => {
-    if (gate !== "in" || places) {
+    if (places) {
+      return;
+    }
+    if (!editing && gate !== "in") {
       return;
     }
     let active = true;
@@ -148,7 +185,9 @@ export default function PlanScreen() {
       }
       if (result.error !== null) {
         setLoadError(result.error);
-        setGate("loading");
+        if (!editing) {
+          setGate("loading");
+        }
         return;
       }
       setPlaces(result.items);
@@ -156,7 +195,43 @@ export default function PlanScreen() {
     return () => {
       active = false;
     };
-  }, [gate, loadDestinations, places]);
+  }, [editing, gate, loadDestinations, places]);
+
+  useEffect(() => {
+    if (seenOuting.current === outingId) {
+      return;
+    }
+    if (seenOuting.current.length > 0 && outingId.length === 0) {
+      setDestinationId(null);
+      setLeaveAt(null);
+      setBackBy(null);
+      setWhere("");
+      setError(null);
+      setPlanned(false);
+      seeded.current = null;
+    }
+    seenOuting.current = outingId;
+  }, [outingId]);
+
+  useEffect(() => {
+    if (!editing || !places || seeded.current === outingId) {
+      return;
+    }
+    seeded.current = outingId;
+    const place = paramText(params.place);
+    const match = places.find((item) => item.name === place) ?? null;
+    if (match) {
+      setDestinationId(match.id);
+      setWhere(match.name === OTHER_NAME ? place : "");
+    } else {
+      setDestinationId(null);
+      setWhere("");
+    }
+    setLeaveAt(instant(paramText(params.startsAt)));
+    setBackBy(instant(paramText(params.expectedReturnAt)));
+    setError(null);
+    setPlanned(false);
+  }, [editing, outingId, params.expectedReturnAt, params.place, params.startsAt, places]);
 
   const clearResult = useCallback(() => {
     setError(null);
@@ -166,6 +241,11 @@ export default function PlanScreen() {
   const chosen = places?.find((item) => item.id === destinationId) ?? null;
   const other = chosen?.name === OTHER_NAME;
 
+  const backHome = useCallback(() => {
+    router.setParams({ outing: "", place: "", startsAt: "", expectedReturnAt: "" });
+    router.navigate("/home");
+  }, []);
+
   const submit = useCallback(async () => {
     if (pending.current) {
       return;
@@ -173,6 +253,11 @@ export default function PlanScreen() {
     if (!destinationId) {
       setPlanned(false);
       setError("Choose a place.");
+      return;
+    }
+    if (editing && !leaveAt) {
+      setPlanned(false);
+      setError("Choose when you will leave.");
       return;
     }
     if (!backBy) {
@@ -187,28 +272,67 @@ export default function PlanScreen() {
       return;
     }
     pending.current = true;
-    const message = await planOuting({
-      destination_id: destinationId,
-      expected_return_at: backBy.toISOString(),
-      ...(other ? { destination_text: placeText } : {}),
-    });
+    const message = editing
+      ? await updateOuting(outingId, {
+          destination_id: destinationId,
+          starts_at: leaveAt ? leaveAt.toISOString() : "",
+          expected_return_at: backBy.toISOString(),
+          ...(other ? { destination_text: placeText } : {}),
+        })
+      : await planOuting({
+          destination_id: destinationId,
+          expected_return_at: backBy.toISOString(),
+          ...(other ? { destination_text: placeText } : {}),
+        });
     pending.current = false;
     if (message) {
       setPlanned(false);
       setError(message);
       return;
     }
+    if (editing) {
+      backHome();
+      return;
+    }
     setDestinationId(null);
+    setLeaveAt(null);
     setBackBy(null);
     setWhere("");
     setError(null);
     setPlanned(true);
-  }, [backBy, destinationId, other, planOuting, where]);
+  }, [
+    backBy,
+    backHome,
+    destinationId,
+    editing,
+    leaveAt,
+    other,
+    outingId,
+    planOuting,
+    updateOuting,
+    where,
+  ]);
+
+  const cancel = useCallback(async () => {
+    if (pending.current || !editing) {
+      return;
+    }
+    pending.current = true;
+    const message = await cancelOuting(outingId);
+    pending.current = false;
+    if (message) {
+      setPlanned(false);
+      setError(message);
+      return;
+    }
+    backHome();
+  }, [backHome, cancelOuting, editing, outingId]);
 
   const frame = {
     paddingTop: insets.top + 28,
     paddingBottom: insets.bottom + 28,
   };
+  const showForm = places !== null && (editing || gate === "in");
 
   return (
     <ScrollView
@@ -218,7 +342,7 @@ export default function PlanScreen() {
       keyboardDismissMode="interactive"
       showsVerticalScrollIndicator={false}
     >
-      {gate === "out" ? (
+      {!editing && gate === "out" ? (
         <Text style={[text.body, { color: colors.ink }]}>You are out.</Text>
       ) : null}
       {loadError ? (
@@ -233,7 +357,7 @@ export default function PlanScreen() {
           {loadError}
         </Text>
       ) : null}
-      {gate === "in" && places ? (
+      {showForm && places ? (
         <View style={styles.block}>
           <View style={styles.fields}>
             <ChoiceField
@@ -252,7 +376,18 @@ export default function PlanScreen() {
               openShowsAll
               note={null}
             />
-            <BackByField
+            {editing ? (
+              <WhenField
+                label="Leave at"
+                value={leaveAt}
+                onChange={(date) => {
+                  setLeaveAt(date);
+                  clearResult();
+                }}
+              />
+            ) : null}
+            <WhenField
+              label="Back by"
               value={backBy}
               onChange={(date) => {
                 setBackBy(date);
@@ -278,13 +413,24 @@ export default function PlanScreen() {
           </View>
           <View style={styles.action}>
             <HallButton
-              label="Plan"
+              label={editing ? "Save" : "Plan"}
               onPress={() => {
                 void submit();
               }}
             />
-            {planned ? (
+            {!editing && planned ? (
               <Text style={[text.body, { color: colors.ink }]}>Outing planned.</Text>
+            ) : null}
+            {editing ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Cancel outing"
+                onPress={() => {
+                  void cancel();
+                }}
+              >
+                <Text style={[text.body, { color: colors.inkSoft }]}>Cancel outing</Text>
+              </Pressable>
             ) : null}
             {error ? (
               <Text

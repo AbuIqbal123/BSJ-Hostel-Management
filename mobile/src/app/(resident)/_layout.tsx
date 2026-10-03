@@ -1,4 +1,4 @@
-import { Redirect } from "expo-router";
+import { Redirect, router } from "expo-router";
 import { Tabs } from "expo-router/js-tabs";
 import { StyleSheet, View } from "react-native";
 
@@ -40,7 +40,19 @@ export default function ResidentLayout() {
       }}
     >
       <Tabs.Screen name="home" options={{ title: "Home" }} />
-      <Tabs.Screen name="plan" options={{ title: "Plan an outing" }} />
+      <Tabs.Screen
+        name="plan"
+        options={{ title: "Plan an outing" }}
+        listeners={{
+          tabPress: (event) => {
+            event.preventDefault();
+            router.navigate({
+              pathname: "/plan",
+              params: { outing: "", place: "", startsAt: "", expectedReturnAt: "" },
+            });
+          },
+        }}
+      />
       <Tabs.Screen name="pass" options={{ title: "My hall pass" }} />
       <Tabs.Screen name="settings" options={{ title: "Settings" }} />
     </Tabs>

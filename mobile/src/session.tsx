@@ -42,10 +42,19 @@ export type OnboardBody = {
   course?: string;
 };
 
+export type UpcomingOuting = {
+  id: string;
+  place: string;
+  startsAt: string | null;
+  expectedReturnAt: string;
+  canModify: boolean;
+};
+
 export type ResidentHome = {
   blockName: string | null;
   roomLabel: string | null;
   out: boolean;
+  upcoming: UpcomingOuting[];
 };
 
 export type ResidentHomeResult =
@@ -67,6 +76,13 @@ export type PlanOutingBody = {
   destination_text?: string;
 };
 
+export type UpdateOutingBody = {
+  destination_id: string;
+  starts_at: string;
+  expected_return_at: string;
+  destination_text?: string;
+};
+
 type SessionValue = {
   ready: boolean;
   user: HallUser | null;
@@ -77,6 +93,8 @@ type SessionValue = {
   loadResidentHome: () => Promise<ResidentHomeResult>;
   loadDestinations: () => Promise<DestinationResult>;
   planOuting: (body: PlanOutingBody) => Promise<string | null>;
+  updateOuting: (outingId: string, body: UpdateOutingBody) => Promise<string | null>;
+  cancelOuting: (outingId: string) => Promise<string | null>;
 };
 
 const SessionContext = createContext<SessionValue | null>(null);
@@ -145,6 +163,36 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function readUpcoming(value: Record<string, unknown>): UpcomingOuting[] {
+  if (!("upcoming_outings" in value) || !Array.isArray(value.upcoming_outings)) {
+    return [];
+  }
+  const items: UpcomingOuting[] = [];
+  for (const item of value.upcoming_outings) {
+    if (
+      !isRecord(item) ||
+      typeof item.id !== "string" ||
+      item.id.length === 0 ||
+      typeof item.place !== "string" ||
+      typeof item.expected_return_at !== "string" ||
+      typeof item.can_modify !== "boolean"
+    ) {
+      continue;
+    }
+    if (item.starts_at !== null && typeof item.starts_at !== "string") {
+      continue;
+    }
+    items.push({
+      id: item.id,
+      place: item.place,
+      startsAt: item.starts_at,
+      expectedReturnAt: item.expected_return_at,
+      canModify: item.can_modify,
+    });
+  }
+  return items;
+}
+
 function readResidentHome(value: unknown): ResidentHome | null {
   if (!isRecord(value) || !isRecord(value.resident) || !("current_outing" in value)) {
     return null;
@@ -166,6 +214,7 @@ function readResidentHome(value: unknown): ResidentHome | null {
     blockName,
     roomLabel,
     out: resident.presence === "outside" || outingOutside,
+    upcoming: readUpcoming(value),
   };
 }
 
@@ -449,6 +498,56 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const updateOuting = useCallback(async (outingId: string, body: UpdateOutingBody) => {
+    const current = sessionRef.current;
+    if (!current) {
+      return "Sign in again.";
+    }
+    const payload: Record<string, string> = {
+      destination_id: body.destination_id,
+      starts_at: body.starts_at,
+      expected_return_at: body.expected_return_at,
+    };
+    if (body.destination_text !== undefined) {
+      payload.destination_text = body.destination_text;
+    }
+    try {
+      const response = await hallFetch(`/api/v1/me/outings/${outingId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${current.accessToken}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      if (response.status === 200 || response.status === 201) {
+        return null;
+      }
+      return await errorMessage(response);
+    } catch {
+      return "The hall could not be reached.";
+    }
+  }, []);
+
+  const cancelOuting = useCallback(async (outingId: string) => {
+    const current = sessionRef.current;
+    if (!current) {
+      return "Sign in again.";
+    }
+    try {
+      const response = await hallFetch(`/api/v1/me/outings/${outingId}/cancel`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${current.accessToken}` },
+      });
+      if (response.status === 200 || response.status === 201) {
+        return null;
+      }
+      return await errorMessage(response);
+    } catch {
+      return "The hall could not be reached.";
+    }
+  }, []);
+
   const value = useMemo<SessionValue>(
     () => ({
       ready,
@@ -460,8 +559,22 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       loadResidentHome,
       loadDestinations,
       planOuting,
+      updateOuting,
+      cancelOuting,
     }),
-    [ready, session, signIn, signOut, onboard, changePassword, loadResidentHome, loadDestinations, planOuting],
+    [
+      ready,
+      session,
+      signIn,
+      signOut,
+      onboard,
+      changePassword,
+      loadResidentHome,
+      loadDestinations,
+      planOuting,
+      updateOuting,
+      cancelOuting,
+    ],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

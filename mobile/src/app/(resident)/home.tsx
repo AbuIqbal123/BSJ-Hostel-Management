@@ -1,11 +1,67 @@
 import { useCallback, useState } from "react";
-import { useFocusEffect } from "expo-router";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { router, useFocusEffect } from "expo-router";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useSession } from "@/session";
+import { useSession, type UpcomingOuting } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
+
+const whenFormat = new Intl.DateTimeFormat(undefined, {
+  day: "numeric",
+  month: "short",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+function formatWhen(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return iso;
+  }
+  return whenFormat.format(date);
+}
+
+function outingWhen(item: UpcomingOuting): string {
+  const back = `Back ${formatWhen(item.expectedReturnAt)}`;
+  if (!item.startsAt) {
+    return back;
+  }
+  return `Leave ${formatWhen(item.startsAt)}. ${back}`;
+}
+
+function OutingRow({ item }: { item: UpcomingOuting }) {
+  const colors = useHallColors();
+  const lines = (
+    <View style={styles.rowLines}>
+      <Text style={[text.body, { color: colors.ink }]}>{item.place}</Text>
+      <Text style={[text.body, { color: colors.inkSoft }]}>{outingWhen(item)}</Text>
+    </View>
+  );
+  if (!item.canModify) {
+    return lines;
+  }
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${item.place}. ${outingWhen(item)}`}
+      onPress={() => {
+        router.navigate({
+          pathname: "/plan",
+          params: {
+            outing: item.id,
+            place: item.place,
+            startsAt: item.startsAt ?? "",
+            expectedReturnAt: item.expectedReturnAt,
+          },
+        });
+      }}
+      style={({ pressed }) => [{ transform: [{ scale: pressed ? 0.98 : 1 }] }]}
+    >
+      {lines}
+    </Pressable>
+  );
+}
 
 export default function HomeScreen() {
   const colors = useHallColors();
@@ -13,6 +69,7 @@ export default function HomeScreen() {
   const { user, loadResidentHome } = useSession();
   const [blockName, setBlockName] = useState<string | null>(null);
   const [roomLabel, setRoomLabel] = useState<string | null>(null);
+  const [upcoming, setUpcoming] = useState<UpcomingOuting[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -23,6 +80,7 @@ export default function HomeScreen() {
         }
         setBlockName(result.home.blockName);
         setRoomLabel(result.home.roomLabel);
+        setUpcoming(result.home.upcoming);
       });
       return () => {
         active = false;
@@ -43,19 +101,28 @@ export default function HomeScreen() {
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.fields}>
-        <Text selectable style={[text.hallName, styles.name, { color: colors.ink }]}>
-          {user.full_name}
-        </Text>
-        {blockName ? (
-          <Text selectable style={[text.body, { color: colors.ink }]}>
-            {blockName}
+      <View style={styles.block}>
+        <View style={styles.fields}>
+          <Text selectable style={[text.hallName, styles.name, { color: colors.ink }]}>
+            {user.full_name}
           </Text>
-        ) : null}
-        {roomLabel ? (
-          <Text selectable style={[text.body, { color: colors.ink }]}>
-            {roomLabel}
-          </Text>
+          {blockName ? (
+            <Text selectable style={[text.body, { color: colors.ink }]}>
+              {blockName}
+            </Text>
+          ) : null}
+          {roomLabel ? (
+            <Text selectable style={[text.body, { color: colors.ink }]}>
+              {roomLabel}
+            </Text>
+          ) : null}
+        </View>
+        {upcoming.length > 0 ? (
+          <View style={styles.list}>
+            {upcoming.map((item) => (
+              <OutingRow key={item.id} item={item} />
+            ))}
+          </View>
         ) : null}
       </View>
     </ScrollView>
@@ -68,6 +135,9 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 28,
   },
+  block: { gap: 28 },
   fields: { gap: 16 },
+  list: { gap: 16 },
+  rowLines: { gap: 2 },
   name: { textAlign: "left" },
 });
