@@ -877,11 +877,14 @@ const styles = StyleSheet.create({
   },
   track: {
     flexDirection: "row",
+    gap: 4,
+    height: 4,
+  },
+  segment: {
+    flex: 1,
     height: 4,
     borderRadius: 2,
-    overflow: "hidden",
   },
-  segment: { flex: 1 },
   hits: {
     ...StyleSheet.absoluteFill,
     flexDirection: "row",
