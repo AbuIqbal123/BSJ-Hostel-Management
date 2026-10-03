@@ -23,5 +23,7 @@
   "taken_message": "Username or password is wrong.",
   "room_message": "That room is not in the selected block.",
   "short_password_message": "Use at least 10 characters.",
+  "weak_password_message": "Include an uppercase letter, a lowercase letter, a number, and a symbol.",
+  "indian_mobile_message": "Use an Indian mobile: +91 and exactly 10 digits.",
   "missing_phone_message": "Phone is required."
 }

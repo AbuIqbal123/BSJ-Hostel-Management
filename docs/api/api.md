@@ -119,12 +119,15 @@ The caller sends an access token as `Authorization: Bearer`, except on
 `GET /health`, `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, and
 `POST /api/v1/auth/onboard`.
 
-Access tokens last 15 minutes. Refresh tokens last 30 days. Passwords are
-at least 10 characters and are stored as Argon2id. Residents may self-onboard
-at `POST /api/v1/auth/onboard` (public on dev). The form selects the block
-and room and creates an active resident who can sign in immediately. A future
-Hall Office activation workflow is deferred. The provost may still create
-residents and must create staff.
+Access tokens last 15 minutes. Refresh tokens last 30 days. A password chosen
+on self-onboard, on change-password, or on a provost password reset is at
+least 10 characters and includes an uppercase letter, a lowercase letter, a
+number, and a symbol. Passwords are stored as Argon2id. Residents may
+self-onboard at `POST /api/v1/auth/onboard` (public on dev). On that form the
+resident phone and the guardian phone are Indian mobiles: `+91` followed by
+exactly 10 digits. The form selects the block and room and creates an active
+resident who can sign in immediately. A future Hall Office activation workflow
+is deferred. The provost may still create residents and must create staff.
 A resident username is the enrolment number.
 
 Stored state and lifecycles live in `docs/database/database.md`. This file does not
@@ -479,6 +482,8 @@ Body: [ErrorResponse](#schema-errorresponse).
 **Who.** Signed-in account. Bearer access token.
 
 Checks the current password, stores a new hash, and revokes refresh tokens.
+The new password is at least 10 characters and includes an uppercase letter,
+a lowercase letter, a number, and a symbol.
 
 **Request.** Required.
 
@@ -487,7 +492,7 @@ Body: [ChangePasswordRequest](#schema-changepasswordrequest).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `current_password` | yes | string | 1–200 characters. |
-| `new_password` | yes | string | 10–200 characters. |
+| `new_password` | yes | string | At least 10 characters, with one uppercase letter, one lowercase letter, one number, and one symbol (a character that is not a letter or number). Shorter than 10 says "Use at least 10 characters." Missing a class says "Include an uppercase letter, a lowercase letter, a number, and a symbol.". 10–200 characters. pattern `^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).+$`. |
 
 **Responses**
 
@@ -538,13 +543,13 @@ Body: [ResidentOnboardRequest](#schema-residentonboardrequest).
 |---|---|---|---|
 | `full_name` | yes | string | 1–120 characters. |
 | `enrolment_number` | yes | string | Roll / enrolment number. Becomes the username. Unique hall-wide, ignoring capitals. 1–40 characters. |
-| `password` | yes | string | First password she chooses. Stored as Argon2id. Not returned. Sample bodies in this repository omit the value; the field is required. 10–200 characters. |
+| `password` | yes | string | First password she chooses. Stored as Argon2id. Not returned. Sample bodies in this repository omit the value; the field is required. At least 10 characters, with one uppercase letter, one lowercase letter, one number, and one symbol (a character that is not a letter or number). Shorter than 10 says "Use at least 10 characters." Missing a class says "Include an uppercase letter, a lowercase letter, a number, and a symbol.". 10–200 characters. pattern `^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).+$`. |
 | `course` | no | string | Optional. For example B.A. LL.B. (Hons.). at most 120 characters. |
-| `phone` | yes | string | The resident's own phone in E.164 with country code. Required on self-onboard. Not the guardian phone. pattern `^\+[1-9][0-9]{7,14}$`. |
+| `phone` | yes | string | The resident's own Indian mobile. +91 followed by exactly 10 digits. Required on self-onboard. Not the guardian phone. Another country or another length says "Use an Indian mobile: +91 and exactly 10 digits.". pattern `^\+91[0-9]{10}$`. |
 | `block_id` | yes | uuid | The block selected for self-onboard. The room must belong to it. |
 | `room_id` | yes | uuid | The active room selected for self-onboard. |
 | `guardian_name` | yes | string | Parent or guardian the hall contacts. 1–120 characters. |
-| `guardian_phone` | yes | string | E.164 with country code. Late and return SMS go here. pattern `^\+[1-9][0-9]{7,14}$`. |
+| `guardian_phone` | yes | string | Guardian Indian mobile. +91 followed by exactly 10 digits. Late and return SMS go here. Another country or another length says "Use an Indian mobile: +91 and exactly 10 digits.". pattern `^\+91[0-9]{10}$`. |
 
 **Example**
 
@@ -4013,7 +4018,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 **Who.** provost. Bearer access token.
 
 Caller: provost. Sets a temporary password and revokes that user's
-refresh tokens. Works for residents and staff.
+refresh tokens. Works for residents and staff. The temporary password
+is at least 10 characters and includes an uppercase letter, a lowercase
+letter, a number, and a symbol.
 
 **Parameters**
 
@@ -4027,7 +4034,7 @@ Body: [PasswordResetRequest](#schema-passwordresetrequest).
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `temporary_password` | yes | string | 10–200 characters. |
+| `temporary_password` | yes | string | At least 10 characters, with one uppercase letter, one lowercase letter, one number, and one symbol (a character that is not a letter or number). Shorter than 10 says "Use at least 10 characters." Missing a class says "Include an uppercase letter, a lowercase letter, a number, and a symbol.". 10–200 characters. pattern `^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).+$`. |
 
 **Responses**
 
@@ -4938,7 +4945,7 @@ Each JSON object used above. An operation section already shows the fields for i
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `current_password` | yes | string | 1–200 characters. |
-| `new_password` | yes | string | 10–200 characters. |
+| `new_password` | yes | string | At least 10 characters, with one uppercase letter, one lowercase letter, one number, and one symbol (a character that is not a letter or number). Shorter than 10 says "Use at least 10 characters." Missing a class says "Include an uppercase letter, a lowercase letter, a number, and a symbol.". 10–200 characters. pattern `^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).+$`. |
 
 ### <a id="schema-residentonboardrequest"></a>ResidentOnboardRequest
 
@@ -4946,13 +4953,13 @@ Each JSON object used above. An operation section already shows the fields for i
 |---|---|---|---|
 | `full_name` | yes | string | 1–120 characters. |
 | `enrolment_number` | yes | string | Roll / enrolment number. Becomes the username. Unique hall-wide, ignoring capitals. 1–40 characters. |
-| `password` | yes | string | First password she chooses. Stored as Argon2id. Not returned. Sample bodies in this repository omit the value; the field is required. 10–200 characters. |
+| `password` | yes | string | First password she chooses. Stored as Argon2id. Not returned. Sample bodies in this repository omit the value; the field is required. At least 10 characters, with one uppercase letter, one lowercase letter, one number, and one symbol (a character that is not a letter or number). Shorter than 10 says "Use at least 10 characters." Missing a class says "Include an uppercase letter, a lowercase letter, a number, and a symbol.". 10–200 characters. pattern `^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).+$`. |
 | `course` | no | string | Optional. For example B.A. LL.B. (Hons.). at most 120 characters. |
-| `phone` | yes | string | The resident's own phone in E.164 with country code. Required on self-onboard. Not the guardian phone. pattern `^\+[1-9][0-9]{7,14}$`. |
+| `phone` | yes | string | The resident's own Indian mobile. +91 followed by exactly 10 digits. Required on self-onboard. Not the guardian phone. Another country or another length says "Use an Indian mobile: +91 and exactly 10 digits.". pattern `^\+91[0-9]{10}$`. |
 | `block_id` | yes | uuid | The block selected for self-onboard. The room must belong to it. |
 | `room_id` | yes | uuid | The active room selected for self-onboard. |
 | `guardian_name` | yes | string | Parent or guardian the hall contacts. 1–120 characters. |
-| `guardian_phone` | yes | string | E.164 with country code. Late and return SMS go here. pattern `^\+[1-9][0-9]{7,14}$`. |
+| `guardian_phone` | yes | string | Guardian Indian mobile. +91 followed by exactly 10 digits. Late and return SMS go here. Another country or another length says "Use an Indian mobile: +91 and exactly 10 digits.". pattern `^\+91[0-9]{10}$`. |
 
 ### <a id="schema-residentonboardresponse"></a>ResidentOnboardResponse
 
@@ -4981,7 +4988,7 @@ Each JSON object used above. An operation section already shows the fields for i
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `temporary_password` | yes | string | 10–200 characters. |
+| `temporary_password` | yes | string | At least 10 characters, with one uppercase letter, one lowercase letter, one number, and one symbol (a character that is not a letter or number). Shorter than 10 says "Use at least 10 characters." Missing a class says "Include an uppercase letter, a lowercase letter, a number, and a symbol.". 10–200 characters. pattern `^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).+$`. |
 
 ### <a id="schema-tokenresponse"></a>TokenResponse
 

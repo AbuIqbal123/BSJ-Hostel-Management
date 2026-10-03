@@ -24,12 +24,15 @@ info:
     `GET /health`, `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, and
     `POST /api/v1/auth/onboard`.
 
-    Access tokens last 15 minutes. Refresh tokens last 30 days. Passwords are
-    at least 10 characters and are stored as Argon2id. Residents may self-onboard
-    at `POST /api/v1/auth/onboard` (public on dev). The form selects the block
-    and room and creates an active resident who can sign in immediately. A future
-    Hall Office activation workflow is deferred. The provost may still create
-    residents and must create staff.
+    Access tokens last 15 minutes. Refresh tokens last 30 days. A password chosen
+    on self-onboard, on change-password, or on a provost password reset is at
+    least 10 characters and includes an uppercase letter, a lowercase letter, a
+    number, and a symbol. Passwords are stored as Argon2id. Residents may
+    self-onboard at `POST /api/v1/auth/onboard` (public on dev). On that form the
+    resident phone and the guardian phone are Indian mobiles: `+91` followed by
+    exactly 10 digits. The form selects the block and room and creates an active
+    resident who can sign in immediately. A future Hall Office activation workflow
+    is deferred. The provost may still create residents and must create staff.
     A resident username is the enrolment number.
 
     Stored state and lifecycles live in `docs/database/database.md`. This file does not
@@ -270,7 +273,10 @@ paths:
       tags: [Auth]
       operationId: change_password
       summary: Change own password
-      description: Checks the current password, stores a new hash, and revokes refresh tokens.
+      description: |
+        Checks the current password, stores a new hash, and revokes refresh tokens.
+        The new password is at least 10 characters and includes an uppercase letter,
+        a lowercase letter, a number, and a symbol.
       requestBody:
         required: true
         content:
@@ -2167,7 +2173,9 @@ paths:
       summary: Reset a password
       description: |
         Caller: provost. Sets a temporary password and revokes that user's
-        refresh tokens. Works for residents and staff.
+        refresh tokens. Works for residents and staff. The temporary password
+        is at least 10 characters and includes an uppercase letter, a lowercase
+        letter, a number, and a symbol.
       parameters:
         - $ref: "#/components/parameters/UserId"
       requestBody:
@@ -2852,6 +2860,13 @@ components:
           type: string
           minLength: 10
           maxLength: 200
+          description: >
+            At least 10 characters, with one uppercase letter, one lowercase
+            letter, one number, and one symbol (a character that is not a letter
+            or number). Shorter than 10 says "Use at least 10 characters."
+            Missing a class says "Include an uppercase letter, a lowercase
+            letter, a number, and a symbol."
+          pattern: "^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).+$"
 
     ResidentOnboardRequest:
       type: object
@@ -2884,6 +2899,12 @@ components:
           description: >
             First password she chooses. Stored as Argon2id. Not returned. Sample
             bodies in this repository omit the value; the field is required.
+            At least 10 characters, with one uppercase letter, one lowercase
+            letter, one number, and one symbol (a character that is not a letter
+            or number). Shorter than 10 says "Use at least 10 characters."
+            Missing a class says "Include an uppercase letter, a lowercase
+            letter, a number, and a symbol."
+          pattern: "^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).+$"
         course:
           type: string
           maxLength: 120
@@ -2891,9 +2912,10 @@ components:
         phone:
           type: string
           description: >
-            The resident's own phone in E.164 with country code. Required on
-            self-onboard. Not the guardian phone.
-          pattern: "^\\+[1-9][0-9]{7,14}$"
+            The resident's own Indian mobile. +91 followed by exactly 10 digits.
+            Required on self-onboard. Not the guardian phone. Another country
+            or another length says "Use an Indian mobile: +91 and exactly 10 digits."
+          pattern: "^\\+91[0-9]{10}$"
           example: "+919811112222"
         block_id:
           type: string
@@ -2910,8 +2932,11 @@ components:
           description: Parent or guardian the hall contacts.
         guardian_phone:
           type: string
-          description: E.164 with country code. Late and return SMS go here.
-          pattern: "^\\+[1-9][0-9]{7,14}$"
+          description: >
+            Guardian Indian mobile. +91 followed by exactly 10 digits. Late and
+            return SMS go here. Another country or another length says
+            "Use an Indian mobile: +91 and exactly 10 digits."
+          pattern: "^\\+91[0-9]{10}$"
           example: "+919876543210"
 
     ResidentOnboardResponse:
@@ -2964,6 +2989,13 @@ components:
           type: string
           minLength: 10
           maxLength: 200
+          description: >
+            At least 10 characters, with one uppercase letter, one lowercase
+            letter, one number, and one symbol (a character that is not a letter
+            or number). Shorter than 10 says "Use at least 10 characters."
+            Missing a class says "Include an uppercase letter, a lowercase
+            letter, a number, and a symbol."
+          pattern: "^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).+$"
 
     TokenResponse:
       type: object

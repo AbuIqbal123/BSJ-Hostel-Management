@@ -63,7 +63,7 @@ The rules in this document are the contract. The room inventory is taken from th
 - A guest stay is applied for by the host resident at least one day before the start date, for at most 7 days counting the first and last day. 18 September 2026 through 21 September 2026 is 4 days. Payment is marked at the hall office, not collected in the app. Guests have no hall pass. Gate staff record arrival and departure from a list. A guest stays on the dining count until departure is recorded, including when the end date has passed.
 - Emergency alerts are not in this version. An alert must not approve leave or change whether a resident is outside.
 - Parents and guardians do not use the app. A text message is the only channel to them.
-- A resident may self-onboard with her full name, enrolment number, chosen password, own phone, guardian name and phone, and a selected block and room. The account starts **active**, can sign in immediately, and receives its hall pass. The Hall Office activation workflow is deferred. Staff (gate, warden, provost) are never self-onboarded.
+- A resident may self-onboard with her full name, enrolment number, chosen password, own phone, guardian name and phone, and a selected block and room. On that form the resident phone and the guardian phone are Indian mobiles: +91 followed by exactly 10 digits. The account starts **active**, can sign in immediately, and receives its hall pass. The Hall Office activation workflow is deferred. Staff (gate, warden, provost) are never self-onboarded.
 - Every time a person sees is India time, on a 12-hour clock. Every date a person sees is the day, the month name, and the year.
 
 ## Still for the hall to decide
@@ -97,7 +97,7 @@ People always see India time and a 12-hour clock. A stored instant of `2026-09-1
 | Phone | Country code included, `+` then digits, no spaces. India is `+91`, for example `+919876543210`. A number without a country code is refused. | The same value. |
 | Protected value | A one-way protection of a secret. The secret itself is never kept and never written to the audit log. | Nothing. The secret is never shown back. |
 
-A password is kept as an Argon2id protected value. Argon2id is the password form OWASP recommends for a new system. It is built so that guessing many passwords is slow and needs a large amount of memory, which makes a stolen file of passwords harder to attack than older forms. bcrypt and scrypt remain acceptable. They are not stronger than Argon2id. The password the person typed is never stored.
+A password chosen on self-onboard, changed by the account, or set by the provost is at least 10 characters and includes an uppercase letter, a lowercase letter, a number, and a symbol. It is kept as an Argon2id protected value. Argon2id is the password form OWASP recommends for a new system. It is built so that guessing many passwords is slow and needs a large amount of memory, which makes a stolen file of passwords harder to attack than older forms. bcrypt and scrypt remain acceptable. They are not stronger than Argon2id. The password the person typed is never stored.
 
 Other writing rules:
 

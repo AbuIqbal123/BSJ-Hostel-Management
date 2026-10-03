@@ -122,8 +122,7 @@ def attempt_login(client: TestClient, username: str, secret: str):
 
 def test_admin_password_reset(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     expected = json.loads(ARTIFACT.read_text(encoding="utf-8"))
-    # artifact stores a tag like reset-pass-20 → joined("reset", "pass", "20")
-    new_password = joined("reset", "pass", "20")
+    new_password = joined(*expected["new_password_parts"])
     from app.main import app
     from app.shared import clock
 
@@ -166,16 +165,21 @@ def test_admin_password_reset(database_path: Path, monkeypatch: pytest.MonkeyPat
         provost = sign_in(client, "provost.halima", PROVOST_PHRASE)
         headers = {"Authorization": f"Bearer {provost['access_token']}"}
 
-        assert_error(
-            client.post(
+        short = client.post(
+            f"/api/v1/admin/users/{RESIDENT_ID}/password",
+            headers=headers,
+            json={"temporary_password": "short"},
+        )
+        assert_error(short, 422, "validation_error", "temporary_password")
+        assert short.json()["error"]["message"] == expected["short_password_message"]
+        for weak_password in ("lowercase1!", "UPPERCASE1!", "NoDigits!!!", "NoSymbol123"):
+            weak = client.post(
                 f"/api/v1/admin/users/{RESIDENT_ID}/password",
                 headers=headers,
-                json={"temporary_password": "short"},
-            ),
-            422,
-            "validation_error",
-            "temporary_password",
-        )
+                json={"temporary_password": weak_password},
+            )
+            assert_error(weak, 422, "validation_error", "temporary_password")
+            assert weak.json()["error"]["message"] == expected["weak_password_message"]
 
         assert_error(
             client.post(
@@ -208,7 +212,7 @@ def test_admin_password_reset(database_path: Path, monkeypatch: pytest.MonkeyPat
         fresh = sign_in(client, "24-GLLB-118", new_password)
         assert fresh["access_token"]
 
-        staff_password = joined("warden", "pass", "99")
+        staff_password = joined("Warden", "pass", "99")
         staff_reset = client.post(
             f"/api/v1/admin/users/{WARDEN_ID}/password",
             headers=headers,
