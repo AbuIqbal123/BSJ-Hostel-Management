@@ -42,6 +42,31 @@ export type OnboardBody = {
   course?: string;
 };
 
+export type ResidentHome = {
+  blockName: string | null;
+  roomLabel: string | null;
+  out: boolean;
+};
+
+export type ResidentHomeResult =
+  | { error: string; home?: undefined }
+  | { error: null; home: ResidentHome };
+
+export type DestinationItem = {
+  id: string;
+  name: string;
+};
+
+export type DestinationResult =
+  | { error: string; items?: undefined }
+  | { error: null; items: DestinationItem[] };
+
+export type PlanOutingBody = {
+  destination_id: string;
+  expected_return_at: string;
+  destination_text?: string;
+};
+
 type SessionValue = {
   ready: boolean;
   user: HallUser | null;
@@ -49,6 +74,9 @@ type SessionValue = {
   signOut: () => Promise<void>;
   onboard: (body: OnboardBody) => Promise<string | null>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<string | null>;
+  loadResidentHome: () => Promise<ResidentHomeResult>;
+  loadDestinations: () => Promise<DestinationResult>;
+  planOuting: (body: PlanOutingBody) => Promise<string | null>;
 };
 
 const SessionContext = createContext<SessionValue | null>(null);
@@ -113,6 +141,53 @@ async function errorMessage(response: Response): Promise<string> {
   return "The hall could not be reached.";
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function readResidentHome(value: unknown): ResidentHome | null {
+  if (!isRecord(value) || !isRecord(value.resident) || !("current_outing" in value)) {
+    return null;
+  }
+  const resident = value.resident;
+  if (resident.presence !== "inside" && resident.presence !== "outside") {
+    return null;
+  }
+  const blockName = typeof resident.block_name === "string" ? resident.block_name : null;
+  const roomLabel = typeof resident.room_label === "string" ? resident.room_label : null;
+  let outingOutside = false;
+  if (value.current_outing !== null) {
+    if (!isRecord(value.current_outing) || typeof value.current_outing.status !== "string") {
+      return null;
+    }
+    outingOutside = value.current_outing.status === "outside";
+  }
+  return {
+    blockName,
+    roomLabel,
+    out: resident.presence === "outside" || outingOutside,
+  };
+}
+
+function readDestinations(value: unknown): DestinationItem[] | null {
+  if (!isRecord(value) || !Array.isArray(value.items)) {
+    return null;
+  }
+  const items: DestinationItem[] = [];
+  for (const item of value.items) {
+    if (
+      !isRecord(item) ||
+      typeof item.id !== "string" ||
+      item.id.length === 0 ||
+      typeof item.name !== "string"
+    ) {
+      return null;
+    }
+    items.push({ id: item.id, name: item.name });
+  }
+  return items;
+}
+
 async function readSession(): Promise<StoredSession | null> {
   const raw = await SecureStore.getItemAsync(SESSION_KEY);
   if (!raw) {
@@ -151,6 +226,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const sessionRef = useRef(session);
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
+
   const signIn = useCallback(async (username: string, password: string) => {
     try {
       const response = await hallFetch("/api/v1/auth/login", {
@@ -171,6 +251,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         refreshToken: body.refresh_token,
         user: body.user,
       };
+      sessionRef.current = next;
       await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(next));
       setSession(next);
       return null;
@@ -178,11 +259,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return "The hall could not be reached.";
     }
   }, []);
-
-  const sessionRef = useRef(session);
-  useEffect(() => {
-    sessionRef.current = session;
-  }, [session]);
 
   const onboard = useCallback(async (body: OnboardBody) => {
     const payload: Record<string, string> = {
@@ -241,6 +317,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }),
       });
       if (response.status === 204) {
+        sessionRef.current = null;
         setSession(null);
         await SecureStore.deleteItemAsync(SESSION_KEY);
         return null;
@@ -253,6 +330,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     const current = sessionRef.current;
+    sessionRef.current = null;
     setSession(null);
     await SecureStore.deleteItemAsync(SESSION_KEY);
     if (!current) {
@@ -268,6 +346,109 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+
+  const rememberName = useCallback(async (fullName: string) => {
+    const current = sessionRef.current;
+    if (!current || current.user.full_name === fullName) {
+      return;
+    }
+    const next: StoredSession = {
+      ...current,
+      user: { ...current.user, full_name: fullName },
+    };
+    sessionRef.current = next;
+    setSession(next);
+    await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(next));
+    if (sessionRef.current === null) {
+      await SecureStore.deleteItemAsync(SESSION_KEY);
+    }
+  }, []);
+
+  const loadResidentHome = useCallback(async (): Promise<ResidentHomeResult> => {
+    const current = sessionRef.current;
+    if (!current) {
+      return { error: "Sign in again." };
+    }
+    const headers = { Authorization: `Bearer ${current.accessToken}` };
+    try {
+      const expired = await hallFetch("/api/v1/me/expire-passed", { method: "POST", headers });
+      if (!expired.ok) {
+        return { error: await errorMessage(expired) };
+      }
+      const homeResponse = await hallFetch("/api/v1/me/home", { method: "GET", headers });
+      if (!homeResponse.ok) {
+        return { error: await errorMessage(homeResponse) };
+      }
+      const home = readResidentHome(await homeResponse.json());
+      if (!home) {
+        return { error: "The hall could not be reached." };
+      }
+      const meResponse = await hallFetch("/api/v1/auth/me", { method: "GET", headers });
+      if (meResponse.ok) {
+        const me = (await meResponse.json()) as unknown;
+        if (isRecord(me) && typeof me.full_name === "string" && me.full_name.length > 0) {
+          await rememberName(me.full_name);
+        }
+      }
+      return { error: null, home };
+    } catch {
+      return { error: "The hall could not be reached." };
+    }
+  }, [rememberName]);
+
+  const loadDestinations = useCallback(async (): Promise<DestinationResult> => {
+    const current = sessionRef.current;
+    if (!current) {
+      return { error: "Sign in again." };
+    }
+    try {
+      const response = await hallFetch("/api/v1/destinations", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${current.accessToken}` },
+      });
+      if (!response.ok) {
+        return { error: await errorMessage(response) };
+      }
+      const items = readDestinations(await response.json());
+      if (!items) {
+        return { error: "The hall could not be reached." };
+      }
+      return { error: null, items };
+    } catch {
+      return { error: "The hall could not be reached." };
+    }
+  }, []);
+
+  const planOuting = useCallback(async (body: PlanOutingBody) => {
+    const current = sessionRef.current;
+    if (!current) {
+      return "Sign in again.";
+    }
+    const payload: Record<string, string> = {
+      destination_id: body.destination_id,
+      expected_return_at: body.expected_return_at,
+    };
+    if (body.destination_text !== undefined) {
+      payload.destination_text = body.destination_text;
+    }
+    try {
+      const response = await hallFetch("/api/v1/me/outings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${current.accessToken}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      if (response.status === 201) {
+        return null;
+      }
+      return await errorMessage(response);
+    } catch {
+      return "The hall could not be reached.";
+    }
+  }, []);
+
   const value = useMemo<SessionValue>(
     () => ({
       ready,
@@ -276,8 +457,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       signOut,
       onboard,
       changePassword,
+      loadResidentHome,
+      loadDestinations,
+      planOuting,
     }),
-    [ready, session, signIn, signOut, onboard, changePassword],
+    [ready, session, signIn, signOut, onboard, changePassword, loadResidentHome, loadDestinations, planOuting],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

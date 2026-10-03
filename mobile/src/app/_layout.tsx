@@ -48,6 +48,7 @@ export default function RootLayout() {
         <Stack.Screen name="sign-in" options={{ headerShown: false }} />
         <Stack.Screen name="onboard" options={{ headerShown: false }} />
         <Stack.Screen name="change-password" options={{ title: "Change password" }} />
+        <Stack.Screen name="(resident)" options={{ headerShown: false }} />
         <Stack.Screen name="signed-in" options={{ title: "Signed in", headerBackVisible: false }} />
       </Stack>
     </SessionProvider>

@@ -13,7 +13,7 @@ export default function OpeningScreen() {
   const { ready, user } = useSession();
 
   if (ready && user) {
-    return <Redirect href="/signed-in" />;
+    return <Redirect href={user.role === "resident" ? "/home" : "/signed-in"} />;
   }
   if (ready) {
     return <Redirect href="/sign-in" />;

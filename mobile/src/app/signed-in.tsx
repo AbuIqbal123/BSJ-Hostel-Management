@@ -13,6 +13,9 @@ export default function SignedInScreen() {
   if (!user) {
     return <Redirect href="/sign-in" />;
   }
+  if (user.role === "resident") {
+    return <Redirect href="/home" />;
+  }
 
   return (
     <ScrollView
