@@ -627,7 +627,7 @@ Besides the unique indexes that enforce one username, one open outside outing, a
 
 ## Implementation note (dev)
 
-Self-onboard is specified here and in the HTTP contract. A future pending status is reserved for a later Hall Office activation workflow. A schema migration is not shipped in this stack. When handlers land, the next free migration number after `0011_guest_stay_payment_evidence.sql` is `0012_…` (confirm against `backend/app/shared/migrations/` on `dev` at that time). Leave this document's version at **0.3.4** until production.
+Self-onboard is specified here and in the HTTP contract. A future pending status is reserved for a later Hall Office activation workflow. Migration `0012_resident_block_rooms.sql` seeds door numbers 1 through each published count for blocks A, B, C, and D. Utility has no seeded rooms. The next free migration number is `0013_…`. Leave this document's version at **0.3.4** until production.
 
 ## Revisions
 
