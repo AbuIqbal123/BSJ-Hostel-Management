@@ -451,7 +451,7 @@ const styles = StyleSheet.create({
   fields: { gap: 16 },
   onboard: {
     alignItems: "center",
-    marginTop: 40,
+    marginTop: 64,
   },
   errorSlot: {
     position: "absolute",
