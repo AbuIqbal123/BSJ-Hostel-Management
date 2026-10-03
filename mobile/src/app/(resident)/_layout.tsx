@@ -116,7 +116,9 @@ export default function ResidentLayout() {
                 >
                   {options.tabBarIcon?.({ focused, color, size: 24 })}
                   <View style={styles.caption}>
-                    <Text style={[styles.label, { color }]}>{label}</Text>
+                    <Text numberOfLines={1} style={[styles.label, { color }]}>
+                      {label}
+                    </Text>
                   </View>
                 </Pressable>
               );
@@ -187,13 +189,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
     height: 16,
     alignSelf: "stretch",
-    overflow: "visible",
+    overflow: "hidden",
   },
   label: {
-    position: "absolute",
-    width: 200,
-    left: "50%",
-    marginLeft: -100,
     textAlign: "center",
     fontFamily: "SourceSans3_400Regular",
     fontSize: 12,

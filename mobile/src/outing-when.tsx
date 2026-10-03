@@ -59,6 +59,14 @@ function wallUtc(date: Date): number {
   ).getTime();
 }
 
+function withHallDay(daySource: Date, timeSource: Date): Date {
+  const [year, month, date] = hallDay(daySource).split("-").map(Number);
+  const hour = Number(hallPart(timeSource, "hour"));
+  const minute = Number(hallPart(timeSource, "minute"));
+  const guess = new Date(Date.UTC(year, month - 1, date, hour, minute, 0));
+  return new Date(guess.getTime() - (wallUtc(guess) - guess.getTime()));
+}
+
 function proposalWhen(): Date {
   const hour = Number(DAY_START.slice(0, 2)) + 1;
   const day = hallDay(new Date());
@@ -214,7 +222,7 @@ export function WhenField({
                 display="spinner"
                 timeZoneName={HALL_ZONE}
                 onValueChange={(_event, date) => {
-                  commit(date);
+                  commit(withHallDay(date, shown));
                 }}
               />
               <DateTimePicker
@@ -223,7 +231,7 @@ export function WhenField({
                 display="spinner"
                 timeZoneName={HALL_ZONE}
                 onValueChange={(_event, date) => {
-                  commit(date);
+                  commit(withHallDay(shown, date));
                 }}
               />
             </View>
