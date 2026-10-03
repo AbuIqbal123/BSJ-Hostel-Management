@@ -1,7 +1,8 @@
 import { Feather } from "@expo/vector-icons";
 import { Redirect } from "expo-router";
 import { Tabs } from "expo-router/js-tabs";
-import { StyleSheet, View, type ColorValue } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View, type ColorValue } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useSession } from "@/session";
 import { useHallColors } from "@/theme/colors";
@@ -35,7 +36,10 @@ function QrMark({ color }: { color: ColorValue }) {
 
 export default function ResidentLayout() {
   const colors = useHallColors();
+  const insets = useSafeAreaInsets();
   const { ready, user } = useSession();
+  const systemBottom = Math.max(insets.bottom, Platform.OS === "android" ? 48 : 0);
+  const tabBottom = systemBottom + 10;
 
   if (!ready) {
     return <View style={[styles.hold, { backgroundColor: colors.paper }]} />;
@@ -50,6 +54,7 @@ export default function ResidentLayout() {
   return (
     <Tabs
       initialRouteName="home"
+      safeAreaInsets={{ bottom: 0 }}
       screenOptions={{
         headerShown: false,
         animation: "none",
@@ -62,12 +67,64 @@ export default function ResidentLayout() {
           borderTopWidth: StyleSheet.hairlineWidth,
           elevation: 0,
           shadowOpacity: 0,
-        },
-        tabBarLabelStyle: {
-          fontFamily: "SourceSans3_400Regular",
-          fontSize: 12,
+          height: 52 + tabBottom,
+          paddingBottom: tabBottom,
+          paddingTop: 0,
         },
       }}
+      tabBar={({ state, descriptors, navigation }) => (
+          <View
+            style={[
+              styles.bar,
+              {
+                backgroundColor: colors.paper,
+                borderTopColor: colors.line,
+                height: 52 + tabBottom,
+                paddingTop: 0,
+                paddingBottom: tabBottom,
+              },
+            ]}
+          >
+            {state.routes.map((route, index) => {
+              const { options } = descriptors[route.key];
+              if (StyleSheet.flatten(options.tabBarItemStyle)?.display === "none") {
+                return null;
+              }
+              const focused = state.index === index;
+              const color = focused ? colors.forest : colors.inkFaint;
+              const label =
+                typeof options.tabBarLabel === "string"
+                  ? options.tabBarLabel
+                  : (options.title ?? route.name);
+              return (
+                <Pressable
+                  key={route.key}
+                  accessibilityRole="button"
+                  accessibilityState={focused ? { selected: true } : {}}
+                  onPress={() => {
+                    const event = navigation.emit({
+                      type: "tabPress",
+                      target: route.key,
+                      canPreventDefault: true,
+                    });
+                    if (focused || event.defaultPrevented) {
+                      return;
+                    }
+                    navigation.navigate(route.name, route.params);
+                  }}
+                  style={styles.tab}
+                >
+                  {options.tabBarIcon?.({ focused, color, size: 24 })}
+                  <View style={styles.caption}>
+                    <Text numberOfLines={1} style={[styles.label, { color }]}>
+                      {label}
+                    </Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+      )}
       screenListeners={({ navigation }) => ({
         tabPress: (event) => {
           if (navigation.isFocused()) {
@@ -84,17 +141,17 @@ export default function ResidentLayout() {
         }}
       />
       <Tabs.Screen
-        name="permissions"
-        options={{
-          title: "Permissions",
-          tabBarIcon: ({ color }) => <TabIcon name="calendar" color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="pass"
         options={{
           title: "Pass",
           tabBarIcon: ({ color }) => <QrMark color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="permissions"
+        options={{
+          title: "Permissions",
+          tabBarIcon: ({ color }) => <TabIcon name="calendar" color={color} />,
         }}
       />
       <Tabs.Screen
@@ -111,6 +168,35 @@ export default function ResidentLayout() {
 
 const styles = StyleSheet.create({
   hold: { flex: 1 },
+  bar: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "flex-start",
+    paddingTop: 0,
+    paddingHorizontal: 0,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+  tab: {
+    flex: 1,
+    width: "25%",
+    maxWidth: "25%",
+    minWidth: 0,
+    alignItems: "center",
+  },
+  caption: {
+    marginTop: 4,
+    height: 16,
+    alignSelf: "stretch",
+    overflow: "hidden",
+  },
+  label: {
+    textAlign: "center",
+    fontFamily: "SourceSans3_400Regular",
+    fontSize: 12,
+    lineHeight: 16,
+  },
   mark: { width: 24, height: 24 },
   markFrame: {
     position: "absolute",
