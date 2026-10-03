@@ -48,6 +48,7 @@ type SessionValue = {
   signIn: (username: string, password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
   onboard: (body: OnboardBody) => Promise<string | null>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<string | null>;
 };
 
 const SessionContext = createContext<SessionValue | null>(null);
@@ -222,6 +223,34 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    const current = sessionRef.current;
+    if (!current) {
+      return "Sign in again.";
+    }
+    try {
+      const response = await hallFetch("/api/v1/auth/change-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${current.accessToken}`,
+        },
+        body: JSON.stringify({
+          current_password: currentPassword,
+          new_password: newPassword,
+        }),
+      });
+      if (response.status === 204) {
+        setSession(null);
+        await SecureStore.deleteItemAsync(SESSION_KEY);
+        return null;
+      }
+      return await errorMessage(response);
+    } catch {
+      return "The hall could not be reached.";
+    }
+  }, []);
+
   const signOut = useCallback(async () => {
     const current = sessionRef.current;
     setSession(null);
@@ -246,8 +275,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       signIn,
       signOut,
       onboard,
+      changePassword,
     }),
-    [ready, session, signIn, signOut, onboard],
+    [ready, session, signIn, signOut, onboard, changePassword],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

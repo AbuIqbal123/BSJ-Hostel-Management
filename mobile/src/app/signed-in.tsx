@@ -28,6 +28,7 @@ export default function SignedInScreen() {
       <Text selectable style={[text.mono, { color: colors.inkFaint }]}>
         {user.username}
       </Text>
+      <HallButton label="Change password" onPress={() => router.push("/change-password")} />
       <HallButton
         label="Sign out"
         onPress={() => {
