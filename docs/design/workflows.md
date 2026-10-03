@@ -17,11 +17,11 @@ Keep this document Fowler-simple: one workflow per section, steps a person can n
 |---|---|
 | **Actors** | Resident (self-onboard or office-provisioned), gate, warden, provost |
 | **Goal** | Resident onboarding, sign in, stay signed in, change password, sign out |
-| **API** | `POST /api/v1/auth/onboard` (resident self-onboard, public). `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, `POST /api/v1/auth/logout`, `GET /api/v1/auth/me`, `POST /api/v1/auth/change-password`. Provost still creates residents at `POST /api/v1/admin/residents` and staff at `POST /api/v1/admin/staff`. Password reset is `POST /api/v1/admin/users/{user_id}/password`. Do not put onboarding under the Register tag: Register is the presence board at `/api/v1/register`. |
+| **API** | `POST /api/v1/auth/onboard` (resident self-onboard, public). `GET /api/v1/auth/onboard/options` (public room picker: active blocks with active unassigned rooms). `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, `POST /api/v1/auth/logout`, `GET /api/v1/auth/me`, `POST /api/v1/auth/change-password`. Provost still creates residents at `POST /api/v1/admin/residents` and staff at `POST /api/v1/admin/staff`. Password reset is `POST /api/v1/admin/users/{user_id}/password`. Do not put onboarding under the Register tag: Register is the presence board at `/api/v1/register`. |
 
 **How a resident account starts (two paths)**
 
-1. **Self-onboard (new).** From sign-in, open Onboard. She enters `full_name`, `enrolment_number` (her roll number; becomes the username), `password`, `phone` (her own), `block_id`, `room_id`, `guardian_name`, and `guardian_phone`. Optional: `course`. Submit calls `POST /api/v1/auth/onboard`. The hall keeps an **active** resident with the selected room and returns no tokens. She can sign in immediately with the submitted enrolment number and password.
+1. **Self-onboard (new).** From sign-in, open Onboard. The form loads `GET /api/v1/auth/onboard/options` (no token): each item is an active block `id` and `name`, and only active rooms that have no resident yet (`id` and `label`). She enters `full_name`, `enrolment_number` (her roll number; becomes the username), `password`, `phone` (her own), `block_id`, `room_id`, `guardian_name`, and `guardian_phone`. Optional: `course`. Submit calls `POST /api/v1/auth/onboard`. The hall keeps an **active** resident with the selected room and returns no tokens. She can sign in immediately with the submitted enrolment number and password.
 2. **Office-provisioned (unchanged).** Provost creates the resident at the hall office with room, the resident's phone, guardian details, and a `temporary_password`. Account starts **active**. Login accepts that password and returns tokens.
 3. There is **no guardian login**. Guardians do not use the app.
 
@@ -31,7 +31,7 @@ Keep this document Fowler-simple: one workflow per section, steps a person can n
 |---|---|---|
 | Who may self-onboard | Residents only. Gate, warden, and provost stay office-created (`POST /api/v1/admin/staff`). | Staff roles grant gate and hall records. Self-service staff accounts would bypass office control. |
 | Enrolment uniqueness | Hall-wide, ignoring capitals. Same rule as username. | One person per enrolment in this hall. Matches existing unique enrolment / username. |
-| Room / block at onboard | Chosen on the onboard form as `block_id` and `room_id`; the room must belong to the block and be active. | This dev/testing flow is full onboarding. The Hall Office activation workflow is deferred. |
+| Room / block at onboard | The form offers only `GET /api/v1/auth/onboard/options`: active block `id`+`name`, nested active room `id`+`label`, and only rooms with no resident assigned. She sends the chosen `block_id` and `room_id`. She does not call the provost lists. | The picker is the onboard form only. The Hall Office activation workflow is deferred. |
 | Guardian and phones | `guardian_name`, `guardian_phone`, and resident `phone` are required on both self-onboard and office create. | Hall already requires a guardian phone for late and return SMS. Both resident-entry paths collect the resident's own phone so it is on file from creation. |
 | Activation | Self-onboard creates an active resident with a room and hall pass; login is allowed immediately. | Dev/testing needs a complete path. A separate Hall Office activation workflow is deferred. |
 | First password | She chooses `password` on self-onboard (at least 10 characters). No must-change flag. Office path still uses `temporary_password`. After she can sign in, change-password from settings is optional. | Full onboarding means she owns the first password. Matches current "no must-change" for office accounts. |
@@ -40,7 +40,7 @@ Keep this document Fowler-simple: one workflow per section, steps a person can n
 **Screens / steps**
 
 1. Sign-in: enrolment number (or staff username) + password. Link to Onboard for residents who do not yet have an account.
-2. Onboard form (fields above). On success: ready copy, then back to sign-in. A taken enrolment receives the same generic authentication refusal as other auth failures.
+2. Onboard form. Load the room picker, then the fields above. On success: ready copy, then back to sign-in. A taken enrolment receives the same generic authentication refusal as other auth failures.
 3. After onboarding: sign in → route by `role` from `GET /api/v1/auth/me` into the correct shell.
 4. Change password from settings when she chooses. Needs current password and a new one. The shell does not block until she does this.
 5. Sign out revokes the refresh session.
