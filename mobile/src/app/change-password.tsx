@@ -30,7 +30,6 @@ export default function ChangePasswordScreen() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [rulesNoted, setRulesNoted] = useState(false);
   const pending = useRef(false);
 
   const submit = useCallback(async () => {
@@ -46,8 +45,6 @@ export default function ChangePasswordScreen() {
       return;
     }
     if (!passwordRulesMet(newPassword)) {
-      setRulesNoted(true);
-      setError(null);
       return;
     }
     pending.current = true;
@@ -91,7 +88,6 @@ export default function ChangePasswordScreen() {
             value={newPassword}
             onChangeText={(value) => {
               setNewPassword(value);
-              setRulesNoted(false);
               setError(null);
             }}
             secureTextEntry
@@ -102,20 +98,18 @@ export default function ChangePasswordScreen() {
               void submit();
             }}
           />
-          <View style={styles.rules}>
-            {PASSWORD_RULES.map((rule) => {
-              const met = rule.test(newPassword);
-              const color = met ? colors.forest : rulesNoted ? colors.danger : colors.inkSoft;
-              return (
-                <Text key={rule.label} style={[text.error, { color }]}>
+          {newPassword.length > 0 && PASSWORD_RULES.some((rule) => !rule.test(newPassword)) ? (
+            <View style={styles.rules}>
+              {PASSWORD_RULES.filter((rule) => !rule.test(newPassword)).map((rule) => (
+                <Text key={rule.label} style={[text.error, { color: colors.inkSoft }]}>
                   {rule.label}
                 </Text>
-              );
-            })}
-          </View>
+              ))}
+            </View>
+          ) : null}
         </View>
         <View>
-          <HallButton label="Change password" onPress={() => void submit()} />
+          <HallButton label="Change password" disabled={!passwordRulesMet(newPassword)} onPress={() => void submit()} />
           <View
             pointerEvents="none"
             accessibilityElementsHidden={error === null}
