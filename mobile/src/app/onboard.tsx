@@ -2,9 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { router } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
 import {
   Animated,
   Easing,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,7 +18,6 @@ import {
 import { ChoiceField } from "@/components/choice-field";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
-import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
 import { hallFetch, useSession } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
@@ -547,7 +548,7 @@ export default function OnboardScreen() {
   const onPassword = useCallback(
     (value: string) => {
       const previous = passwordRef.current;
-      const next = securePasswordEdit(previous, value);
+      const next = Platform.OS === "ios" ? securePasswordEdit(previous, value) : value;
       if (next === previous) {
         return;
       }
