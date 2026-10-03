@@ -840,6 +840,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 Caller: resident. The hall-pass code is still the resident's permanent
 token (the gate scans that same code). The phone shows it for one
 outing only. `qr_payload` is set only while that window is open.
+`place`, `starts_at`, and `expected_return_at` are that outing's
+lines, the same values as on home `upcoming_outings`. All three are
+null when `outing_id` is null.
 
 An ordinary outing's window opens 30 minutes before `starts_at`. If
 `starts_at` is within 5 minutes, the 30-minute lead has already begun,
@@ -863,6 +866,9 @@ Body: [ResidentHallPass](#schema-residenthallpass).
 | `full_name` | yes | string |  |
 | `room_label` | yes | string |  |
 | `outing_id` | yes | uuid or null | The outing this pass is for, if she has a planned or outside outing. |
+| `place` | yes | string or null | Stored place on that outing: the list name, the words typed for Other, or the permission's short place. Same meaning as `place` on an outing. Null when `outing_id` is null. |
+| `starts_at` | yes | date-time or null | When she leaves. Null when `outing_id` is null, on a permission outing, and on an ordinary plan saved before this field existed. |
+| `expected_return_at` | yes | date-time or null | When she comes back. Null when `outing_id` is null. |
 | `qr_visible` | yes | boolean |  |
 | `qr_visible_from` | yes | date-time or null | When the QR may be shown. Null when she has no upcoming ordinary outing. |
 | `qr_visible_until` | yes | date-time or null | Planned ordinary outings close at `expected_return_at`. Null while she is outside, because the outing ends at the return scan. |
@@ -875,6 +881,9 @@ Body: [ResidentHallPass](#schema-residenthallpass).
   "full_name": "Aisha Khan",
   "room_label": "B-204",
   "outing_id": "00000000-0000-4000-8000-000000000001",
+  "place": "Maulana Azad Library",
+  "starts_at": "2026-09-30T08:00:00Z",
+  "expected_return_at": "2026-09-30T13:00:00Z",
   "qr_visible": true,
   "qr_visible_from": "2026-09-30T07:30:00Z",
   "qr_visible_until": "2026-09-30T13:00:00Z"
@@ -5288,6 +5297,9 @@ One of: `inside`, `outside`, `late`.
 | `full_name` | yes | string |  |
 | `room_label` | yes | string |  |
 | `outing_id` | yes | uuid or null | The outing this pass is for, if she has a planned or outside outing. |
+| `place` | yes | string or null | Stored place on that outing: the list name, the words typed for Other, or the permission's short place. Same meaning as `place` on an outing. Null when `outing_id` is null. |
+| `starts_at` | yes | date-time or null | When she leaves. Null when `outing_id` is null, on a permission outing, and on an ordinary plan saved before this field existed. |
+| `expected_return_at` | yes | date-time or null | When she comes back. Null when `outing_id` is null. |
 | `qr_visible` | yes | boolean |  |
 | `qr_visible_from` | yes | date-time or null | When the QR may be shown. Null when she has no upcoming ordinary outing. |
 | `qr_visible_until` | yes | date-time or null | Planned ordinary outings close at `expected_return_at`. Null while she is outside, because the outing ends at the return scan. |
