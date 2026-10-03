@@ -23,6 +23,7 @@ Do not edit this page by hand.
   - [GET `/api/v1/auth/me` — Current account](#get-api-v1-auth-me)
   - [POST `/api/v1/auth/change-password` — Change own password](#post-api-v1-auth-change-password)
   - [POST `/api/v1/auth/onboard` — Resident self-onboard](#post-api-v1-auth-onboard)
+  - [GET `/api/v1/auth/onboard/options` — Onboard room picker](#get-api-v1-auth-onboard-options)
 - [Resident](#tag-resident)
   - [GET `/api/v1/me/home` — Resident home](#get-api-v1-me-home)
   - [GET `/api/v1/me/hall-pass` — Permanent hall pass](#get-api-v1-me-hall-pass)
@@ -228,7 +229,7 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 ## <a id="tag-auth"></a>Auth
 
-Sign-in and resident self-onboard under /api/v1/auth. Staff accounts stay office-created. No guardian login. Do not confuse with Register (presence board).
+Sign-in, resident self-onboard, and the onboard room picker under /api/v1/auth. Staff accounts stay office-created. No guardian login. Do not confuse with Register (presence board).
 
 | Method | Path | Purpose | Who |
 |---|---|---|---|
@@ -238,6 +239,7 @@ Sign-in and resident self-onboard under /api/v1/auth. Staff accounts stay office
 | GET | `/api/v1/auth/me` | [Current account](#get-api-v1-auth-me) | Signed-in account |
 | POST | `/api/v1/auth/change-password` | [Change own password](#post-api-v1-auth-change-password) | Signed-in account |
 | POST | `/api/v1/auth/onboard` | [Resident self-onboard](#post-api-v1-auth-onboard) | anyone (no token) |
+| GET | `/api/v1/auth/onboard/options` | [Onboard room picker](#get-api-v1-auth-onboard-options) | anyone (no token) |
 
 ### <a id="post-api-v1-auth-login"></a>POST `/api/v1/auth/login` — Sign in
 
@@ -624,6 +626,69 @@ Body: [ErrorResponse](#schema-errorresponse).
 The JSON is the wrong shape, or a field fails a constraint that does not depend on existing rows.
 
 Body: [ErrorResponse](#schema-errorresponse).
+
+
+### <a id="get-api-v1-auth-onboard-options"></a>GET `/api/v1/auth/onboard/options` — Onboard room picker
+
+`onboard_options`
+
+**Who.** anyone (no token). No token.
+
+Caller: anyone (no token). Public list for the resident self-onboard
+form only. Returns active blocks that still have at least one active
+room with no resident assigned. A room that already has a resident is
+omitted, even when a bed remains. Inactive blocks and inactive rooms
+are omitted. A block with no remaining room is omitted.
+
+Each block is `id` and `name` only. Each room is `id` and `label` only.
+Blocks are ordered by name. Rooms inside a block are ordered by label.
+This is not the provost block or room record.
+
+Rate-limited like sign-in.
+
+**Responses**
+
+#### 200
+
+Blocks and rooms the onboard form may offer.
+
+Body: list of [OnboardBlockOption](#schema-onboardblockoption).
+
+No fields.
+
+**Example**
+
+```json
+[
+  {
+    "id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+    "name": "Block-B",
+    "rooms": [
+      {
+        "id": "d4400000-0000-4000-8000-000000000204",
+        "label": "B-204"
+      }
+    ]
+  }
+]
+```
+
+#### 429
+
+Too many onboard-options attempts from this client in a short window.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+**Example**
+
+```json
+{
+  "error": {
+    "code": "rate_limited",
+    "message": "Too many attempts. Try again shortly."
+  }
+}
+```
 
 
 ## <a id="tag-resident"></a>Resident
@@ -4896,6 +4961,21 @@ Each JSON object used above. An operation section already shows the fields for i
 | `enrolment_number` | yes | string | Stored spelling of the enrolment number. |
 | `status` | yes | `active` |  |
 | `message` | yes | string | Ready copy for the phone. Exact sentence for clients. |
+
+### <a id="schema-onboardblockoption"></a>OnboardBlockOption
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `id` | yes | uuid |  |
+| `name` | yes | string |  |
+| `rooms` | yes | list of [OnboardRoomOption](#schema-onboardroomoption) |  |
+
+### <a id="schema-onboardroomoption"></a>OnboardRoomOption
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `id` | yes | uuid |  |
+| `label` | yes | string |  |
 
 ### <a id="schema-passwordresetrequest"></a>PasswordResetRequest
 

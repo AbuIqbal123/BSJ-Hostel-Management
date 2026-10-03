@@ -51,7 +51,7 @@ tags:
     description: Process health. No hall data.
   - name: Auth
     description: >
-      Sign-in and resident self-onboard under /api/v1/auth. Staff accounts stay
+      Sign-in, resident self-onboard, and the onboard room picker under /api/v1/auth. Staff accounts stay
       office-created. No guardian login. Do not confuse with Register (presence board).
   - name: Resident
     description: The resident phone. Ordinary outings, home, destinations, and the hall pass.
@@ -358,6 +358,51 @@ paths:
                   message: Too many attempts. Try again shortly.
         "422":
           $ref: "#/components/responses/Unprocessable"
+
+  /api/v1/auth/onboard/options:
+    get:
+      tags: [Auth]
+      operationId: onboard_options
+      summary: Onboard room picker
+      description: |
+        Caller: anyone (no token). Public list for the resident self-onboard
+        form only. Returns active blocks that still have at least one active
+        room with no resident assigned. A room that already has a resident is
+        omitted, even when a bed remains. Inactive blocks and inactive rooms
+        are omitted. A block with no remaining room is omitted.
+
+        Each block is `id` and `name` only. Each room is `id` and `label` only.
+        Blocks are ordered by name. Rooms inside a block are ordered by label.
+        This is not the provost block or room record.
+
+        Rate-limited like sign-in.
+      security: []
+      responses:
+        "200":
+          description: Blocks and rooms the onboard form may offer.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OnboardBlockOption"
+              example:
+                - id: d032aad6-a203-5ea0-ba9a-3a9257edbfc8
+                  name: Block-B
+                  rooms:
+                    - id: d4400000-0000-4000-8000-000000000204
+                      label: B-204
+        "429":
+          description: |
+            Too many onboard-options attempts from this client in a short window.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: rate_limited
+                  message: Too many attempts. Try again shortly.
 
   /api/v1/me/home:
     get:
@@ -2883,6 +2928,32 @@ components:
         message:
           type: string
           description: Ready copy for the phone. Exact sentence for clients.
+
+    OnboardBlockOption:
+      type: object
+      additionalProperties: false
+      required: [id, name, rooms]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        rooms:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/OnboardRoomOption"
+    OnboardRoomOption:
+      type: object
+      additionalProperties: false
+      required: [id, label]
+      properties:
+        id:
+          type: string
+          format: uuid
+        label:
+          type: string
 
     PasswordResetRequest:
       type: object
