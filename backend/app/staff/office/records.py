@@ -517,7 +517,7 @@ class ResidentCreate(BaseModel):
     enrolment_number: str = Field(min_length=1, max_length=40)
     course: str | None = Field(default=None, max_length=120)
     room_id: str
-    phone: str | None = Field(default=None, pattern=r"^\+[1-9][0-9]{7,14}$")
+    phone: str = Field(pattern=r"^\+[1-9][0-9]{7,14}$")
     guardian_name: str = Field(min_length=1, max_length=120)
     guardian_phone: str = Field(pattern=r"^\+[1-9][0-9]{7,14}$")
     temporary_password: str = Field(min_length=10, max_length=200)

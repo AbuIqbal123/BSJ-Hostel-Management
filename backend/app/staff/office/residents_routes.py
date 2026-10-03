@@ -67,7 +67,6 @@ def admin_create_resident(
     enrolment = body.enrolment_number.strip()
     guardian_name = body.guardian_name.strip()
     course = None if body.course is None else body.course.strip() or None
-    phone = None if body.phone is None else body.phone
     if not full_name or not enrolment or not guardian_name:
         raise ApiError(422, "validation_error", "Required fields are missing.")
     if not room_exists(connection, body.room_id):
@@ -108,7 +107,7 @@ def admin_create_resident(
                 enrolment,
                 course,
                 body.room_id,
-                phone,
+                body.phone,
                 guardian_name,
                 body.guardian_phone,
                 qr_payload,
