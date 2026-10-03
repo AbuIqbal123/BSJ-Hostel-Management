@@ -615,6 +615,6 @@ const styles = StyleSheet.create({
   },
   back: {
     alignItems: "center",
-    marginTop: 40,
+    marginTop: 64,
   },
 });
