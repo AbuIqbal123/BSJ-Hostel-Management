@@ -121,7 +121,7 @@ function readOptions(value: unknown): BlockOption[] | null {
       }
       rooms.push({ id: room.id, label: room.label });
     }
-    if (rooms.length === 0) {
+    if (item.name.trim().toLowerCase() === "utility") {
       continue;
     }
     blocks.push({ id: item.id, name: item.name, rooms });
@@ -133,7 +133,7 @@ function openingBlock(options: BlockOption[]): BlockOption | null {
   return (
     options.find((item) => {
       const name = item.name.trim().toLowerCase();
-      return name === "b" || name === "block b";
+      return name === "b" || name === "block b" || name === "block-b";
     }) ?? null
   );
 }
@@ -890,7 +890,7 @@ export default function OnboardScreen() {
         selectedId={roomId}
         onPick={chooseRoom}
         colors={colors}
-        openShowsAll={false}
+        openShowsAll
         note={roomNote}
       />
       <ChoiceField
@@ -900,7 +900,7 @@ export default function OnboardScreen() {
         selectedId={course}
         onPick={chooseCourse}
         colors={colors}
-        openShowsAll={false}
+        openShowsAll
         note={courseNote}
       />
     </View>
