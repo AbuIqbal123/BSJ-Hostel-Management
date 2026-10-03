@@ -30,7 +30,7 @@ RESIDENT_ID = "b22de000-0000-4000-8000-000000000002"
 SUSPENDED_ID = "c33ef000-0000-4000-8000-000000000003"
 ROOM_ID = "d4400000-0000-4000-8000-000000000004"
 CREATED = "2026-09-30T00:00:00Z"
-GATE_NEW_PHRASE = joined("gate", "pass", "20")
+GATE_NEW_PHRASE = joined("Gate", "pass", "20")
 WRONG_PHRASE = joined("not", "the", "one")
 SECRETS = (
     GATE_PHRASE,
@@ -367,6 +367,18 @@ def test_auth_session(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
             "Use at least 10 characters.",
             "new_password",
         )
+        for weak_password in ("lowercase1!", "UPPERCASE1!", "NoDigits!!!", "NoSymbol123"):
+            assert_error(
+                client.post(
+                    "/api/v1/auth/change-password",
+                    headers=bearer(fourth["access_token"]),
+                    json={"current_password": GATE_PHRASE, "new_password": weak_password},
+                ),
+                422,
+                "validation_error",
+                "Include an uppercase letter, a lowercase letter, a number, and a symbol.",
+                "new_password",
+            )
         assert_error(
             client.post(
                 "/api/v1/auth/change-password",

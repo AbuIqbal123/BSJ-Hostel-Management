@@ -17,6 +17,7 @@ from app.shared.db import get_connection
 from app.shared.errors import ApiError
 from app.shared.auth.rate_limit import client_key, login_limiter, refresh_limiter
 from app.staff.office.records import new_hall_pass_token, room_has_capacity
+from app.shared.auth.password_rules import IndianMobile, StrongPassword
 from app.shared.auth.security import (
     ACCESS_TOKEN_SECONDS,
     REFRESH_TOKEN_DAYS,
@@ -51,7 +52,7 @@ class RefreshRequest(BaseModel):
 class ChangePasswordRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     current_password: str = Field(min_length=1, max_length=200)
-    new_password: str = Field(min_length=10, max_length=200)
+    new_password: StrongPassword
 
 
 class UserSummary(BaseModel):
@@ -352,13 +353,13 @@ class ResidentOnboardRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     full_name: str = Field(min_length=1, max_length=120)
     enrolment_number: str = Field(min_length=1, max_length=40)
-    password: str = Field(min_length=10, max_length=200)
+    password: StrongPassword
     course: str | None = Field(default=None, max_length=120)
-    phone: str = Field(pattern=r"^\+[1-9][0-9]{7,14}$")
+    phone: IndianMobile
     block_id: str
     room_id: str
     guardian_name: str = Field(min_length=1, max_length=120)
-    guardian_phone: str = Field(pattern=r"^\+[1-9][0-9]{7,14}$")
+    guardian_phone: IndianMobile
 
 
 class ResidentOnboardResponse(BaseModel):

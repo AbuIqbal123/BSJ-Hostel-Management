@@ -23,7 +23,7 @@ BLOCK_B = "d032aad6-a203-5ea0-ba9a-3a9257edbfc8"
 ROOM_B = "d4400000-0000-4000-8000-000000000204"
 ROOM_A = "d4400000-0000-4000-8000-000000000104"
 NOW = datetime(2026, 9, 30, 12, 0, tzinfo=timezone.utc)
-PHRASE = joined("resident", "onboard", "10")
+PHRASE = joined("Resident", "onboard", "10")
 SHORT_PHRASE = joined("short", "pw")
 
 
@@ -146,6 +146,37 @@ def test_resident_onboard(database_path: Path, monkeypatch: pytest.MonkeyPatch) 
             "validation_error",
             expected["short_password_message"],
             "password",
+        )
+
+        for weak_password in ("lowercase1!", "UPPERCASE1!", "NoDigits!!!", "NoSymbol123"):
+            weak = client.post("/api/v1/auth/onboard", json=_body(password=weak_password))
+            assert_error(
+                weak,
+                422,
+                "validation_error",
+                expected["weak_password_message"],
+                "password",
+            )
+
+        for bad_phone in ("+14155552671", "+91987654321", "+9198765432101", "919876543210"):
+            refused = client.post("/api/v1/auth/onboard", json=_body(phone=bad_phone))
+            assert_error(
+                refused,
+                422,
+                "validation_error",
+                expected["indian_mobile_message"],
+                "phone",
+            )
+        refused_guardian = client.post(
+            "/api/v1/auth/onboard",
+            json=_body(guardian_phone="+447911123456"),
+        )
+        assert_error(
+            refused_guardian,
+            422,
+            "validation_error",
+            expected["indian_mobile_message"],
+            "guardian_phone",
         )
 
         wrong_block = client.post(

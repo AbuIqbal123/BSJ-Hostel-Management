@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Response
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 from app.shared import clock
+from app.shared.auth.password_rules import StrongPassword
 from app.shared.auth.routes import ConnectionDep
 from app.shared.auth.security import hash_password
 from app.shared.errors import ApiError
@@ -17,7 +18,7 @@ router = APIRouter(prefix="/api/v1/admin", tags=["Hall office"])
 
 class PasswordResetRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    temporary_password: str = Field(min_length=10, max_length=200)
+    temporary_password: StrongPassword
 
 
 @router.post("/users/{user_id}/password", status_code=204)

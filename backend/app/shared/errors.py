@@ -11,6 +11,12 @@ from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from app.shared.auth.password_rules import (
+    INDIAN_MOBILE_MESSAGE,
+    INDIAN_MOBILE_PATTERN,
+    PASSWORD_CLASSES_MESSAGE,
+)
+
 
 class ApiError(Exception):
     def __init__(
@@ -68,10 +74,21 @@ def _validation_message(error: dict) -> tuple[str, str | None]:
         label = field.replace("_", " ").capitalize()
         if kind == "missing":
             return f"{label} is required.", field
-        if kind == "string_too_short" and field in {"new_password", "password"}:
+        if kind == "string_too_short" and field in {
+            "new_password",
+            "password",
+            "temporary_password",
+        }:
             minimum = error.get("ctx", {}).get("min_length")
-            if field == "new_password" or minimum == 10:
+            if field in {"new_password", "temporary_password"} or minimum == 10:
                 return "Use at least 10 characters.", field
+        if kind == "password_classes":
+            return PASSWORD_CLASSES_MESSAGE, field
+        if (
+            kind == "string_pattern_mismatch"
+            and error.get("ctx", {}).get("pattern") == INDIAN_MOBILE_PATTERN
+        ):
+            return INDIAN_MOBILE_MESSAGE, field
         if kind == "string_too_short" and error.get("ctx", {}).get("min_length") == 1:
             return f"{label} is required.", field
         if kind == "extra_forbidden":
