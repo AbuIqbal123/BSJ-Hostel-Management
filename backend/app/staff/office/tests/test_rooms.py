@@ -147,15 +147,21 @@ def test_admin_rooms(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
             headers=headers,
         )
         assert listed.status_code == 200
-        assert [item["label"] for item in listed.json()] == ["B-204"]
-        assert listed.json()[0]["bed_count"] == 2
+        listed_body = listed.json()
+        listed_labels = [item["label"] for item in listed_body]
+        assert "B-204" in listed_labels
+        assert listed_labels.count("B-204") == 1
+        assert any(item["label"] == "B-1" for item in listed_body)
+        assert next(item for item in listed_body if item["label"] == "B-204")["bed_count"] == 2
+        assert len(listed_body) == 59
 
-        empty_a = client.get(
+        block_a = client.get(
             f"/api/v1/admin/rooms?block_id={BLOCK_A}",
             headers=headers,
         )
-        assert empty_a.status_code == 200
-        assert empty_a.json() == []
+        assert block_a.status_code == 200
+        assert len(block_a.json()) == 50
+        assert block_a.json()[0]["label"] == "A-1"
 
         created = client.post(
             "/api/v1/admin/rooms",
@@ -228,7 +234,11 @@ def test_admin_rooms(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
         all_rooms = client.get("/api/v1/admin/rooms", headers=headers)
         assert all_rooms.status_code == 200
         labels = [item["label"] for item in all_rooms.json()]
-        assert labels == ["B-087", "B-204", "B-206"]
+        assert "B-087" in labels
+        assert "B-204" in labels
+        assert "B-206" in labels
+        assert "A-1" in labels
+        assert len(labels) == 50 + 58 + 42 + 40 + 3
         inactive = next(item for item in all_rooms.json() if item["id"] == room_087)
         assert inactive["status"] == "inactive"
 

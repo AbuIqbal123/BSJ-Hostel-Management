@@ -189,13 +189,13 @@ That is 206 rooms and 412 beds. The session 2025–26 roll of 506 resident stude
 
 ### Rooms
 
-The hall page does not list door numbers. This document does not invent them. The provost enters each door number so that each block ends with exactly its published room count. The number is the number painted on the door, kept as written, so a leading zero is not lost.
+The hall page publishes how many rooms each block has, but not the painted door numbers. For resident blocks A, B, C, and D the service seeds door numbers `1` through that block's published room count (labels such as `A-1` and `B-58`) so self-onboard can offer real room rows. Utility keeps no rooms until the provost enters them. The provost may still add, rename, or retire rooms; a door number is kept as written, so a leading zero is not lost.
 
 | Detail | Kept as | Required | Where it comes from | Rule |
 |---|---|---|---|---|
 | id | Identifier | Yes | System | Identifies this room. |
 | block_id | Identifier | Yes | The block the provost is adding the room to | The block this room belongs to. |
-| number | Text | Yes | Provost, from the door | Such as `204` or `087`. |
+| number | Text | Yes | Seeded as `1` through the published count for A–D; otherwise the provost, from the door | Such as `1`, `58`, `204`, or `087`. |
 | label | Text | Yes | System, from the block code, a hyphen, and the number | Such as `B-204` or `Utility-12`. No two rooms share a label. |
 | bed_count | Whole number | Yes | Copied from the block's beds per room when the room is created | How many residents this room can hold. Starts at 2. |
 | is_active | Yes or no | Yes | Provost | Yes while the room can be assigned. No when it is retired. HTTP `status` is `active` or `inactive`. |
@@ -627,7 +627,7 @@ Besides the unique indexes that enforce one username, one open outside outing, a
 
 ## Implementation note (dev)
 
-Self-onboard is specified here and in the HTTP contract. A future pending status is reserved for a later Hall Office activation workflow. A schema migration is not shipped in this stack. When handlers land, the next free migration number after `0011_guest_stay_payment_evidence.sql` is `0012_…` (confirm against `backend/app/shared/migrations/` on `dev` at that time). Leave this document's version at **0.3.4** until production.
+Self-onboard is specified here and in the HTTP contract. A future pending status is reserved for a later Hall Office activation workflow. Migration `0012_resident_block_rooms.sql` seeds door numbers 1 through each published count for blocks A, B, C, and D. Utility has no seeded rooms. The next free migration number is `0013_…`. Leave this document's version at **0.3.4** until production.
 
 ## Revisions
 
