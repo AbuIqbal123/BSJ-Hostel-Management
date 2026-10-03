@@ -68,8 +68,10 @@ def _validation_message(error: dict) -> tuple[str, str | None]:
         label = field.replace("_", " ").capitalize()
         if kind == "missing":
             return f"{label} is required.", field
-        if kind == "string_too_short" and field == "new_password":
-            return "Use at least 10 characters.", field
+        if kind == "string_too_short" and field in {"new_password", "password"}:
+            minimum = error.get("ctx", {}).get("min_length")
+            if field == "new_password" or minimum == 10:
+                return "Use at least 10 characters.", field
         if kind == "string_too_short" and error.get("ctx", {}).get("min_length") == 1:
             return f"{label} is required.", field
         if kind == "extra_forbidden":
