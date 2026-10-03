@@ -460,7 +460,7 @@ export default function OnboardScreen() {
   }
 
   const canSubmit = block !== null && room !== null;
-  const action = step < 2 ? "Continue" : "Onboard";
+  const action = step < 2 ? "Continue" : "Sign up";
 
   return (
     <ScrollView
