@@ -329,6 +329,20 @@ def test_null_resident_fields_and_retired_room(
         provost = sign_in(client, "provost.halima", PROVOST_PHRASE)
         headers = {"Authorization": f"Bearer {provost['access_token']}"}
 
+        missing_phone = {
+            key: value for key, value in expected["create"].items() if key != "phone"
+        }
+        refused_phone = client.post(
+            "/api/v1/admin/residents",
+            headers=headers,
+            json={
+                **missing_phone,
+                "room_id": ROOM_B204,
+                "temporary_password": TEMP_PASSWORD,
+            },
+        )
+        assert_error(refused_phone, 422, "validation_error")
+
         cleared_name = client.patch(
             f"/api/v1/admin/residents/{AISHA_ID}",
             headers=headers,
