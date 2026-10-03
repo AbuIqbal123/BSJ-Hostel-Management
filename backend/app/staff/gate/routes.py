@@ -98,9 +98,7 @@ def _return_timeliness(
 
 
 def _exit_outing(outing: OutingBody, recorded_at: str) -> ScanExitOuting:
-    data = outing.model_dump()
-    data.pop("is_late", None)
-    return ScanExitOuting(**data, recorded_at=recorded_at)
+    return ScanExitOuting(**outing.model_dump(), recorded_at=recorded_at)
 
 
 def gate_account(account: AccountDep) -> Account:
