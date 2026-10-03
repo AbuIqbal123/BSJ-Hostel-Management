@@ -69,7 +69,7 @@ export default function ResidentLayout() {
           shadowOpacity: 0,
           height: 52 + tabBottom,
           paddingBottom: tabBottom,
-          paddingTop: 0,
+          paddingTop: 8,
         },
       }}
       tabBar={({ state, descriptors, navigation }) => (
@@ -80,14 +80,17 @@ export default function ResidentLayout() {
                 backgroundColor: colors.paper,
                 borderTopColor: colors.line,
                 height: 52 + tabBottom,
-                paddingTop: 0,
+                paddingTop: 8,
                 paddingBottom: tabBottom,
               },
             ]}
           >
             {state.routes.map((route, index) => {
               const { options } = descriptors[route.key];
-              if (StyleSheet.flatten(options.tabBarItemStyle)?.display === "none") {
+              const hidden =
+                route.name === "plan" ||
+                StyleSheet.flatten(options.tabBarItemStyle)?.display === "none";
+              if (hidden) {
                 return null;
               }
               const focused = state.index === index;
@@ -172,7 +175,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "flex-start",
-    paddingTop: 0,
+    paddingTop: 8,
     paddingHorizontal: 0,
     borderTopWidth: StyleSheet.hairlineWidth,
     elevation: 0,
@@ -184,6 +187,7 @@ const styles = StyleSheet.create({
     maxWidth: "25%",
     minWidth: 0,
     alignItems: "center",
+    paddingHorizontal: 0,
   },
   caption: {
     marginTop: 4,
@@ -192,6 +196,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   label: {
+    width: "100%",
     textAlign: "center",
     fontFamily: "SourceSans3_400Regular",
     fontSize: 12,

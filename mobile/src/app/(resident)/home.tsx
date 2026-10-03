@@ -13,21 +13,13 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { dismissOpenChoice } from "@/components/choice-field";
+import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { TextField } from "@/components/text-field";
 import { formatWhen, utcInstant } from "@/format-when";
 import { outingLocked, useSession, type UpcomingOuting } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
-import {
-  OTHER_NAME,
-  WhenField,
-  dismissOpenWhen,
-  hallDay,
-  leaveNote,
-  returnNote,
-  useOneOpen,
-} from "@/outing-when";
+import { OTHER_NAME, WhenField, hallDay, leaveNote, returnNote } from "@/outing-when";
 
 const WHERE_MS = 220;
 
@@ -97,7 +89,6 @@ export default function HomeScreen() {
   const [leaveAt, setLeaveAt] = useState<Date | null>(null);
   const [backBy, setBackBy] = useState<Date | null>(null);
   const [where, setWhere] = useState("");
-  const [placeOpen, setPlaceOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [whereHeight, setWhereHeight] = useState(0);
   const whereOpen = useRef(new Animated.Value(0)).current;
@@ -129,9 +120,7 @@ export default function HomeScreen() {
   useFocusEffect(refresh);
 
   useEffect(() => {
-    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
-      return dismissOpenWhen() || dismissOpenChoice();
-    });
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => dismissOpenChoice());
     return () => subscription.remove();
   }, []);
 
@@ -206,12 +195,10 @@ export default function HomeScreen() {
       setError(message);
       return;
     }
-    dismissOpenWhen();
     setDestinationId(null);
     setLeaveAt(null);
     setBackBy(null);
     setWhere("");
-    setPlaceOpen(false);
     setError(null);
     refresh();
   }, [backBy, destinationId, leaveAt, other, planOuting, planReady, refresh, where]);
@@ -222,11 +209,6 @@ export default function HomeScreen() {
       setWhereHeight(height);
     }
   }, []);
-
-  const closePlace = useCallback(() => {
-    setPlaceOpen(false);
-  }, []);
-  useOneOpen(placeOpen, closePlace);
 
   if (!user) {
     return null;
@@ -258,46 +240,23 @@ export default function HomeScreen() {
           Plan an outing
         </Text>
       </Pressable>
-      <View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={chosen ? `Place, ${chosen.name}` : "Place, Choose a place"}
-          accessibilityState={{ expanded: placeOpen }}
-          onPress={() => {
-            setPlaceOpen((current) => !current);
-          }}
-          style={styles.row}
-        >
-          <Text style={[text.label, { color: placeOpen ? colors.forest : colors.inkSoft }]}>Place</Text>
-          <Text style={[text.field, { color: chosen ? colors.ink : colors.inkFaint }]}>
-            {chosen?.name ?? "Choose a place"}
-          </Text>
-        </Pressable>
-        {placeOpen ? (
-          <View style={styles.choices}>
-            {places.map((item) => (
-              <Pressable
-                key={item.id}
-                accessibilityRole="button"
-                accessibilityLabel={item.name}
-                accessibilityState={{ selected: item.id === destinationId }}
-                onPress={() => {
-                  setDestinationId(item.id);
-                  if (item.name !== OTHER_NAME) {
-                    setWhere("");
-                  }
-                  setError(null);
-                  setPlaceOpen(false);
-                }}
-              >
-                <Text style={[text.field, { color: item.id === destinationId ? colors.forest : colors.ink }]}>
-                  {item.name}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        ) : null}
-        <Animated.View
+      <ChoiceField
+        label="Place"
+        valueLabel={chosen?.name ?? null}
+        items={places.map((item) => ({ id: item.id, label: item.name }))}
+        selectedId={destinationId}
+        onPick={(id) => {
+          setDestinationId(id);
+          if (places.find((item) => item.id === id)?.name !== OTHER_NAME) {
+            setWhere("");
+          }
+          setError(null);
+        }}
+        colors={colors}
+        openShowsAll
+        note={null}
+      />
+      <Animated.View
           pointerEvents={other ? "auto" : "none"}
           style={{
             height: whereOpen.interpolate({
@@ -328,8 +287,7 @@ export default function HomeScreen() {
               }}
             />
           </View>
-        </Animated.View>
-      </View>
+      </Animated.View>
       <WhenField
         label="Leave at"
         value={leaveAt}
@@ -365,10 +323,7 @@ export default function HomeScreen() {
     >
       <Pressable
         style={styles.dismiss}
-        onPress={() => {
-          dismissOpenWhen();
-          dismissOpenChoice();
-        }}
+        onPress={dismissOpenChoice}
       >
         <View style={styles.block}>
           <View style={styles.identity}>
@@ -418,12 +373,6 @@ const styles = StyleSheet.create({
   fields: { gap: 16 },
   planTitle: { textAlign: "left" },
   planNote: { textAlign: "center" },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  choices: { gap: 16, marginTop: 16 },
   list: { gap: 16 },
   rowLines: { gap: 2 },
   place: {
