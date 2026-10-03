@@ -63,6 +63,19 @@ export type ResidentHomeResult =
   | { error: string; home?: undefined }
   | { error: null; home: ResidentHome };
 
+export type HallPass = {
+  fullName: string;
+  roomLabel: string;
+  qrVisible: boolean;
+  qrPayload: string | null;
+  qrVisibleFrom: string | null;
+  qrVisibleUntil: string | null;
+};
+
+export type HallPassResult =
+  | { error: string; pass?: undefined }
+  | { error: null; pass: HallPass };
+
 export type DestinationItem = {
   id: string;
   name: string;
@@ -98,6 +111,7 @@ type SessionValue = {
   planOuting: (body: PlanOutingBody) => Promise<string | null>;
   updateOuting: (outingId: string, body: UpdateOutingBody) => Promise<string | null>;
   cancelOuting: (outingId: string) => Promise<HallFailure | null>;
+  loadHallPass: () => Promise<HallPassResult>;
 };
 
 const SessionContext = createContext<SessionValue | null>(null);
@@ -235,20 +249,51 @@ function readResidentHome(value: unknown): ResidentHome | null {
   }
   const blockName = typeof resident.block_name === "string" ? resident.block_name : null;
   const roomLabel = typeof resident.room_label === "string" ? resident.room_label : null;
-  let outingOutside = false;
   if (value.current_outing !== null) {
     if (!isRecord(value.current_outing) || typeof value.current_outing.status !== "string") {
       return null;
     }
-    outingOutside = value.current_outing.status === "outside";
   }
   return {
     fullName: resident.full_name,
     blockName,
     roomLabel,
-    out: resident.presence === "outside" || outingOutside,
+    out: resident.presence === "outside",
     windowOpen: value.ordinary_outing_active,
     upcoming: readUpcoming(value),
+  };
+}
+
+function readHallPass(value: unknown): HallPass | null {
+  if (!isRecord(value) || typeof value.qr_visible !== "boolean") {
+    return null;
+  }
+  if (typeof value.full_name !== "string" || value.full_name.length === 0) {
+    return null;
+  }
+  if (typeof value.room_label !== "string") {
+    return null;
+  }
+  if (value.qr_payload !== null && typeof value.qr_payload !== "string") {
+    return null;
+  }
+  if (value.qr_visible_from !== null && typeof value.qr_visible_from !== "string") {
+    return null;
+  }
+  if (value.qr_visible_until !== null && typeof value.qr_visible_until !== "string") {
+    return null;
+  }
+  const payload = typeof value.qr_payload === "string" && value.qr_payload.length > 0 ? value.qr_payload : null;
+  if (value.qr_visible && payload === null) {
+    return null;
+  }
+  return {
+    fullName: value.full_name,
+    roomLabel: value.room_label,
+    qrVisible: value.qr_visible,
+    qrPayload: value.qr_visible ? payload : null,
+    qrVisibleFrom: typeof value.qr_visible_from === "string" ? value.qr_visible_from : null,
+    qrVisibleUntil: typeof value.qr_visible_until === "string" ? value.qr_visible_until : null,
   };
 }
 
@@ -454,6 +499,29 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const loadHallPass = useCallback(async (): Promise<HallPassResult> => {
+    const current = sessionRef.current;
+    if (!current) {
+      return { error: "Sign in again." };
+    }
+    try {
+      const response = await hallFetch("/api/v1/me/hall-pass", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${current.accessToken}` },
+      });
+      if (!response.ok) {
+        return { error: await errorMessage(response) };
+      }
+      const pass = readHallPass(await response.json());
+      if (!pass) {
+        return { error: "The hall could not be reached." };
+      }
+      return { error: null, pass };
+    } catch {
+      return { error: "The hall could not be reached." };
+    }
+  }, []);
+
   const loadDestinations = useCallback(async (): Promise<DestinationResult> => {
     const current = sessionRef.current;
     if (!current) {
@@ -571,6 +639,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       planOuting,
       updateOuting,
       cancelOuting,
+      loadHallPass,
     }),
     [
       ready,
@@ -584,6 +653,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       planOuting,
       updateOuting,
       cancelOuting,
+      loadHallPass,
     ],
   );
 
