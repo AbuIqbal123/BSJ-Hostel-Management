@@ -53,6 +53,7 @@ export default function HomeScreen() {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
   const { user, loadResidentHome } = useSession();
+  const [fullName, setFullName] = useState<string | null>(null);
   const [blockName, setBlockName] = useState<string | null>(null);
   const [roomLabel, setRoomLabel] = useState<string | null>(null);
   const [upcoming, setUpcoming] = useState<UpcomingOuting[]>([]);
@@ -64,6 +65,7 @@ export default function HomeScreen() {
         if (!active || result.error !== null) {
           return;
         }
+        setFullName(result.home.fullName);
         setBlockName(result.home.blockName);
         setRoomLabel(result.home.roomLabel);
         setUpcoming(result.home.upcoming);
@@ -89,9 +91,11 @@ export default function HomeScreen() {
     >
       <View style={styles.block}>
         <View style={styles.fields}>
-          <Text selectable style={[text.hallName, styles.name, { color: colors.ink }]}>
-            {user.full_name}
-          </Text>
+          {fullName ? (
+            <Text selectable style={[text.hallName, styles.name, { color: colors.ink }]}>
+              {fullName}
+            </Text>
+          ) : null}
           {blockName ? (
             <Text selectable style={[text.body, { color: colors.ink }]}>
               {blockName}
