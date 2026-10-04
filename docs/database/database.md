@@ -421,7 +421,7 @@ Guests are not accounts and have no hall pass.
 | payment_evidence_content_type | Text | Empty when no file. | System, from the allowlist | `image/jpeg`, `image/png`, or `application/pdf`. |
 | payment_evidence_uploaded_at | Instant | Empty when no file. | System, when the file is stored | |
 | payment_evidence_uploaded_by | Identifier | Empty when no file. | The warden or provost who uploaded it | Required together with the path when evidence exists. |
-| decided_by | Identifier | Empty while waiting, empty if the resident cancels before a decision, and empty after the resident edits (which returns the stay to waiting). Yes once approved or rejected. | The warden or provost who decided | The audit of the decision. A waiting stay has no decision yet, so the field is empty until then. |
+| decided_by | Identifier | Empty while waiting, and empty if the resident cancels. Yes once approved or rejected. | The warden or provost who decided | The audit of the decision. A waiting stay has no decision yet. A resident edit is allowed only while waiting and before arrival, and it leaves this field empty. |
 | decided_at | Instant | Empty in the same cases as decided_by. Yes once approved or rejected. | System, at the decision | |
 | decision_note | Text | Empty if they write nothing | The warden or provost may type it | Optional. |
 | arrived_at | Instant | Yes once arrival is recorded. Empty before that. | The gate scan, or the gate, warden, or provost recording the arrival | |
@@ -431,28 +431,28 @@ Guests are not accounts and have no hall pass.
 | created_at | Instant | Yes | System | When the resident applied. |
 | updated_at | Instant | Yes | System | When it last changed. |
 
-The length of the stay counts the start date and the end date. It must be at least 1 day and at most the hall's maximum. Before arrival, the start date must be at least the lead time after today's hall date. With the confirmed defaults, a new stay starts tomorrow or later, and the stay is at most 7 days. After arrival, a date edit may keep a start date that has already begun.
+The length of the stay counts the start date and the end date. It must be at least 1 day and at most the hall's maximum. Before arrival, the start date must be at least the lead time after today's hall date. With the confirmed defaults, a new stay starts tomorrow or later, and the stay is at most 7 days. A resident edit uses the same lead time, because an edit is allowed only before arrival.
 
 The state and the times agree:
 
-- Waiting: no decision. Usually no arrival and no departure. After the resident edits dates while the guest is already in the hall, waiting may keep the arrival time (and payment) until staff approve again; departure is still empty.
+- Waiting: no decision and no departure. Arrival is usually empty. The resident may edit only when arrival is also empty.
 - Rejected and cancelled: no arrival and no departure. Rejected has a decision and a staff member. Cancelled by the resident has neither.
 - Approved: a decision and a staff member are recorded, and the guest has not departed. Arrival may still be empty, or already recorded.
-- Departed: arrival and departure are both recorded, each with a staff member, and departure is at or after arrival. The decision may be empty when departure was recorded while a post-arrival edit was still waiting.
+- Departed: arrival and departure are both recorded, each with a staff member, and departure is at or after arrival. The decision may be empty when departure was recorded while the stay was still waiting and the guest had already arrived.
 
 ### Guest lifecycle
 
-- From waiting, the warden or provost approves or rejects, or the resident cancels, or the resident edits the application (stays waiting; decision fields stay empty).
-- From approved before arrival, the resident may edit name, relation, dates, and reason. The stay returns to waiting, the decision is cleared, and payment is left as it was; staff must approve again.
-- From approved after arrival and before departure, the resident may edit only the stay dates. Name, relation, and reason stay as they are. The stay returns to waiting for re-approval while the guest remains in the hall; payment and arrival stay as they are. Staff may only approve again (not reject) while arrival is recorded.
+- From waiting, before arrival, the resident may edit name, relation, dates, and reason. The stay stays waiting and the decision stays empty. The warden or provost may approve or reject, or the resident may cancel.
+- An approved stay cannot be edited. Before arrival the resident may still cancel it.
+- After arrival the resident cannot edit the stay, whether it is waiting or approved, and cannot cancel it.
 - Approved is the stay that can be in the hall. Arrival is a time on that stay, not a new state.
-- Departure moves an approved stay to departed. Gate may also record departure while a post-arrival date edit is still waiting, so the guest is not trapped in the hall.
+- Departure moves an approved stay to departed. Gate may also record departure while a stay is waiting and the guest has already arrived, so the guest is not trapped in the hall. That departure leaves the decision empty.
 
 Payment is a separate act by a warden or the provost. It can be marked before or after approval, and not after departure. Marking it unpaid again is allowed only before arrival. Marking it paid requires a payment note (off-system proof) and does not require a file. Marking it unpaid clears the payment staff member, the payment time, the payment note, and any optional payment evidence file. Optional payment evidence (a JPEG, PNG, or PDF under 5 MiB) may be uploaded before or after marking paid, while the stay is still pending or approved and the guest has not arrived. Uploading evidence never marks the stay paid and is never required to mark paid. Clearing evidence leaves payment_status unchanged.
 
 Arrival is allowed only when the stay is approved, payment is paid, arrival is still empty, and today's hall date falls on the start date, the end date, or a day between them.
 
-Departure is allowed when the guest has arrived, departure is still empty, and the stay is approved or waiting after a post-arrival date edit. The stay then becomes departed. A departure during that waiting period leaves the decision empty, because the edit cleared it.
+Departure is allowed when the guest has arrived, departure is still empty, and the stay is approved or waiting. The stay then becomes departed. A departure while the stay is still waiting leaves the decision empty.
 
 ### Guest lists
 
@@ -469,7 +469,7 @@ These are worked out when someone looks. They are not stored.
 | Departed | The stay is departed. |
 | Rejected or cancelled | That stored outcome. |
 
-The dining count, guests in hall, is every stay that has arrived and has not departed. That includes guests who should have left, and a stay that is waiting again after a post-arrival edit. The guest stays on the dining count until the gate records departure. `GET /api/v1/gate/occupancy` returns that dining count and the should-have-left subset (arrived, not departed, and today's hall date is after the end date).
+The dining count, guests in hall, is every stay that has arrived and has not departed. That includes guests who should have left, and a waiting stay that has already arrived. The guest stays on the dining count until the gate records departure. `GET /api/v1/gate/occupancy` returns that dining count and the should-have-left subset (arrived, not departed, and today's hall date is after the end date).
 
 The gate's expected list is every approved stay that has not arrived and whose dates include today's hall date, whether paid or unpaid. A `payment_status` filter on that list keeps only paid or only unpaid. Arrival still requires paid, so an unpaid guest on that list cannot be recorded in until payment is marked. The gate's departure list is In the hall plus Should have left. The derived bucket Expected today, used on the staff guest-stay queue, still requires paid.
 

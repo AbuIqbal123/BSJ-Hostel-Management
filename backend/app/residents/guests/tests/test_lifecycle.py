@@ -28,6 +28,7 @@ APPROVED_STAY = "aa100000-0000-4000-8000-0000000000a1"
 ARRIVED_STAY = "aa100000-0000-4000-8000-0000000000a2"
 OTHER_STAY = "aa100000-0000-4000-8000-0000000000a3"
 REJECTED_STAY = "aa100000-0000-4000-8000-0000000000a4"
+PENDING_ARRIVED_STAY = "aa100000-0000-4000-8000-0000000000a5"
 PAID_INSIDE_STAY = "aa100000-0000-4000-8000-0000000000b1"
 UNPAID_INSIDE_STAY = "aa100000-0000-4000-8000-0000000000b2"
 PAID_PAST_STAY = "aa100000-0000-4000-8000-0000000000b3"
@@ -358,6 +359,29 @@ def test_guest_stays_resident(database_path: Path, monkeypatch: pytest.MonkeyPat
         got = client.get(f"/api/v1/me/guest-stays/{stay_id}", headers=headers)
         assert got.status_code == 200
         assert got.json() == created_body
+
+        edited_pending = client.patch(
+            f"/api/v1/me/guest-stays/{stay_id}",
+            headers=headers,
+            json={
+                "guest_name": "Zara Khan",
+                "relation": "Cousin",
+                "guest_start_date": "2026-10-03",
+                "guest_end_date": "2026-10-06",
+                "reason": "Family wedding, dates moved.",
+            },
+        )
+        assert edited_pending.status_code == 200
+        pending_body = edited_pending.json()
+        assert pending_body["status"] == "pending"
+        assert pending_body["bucket"] == "pending"
+        assert pending_body["guest_name"] == "Zara Khan"
+        assert pending_body["guest_start_date"] == "2026-10-03"
+        assert pending_body["guest_end_date"] == "2026-10-06"
+        assert pending_body["reason"] == "Family wedding, dates moved."
+        assert pending_body["payment_status"] == "unpaid"
+        assert pending_body["decided_by"] is None
+        assert pending_body["arrived_at"] is None
         assert_error(
             client.get(f"/api/v1/me/guest-stays/{OTHER_STAY}", headers=headers),
             404,
@@ -380,29 +404,30 @@ def test_guest_stays_resident(database_path: Path, monkeypatch: pytest.MonkeyPat
             "not_cancellable",
         )
 
-        # Pre-arrival edit of approved stay → pending, decision cleared, payment unchanged.
-        edited_approved = client.patch(
-            f"/api/v1/me/guest-stays/{APPROVED_STAY}",
-            headers=headers,
-            json={
-                "guest_name": "Approved Guest Edited",
-                "relation": "Aunt",
-                "guest_start_date": "2026-10-11",
-                "guest_end_date": "2026-10-13",
-                "reason": "Visit revised.",
-            },
+        # Approved, before arrival, cannot be edited. Cancel of that stay stays allowed.
+        assert_error(
+            client.patch(
+                f"/api/v1/me/guest-stays/{APPROVED_STAY}",
+                headers=headers,
+                json={
+                    "guest_name": "Approved Guest Edited",
+                    "relation": "Aunt",
+                    "guest_start_date": "2026-10-11",
+                    "guest_end_date": "2026-10-13",
+                    "reason": "Visit revised.",
+                },
+            ),
+            409,
+            "not_editable",
+            "Only a pending guest stay can be changed.",
         )
-        assert edited_approved.status_code == 200
-        body_edit = edited_approved.json()
-        assert body_edit["status"] == "pending"
-        assert body_edit["bucket"] == "pending"
-        assert body_edit["guest_name"] == "Approved Guest Edited"
-        assert body_edit["guest_start_date"] == "2026-10-11"
-        assert body_edit["guest_end_date"] == "2026-10-13"
-        assert body_edit["decided_by"] is None
-        assert body_edit["payment_status"] == "unpaid"
+        still_approved = client.get(f"/api/v1/me/guest-stays/{APPROVED_STAY}", headers=headers)
+        assert still_approved.status_code == 200
+        assert still_approved.json()["status"] == "approved"
+        assert still_approved.json()["guest_name"] == "Approved Guest"
+        assert still_approved.json()["decided_by"] == WARDEN_ID
 
-        # Post-arrival: dates only; name locked; pending with arrival kept.
+        # After arrival, including a stay that is still pending, cannot be edited.
         assert_error(
             client.patch(
                 f"/api/v1/me/guest-stays/{ARRIVED_STAY}",
@@ -415,22 +440,59 @@ def test_guest_stays_resident(database_path: Path, monkeypatch: pytest.MonkeyPat
                     "reason": "Visit.",
                 },
             ),
-            422,
-            "validation_error",
+            409,
+            "not_editable",
+            "The guest has already arrived, so this stay cannot be edited.",
         )
-        edited_arrived = client.patch(
-            f"/api/v1/me/guest-stays/{ARRIVED_STAY}",
-            headers=headers,
-            json={"guest_end_date": "2026-10-03"},
+        assert_error(
+            client.patch(
+                f"/api/v1/me/guest-stays/{ARRIVED_STAY}",
+                headers=headers,
+                json={"guest_end_date": "2026-10-03"},
+            ),
+            409,
+            "not_editable",
+            "The guest has already arrived, so this stay cannot be edited.",
         )
-        assert edited_arrived.status_code == 200
-        arrived_body = edited_arrived.json()
-        assert arrived_body["status"] == "pending"
-        assert arrived_body["guest_end_date"] == "2026-10-03"
-        assert arrived_body["guest_name"] == "Arrived Guest"
-        assert arrived_body["arrived_at"] is not None
-        assert arrived_body["decided_by"] is None
-        assert arrived_body["payment_status"] == "paid"
+        connection = sqlite3.connect(database_path)
+        try:
+            connection.execute(
+                """
+                INSERT INTO guest_stays (
+                  id, host_resident_id, guest_name, relation, guest_start_date, guest_end_date, reason,
+                  status, payment_status, payment_marked_by, payment_marked_at,
+                  decided_by, decided_at, decision_note,
+                  arrived_at, arrived_recorded_by, departed_at, departed_recorded_by,
+                  created_at, updated_at
+                ) VALUES (
+                  ?, ?, 'Pending Arrived Guest', 'Sister', '2026-09-29', '2026-10-02', 'Visit.',
+                  'pending', 'paid', ?, '2026-09-29T10:00:00Z',
+                  NULL, NULL, NULL,
+                  '2026-09-30T09:00:00Z', ?, NULL, NULL,
+                  '2026-09-28T11:00:00Z', '2026-09-30T09:00:00Z'
+                )
+                """,
+                (PENDING_ARRIVED_STAY, RESIDENT_ID, WARDEN_ID, GATE_ID),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+        assert_error(
+            client.patch(
+                f"/api/v1/me/guest-stays/{PENDING_ARRIVED_STAY}",
+                headers=headers,
+                json={
+                    "guest_name": "Should Fail",
+                    "relation": "Sister",
+                    "guest_start_date": "2026-10-03",
+                    "guest_end_date": "2026-10-04",
+                    "reason": "Visit.",
+                },
+            ),
+            409,
+            "not_editable",
+            "The guest has already arrived, so this stay cannot be edited.",
+        )
 
         assert_error(
             client.patch(
@@ -464,7 +526,7 @@ def test_guest_stays_resident(database_path: Path, monkeypatch: pytest.MonkeyPat
             "That record was not found.",
         )
 
-        # Cancel the stay we just returned to pending (still before arrival).
+        # Cancel of an approved stay before arrival is unchanged.
         approved_cancel = client.post(
             f"/api/v1/me/guest-stays/{APPROVED_STAY}/cancel",
             headers=headers,
@@ -518,9 +580,8 @@ def test_guest_stays_resident(database_path: Path, monkeypatch: pytest.MonkeyPat
         assert actions == [
             "auth.login",
             "guest_stay.submitted",
+            "guest_stay.edited",
             "guest_stay.cancelled",
-            "guest_stay.edited",
-            "guest_stay.edited",
             "guest_stay.cancelled",
             "guest_stay.submitted",
         ]
