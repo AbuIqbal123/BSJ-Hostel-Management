@@ -82,18 +82,26 @@ function HistoryRow({ item }: { item: HistoryItem }) {
   const title = item.who ?? item.place ?? kindLabel(item.kind);
   const recorded = recordedLine(item);
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.line }]}>
-      <View style={styles.cardTop}>
-        <Text style={[styles.place, { color: colors.ink }]}>{title}</Text>
+    <View style={styles.cell}>
+      <View style={styles.cellTop}>
+        <Text numberOfLines={1} style={[styles.cellTitle, { color: colors.ink }]}>
+          {title}
+        </Text>
+        <Text style={[text.body, { color: colors.inkSoft }]}>{kindLabel(item.kind)}</Text>
+      </View>
+      <View style={styles.cellTop}>
+        <Text numberOfLines={1} style={[styles.cellWhen, { color: colors.ink }]}>
+          {whenLine(item)}
+        </Text>
         {item.unused ? (
-          <View style={[styles.pill, { borderColor: colors.inkSoft, backgroundColor: colors.line }]}>
-            <Text style={[styles.pillText, { color: colors.ink }]}>Unused</Text>
-          </View>
+          <Text style={[text.body, { color: colors.inkFaint }]}>Unused</Text>
         ) : null}
       </View>
-      <Text style={[text.body, { color: colors.inkSoft }]}>{kindLabel(item.kind)}</Text>
-      <Text style={[text.body, { color: colors.ink }]}>{whenLine(item)}</Text>
-      {recorded ? <Text style={[text.body, { color: colors.inkSoft }]}>{recorded}</Text> : null}
+      {recorded ? (
+        <Text numberOfLines={1} style={[text.body, { color: colors.inkFaint }]}>
+          {recorded}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -171,7 +179,12 @@ export default function HistoryScreen() {
         <Text style={[text.button, { color: colors.inkSoft }]}>Back</Text>
       </Pressable>
       <Text style={[text.hallName, styles.title, { color: colors.ink }]}>History</Text>
-      <View accessibilityRole="tablist" style={styles.filters}>
+      <ScrollView
+        horizontal
+        accessibilityRole="tablist"
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filters}
+      >
         {KIND_FILTERS.map((item) => {
           const selected = kind === item.id;
           return (
@@ -189,7 +202,7 @@ export default function HistoryScreen() {
             </Pressable>
           );
         })}
-      </View>
+      </ScrollView>
       <View style={styles.dateField}>
         <Text style={[text.label, { color: colors.inkSoft }]}>Date</Text>
         <View style={styles.dateRow}>
@@ -231,9 +244,12 @@ export default function HistoryScreen() {
         <Text style={[text.body, { color: colors.inkFaint }]}>No history</Text>
       ) : null}
       {items !== null && items.length > 0 ? (
-        <View style={styles.list}>
-          {items.map((item) => (
-            <HistoryRow key={item.id} item={item} />
+        <View>
+          {items.map((item, index) => (
+            <View key={item.id}>
+              {index > 0 ? <View style={[styles.hairline, { backgroundColor: colors.line }]} /> : null}
+              <HistoryRow item={item} />
+            </View>
           ))}
         </View>
       ) : null}
@@ -252,9 +268,9 @@ const styles = StyleSheet.create({
   title: { textAlign: "left" },
   filters: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    columnGap: 18,
-    rowGap: 4,
+    alignItems: "flex-end",
+    gap: 18,
+    paddingRight: 8,
   },
   filter: { minHeight: 44, justifyContent: "flex-end", gap: 8 },
   filterMark: { height: 2, borderRadius: 1 },
@@ -285,38 +301,20 @@ const styles = StyleSheet.create({
     opacity: 0.02,
   },
   anyDay: { minHeight: 44, justifyContent: "center" },
-  list: { gap: 12 },
-  card: {
-    borderWidth: 1,
-    borderRadius: 12,
-    borderCurve: "continuous",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 4,
-  },
-  cardTop: {
+  hairline: { height: StyleSheet.hairlineWidth },
+  cell: { paddingVertical: 12, gap: 2 },
+  cellTop: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
   },
-  place: {
+  cellTitle: {
     flex: 1,
-    fontFamily: "SourceSerif4_600SemiBold",
-    fontSize: 17,
-    letterSpacing: -0.2,
-  },
-  pill: {
-    borderWidth: 1,
-    borderRadius: 8,
-    borderCurve: "continuous",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  pillText: {
     fontFamily: "SourceSans3_600SemiBold",
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 17,
+    lineHeight: 22,
   },
+  cellWhen: { flex: 1 },
   pressed: { opacity: 0.6 },
 });
