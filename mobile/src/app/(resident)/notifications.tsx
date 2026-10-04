@@ -31,12 +31,10 @@ function whenLine(item: HallNotification): string {
   return `${start.clock}, ${start.day} to ${end.clock}, ${end.day}`;
 }
 
-function decidedLine(item: HallNotification): string {
+function detailLine(item: HallNotification): string {
   const when = formatWhenParts(item.createdAt);
-  if (!when) {
-    return `Decided ${formatWhen(item.createdAt)}`;
-  }
-  return `Decided ${when.clock}, ${when.day}`;
+  const decided = when ? `${when.clock}, ${when.day}` : formatWhen(item.createdAt);
+  return `${kindLabel(item)} · ${whenLine(item)} · ${decided}`;
 }
 
 function NotificationRow({ item }: { item: HallNotification }) {
@@ -45,6 +43,7 @@ function NotificationRow({ item }: { item: HallNotification }) {
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={`${item.place}. ${decisionLabel(item)}. ${detailLine(item)}`}
       onPress={() => router.push({ pathname: "/permission", params: { id: item.permissionId } })}
       style={({ pressed }) => [styles.cell, pressed && styles.pressed]}
     >
@@ -52,14 +51,10 @@ function NotificationRow({ item }: { item: HallNotification }) {
         <Text numberOfLines={1} style={[styles.cellTitle, { color: colors.ink }]}>
           {item.place}
         </Text>
-        <Text style={[text.body, { color: decisionColor }]}>{decisionLabel(item)}</Text>
+        <Text style={[styles.decision, { color: decisionColor }]}>{decisionLabel(item)}</Text>
       </View>
-      <Text style={[text.body, { color: colors.inkSoft }]}>{kindLabel(item)}</Text>
-      <Text numberOfLines={1} style={[text.body, { color: colors.ink }]}>
-        {whenLine(item)}
-      </Text>
-      <Text numberOfLines={1} style={[text.body, { color: colors.inkFaint }]}>
-        {decidedLine(item)}
+      <Text numberOfLines={1} style={[styles.detail, { color: colors.inkSoft }]}>
+        {detailLine(item)}
       </Text>
     </Pressable>
   );
@@ -154,7 +149,7 @@ const styles = StyleSheet.create({
   back: { alignSelf: "flex-start", minHeight: 44, justifyContent: "center" },
   title: { textAlign: "left" },
   hairline: { height: StyleSheet.hairlineWidth },
-  cell: { paddingVertical: 12, gap: 2 },
+  cell: { minHeight: 56, justifyContent: "center", gap: 2, paddingVertical: 8 },
   cellTop: {
     flexDirection: "row",
     alignItems: "center",
@@ -166,6 +161,16 @@ const styles = StyleSheet.create({
     fontFamily: "SourceSans3_600SemiBold",
     fontSize: 17,
     lineHeight: 22,
+  },
+  decision: {
+    fontFamily: "SourceSans3_600SemiBold",
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  detail: {
+    fontFamily: "SourceSans3_400Regular",
+    fontSize: 15,
+    lineHeight: 20,
   },
   pressed: { opacity: 0.6 },
 });
