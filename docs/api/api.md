@@ -26,6 +26,8 @@ Do not edit this page by hand.
   - [GET `/api/v1/auth/onboard/options` — Onboard room picker](#get-api-v1-auth-onboard-options)
 - [Resident](#tag-resident)
   - [GET `/api/v1/me/home` — Resident home](#get-api-v1-me-home)
+  - [GET `/api/v1/me/notifications` — Own permission decisions, newest first](#get-api-v1-me-notifications)
+  - [POST `/api/v1/me/notifications/read` — Mark her unread permission decisions read](#post-api-v1-me-notifications-read)
   - [GET `/api/v1/me/hall-pass` — Hall pass for the outing in its window](#get-api-v1-me-hall-pass)
   - [GET `/api/v1/me/history` — Own exit and return history](#get-api-v1-me-history)
   - [GET `/api/v1/destinations` — Ordinary outing destinations](#get-api-v1-destinations)
@@ -104,7 +106,8 @@ HTTP contract for the hostel movement system. Schema version of the database
 is tracked separately in `docs/database/database.md` (0.3.4).
 
 This version is the contract. Auth, resident phone (home, history, hall pass,
-destinations, ordinary outings, permissions, guest stays), register, staff
+destinations, ordinary outings, permissions, guest stays, permission-decision
+inbox), register, staff
 permission queue, staff guest stays, gate scans, guests, and occupancy, and hall office
 (settings, notifications, blocks, rooms, destinations, residents, staff, password reset,
 audit, SMS log, register export) respond. Swagger on this server is the
@@ -723,6 +726,8 @@ The resident phone. Ordinary outings, home, destinations, and the hall pass.
 | Method | Path | Purpose | Who |
 |---|---|---|---|
 | GET | `/api/v1/me/home` | [Resident home](#get-api-v1-me-home) | resident |
+| GET | `/api/v1/me/notifications` | [Own permission decisions, newest first](#get-api-v1-me-notifications) | resident |
+| POST | `/api/v1/me/notifications/read` | [Mark her unread permission decisions read](#post-api-v1-me-notifications-read) | resident |
 | GET | `/api/v1/me/hall-pass` | [Hall pass for the outing in its window](#get-api-v1-me-hall-pass) | resident |
 | GET | `/api/v1/me/history` | [Own exit and return history](#get-api-v1-me-history) | resident |
 | GET | `/api/v1/destinations` | [Ordinary outing destinations](#get-api-v1-destinations) | Signed-in account |
@@ -743,7 +748,8 @@ Caller: resident. Her name, block, and room, whether an ordinary
 outing is inside its show window now (`ordinary_outing_active`),
 presence, the open outing if there is one, her planned future ordinary
 outings (`upcoming_outings`), the permission the resident is waiting
-on or cleared to use, and the last ten exit and return lines.
+on or cleared to use, the last ten exit and return lines, and
+`notifications_unread` (true when a permission decision is still unread).
 `upcoming_outings` is soonest start first. It leaves off returned,
 cancelled, outside, and plans whose expected return has already
 passed. A plan inside its show window stays on the list with
@@ -767,6 +773,7 @@ Body: [ResidentHome](#schema-residenthome).
 | `upcoming_outings` | yes | list of [UpcomingOuting](#schema-upcomingouting) | Planned ordinary outings whose expected return is still in the future. Soonest start first. Not returned, cancelled, outside, or already past. |
 | `active_permission` | yes | [Permission](#schema-permission) or null | The newest permission in `pending`, `approved`, or `in_use`, if any. |
 | `recent_history` | yes | list of [HistoryEvent](#schema-historyevent) |  |
+| `notifications_unread` | yes | boolean | True when she has at least one permission decision she has not marked read. False when the inbox is empty or every row is read. |
 
 **Example**
 
@@ -792,6 +799,7 @@ Body: [ResidentHome](#schema-residenthome).
     }
   ],
   "active_permission": null,
+  "notifications_unread": false,
   "recent_history": [
     {
       "event": "returned",
@@ -802,6 +810,102 @@ Body: [ResidentHome](#schema-residenthome).
       "recorded_by": "Fatima Khan"
     }
   ]
+}
+```
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
+### <a id="get-api-v1-me-notifications"></a>GET `/api/v1/me/notifications` — Own permission decisions, newest first
+
+`list_resident_notifications`
+
+**Who.** resident. Bearer access token.
+
+Caller: resident. The newest 50 rows written when a warden or the
+provost approved or rejected her permission. Does not mark them read.
+Call POST /api/v1/me/notifications/read for that.
+
+**Responses**
+
+#### 200
+
+Her notification rows, newest first, at most 50.
+
+Body: [ResidentNotificationList](#schema-residentnotificationlist).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `items` | yes | list of [ResidentNotification](#schema-residentnotification) |  |
+
+**Example**
+
+```json
+{
+  "items": [
+    {
+      "id": "00000000-0000-4000-8000-0000000000a1",
+      "permission_id": "00000000-0000-4000-8000-0000000000b1",
+      "permission_type": "late_night",
+      "decision": "approved",
+      "place": "Women's College",
+      "created_at": "2026-09-30T13:00:00Z",
+      "unread": true
+    }
+  ]
+}
+```
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
+### <a id="post-api-v1-me-notifications-read"></a>POST `/api/v1/me/notifications/read` — Mark her unread permission decisions read
+
+`mark_resident_notifications_read`
+
+**Who.** resident. Bearer access token.
+
+Caller: resident. Sets read on every unread row of hers, including
+any older than the 50 returned by the list. Returns how many rows
+changed. A second call marks nothing.
+
+**Responses**
+
+#### 200
+
+How many rows were marked read.
+
+Body: [ResidentNotificationsMarked](#schema-residentnotificationsmarked).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `marked` | yes | integer | How many of her rows changed from unread to read. minimum 0. |
+
+**Example**
+
+```json
+{
+  "marked": 1
 }
 ```
 
@@ -5368,6 +5472,31 @@ One of: `inside`, `outside`, `late`.
 | `upcoming_outings` | yes | list of [UpcomingOuting](#schema-upcomingouting) | Planned ordinary outings whose expected return is still in the future. Soonest start first. Not returned, cancelled, outside, or already past. |
 | `active_permission` | yes | [Permission](#schema-permission) or null | The newest permission in `pending`, `approved`, or `in_use`, if any. |
 | `recent_history` | yes | list of [HistoryEvent](#schema-historyevent) |  |
+| `notifications_unread` | yes | boolean | True when she has at least one permission decision she has not marked read. False when the inbox is empty or every row is read. |
+
+### <a id="schema-residentnotification"></a>ResidentNotification
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `id` | yes | uuid |  |
+| `permission_id` | yes | uuid | The permission this decision is about. |
+| `permission_type` | yes | `late_night` or `home_going` |  |
+| `decision` | yes | `approved` or `rejected` |  |
+| `place` | yes | string | The permission's short place, such as Women's College or Lucknow. |
+| `created_at` | yes | string | UTC instant when the decision was recorded. |
+| `unread` | yes | boolean |  |
+
+### <a id="schema-residentnotificationlist"></a>ResidentNotificationList
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `items` | yes | list of [ResidentNotification](#schema-residentnotification) |  |
+
+### <a id="schema-residentnotificationsmarked"></a>ResidentNotificationsMarked
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `marked` | yes | integer | How many of her rows changed from unread to read. minimum 0. |
 
 ### <a id="schema-hallpass"></a>HallPass
 

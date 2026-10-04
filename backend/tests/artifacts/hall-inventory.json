@@ -1,5 +1,5 @@
 {
-  "user_version": 14,
+  "user_version": 15,
   "tables": [
     "audit_log",
     "blocks",
@@ -9,6 +9,7 @@
     "hall_settings",
     "outings",
     "permissions",
+    "resident_notifications",
     "residents",
     "rooms",
     "sessions",
@@ -182,6 +183,14 @@
       "created_at",
       "updated_at",
       "last_login_at"
+    ],
+    "resident_notifications": [
+      "id",
+      "resident_id",
+      "permission_id",
+      "decision",
+      "created_at",
+      "read_at"
     ]
   },
   "indexes": [
@@ -197,6 +206,7 @@
     "outings_one_return",
     "permissions_resident_created",
     "permissions_status_created",
+    "resident_notifications_resident_created",
     "residents_enrolment_number",
     "residents_qr_token",
     "rooms_block_number",
@@ -1834,6 +1844,7 @@
     "guest_stays": 0,
     "outings": 0,
     "permissions": 0,
+    "resident_notifications": 0,
     "residents": 0,
     "sessions": 0,
     "staff": 0,

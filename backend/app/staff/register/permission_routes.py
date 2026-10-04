@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import uuid
+
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query
@@ -96,7 +98,7 @@ def decide_permission(
         UPDATE permissions
         SET status = ?, decided_by = ?, decided_at = ?, decision_note = ?, updated_at = ?
         WHERE id = ? AND status = 'pending'
-        RETURNING id, type, short_place
+        RETURNING id, type, short_place, resident_id
         """,
         (body.decision, account.id, now_text, note, now_text, permission_id),
     ).fetchone()
@@ -116,6 +118,14 @@ def decide_permission(
     label = "late-night" if row["type"] == "late_night" else "home-going"
     action = "permission.approved" if body.decision == "approved" else "permission.rejected"
     verb = "approved" if body.decision == "approved" else "rejected"
+    connection.execute(
+        """
+        INSERT INTO resident_notifications (
+          id, resident_id, permission_id, decision, created_at
+        ) VALUES (?, ?, ?, ?, ?)
+        """,
+        (str(uuid.uuid4()), row["resident_id"], permission_id, body.decision, now_text),
+    )
     record_permission(
         connection,
         now_text,
