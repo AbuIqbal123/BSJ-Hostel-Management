@@ -48,6 +48,7 @@ COMPLETED_LATE = "f8800000-0000-4000-8000-000000000034"
 REJECTED_LATE = "f8800000-0000-4000-8000-000000000035"
 PENDING_LATE = "f8800000-0000-4000-8000-000000000036"
 IN_USE_LATE = "f8800000-0000-4000-8000-000000000037"
+CANCELLED_LATE = "f8800000-0000-4000-8000-000000000038"
 
 UNUSED_GUEST = "a9900000-0000-4000-8000-000000000031"
 DEPARTED_GUEST = "a9900000-0000-4000-8000-000000000032"
@@ -110,6 +111,24 @@ UNUSED_CANCELLED = _row(
     "2026-09-23T08:00:00Z",
     unused=True,
 )
+CANCELLED_LATER = _row(
+    CANCELLED_FUTURE,
+    "outing",
+    "Cancelled later",
+    None,
+    "2026-10-02T04:00:00Z",
+    "2026-10-02T08:00:00Z",
+    unused=True,
+)
+CANCELLED_PERMISSION = _row(
+    CANCELLED_LATE,
+    "late_night",
+    "Called off",
+    None,
+    "2026-10-03T14:00:00Z",
+    "2026-10-03T16:00:00Z",
+    unused=True,
+)
 EXPIRED = _row(
     EXPIRED_LATE,
     "late_night",
@@ -160,6 +179,8 @@ DEPARTED = _row(
 
 # Newest ended_at first. ISO instants sort in that order.
 ALL_ROWS = [
+    CANCELLED_PERMISSION,
+    CANCELLED_LATER,
     FINISHED,
     UNUSED_PLAN,
     UNUSED_STAY,
@@ -370,6 +391,21 @@ def _seed(path: Path) -> None:
                 None,
                 "2026-09-21T09:00:00Z",
             ),
+            (
+                CANCELLED_LATE,
+                "late_night",
+                "cancelled",
+                "Called off",
+                None,
+                None,
+                "She cancelled before leaving.",
+                "2026-10-03T14:00:00Z",
+                "2026-10-03T16:00:00Z",
+                None,
+                None,
+                None,
+                "2026-09-30T12:00:00Z",
+            ),
         )
         connection.executemany(
             """
@@ -541,7 +577,8 @@ def test_resident_history(database_path: Path, monkeypatch: pytest.MonkeyPatch) 
         listed = set(_ids(full.json()))
         assert FUTURE_OUTING not in listed
         assert STILL_OUT not in listed
-        assert CANCELLED_FUTURE not in listed
+        assert CANCELLED_FUTURE in listed
+        assert CANCELLED_LATE in listed
         assert OTHER_OUTING not in listed
         assert LIVE_APPROVED not in listed
         assert REJECTED_LATE not in listed
@@ -555,9 +592,9 @@ def test_resident_history(database_path: Path, monkeypatch: pytest.MonkeyPatch) 
 
         outings = client.get("/api/v1/me/history?kind=outing", headers=headers)
         assert outings.status_code == 200
-        assert outings.json()["items"] == [FINISHED, UNUSED_PLAN, UNUSED_CANCELLED]
+        assert outings.json()["items"] == [CANCELLED_LATER, FINISHED, UNUSED_PLAN, UNUSED_CANCELLED]
         late = client.get("/api/v1/me/history?kind=late_night", headers=headers)
-        assert late.json()["items"] == [EXPIRED, COMPLETED]
+        assert late.json()["items"] == [CANCELLED_PERMISSION, EXPIRED, COMPLETED]
         home = client.get("/api/v1/me/history?kind=home_going", headers=headers)
         assert home.json()["items"] == [UNUSED_HOME_ROW]
         guests = client.get("/api/v1/me/history?kind=guest_stay", headers=headers)

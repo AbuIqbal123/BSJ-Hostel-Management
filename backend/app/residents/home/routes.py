@@ -280,7 +280,8 @@ def _history_items(
         WHERE outings.resident_id = ?
           AND outings.type = 'ordinary'
           AND (
-            (
+            outings.status = 'cancelled'
+            OR (
               outings.exited_at IS NULL
               AND outings.returned_at IS NULL
               AND outings.starts_at IS NOT NULL
@@ -350,7 +351,7 @@ def _history_items(
         LEFT JOIN users AS return_staff ON return_staff.id = outings.return_recorded_by
         WHERE permissions.resident_id = ?
           AND (
-            permissions.status = 'completed'
+            permissions.status IN ('completed', 'cancelled')
             OR (
               permissions.status IN ('approved', 'expired')
               AND permissions.expected_return_at < ?

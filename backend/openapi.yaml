@@ -585,19 +585,21 @@ paths:
         Caller: resident. One row per record that has left live use, newest
         `ended_at` first. No page control.
 
-        An ordinary outing is a row in two cases. Unused (`unused` true): no
-        gate exit, and the planned return has passed. `started_at` and
-        `ended_at` are the planned leave and the planned return. Finished
-        (`unused` false): the gate recorded both the exit and the return.
-        Those gate times are `started_at` and `ended_at`. An exit with no
-        return is not a row, even when the planned return has passed. A future
-        plan is not a row.
+        An ordinary outing is a row in three cases. Unused (`unused` true): no
+        gate exit, and the planned return has passed, or she cancelled the
+        plan. `started_at` and `ended_at` are the planned leave and the
+        planned return. Finished (`unused` false): the gate recorded both the
+        exit and the return. Those gate times are `started_at` and
+        `ended_at`. An exit with no return is not a row, even when the
+        planned return has passed. A future plan she has not cancelled is
+        not a row.
 
-        A late-night or home-going permission is a row when it was approved
-        and the window ended without use (`unused` true; status `approved` or
-        `expired`), or when it was approved and then completed (`unused`
-        false; status `completed`). `started_at` and `ended_at` are
-        `departure_at` and `expected_return_at`. Pending, rejected, cancelled,
+        A late-night or home-going permission is a row when she cancelled it,
+        when it was approved and the window ended without use (`unused` true;
+        status `approved` or `expired`), or when it was approved and then
+        completed (`unused` false; status `completed`). `started_at` and
+        `ended_at` are `departure_at` and `expected_return_at`. A cancelled
+        permission is `unused` true on that same window. Pending, rejected,
         and still-open approved or in-use permissions are not rows.
 
         A guest stay is a row when it was approved and the stay dates ended
