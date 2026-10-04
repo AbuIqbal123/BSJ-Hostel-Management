@@ -347,31 +347,31 @@ export default function HomeScreen() {
         onPress={dismissOpenChoice}
       >
         <View style={styles.block}>
-          <View style={styles.header}>
-            <View style={styles.identity}>
+          <View style={styles.identity}>
+            <View style={styles.welcomeRow}>
               <Text selectable style={[text.hallName, styles.title, { color: colors.ink }]}>
                 {`Welcome, ${fullName ?? user.full_name}`}
               </Text>
-              {room ? (
-                <Text selectable style={[text.body, { color: colors.inkSoft }]}>
-                  {room}
-                </Text>
-              ) : null}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Notifications"
+                hitSlop={12}
+                onPress={() => {
+                  router.push("/notifications");
+                }}
+                style={styles.bell}
+              >
+                <Feather name="bell" size={22} color={colors.ink} />
+                {notificationsUnread ? (
+                  <View style={[styles.dot, { backgroundColor: colors.forest }]} />
+                ) : null}
+              </Pressable>
             </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Notifications"
-              hitSlop={12}
-              onPress={() => {
-                router.push("/notifications");
-              }}
-              style={styles.bell}
-            >
-              <Feather name="bell" size={24} color={colors.ink} />
-              {notificationsUnread ? (
-                <View style={[styles.dot, { backgroundColor: colors.forest }]} />
-              ) : null}
-            </Pressable>
+            {room ? (
+              <Text selectable style={[text.body, { color: colors.inkSoft }]}>
+                {room}
+              </Text>
+            ) : null}
           </View>
           {error && !planCard ? (
             <Text style={[text.error, { color: colors.danger }]}>{error}</Text>
@@ -431,16 +431,17 @@ const styles = StyleSheet.create({
   },
   dismiss: { flexGrow: 1 },
   block: { gap: 28 },
-  header: {
+  identity: { gap: 16 },
+  welcomeRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     gap: 16,
   },
-  identity: { flex: 1, gap: 16 },
   bell: {
-    width: 24,
-    height: 24,
-    marginTop: 2,
+    width: 22,
+    height: 22,
+    alignItems: "center",
+    justifyContent: "center",
   },
   dot: {
     position: "absolute",
@@ -450,7 +451,7 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
   },
-  title: { textAlign: "left" },
+  title: { flex: 1, textAlign: "left" },
   fields: { gap: 16 },
   confirm: { alignSelf: "flex-start" },
   planNote: { textAlign: "center" },
