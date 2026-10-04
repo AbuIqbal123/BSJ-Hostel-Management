@@ -1,0 +1,6 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/api/v1/guest-stays/{{guestStayId}}/payment/evidence'
+order: 13000
+description: |-
+  Caller: warden or provost. Returns the stored evidence file when one exists. Auth required; absolute paths are never exposed. 404 when the stay has no evidence. Bearer uses {{token_provost}}.

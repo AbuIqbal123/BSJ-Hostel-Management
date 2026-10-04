@@ -1,0 +1,30 @@
+$kind: http-request
+method: PATCH
+url: '{{baseUrl}}/api/v1/me/guest-stays/{{guestStayId}}'
+order: 3500
+description: |-
+  Caller: resident, and only for a stay they host. Before arrival (pending or approved): send all of guest_name, relation, guest_start_date, guest_end_date, and reason. After arrival and before departure: only dates may change. Not editable when departed, rejected, or cancelled (409 not_editable). Every successful edit returns the stay to pending and clears decision fields; payment_status is unchanged. Send sets the start to two hall days ahead and the end three days after that. Bearer uses {{token_resident}}.
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "guest_name": "Zara Ahmed",
+      "relation": "Cousin",
+      "guest_start_date": "2026-10-18",
+      "guest_end_date": "2026-10-21",
+      "reason": "Family wedding in Aligarh. Staying with Aisha, B-204."
+    }
+scripts:
+  - type: beforeRequest
+    language: text/javascript
+    code: |-
+      const kolkata = new Date(Date.now() + (5 * 60 + 30) * 60 * 1000);
+      const start = new Date(Date.UTC(kolkata.getUTCFullYear(), kolkata.getUTCMonth(), kolkata.getUTCDate() + 2));
+      const end = new Date(start.getTime() + 3 * 24 * 60 * 60 * 1000);
+      const payload = JSON.parse(pm.request.body.raw);
+      payload.guest_start_date = start.toISOString().slice(0, 10);
+      payload.guest_end_date = end.toISOString().slice(0, 10);
+      pm.request.body.raw = JSON.stringify(payload, null, 2);

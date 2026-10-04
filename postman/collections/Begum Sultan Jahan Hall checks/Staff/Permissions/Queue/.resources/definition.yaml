@@ -2,4 +2,4 @@ $kind: collection
 name: Queue
 order: 1000
 description: |-
-  Permission queue with status, type, block, and created_at filters.
+  Expire passed unused permissions, then the queue with status, type, block, and created_at filters.

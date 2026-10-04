@@ -2,4 +2,4 @@ $kind: collection
 name: Payment
 order: 4000
 description: |-
-  Mark guest payment.
+  Mark guest payment and optional payment evidence (upload, download, clear).

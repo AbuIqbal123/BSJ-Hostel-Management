@@ -8,9 +8,8 @@ description: |-
   Resident is Aisha Khan, enrolment 24-GLLB-118. Staff sign-ins: Halima Begum (provost),
   Sara Malik (warden), Fatima Khan (gate).
 
-  Every route in the HTTP contract is here, including GET /ready. Plan an ordinary outing,
-  request a permission, or apply for a guest stay before the requests that use outingId,
-  permissionId, or guestStayId. Those Sends save the new id.
+  Plan an ordinary outing, request a permission, or apply for a guest stay before the
+  requests that use outingId, permissionId, or guestStayId. Those Sends save the new id.
 variables:
   - key: baseUrl
     value: 'http://localhost:8000'
