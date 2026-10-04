@@ -861,7 +861,7 @@ Body: [ResidentNotificationList](#schema-residentnotificationlist).
       "place": "Women's College",
       "departure_at": "2026-09-30T14:00:00Z",
       "expected_return_at": "2026-09-30T18:00:00Z",
-      "decided_by_name": "Sara Malik",
+      "decided_by": "Sara Malik",
       "created_at": "2026-09-30T13:00:00Z",
       "unread": true
     }
@@ -5521,7 +5521,7 @@ One of: `inside`, `outside`, `late`.
 | `place` | yes | string | The permission's short place, such as Women's College or Lucknow. |
 | `departure_at` | yes | string | When she planned to leave. The same instant as on the permission. |
 | `expected_return_at` | yes | string | When she planned to be back. The same instant as on the permission. |
-| `decided_by_name` | yes | string | Display name of the warden or provost who decided. The phone uses this in the sentence from docs/design/notifications.md. |
+| `decided_by` | yes | string | Display name of the warden or provost who decided. Not a user id. |
 | `created_at` | yes | string | UTC instant when the decision was recorded. |
 | `unread` | yes | boolean |  |
 

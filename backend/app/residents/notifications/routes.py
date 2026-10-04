@@ -25,7 +25,7 @@ class ResidentNotification(BaseModel):
     place: str
     departure_at: str
     expected_return_at: str
-    decided_by_name: str
+    decided_by: str
     created_at: str
     unread: bool
 
@@ -57,7 +57,7 @@ def list_notifications(
           permissions.short_place AS place,
           permissions.departure_at,
           permissions.expected_return_at,
-          users.full_name AS decided_by_name
+          users.full_name AS decided_by
         FROM resident_notifications
         JOIN permissions ON permissions.id = resident_notifications.permission_id
         JOIN users ON users.id = permissions.decided_by
@@ -77,7 +77,7 @@ def list_notifications(
                 place=row["place"],
                 departure_at=row["departure_at"],
                 expected_return_at=row["expected_return_at"],
-                decided_by_name=row["decided_by_name"],
+                decided_by=row["decided_by"],
                 created_at=row["created_at"],
                 unread=row["read_at"] is None,
             )

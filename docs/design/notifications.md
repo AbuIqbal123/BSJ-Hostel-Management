@@ -2,7 +2,7 @@
 
 The resident inbox. Each row is one sentence from this table, then one quieter line with the place and the times. No icons.
 
-`{name}` is the display name of the warden or provost who decided, sent as `decided_by_name`.
+`{name}` is the display name of the warden or provost who decided, sent as `decided_by`.
 
 | When | Sentence |
 |---|---|

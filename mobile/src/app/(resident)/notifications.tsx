@@ -13,7 +13,7 @@ function requestName(item: HallNotification): string {
 }
 
 function notificationSentence(item: HallNotification): string {
-  const name = item.decidedByName.trim() || "the hall";
+  const name = item.decidedBy.trim() || "the hall";
   if (item.decision === "approved") {
     return `Your ${requestName(item)} has been approved by ${name}.`;
   }

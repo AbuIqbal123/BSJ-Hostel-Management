@@ -6,7 +6,7 @@
       "place": "Lucknow",
       "departure_at": "2026-10-02T04:00:00Z",
       "expected_return_at": "2026-10-04T12:00:00Z",
-      "decided_by_name": "Sara Malik",
+      "decided_by": "Sara Malik",
       "created_at": "2026-09-30T13:00:02Z",
       "unread": true
     },
@@ -16,7 +16,7 @@
       "place": "Women's College",
       "departure_at": "2026-09-30T14:00:00Z",
       "expected_return_at": "2026-09-30T18:00:00Z",
-      "decided_by_name": "Sara Malik",
+      "decided_by": "Sara Malik",
       "created_at": "2026-09-30T13:00:00Z",
       "unread": true
     }
