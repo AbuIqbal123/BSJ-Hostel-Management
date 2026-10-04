@@ -3,13 +3,31 @@ import { router, useFocusEffect, useNavigation } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { formatWhen } from "@/format-when";
-import { useSession, type HistoryLine } from "@/session";
+import { formatWhen, formatWhenParts } from "@/format-when";
+import { useSession, type HistoryItem, type HistoryKind } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
-function lineKey(item: HistoryLine, index: number): string {
-  return `${item.outingId}-${item.event}-${index}`;
+function kindLabel(kind: HistoryKind): string {
+  switch (kind) {
+    case "late_night":
+      return "Late-night";
+    case "home_going":
+      return "Home going";
+    case "guest_stay":
+      return "Guest stay";
+    case "outing":
+      return "Outing";
+  }
+}
+
+function whenLine(item: HistoryItem): string {
+  if (item.kind === "home_going" || item.kind === "guest_stay") {
+    const start = formatWhenParts(item.startedAt)?.day ?? item.startedAt;
+    const end = formatWhenParts(item.endedAt)?.day ?? item.endedAt;
+    return start === end ? start : `${start} to ${end}`;
+  }
+  return `${formatWhen(item.startedAt)} to ${formatWhen(item.endedAt)}`;
 }
 
 export default function HistoryScreen() {
@@ -17,7 +35,7 @@ export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { loadHistory } = useSession();
-  const [items, setItems] = useState<HistoryLine[] | null>(null);
+  const [items, setItems] = useState<HistoryItem[] | null>(null);
   const [failed, setFailed] = useState(false);
 
   const load = useCallback(() => {
@@ -66,18 +84,30 @@ export default function HistoryScreen() {
       ) : null}
       {items !== null && items.length > 0 ? (
         <View>
-          {items.map((item, index) => (
-            <View key={lineKey(item, index)}>
-              {index > 0 ? <View style={[styles.hairline, { backgroundColor: colors.line }]} /> : null}
-              <View style={styles.item}>
-                <Text style={[styles.place, { color: colors.ink }]}>{item.place}</Text>
-                <Text style={[text.body, { color: colors.ink }]}>
-                  {`${item.event === "exited" ? "Left" : "Back"} ${formatWhen(item.at)}`}
-                </Text>
-                <Text style={[text.body, { color: colors.inkSoft }]}>{`Recorded by ${item.recordedBy}`}</Text>
+          {items.map((item, index) => {
+            const title = item.who ?? item.place ?? kindLabel(item.kind);
+            const recorded = [item.exitRecordedBy, item.returnRecordedBy].filter(
+              (name): name is string => name !== null && name.length > 0,
+            );
+            return (
+              <View key={item.id}>
+                {index > 0 ? <View style={[styles.hairline, { backgroundColor: colors.line }]} /> : null}
+                <View style={styles.item}>
+                  <Text style={[styles.place, { color: colors.ink }]}>{title}</Text>
+                  <Text style={[text.body, { color: colors.inkSoft }]}>{kindLabel(item.kind)}</Text>
+                  <Text style={[text.body, { color: colors.ink }]}>{whenLine(item)}</Text>
+                  {item.unused ? (
+                    <Text style={[text.body, { color: colors.inkSoft }]}>Unused</Text>
+                  ) : null}
+                  {recorded.length > 0 ? (
+                    <Text style={[text.body, { color: colors.inkSoft }]}>
+                      {`Recorded by ${recorded.join(", ")}`}
+                    </Text>
+                  ) : null}
+                </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
       ) : null}
     </ScrollView>

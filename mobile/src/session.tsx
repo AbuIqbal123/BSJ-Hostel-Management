@@ -78,17 +78,23 @@ export type HallPassResult =
   | { error: string; pass?: undefined }
   | { error: null; pass: HallPass };
 
-export type HistoryLine = {
-  event: "exited" | "returned";
-  place: string;
-  outingId: string;
-  at: string;
-  recordedBy: string;
+export type HistoryKind = "late_night" | "home_going" | "guest_stay" | "outing";
+
+export type HistoryItem = {
+  id: string;
+  kind: HistoryKind;
+  place: string | null;
+  who: string | null;
+  startedAt: string;
+  endedAt: string;
+  exitRecordedBy: string | null;
+  returnRecordedBy: string | null;
+  unused: boolean;
 };
 
 export type HistoryResult =
   | { error: string; items?: undefined }
-  | { error: null; items: HistoryLine[] };
+  | { error: null; items: HistoryItem[] };
 
 export type GuestStayCard = {
   id: string;
@@ -447,34 +453,53 @@ function textOrEmpty(field: unknown): string | null {
   return typeof field === "string" && field.length > 0 ? field : null;
 }
 
-function readHistory(value: unknown): HistoryLine[] | null {
+const HISTORY_KINDS = ["late_night", "home_going", "guest_stay", "outing"] as const;
+
+function historyKind(value: unknown): HistoryKind | null {
+  return HISTORY_KINDS.find((kind) => kind === value) ?? null;
+}
+
+function readHistory(value: unknown): HistoryItem[] | null {
   if (!isRecord(value) || !Array.isArray(value.items)) {
     return null;
   }
-  const items: HistoryLine[] = [];
+  const items: HistoryItem[] = [];
   for (const item of value.items) {
     if (!isRecord(item)) {
       return null;
     }
-    if (item.event !== "exited" && item.event !== "returned") {
+    const kind = historyKind(item.kind);
+    if (
+      kind === null ||
+      typeof item.id !== "string" ||
+      typeof item.started_at !== "string" ||
+      typeof item.ended_at !== "string" ||
+      typeof item.unused !== "boolean"
+    ) {
       return null;
     }
-    if (typeof item.place !== "string" || typeof item.outing_id !== "string") {
+    if (item.place !== null && typeof item.place !== "string") {
       return null;
     }
-    if (typeof item.recorded_by !== "string") {
+    if (item.who !== null && typeof item.who !== "string") {
       return null;
     }
-    const at = item.event === "exited" ? item.exited_at : item.returned_at;
-    if (typeof at !== "string" || at.length === 0) {
+    if (item.exit_recorded_by !== null && typeof item.exit_recorded_by !== "string") {
+      return null;
+    }
+    if (item.return_recorded_by !== null && typeof item.return_recorded_by !== "string") {
       return null;
     }
     items.push({
-      event: item.event,
-      place: item.place,
-      outingId: item.outing_id,
-      at,
-      recordedBy: item.recorded_by,
+      id: item.id,
+      kind,
+      place: typeof item.place === "string" && item.place.length > 0 ? item.place : null,
+      who: typeof item.who === "string" && item.who.length > 0 ? item.who : null,
+      startedAt: item.started_at,
+      endedAt: item.ended_at,
+      exitRecordedBy: typeof item.exit_recorded_by === "string" ? item.exit_recorded_by : null,
+      returnRecordedBy: typeof item.return_recorded_by === "string" ? item.return_recorded_by : null,
+      unused: item.unused,
     });
   }
   return items;
@@ -903,7 +928,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return { error: "Sign in again." };
     }
     try {
-      const response = await hallFetch("/api/v1/me/history?limit=50", {
+      const response = await hallFetch("/api/v1/me/history", {
         method: "GET",
         headers: { Authorization: `Bearer ${current.accessToken}` },
       });

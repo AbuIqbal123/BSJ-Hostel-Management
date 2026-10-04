@@ -614,7 +614,9 @@ The whole-hall figure is the sum of the blocks. Suspended and pending residents 
 
 Recent activity at the gate is not a separate record. It is the latest exits and returns, plus guest arrivals and departures, newest first.
 
-A resident's own history is the same exits and returns for that resident, newest first. Each exit and each return is its own line. The line names the staff member who recorded that exit or return (`exit_recorded_by` or `return_recorded_by` joined to the account's display name).
+The home screen's recent lines are still those exits and returns for that resident, newest first. Each exit and each return is its own line, and the line names the staff member who recorded that movement.
+
+`GET /api/v1/me/history` is a different list. It is one row per ordinary outing, late-night permission, home-going permission, or guest stay that is finished or unused. An ordinary outing is included when there is no gate exit and the planned return has passed (planned leave and planned return, unused), or when the gate recorded both the exit and the return (those gate times). An exit with no return is left off, even when the planned return has passed. A permission is included when it was approved and the window ended without use (status `approved` or `expired`), or when it was approved and then completed (status `completed`). A guest stay is included when it was approved and the stay dates ended without an arrival, or when it departed (status `departed`). Pending, rejected, and cancelled permissions and guest stays are left off. `exit_recorded_by` and `return_recorded_by` on a history row are the staff display names from the gate exit and return when those exist on a finished ordinary outing or on a completed permission's outing; otherwise they are empty. Guest stays do not copy arrival or departure staff into those fields.
 
 ## What this version does not keep
 
