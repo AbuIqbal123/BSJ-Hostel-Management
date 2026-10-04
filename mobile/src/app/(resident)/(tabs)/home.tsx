@@ -359,11 +359,11 @@ export default function HomeScreen() {
                 onPress={() => {
                   router.push("/notifications");
                 }}
-                style={styles.bell}
+                style={[styles.bell, { backgroundColor: colors.ink }]}
               >
-                <Feather name="bell" size={22} color={colors.ink} />
+                <Feather name="bell" size={16} color={colors.paper} />
                 {notificationsUnread ? (
-                  <View style={[styles.dot, { backgroundColor: colors.forest }]} />
+                  <View style={[styles.dot, { backgroundColor: colors.forest, borderColor: colors.paper }]} />
                 ) : null}
               </Pressable>
             </View>
@@ -438,8 +438,9 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   bell: {
-    width: 22,
-    height: 22,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -450,6 +451,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
+    borderWidth: 1.5,
   },
   title: { flex: 1, textAlign: "left" },
   fields: { gap: 16 },
