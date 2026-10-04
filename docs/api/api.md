@@ -41,6 +41,7 @@ Do not edit this page by hand.
   - [GET `/api/v1/me/permissions` — Own special permissions](#get-api-v1-me-permissions)
   - [POST `/api/v1/me/permissions` — Request late-night or home going](#post-api-v1-me-permissions)
   - [GET `/api/v1/me/permissions/{permission_id}` — Own permission](#get-api-v1-me-permissions-permission_id)
+  - [PATCH `/api/v1/me/permissions/{permission_id}` — Change a pending permission](#patch-api-v1-me-permissions-permission_id)
   - [POST `/api/v1/me/permissions/{permission_id}/cancel` — Cancel own permission](#post-api-v1-me-permissions-permission_id-cancel)
   - [GET `/api/v1/permissions` — Permission queue](#get-api-v1-permissions)
   - [POST `/api/v1/permissions/expire-passed` — Expire passed unused permissions](#post-api-v1-permissions-expire-passed)
@@ -1554,6 +1555,7 @@ Late-night and home-going permissions. Resident requests under /api/v1/me/permis
 | GET | `/api/v1/me/permissions` | [Own special permissions](#get-api-v1-me-permissions) | resident |
 | POST | `/api/v1/me/permissions` | [Request late-night or home going](#post-api-v1-me-permissions) | resident |
 | GET | `/api/v1/me/permissions/{permission_id}` | [Own permission](#get-api-v1-me-permissions-permission_id) | resident |
+| PATCH | `/api/v1/me/permissions/{permission_id}` | [Change a pending permission](#patch-api-v1-me-permissions-permission_id) | resident |
 | POST | `/api/v1/me/permissions/{permission_id}/cancel` | [Cancel own permission](#post-api-v1-me-permissions-permission_id-cancel) | resident |
 | GET | `/api/v1/permissions` | [Permission queue](#get-api-v1-permissions) | warden or provost |
 | POST | `/api/v1/permissions/expire-passed` | [Expire passed unused permissions](#post-api-v1-permissions-expire-passed) | warden or provost |
@@ -1622,7 +1624,12 @@ only after it is approved and the gate scans it inside the use window.
 `departure_at` must not be in the past. A few minutes of clock skew are
 allowed. There is no maximum how far ahead the departure may be.
 `expected_return_at` must be after `departure_at`. Home going requires
-`short_place`, `address`, and `reason`. Late-night requires `short_place`
+`short_place`, `address`, and `reason`. On the resident phone, home going
+is a leave date and a return date: the departure is the start of that
+hall day (or the current time when the leave day is today) and the
+expected return is the end of the return hall day. A late-night return
+is the same hall day as the departure. The only later instant is
+12:00 AM on the next hall day. Late-night requires `short_place`
 and `reason`, and may include `destination_detail`. `short_place` is
 typed on this form. It is not chosen from the ordinary destination list.
 
@@ -1774,6 +1781,105 @@ Body: [ErrorResponse](#schema-errorresponse).
 #### 404
 
 No record with that id is visible to the caller.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
+### <a id="patch-api-v1-me-permissions-permission_id"></a>PATCH `/api/v1/me/permissions/{permission_id}` — Change a pending permission
+
+`update_own_permission`
+
+**Who.** resident. Bearer access token.
+
+Caller: resident. Allowed only while the permission is `pending`.
+The kind cannot change. The same checks as a new request apply:
+departure must not be in the past, the expected return must be
+after the departure, and a late-night return stays on that hall day
+(12:00 AM the next hall day is allowed). Home going still requires an
+address. The permission stays pending.
+
+**Parameters**
+
+| Name | In | Required | Type | Notes |
+|---|---|---|---|---|
+| `permission_id` | path | yes | uuid |  |
+
+**Request.** Required.
+
+One of: [LateNightCreate](#schema-latenightcreate), [HomeGoingCreate](#schema-homegoingcreate).
+
+**LateNightCreate**
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `permission_type` | yes | `late_night` |  |
+| `short_place` | yes | string | Typed by the resident. Not chosen from the ordinary destination list. 1–120 characters. |
+| `destination_detail` | no | string | 1–120 characters. |
+| `reason` | yes | string | 1–500 characters. |
+| `departure_at` | yes | date-time |  |
+| `expected_return_at` | yes | date-time |  |
+
+**HomeGoingCreate**
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `permission_type` | yes | `home_going` |  |
+| `short_place` | yes | string | Short place on the warden card, such as Lucknow. 1–120 characters. |
+| `address` | yes | string | 1–300 characters. |
+| `reason` | yes | string | 1–500 characters. |
+| `departure_at` | yes | date-time |  |
+| `expected_return_at` | yes | date-time |  |
+
+**Responses**
+
+#### 200
+
+Permission still pending, with the new details.
+
+Body: [Permission](#schema-permission).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `id` | yes | uuid |  |
+| `permission_type` | yes | `late_night` or `home_going` |  |
+| `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `in_use` or `completed` or `expired` |  |
+| `short_place` | yes | string |  |
+| `destination_detail` | no | string or null |  |
+| `address` | no | string or null |  |
+| `reason` | yes | string |  |
+| `departure_at` | yes | date-time |  |
+| `expected_return_at` | yes | date-time |  |
+| `decision_note` | no | string or null |  |
+| `decided_at` | no | date-time or null |  |
+| `created_at` | yes | date-time |  |
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 404
+
+No record with that id is visible to the caller.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 409
+
+`not_editable` when the permission is no longer pending.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 422
+
+The JSON is the wrong shape, or a field fails a constraint that does not depend on existing rows.
 
 Body: [ErrorResponse](#schema-errorresponse).
 

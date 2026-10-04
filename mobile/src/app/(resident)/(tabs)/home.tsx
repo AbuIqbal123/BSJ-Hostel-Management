@@ -10,7 +10,7 @@ import { formatWhenParts, utcInstant } from "@/format-when";
 import { outingLocked, takeOutingLeft, useSession, type UpcomingOuting } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
-import { OTHER_NAME, WhenField, hallDay, leaveNote, returnNote } from "@/outing-when";
+import { OTHER_NAME, WhenField, hallDay, leaveNote, notBefore, returnNote } from "@/outing-when";
 
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 const ROW_ENTER = FadeIn.duration(180).easing(EASE_OUT).reduceMotion(ReduceMotion.System);
@@ -289,7 +289,11 @@ export default function HomeScreen() {
         note={leaveProblem}
         onAdjust={holdPlan}
         onChange={(date) => {
+          if (!date) {
+            return;
+          }
           setLeaveAt(date);
+          setBackBy((current) => notBefore(date, current));
           setError(null);
         }}
       />

@@ -306,15 +306,15 @@ A permission is the warden's or the provost's decision. It is not itself the mom
 | destination_detail | Text | Empty for home going. For late-night it may be empty. | The resident types it on the late-night form | A further detail, such as Seminar Hall. |
 | address | Text | Yes for home going. Empty for late-night. | The resident types it on the home-going form | The home address. It must not be blank for home going. |
 | reason | Text | Yes | The resident types it | Both forms require it. |
-| departure_at | Instant | Yes | The resident sets it | When she plans to leave. Must not be in the past when she submits (a few minutes of clock skew are allowed). There is no maximum how far ahead it may be. Shown on the 12-hour clock. |
-| expected_return_at | Instant | Yes | The resident sets it | Must be later than the departure. Shown on the 12-hour clock. |
+| departure_at | Instant | Yes | The resident sets it | When she plans to leave. Must not be in the past when she submits (a few minutes of clock skew are allowed). There is no maximum how far ahead it may be. Late-night is a clock. Home going is a hall date, stored as the start of that day, or the current time when that day is today. |
+| expected_return_at | Instant | Yes | The resident sets it | Must be later than the departure. Late-night is a clock. Home going is a hall date, stored as the end of that day. |
 | decided_by | Identifier | Empty while waiting, and empty if the resident cancels before a decision | The warden or provost who approves or rejects | Required once that decision is recorded. |
 | decided_at | Instant | Empty in the same cases as decided_by | System, at the decision | Required once the decision is recorded. |
 | decision_note | Text | Empty if they write nothing | The warden or provost may type it when deciding | Optional. |
 | created_at | Instant | Yes | System, when the resident asks | When the request was made. |
 | updated_at | Instant | Yes | System | When it last changed. |
 
-The short place lets the warden's card read "Home going · Lucknow" without opening the street address. The home-going form asks for the short place, the address, the reason, the departure, and the return. The late-night form asks for the short place, the reason, the departure, the return, and an optional further detail.
+The short place lets the warden's card read "Home going · Lucknow" without opening the street address. The home-going form asks for the city, the home address, the reason, the leave date, and the return date. She does not set a clock. The late-night form asks for the short place, the reason, the departure, and the return. A late-night return is the same hall day as the departure. The only later instant is 12:00 AM on the next hall day. While a permission is pending, she may replace those details. It stays pending. Once it is approved, she can no longer change it.
 
 ### Permission lifecycle
 

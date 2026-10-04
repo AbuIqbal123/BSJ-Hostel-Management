@@ -3,7 +3,7 @@ import { useFonts } from "expo-font";
 import { router, useSegments } from "expo-router";
 import { Stack } from "expo-router/stack";
 import * as SplashScreen from "expo-splash-screen";
-import { StyleSheet, Text, View } from "react-native";
+import { StatusBar, StyleSheet, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, {
   Easing,
@@ -20,6 +20,7 @@ import { IBMPlexMono_500Medium } from "@expo-google-fonts/ibm-plex-mono";
 
 import { HallMark } from "@/components/hall-mark";
 import { SessionProvider, useSession } from "@/session";
+import { AppearanceProvider, useDark } from "@/theme/appearance";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
@@ -53,6 +54,7 @@ function routeSettled(
 // The restored route can be signup. It stays underneath until this lifts.
 function LaunchShell({ fontsReady }: { fontsReady: boolean }) {
   const colors = useHallColors();
+  const dark = useDark();
   const reduced = useReducedMotion();
   const { ready, user } = useSession();
   const segments = useSegments();
@@ -121,6 +123,7 @@ function LaunchShell({ fontsReady }: { fontsReady: boolean }) {
 
   return (
     <View style={styles.shell}>
+      <StatusBar barStyle={dark ? "light-content" : "dark-content"} />
       <Stack
         screenOptions={{
           headerShadowVisible: false,
@@ -135,7 +138,13 @@ function LaunchShell({ fontsReady }: { fontsReady: boolean }) {
         <Stack.Screen name="index" options={{ headerShown: false, animation: "none" }} />
         <Stack.Screen name="sign-in" options={{ headerShown: false, animation: "none" }} />
         <Stack.Screen name="onboard" options={{ headerShown: false, animation: "none" }} />
-        <Stack.Screen name="change-password" options={{ title: "Change password" }} />
+        <Stack.Screen
+          name="change-password"
+          options={{
+            headerShown: false,
+            animation: reduced ? "fade" : "default",
+          }}
+        />
         <Stack.Screen name="(resident)" options={{ headerShown: false, animation: "none" }} />
         <Stack.Screen name="signed-in" options={{ title: "Signed in", headerBackVisible: false }} />
       </Stack>
@@ -161,8 +170,18 @@ function LaunchShell({ fontsReady }: { fontsReady: boolean }) {
   );
 }
 
-export default function RootLayout() {
+function AppShell({ fontsReady }: { fontsReady: boolean }) {
   const colors = useHallColors();
+  return (
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.paper }}>
+      <SessionProvider>
+        <LaunchShell fontsReady={fontsReady} />
+      </SessionProvider>
+    </GestureHandlerRootView>
+  );
+}
+
+export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     ...Feather.font,
     SourceSans3_400Regular,
@@ -172,11 +191,9 @@ export default function RootLayout() {
   });
 
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.paper }}>
-      <SessionProvider>
-        <LaunchShell fontsReady={fontsLoaded || Boolean(fontError)} />
-      </SessionProvider>
-    </GestureHandlerRootView>
+    <AppearanceProvider>
+      <AppShell fontsReady={fontsLoaded || Boolean(fontError)} />
+    </AppearanceProvider>
   );
 }
 

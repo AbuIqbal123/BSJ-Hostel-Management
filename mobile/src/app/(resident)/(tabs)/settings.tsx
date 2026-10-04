@@ -1,16 +1,66 @@
+import { useCallback, useState } from "react";
+import Constants from "expo-constants";
 import { Feather } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useSession } from "@/session";
+import { useAppearance } from "@/theme/appearance";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
+
+type RowProps = {
+  label: string;
+  color: string;
+  onPress: () => void;
+  value?: string;
+  chevron?: boolean;
+};
+
+function Row({ label, color, onPress, value, chevron = false }: RowProps) {
+  const colors = useHallColors();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+    >
+      <Text style={[text.button, { color }]}>{label}</Text>
+      {value ? (
+        <Text style={[text.body, { color: colors.inkSoft }]}>{value}</Text>
+      ) : chevron ? (
+        <Feather name="chevron-right" size={18} color={colors.inkFaint} />
+      ) : null}
+    </Pressable>
+  );
+}
 
 export default function SettingsScreen() {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
-  const { signOut } = useSession();
+  const { dark, setDark } = useAppearance();
+  const { user, loadResidentHome, signOut } = useSession();
+  const [roomLabel, setRoomLabel] = useState<string | null>(null);
+  const version = Constants.expoConfig?.version ?? "1.0.0";
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      void loadResidentHome().then((result) => {
+        if (!active || result.error !== null) {
+          return;
+        }
+        setRoomLabel(result.home.roomLabel);
+      });
+      return () => {
+        active = false;
+      };
+    }, [loadResidentHome]),
+  );
+
+  const detail =
+    user === null ? null : roomLabel ? `${user.username} · ${roomLabel}` : user.username;
 
   return (
     <ScrollView
@@ -20,34 +70,48 @@ export default function SettingsScreen() {
         { paddingTop: insets.top + 28, paddingBottom: insets.bottom + 28 },
       ]}
     >
-      <Text style={[text.hallName, styles.title, { color: colors.ink }]}>Settings</Text>
+      {user ? (
+        <View style={styles.heading}>
+          <Text style={[text.hallName, styles.title, { color: colors.ink }]}>{user.full_name}</Text>
+          <Text selectable style={[text.body, { color: colors.inkSoft }]}>
+            {detail}
+          </Text>
+        </View>
+      ) : null}
       <View style={styles.rows}>
-        <Pressable
-          accessibilityRole="button"
+        <Row
+          label="Appearance"
+          color={colors.ink}
+          value={dark ? "Dark" : "Light"}
+          onPress={() => setDark(!dark)}
+        />
+        <Row
+          label="History"
+          color={colors.ink}
+          chevron
+          onPress={() => router.push("/history")}
+        />
+        <Row
+          label="Change password"
+          color={colors.ink}
+          chevron
           onPress={() => router.push("/change-password")}
-          style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-        >
-          <Text style={[text.button, { color: colors.ink }]}>Change password</Text>
-          <Feather name="chevron-right" size={18} color={colors.inkFaint} />
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
+        />
+        <Row
+          label="Privacy policy"
+          color={colors.ink}
+          chevron
           onPress={() => router.push("/privacy")}
-          style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-        >
-          <Text style={[text.button, { color: colors.ink }]}>Privacy policy</Text>
-          <Feather name="chevron-right" size={18} color={colors.inkFaint} />
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
+        />
+        <Row
+          label="Sign out"
+          color={colors.danger}
           onPress={() => {
             void signOut().then(() => router.replace("/sign-in"));
           }}
-          style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-        >
-          <Text style={[text.button, { color: colors.danger }]}>Sign out</Text>
-        </Pressable>
+        />
       </View>
+      <Text style={[text.body, styles.version, { color: colors.inkFaint }]}>{`Version ${version}`}</Text>
     </ScrollView>
   );
 }
@@ -59,6 +123,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     gap: 28,
   },
+  heading: { gap: 8 },
   title: { textAlign: "left" },
   rows: { gap: 4 },
   row: {
@@ -68,4 +133,5 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   pressed: { opacity: 0.6 },
+  version: { marginTop: "auto" },
 });

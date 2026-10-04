@@ -60,7 +60,7 @@ Keep this document Fowler-simple: one workflow per section, steps a person can n
 | **Warden** | Hall pulse | Register summary counts; shortcuts to Late, Permissions waiting, Guest stays waiting | Quiet night vs busy late list | Counts match `GET /api/v1/register/summary` |
 | **Provost** | Same as warden + office entry | Warden home + Hall office | (none special) | Office reachable without burying register |
 
-The resident phone home shows her name and her room, then the plan form when she may plan, then each upcoming ordinary outing. She opens a row in Plan only when she can still change it, and that screen pushes in over the tabs. Plan asks for the place, when she will leave, and when she will be back, and sends those as `starts_at` and `expected_return_at`. An Other place opens with Other selected and the typed where filled in. While she is outside, or while one ordinary outing is inside its show window, Plan does not show the form. The hall pass shows her name and room. Before the code is visible it says she has a planned outing and that her QR code appears 30 minutes before she leaves. Settings offers change password, the privacy policy, and sign out. Staff still use the signed-in screen.
+The resident phone home shows her name and her room, then the plan form when she may plan, then each upcoming ordinary outing. She opens a row in Plan only when she can still change it, and that screen pushes in over the tabs. Plan asks for the place, when she will leave, and when she will be back, and sends those as `starts_at` and `expected_return_at`. An Other place opens with Other selected and the typed where filled in. While she is outside, or while one ordinary outing is inside its show window, Plan does not show the form. The hall pass shows her name, her room, and the place. Other shows the typed where as well. Before the code is visible it says she has a planned outing and that her QR code appears 30 minutes before she leaves. When the code is up, her name and room sit above it. Below it she is told to show the pass to the gate staff, with the destination and when she is due back. Settings shows her name, enrolment, and room, an appearance row, her outing history, change password, the privacy policy, and sign out. Permissions also opens a guest stay. Staff still use the signed-in screen.
 
 ---
 
@@ -70,13 +70,13 @@ The resident phone home shows her name and her room, then the plan form when she
 |---|---|
 | **Actors** | Resident requests; warden or provost decide |
 | **Goal** | Late-night or home going approved before exit |
-| **API** | Resident: `GET` and `POST /api/v1/me/permissions`, `GET /api/v1/me/permissions/{permission_id}`, `POST /api/v1/me/permissions/{permission_id}/cancel`. Staff: `GET /api/v1/permissions`, `GET /api/v1/permissions/{permission_id}`, `POST /api/v1/permissions/{permission_id}/decision` |
+| **API** | Resident: `GET` and `POST /api/v1/me/permissions`, `GET` and `PATCH /api/v1/me/permissions/{permission_id}`, `POST /api/v1/me/permissions/{permission_id}/cancel`. Staff: `GET /api/v1/permissions`, `GET /api/v1/permissions/{permission_id}`, `POST /api/v1/permissions/{permission_id}/decision` |
 
 **Resident steps**
 
-1. List own permissions.
-2. Two forms. Late-night: type, short place (typed, not chosen from `GET /api/v1/destinations`), reason, optional further detail, departure, expected return. Home going: those fields plus address. Home going does not use the destination list.
-3. Pending detail, then approved (show when usable) or rejected.
+1. List own permissions. The phone shows the soonest departure first.
+2. Two forms. Late-night asks for the place, the reason, and when she leaves and returns. The return is the same hall day as the departure. The only later instant is 12:00 AM on the next hall day. Home going asks for the city, the home address, the reason, the leave date, and the return date. It does not ask for a time. A trip of several days is those two dates. Neither is chosen from the ordinary destination list. After a request is sent, the phone tells her it has been submitted, and she sees it on the Permissions tab.
+3. Opening a pending request shows the same form, so she can change it before anyone decides. The form says that any change needs approval again. The same checks as a new request apply, and it stays pending. Once it is approved, she can read it but not change it. Approved shows when it can be used. Rejected shows the decision.
 4. Cancel while **pending**, or while **approved and unused** (before leaving). Cancel is forbidden once `in_use`.
 
 **Staff steps**

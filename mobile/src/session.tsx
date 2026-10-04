@@ -65,6 +65,9 @@ export type ResidentHomeResult =
 export type HallPass = {
   fullName: string;
   roomLabel: string;
+  place: string | null;
+  startsAt: string | null;
+  expectedReturnAt: string | null;
   qrVisible: boolean;
   qrPayload: string | null;
   qrVisibleFrom: string | null;
@@ -74,6 +77,51 @@ export type HallPass = {
 export type HallPassResult =
   | { error: string; pass?: undefined }
   | { error: null; pass: HallPass };
+
+export type HistoryLine = {
+  event: "exited" | "returned";
+  place: string;
+  outingId: string;
+  at: string;
+  recordedBy: string;
+};
+
+export type HistoryResult =
+  | { error: string; items?: undefined }
+  | { error: null; items: HistoryLine[] };
+
+export type GuestStayCard = {
+  id: string;
+  guestName: string;
+  startDate: string;
+  endDate: string;
+  status: "pending" | "approved" | "rejected" | "cancelled" | "departed";
+  paymentStatus: "unpaid" | "paid";
+  bucket: string;
+};
+
+export type GuestStay = GuestStayCard & {
+  relation: string;
+  reason: string;
+  arrivedAt: string | null;
+  decisionNote: string | null;
+};
+
+export type GuestStayCreate = {
+  guest_name: string;
+  relation: string;
+  guest_start_date: string;
+  guest_end_date: string;
+  reason: string;
+};
+
+export type GuestListResult =
+  | { error: string; items?: undefined }
+  | { error: null; items: GuestStayCard[] };
+
+export type GuestResult =
+  | { error: string; stay?: undefined }
+  | { error: null; stay: GuestStay };
 
 export type DestinationItem = {
   id: string;
@@ -188,8 +236,14 @@ type SessionValue = {
   loadPermissions: () => Promise<PermissionListResult>;
   loadPermission: (permissionId: string) => Promise<PermissionResult>;
   submitPermission: (body: PermissionCreate) => Promise<string | null>;
+  updatePermission: (permissionId: string, body: PermissionCreate) => Promise<string | null>;
   cancelPermission: (permissionId: string) => Promise<HallFailure | null>;
   loadHallPass: () => Promise<HallPassResult>;
+  loadHistory: () => Promise<HistoryResult>;
+  loadGuestStays: () => Promise<GuestListResult>;
+  loadGuestStay: (guestStayId: string) => Promise<GuestResult>;
+  submitGuestStay: (body: GuestStayCreate) => Promise<string | null>;
+  cancelGuestStay: (guestStayId: string) => Promise<HallFailure | null>;
 };
 
 const SessionContext = createContext<SessionValue | null>(null);
@@ -374,13 +428,121 @@ function readHallPass(value: unknown): HallPass | null {
   if (value.qr_visible && payload === null) {
     return null;
   }
+  const textOrNull = (field: unknown): string | null =>
+    typeof field === "string" && field.length > 0 ? field : null;
   return {
     fullName: value.full_name,
     roomLabel: value.room_label,
+    place: textOrNull(value.place),
+    startsAt: textOrNull(value.starts_at),
+    expectedReturnAt: textOrNull(value.expected_return_at),
     qrVisible: value.qr_visible,
     qrPayload: value.qr_visible ? payload : null,
     qrVisibleFrom: typeof value.qr_visible_from === "string" ? value.qr_visible_from : null,
     qrVisibleUntil: typeof value.qr_visible_until === "string" ? value.qr_visible_until : null,
+  };
+}
+
+function textOrEmpty(field: unknown): string | null {
+  return typeof field === "string" && field.length > 0 ? field : null;
+}
+
+function readHistory(value: unknown): HistoryLine[] | null {
+  if (!isRecord(value) || !Array.isArray(value.items)) {
+    return null;
+  }
+  const items: HistoryLine[] = [];
+  for (const item of value.items) {
+    if (!isRecord(item)) {
+      return null;
+    }
+    if (item.event !== "exited" && item.event !== "returned") {
+      return null;
+    }
+    if (typeof item.place !== "string" || typeof item.outing_id !== "string") {
+      return null;
+    }
+    if (typeof item.recorded_by !== "string") {
+      return null;
+    }
+    const at = item.event === "exited" ? item.exited_at : item.returned_at;
+    if (typeof at !== "string" || at.length === 0) {
+      return null;
+    }
+    items.push({
+      event: item.event,
+      place: item.place,
+      outingId: item.outing_id,
+      at,
+      recordedBy: item.recorded_by,
+    });
+  }
+  return items;
+}
+
+const GUEST_STATUS = ["pending", "approved", "rejected", "cancelled", "departed"] as const;
+
+function guestStatus(value: unknown): GuestStayCard["status"] | null {
+  return GUEST_STATUS.find((status) => status === value) ?? null;
+}
+
+function readGuestCard(item: Record<string, unknown>): GuestStayCard | null {
+  const status = guestStatus(item.status);
+  if (!status || (item.payment_status !== "unpaid" && item.payment_status !== "paid")) {
+    return null;
+  }
+  if (
+    typeof item.id !== "string" ||
+    typeof item.guest_name !== "string" ||
+    typeof item.guest_start_date !== "string" ||
+    typeof item.guest_end_date !== "string" ||
+    typeof item.bucket !== "string"
+  ) {
+    return null;
+  }
+  return {
+    id: item.id,
+    guestName: item.guest_name,
+    startDate: item.guest_start_date,
+    endDate: item.guest_end_date,
+    status,
+    paymentStatus: item.payment_status,
+    bucket: item.bucket,
+  };
+}
+
+function readGuestPage(value: unknown): GuestStayCard[] | null {
+  if (!isRecord(value) || !Array.isArray(value.items)) {
+    return null;
+  }
+  const items: GuestStayCard[] = [];
+  for (const item of value.items) {
+    if (!isRecord(item)) {
+      return null;
+    }
+    const card = readGuestCard(item);
+    if (!card) {
+      return null;
+    }
+    items.push(card);
+  }
+  return items;
+}
+
+function readGuestStay(value: unknown): GuestStay | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const card = readGuestCard(value);
+  if (!card || typeof value.relation !== "string" || typeof value.reason !== "string") {
+    return null;
+  }
+  return {
+    ...card,
+    relation: value.relation,
+    reason: value.reason,
+    arrivedAt: textOrEmpty(value.arrived_at),
+    decisionNote: textOrEmpty(value.decision_note),
   };
 }
 
@@ -735,6 +897,120 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, [renew]);
 
+  const loadHistory = useCallback(async (): Promise<HistoryResult> => {
+    const current = sessionRef.current;
+    if (!current) {
+      return { error: "Sign in again." };
+    }
+    try {
+      const response = await hallFetch("/api/v1/me/history?limit=50", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${current.accessToken}` },
+      });
+      if (!response.ok) {
+        return { error: await errorMessage(response) };
+      }
+      const items = readHistory(await response.json());
+      if (!items) {
+        return { error: "The hall could not be reached." };
+      }
+      return { error: null, items };
+    } catch {
+      return { error: "The hall could not be reached." };
+    }
+  }, []);
+
+  const loadGuestStays = useCallback(async (): Promise<GuestListResult> => {
+    const current = sessionRef.current;
+    if (!current) {
+      return { error: "Sign in again." };
+    }
+    try {
+      const response = await hallFetch("/api/v1/me/guest-stays?limit=50", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${current.accessToken}` },
+      });
+      if (!response.ok) {
+        return { error: await errorMessage(response) };
+      }
+      const items = readGuestPage(await response.json());
+      if (!items) {
+        return { error: "The hall could not be reached." };
+      }
+      return { error: null, items };
+    } catch {
+      return { error: "The hall could not be reached." };
+    }
+  }, []);
+
+  const loadGuestStay = useCallback(async (guestStayId: string): Promise<GuestResult> => {
+    const current = sessionRef.current;
+    if (!current) {
+      return { error: "Sign in again." };
+    }
+    try {
+      const response = await hallFetch(`/api/v1/me/guest-stays/${encodeURIComponent(guestStayId)}`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${current.accessToken}` },
+      });
+      if (!response.ok) {
+        return { error: await errorMessage(response) };
+      }
+      const stay = readGuestStay(await response.json());
+      if (!stay) {
+        return { error: "The hall could not be reached." };
+      }
+      return { error: null, stay };
+    } catch {
+      return { error: "The hall could not be reached." };
+    }
+  }, []);
+
+  const submitGuestStay = useCallback(async (body: GuestStayCreate) => {
+    const current = sessionRef.current;
+    if (!current) {
+      return "Sign in again.";
+    }
+    try {
+      const response = await hallFetch("/api/v1/me/guest-stays", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${current.accessToken}`,
+        },
+        body: JSON.stringify(body),
+      });
+      if (response.status === 201) {
+        return null;
+      }
+      return await errorMessage(response);
+    } catch {
+      return "The hall could not be reached.";
+    }
+  }, []);
+
+  const cancelGuestStay = useCallback(async (guestStayId: string) => {
+    const current = sessionRef.current;
+    if (!current) {
+      return { code: null, message: "Sign in again." };
+    }
+    try {
+      const response = await hallFetch(
+        `/api/v1/me/guest-stays/${encodeURIComponent(guestStayId)}/cancel`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${current.accessToken}` },
+        },
+      );
+      if (response.status === 200) {
+        return null;
+      }
+      return await hallFailure(response);
+    } catch {
+      return { code: null, message: "The hall could not be reached." };
+    }
+  }, []);
+
   const loadHallPass = useCallback(async (): Promise<HallPassResult> => {
     const current = sessionRef.current;
     if (!current) {
@@ -853,7 +1129,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
     try {
       await expirePassed(current.accessToken);
-      const response = await hallFetch("/api/v1/me/permissions", {
+      const response = await hallFetch("/api/v1/me/permissions?limit=500", {
         method: "GET",
         headers: { Authorization: `Bearer ${current.accessToken}` },
       });
@@ -920,6 +1196,32 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const updatePermission = useCallback(async (permissionId: string, body: PermissionCreate) => {
+    const current = sessionRef.current;
+    if (!current) {
+      return "Sign in again.";
+    }
+    try {
+      const response = await hallFetch(
+        `/api/v1/me/permissions/${encodeURIComponent(permissionId)}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${current.accessToken}`,
+          },
+          body: JSON.stringify(permissionPayload(body)),
+        },
+      );
+      if (response.status === 200) {
+        return null;
+      }
+      return await errorMessage(response);
+    } catch {
+      return "The hall could not be reached.";
+    }
+  }, []);
+
   const cancelPermission = useCallback(async (permissionId: string) => {
     const current = sessionRef.current;
     if (!current) {
@@ -958,8 +1260,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       loadPermissions,
       loadPermission,
       submitPermission,
+      updatePermission,
       cancelPermission,
       loadHallPass,
+      loadHistory,
+      loadGuestStays,
+      loadGuestStay,
+      submitGuestStay,
+      cancelGuestStay,
     }),
     [
       ready,
@@ -976,8 +1284,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       loadPermissions,
       loadPermission,
       submitPermission,
+      updatePermission,
       cancelPermission,
       loadHallPass,
+      loadHistory,
+      loadGuestStays,
+      loadGuestStay,
+      submitGuestStay,
+      cancelGuestStay,
     ],
   );
 

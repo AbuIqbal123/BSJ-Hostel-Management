@@ -924,7 +924,12 @@ paths:
         `departure_at` must not be in the past. A few minutes of clock skew are
         allowed. There is no maximum how far ahead the departure may be.
         `expected_return_at` must be after `departure_at`. Home going requires
-        `short_place`, `address`, and `reason`. Late-night requires `short_place`
+        `short_place`, `address`, and `reason`. On the resident phone, home going
+        is a leave date and a return date: the departure is the start of that
+        hall day (or the current time when the leave day is today) and the
+        expected return is the end of the return hall day. A late-night return
+        is the same hall day as the departure. The only later instant is
+        12:00 AM on the next hall day. Late-night requires `short_place`
         and `reason`, and may include `destination_detail`. `short_place` is
         typed on this form. It is not chosen from the ordinary destination list.
       requestBody:
@@ -988,6 +993,47 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Permissions]
+      operationId: update_own_permission
+      summary: Change a pending permission
+      description: |
+        Caller: resident. Allowed only while the permission is `pending`.
+        The kind cannot change. The same checks as a new request apply:
+        departure must not be in the past, the expected return must be
+        after the departure, and a late-night return stays on that hall day
+        (12:00 AM the next hall day is allowed). Home going still requires an
+        address. The permission stays pending.
+      parameters:
+        - $ref: "#/components/parameters/PermissionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PermissionCreate"
+      responses:
+        "200":
+          description: Permission still pending, with the new details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Permission"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: |
+            `not_editable` when the permission is no longer pending.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
 
   /api/v1/me/permissions/{permission_id}/cancel:
     post:
