@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import sqlite3
+from datetime import date, datetime
 from typing import Annotated, Literal
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict
@@ -33,6 +35,27 @@ class HistoryPage(BaseModel):
     limit: int
     offset: int
     items: list[HistoryEvent]
+
+
+HistoryKind = Literal["all", "late_night", "home_going", "guest_stay", "outing"]
+
+
+class HistoryItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str
+    kind: Literal["late_night", "home_going", "guest_stay", "outing"]
+    place: str | None
+    who: str | None
+    started_at: str
+    ended_at: str
+    exit_recorded_by: str | None
+    return_recorded_by: str | None
+    unused: bool
+
+
+class HistoryList(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    items: list[HistoryItem]
 
 
 class HomeResident(BaseModel):
@@ -180,14 +203,216 @@ def resident_home(account: ResidentDep, connection: ConnectionDep) -> ResidentHo
     )
 
 
-@router.get("/me/history", response_model=HistoryPage)
+def _hall_zone(connection: sqlite3.Connection) -> ZoneInfo:
+    row = connection.execute(
+        "SELECT timezone FROM hall_settings WHERE id = 'hall'"
+    ).fetchone()
+    assert row is not None
+    return ZoneInfo(row["timezone"])
+
+
+def _hall_day(instant: str, zone: ZoneInfo) -> date:
+    return clock.parse_instant(instant).astimezone(zone).date()
+
+
+def _hall_instant(day: str, zone: ZoneInfo, *, end: bool) -> str:
+    year, month, day_number = (int(part) for part in day.split("-"))
+    if end:
+        local = datetime(year, month, day_number, 23, 59, 59, tzinfo=zone)
+    else:
+        local = datetime(year, month, day_number, 0, 0, 0, tzinfo=zone)
+    return clock.format_instant(local)
+
+
+def _covers_hall_day(started_at: str, ended_at: str, on: date, zone: ZoneInfo) -> bool:
+    start = _hall_day(started_at, zone)
+    end = _hall_day(ended_at, zone)
+    if end < start:
+        start, end = end, start
+    return start <= on <= end
+
+
+def _history_items(
+    connection: sqlite3.Connection,
+    resident_id: str,
+    *,
+    now_text: str,
+    today: str,
+    zone: ZoneInfo,
+) -> list[HistoryItem]:
+    items: list[HistoryItem] = []
+    outings = connection.execute(
+        """
+        SELECT
+          outings.id,
+          outings.place,
+          outings.starts_at,
+          outings.expected_return_at,
+          outings.exited_at,
+          outings.returned_at,
+          exit_staff.full_name AS exit_recorded_by,
+          return_staff.full_name AS return_recorded_by
+        FROM outings
+        LEFT JOIN users AS exit_staff ON exit_staff.id = outings.exit_recorded_by
+        LEFT JOIN users AS return_staff ON return_staff.id = outings.return_recorded_by
+        WHERE outings.resident_id = ?
+          AND outings.type = 'ordinary'
+          AND (
+            (
+              outings.exited_at IS NULL
+              AND outings.returned_at IS NULL
+              AND outings.starts_at IS NOT NULL
+              AND outings.expected_return_at < ?
+            )
+            OR (
+              outings.exited_at IS NOT NULL
+              AND outings.returned_at IS NOT NULL
+            )
+          )
+        """,
+        (resident_id, now_text),
+    ).fetchall()
+    for row in outings:
+        finished = row["exited_at"] is not None and row["returned_at"] is not None
+        if finished:
+            items.append(
+                HistoryItem(
+                    id=row["id"],
+                    kind="outing",
+                    place=row["place"],
+                    who=None,
+                    started_at=row["exited_at"],
+                    ended_at=row["returned_at"],
+                    exit_recorded_by=row["exit_recorded_by"],
+                    return_recorded_by=row["return_recorded_by"],
+                    unused=False,
+                )
+            )
+        else:
+            items.append(
+                HistoryItem(
+                    id=row["id"],
+                    kind="outing",
+                    place=row["place"],
+                    who=None,
+                    started_at=row["starts_at"],
+                    ended_at=row["expected_return_at"],
+                    exit_recorded_by=None,
+                    return_recorded_by=None,
+                    unused=True,
+                )
+            )
+
+    permissions = connection.execute(
+        """
+        SELECT
+          permissions.id,
+          permissions.type AS kind,
+          permissions.short_place AS place,
+          permissions.departure_at AS started_at,
+          permissions.expected_return_at AS ended_at,
+          permissions.status,
+          exit_staff.full_name AS exit_recorded_by,
+          return_staff.full_name AS return_recorded_by
+        FROM permissions
+        LEFT JOIN outings ON outings.id = (
+          SELECT o.id
+          FROM outings AS o
+          WHERE o.permission_id = permissions.id
+            AND o.exited_at IS NOT NULL
+            AND o.returned_at IS NOT NULL
+          ORDER BY o.returned_at DESC, o.id DESC
+          LIMIT 1
+        )
+        LEFT JOIN users AS exit_staff ON exit_staff.id = outings.exit_recorded_by
+        LEFT JOIN users AS return_staff ON return_staff.id = outings.return_recorded_by
+        WHERE permissions.resident_id = ?
+          AND (
+            permissions.status = 'completed'
+            OR (
+              permissions.status IN ('approved', 'expired')
+              AND permissions.expected_return_at < ?
+            )
+          )
+        """,
+        (resident_id, now_text),
+    ).fetchall()
+    for row in permissions:
+        completed = row["status"] == "completed"
+        items.append(
+            HistoryItem(
+                id=row["id"],
+                kind=row["kind"],
+                place=row["place"],
+                who=None,
+                started_at=row["started_at"],
+                ended_at=row["ended_at"],
+                exit_recorded_by=row["exit_recorded_by"] if completed else None,
+                return_recorded_by=row["return_recorded_by"] if completed else None,
+                unused=not completed,
+            )
+        )
+
+    stays = connection.execute(
+        """
+        SELECT id, guest_name, guest_start_date, guest_end_date, status
+        FROM guest_stays
+        WHERE host_resident_id = ?
+          AND (
+            status = 'departed'
+            OR (
+              status = 'approved'
+              AND arrived_at IS NULL
+              AND guest_end_date < ?
+            )
+          )
+        """,
+        (resident_id, today),
+    ).fetchall()
+    for row in stays:
+        items.append(
+            HistoryItem(
+                id=row["id"],
+                kind="guest_stay",
+                place=None,
+                who=row["guest_name"],
+                started_at=_hall_instant(row["guest_start_date"], zone, end=False),
+                ended_at=_hall_instant(row["guest_end_date"], zone, end=True),
+                exit_recorded_by=None,
+                return_recorded_by=None,
+                unused=row["status"] != "departed",
+            )
+        )
+    items.sort(key=lambda item: (item.ended_at, item.id), reverse=True)
+    return items
+
+
+@router.get("/me/history", response_model=HistoryList)
 def resident_history(
     account: ResidentDep,
     connection: ConnectionDep,
-    limit: Annotated[int, Query(ge=1, le=500)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
-) -> HistoryPage:
-    return load_history(connection, account.id, limit=limit, offset=offset)
+    kind: Annotated[HistoryKind | None, Query()] = None,
+    on: Annotated[date | None, Query()] = None,
+) -> HistoryList:
+    now = clock.utc_now()
+    zone = _hall_zone(connection)
+    today = now.astimezone(zone).date().isoformat()
+    items = _history_items(
+        connection,
+        account.id,
+        now_text=clock.format_instant(now),
+        today=today,
+        zone=zone,
+    )
+    if kind is not None and kind != "all":
+        items = [item for item in items if item.kind == kind]
+    if on is not None:
+        items = [
+            item
+            for item in items
+            if _covers_hall_day(item.started_at, item.ended_at, on, zone)
+        ]
+    return HistoryList(items=items)
 
 
 class ExpirePassedResult(BaseModel):
