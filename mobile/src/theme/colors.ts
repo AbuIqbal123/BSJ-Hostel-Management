@@ -12,8 +12,6 @@ const light = {
   danger: "#6E2430",
   dangerBg: "#F7E8EA",
   onForest: "#FFFFFF",
-  sandstone: "#C4A484",
-  marble: "#F7F5F0",
 };
 
 const dark = {
@@ -28,8 +26,6 @@ const dark = {
   danger: "#E0707C",
   dangerBg: "#2E221C",
   onForest: "#FFFFFF",
-  sandstone: "#C4A484",
-  marble: "#F7F5F0",
 };
 
 export type HallColors = typeof light;
