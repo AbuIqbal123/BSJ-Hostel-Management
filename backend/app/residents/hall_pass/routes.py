@@ -22,6 +22,9 @@ class ResidentHallPass(BaseModel):
     full_name: str
     room_label: str
     outing_id: str | None
+    place: str | None
+    starts_at: str | None
+    expected_return_at: str | None
     qr_visible: bool
     qr_visible_from: str | None
     qr_visible_until: str | None
@@ -32,7 +35,7 @@ def _pass(
     token: str | None,
     full_name: str,
     room_label: str,
-    outing_id: str | None,
+    outing: sqlite3.Row | None,
     qr_visible: bool,
     qr_visible_from: str | None,
     qr_visible_until: str | None,
@@ -41,7 +44,10 @@ def _pass(
         qr_payload=token if qr_visible else None,
         full_name=full_name,
         room_label=room_label,
-        outing_id=outing_id,
+        outing_id=None if outing is None else outing["id"],
+        place=None if outing is None else outing["place"],
+        starts_at=None if outing is None else outing["starts_at"],
+        expected_return_at=None if outing is None else outing["expected_return_at"],
         qr_visible=qr_visible,
         qr_visible_from=qr_visible_from,
         qr_visible_until=qr_visible_until,
@@ -65,7 +71,7 @@ def resident_hall_pass(account: ResidentDep, connection: ConnectionDep) -> Resid
     now = clock.utc_now()
     outings = connection.execute(
         """
-        SELECT id, type, status, starts_at, expected_return_at, exited_at
+        SELECT id, type, status, place, starts_at, expected_return_at, exited_at
         FROM outings
         WHERE resident_id = ? AND status IN ('planned', 'outside')
         ORDER BY expected_return_at, id
@@ -103,7 +109,7 @@ def resident_hall_pass(account: ResidentDep, connection: ConnectionDep) -> Resid
             token=token,
             full_name=name,
             room_label=room,
-            outing_id=outing["id"],
+            outing=outing,
             qr_visible=True,
             qr_visible_from=visible_from,
             qr_visible_until=visible_until,
@@ -115,7 +121,7 @@ def resident_hall_pass(account: ResidentDep, connection: ConnectionDep) -> Resid
             token=token,
             full_name=name,
             room_label=room,
-            outing_id=outside["id"],
+            outing=outside,
             qr_visible=True,
             qr_visible_from=outside["exited_at"],
             qr_visible_until=None,
@@ -141,7 +147,7 @@ def resident_hall_pass(account: ResidentDep, connection: ConnectionDep) -> Resid
             token=token,
             full_name=name,
             room_label=room,
-            outing_id=outing["id"],
+            outing=outing,
             qr_visible=False,
             qr_visible_from=visible_from,
             qr_visible_until=visible_until,
@@ -151,7 +157,7 @@ def resident_hall_pass(account: ResidentDep, connection: ConnectionDep) -> Resid
         token=token,
         full_name=name,
         room_label=room,
-        outing_id=None,
+        outing=None,
         qr_visible=False,
         qr_visible_from=None,
         qr_visible_until=None,

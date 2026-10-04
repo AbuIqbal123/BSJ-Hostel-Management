@@ -483,6 +483,9 @@ paths:
         Caller: resident. The hall-pass code is still the resident's permanent
         token (the gate scans that same code). The phone shows it for one
         outing only. `qr_payload` is set only while that window is open.
+        `place`, `starts_at`, and `expected_return_at` are that outing's
+        lines, the same values as on home `upcoming_outings`. All three are
+        null when `outing_id` is null.
 
         An ordinary outing's window opens 30 minutes before `starts_at`. If
         `starts_at` is within 5 minutes, the 30-minute lead has already begun,
@@ -503,6 +506,9 @@ paths:
                 full_name: Aisha Khan
                 room_label: B-204
                 outing_id: 00000000-0000-4000-8000-000000000001
+                place: Maulana Azad Library
+                starts_at: "2026-09-30T08:00:00Z"
+                expected_return_at: "2026-09-30T13:00:00Z"
                 qr_visible: true
                 qr_visible_from: "2026-09-30T07:30:00Z"
                 qr_visible_until: "2026-09-30T13:00:00Z"
@@ -3281,7 +3287,7 @@ components:
     ResidentHallPass:
       type: object
       additionalProperties: false
-      required: [qr_payload, full_name, room_label, outing_id, qr_visible, qr_visible_from, qr_visible_until]
+      required: [qr_payload, full_name, room_label, outing_id, place, starts_at, expected_return_at, qr_visible, qr_visible_from, qr_visible_until]
       properties:
         qr_payload:
           oneOf:
@@ -3301,6 +3307,28 @@ components:
               format: uuid
             - type: "null"
           description: The outing this pass is for, if she has a planned or outside outing.
+        place:
+          oneOf:
+            - type: string
+            - type: "null"
+          description: |
+            Stored place on that outing: the list name, the words typed for
+            Other, or the permission's short place. Same meaning as `place`
+            on an outing. Null when `outing_id` is null.
+        starts_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: "null"
+          description: |
+            When she leaves. Null when `outing_id` is null, on a permission
+            outing, and on an ordinary plan saved before this field existed.
+        expected_return_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: "null"
+          description: When she comes back. Null when `outing_id` is null.
         qr_visible:
           type: boolean
         qr_visible_from:

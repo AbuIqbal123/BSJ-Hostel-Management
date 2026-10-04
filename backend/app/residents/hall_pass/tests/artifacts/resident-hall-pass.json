@@ -4,6 +4,9 @@
     "full_name": "Aisha Khan",
     "room_label": "B-204",
     "outing_id": null,
+    "place": null,
+    "starts_at": null,
+    "expected_return_at": null,
     "qr_visible": false,
     "qr_visible_from": null,
     "qr_visible_until": null
@@ -13,6 +16,9 @@
     "full_name": "Aisha Khan",
     "room_label": "B-204",
     "outing_id": "e7700000-0000-4000-8000-0000000000cc",
+    "place": "Maulana Azad Library",
+    "starts_at": "2026-09-30T14:00:00Z",
+    "expected_return_at": "2026-09-30T15:00:00Z",
     "qr_visible": false,
     "qr_visible_from": "2026-09-30T13:30:00Z",
     "qr_visible_until": "2026-09-30T15:00:00Z"
@@ -22,6 +28,9 @@
     "full_name": "Aisha Khan",
     "room_label": "B-204",
     "outing_id": "e7700000-0000-4000-8000-0000000000cc",
+    "place": "Maulana Azad Library",
+    "starts_at": "2026-09-30T13:04:00Z",
+    "expected_return_at": "2026-09-30T15:00:00Z",
     "qr_visible": true,
     "qr_visible_from": "2026-09-30T12:34:00Z",
     "qr_visible_until": "2026-09-30T15:00:00Z"
