@@ -25,7 +25,7 @@ from app.residents.outings.records import (
     hours_refusal,
     load_current_outing,
     load_outing,
-    load_upcoming,
+    list_upcoming_page,
     ordinary_window_is_open,
     record_outing,
 )
@@ -326,13 +326,14 @@ def list_outings(
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> OutingList:
-    items = load_upcoming(connection, account.id)
-    total = len(items)
+    total, items = list_upcoming_page(
+        connection, account.id, limit=limit, offset=offset
+    )
     return OutingList(
         total=total,
         limit=limit,
         offset=offset,
-        items=items[offset : offset + limit],
+        items=items,
     )
 
 
