@@ -88,7 +88,6 @@ export default function SettingsScreen() {
         <Row
           label="History"
           color={colors.ink}
-          chevron
           onPress={() => router.push("/history")}
         />
         <Row
