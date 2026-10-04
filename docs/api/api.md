@@ -257,11 +257,9 @@ this repository. The field is required.
 
 An unknown username and a known username with the wrong password both
 return the same message, so a caller cannot tell whether the username
-exists. A correct password on a **pending** account says the account is
-waiting for the Hall Office. A correct password on a suspended account
-says the account is suspended and asks the caller to contact the Hall
-Office. Repeated attempts from the same client are limited; further
-attempts return 429.
+exists. A correct password on a suspended account says the account is
+suspended and asks the caller to contact the Hall Office. Repeated
+attempts from the same client are limited; further attempts return 429.
 
 **Request.** Required.
 
@@ -299,8 +297,7 @@ Body: [TokenResponse](#schema-tokenresponse).
 #### 401
 
 Sign-in was refused. Unknown username and wrong password share one
-message. A pending account says it is waiting for the Hall Office.
-A suspended account asks the caller to contact the Hall Office.
+message. A suspended account asks the caller to contact the Hall Office.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
@@ -311,17 +308,6 @@ Body: [ErrorResponse](#schema-errorresponse).
   "error": {
     "code": "unauthenticated",
     "message": "Username or password is wrong."
-  }
-}
-```
-
-**Account is pending activation**
-
-```json
-{
-  "error": {
-    "code": "unauthenticated",
-    "message": "Your account is waiting for the Hall Office."
   }
 }
 ```
@@ -465,7 +451,7 @@ Body: [CurrentUser](#schema-currentuser).
 | `role` | yes | `resident` or `gate` or `warden` or `provost` |  |
 | `full_name` | yes | string |  |
 | `username` | yes | string |  |
-| `status` | yes | `active` or `suspended` or `pending` |  |
+| `status` | yes | `active` or `suspended` |  |
 | `resident` | no | [ResidentSummary](#schema-residentsummary) or null |  |
 | `staff` | no | [StaffSummary](#schema-staffsummary) or null |  |
 
@@ -3726,7 +3712,7 @@ Provost only. Residents, staff, rooms, destinations, settings, export, SMS log, 
 
 **Who.** provost. Bearer access token.
 
-Caller: provost. Includes pending and suspended residents. Does not include hall-pass tokens.
+Caller: provost. Includes active and suspended residents. Does not include hall-pass tokens.
 
 **Parameters**
 
@@ -3858,12 +3844,12 @@ Body: [ResidentAccount](#schema-residentaccount).
 | `full_name` | yes | string |  |
 | `enrolment_number` | yes | string |  |
 | `course` | no | string or null |  |
-| `room_id` | yes | uuid or null | Empty while status is pending and the Hall Office has not assigned a room. Required when status is active. |
-| `room_label` | yes | string or null | Empty when room_id is empty. |
+| `room_id` | yes | uuid |  |
+| `room_label` | yes | string |  |
 | `phone` | no | string or null | The resident's own phone in E.164 with country code. Empty when the hall has not entered it. Optional; not the guardian phone. |
 | `guardian_name` | yes | string |  |
 | `guardian_phone` | yes | string | E.164, country code required. |
-| `status` | yes | `active` or `suspended` or `pending` |  |
+| `status` | yes | `active` or `suspended` |  |
 | `presence` | yes | `inside` or `outside` | Inside or outside the hall. Changes when a gate scan records an exit or a return. This is not sign-in. |
 
 #### 401
@@ -3895,10 +3881,7 @@ Caller: provost. Send only the fields that change. `course` and `phone`
 may be set to null to clear them. `guardian_name` and `guardian_phone`
 may be replaced and may not be cleared. A phone includes the country
 code. Changing `enrolment_number` changes the username. `status`
-activates a pending resident (requires `room_id` on the record),
-suspends, or reinstates. Suspension revokes refresh tokens. Activating
-a pending resident issues the hall pass once; the token is not returned
-on this PATCH (use reissue if the office needs the payload again).
+suspends or reinstates. Suspension revokes refresh tokens.
 
 **Parameters**
 
@@ -3919,7 +3902,7 @@ Body: [ResidentUpdate](#schema-residentupdate).
 | `phone` | no | string or null | The resident's own phone. Set to null to clear. Same E.164 pattern as guardian_phone when present. |
 | `guardian_name` | no | string | 1–120 characters. |
 | `guardian_phone` | no | string | pattern `^\+[1-9][0-9]{7,14}$`. |
-| `status` | no | `active` or `suspended` or `pending` |  |
+| `status` | no | `active` or `suspended` |  |
 
 **Responses**
 
@@ -3935,12 +3918,12 @@ Body: [ResidentAccount](#schema-residentaccount).
 | `full_name` | yes | string |  |
 | `enrolment_number` | yes | string |  |
 | `course` | no | string or null |  |
-| `room_id` | yes | uuid or null | Empty while status is pending and the Hall Office has not assigned a room. Required when status is active. |
-| `room_label` | yes | string or null | Empty when room_id is empty. |
+| `room_id` | yes | uuid |  |
+| `room_label` | yes | string |  |
 | `phone` | no | string or null | The resident's own phone in E.164 with country code. Empty when the hall has not entered it. Optional; not the guardian phone. |
 | `guardian_name` | yes | string |  |
 | `guardian_phone` | yes | string | E.164, country code required. |
-| `status` | yes | `active` or `suspended` or `pending` |  |
+| `status` | yes | `active` or `suspended` |  |
 | `presence` | yes | `inside` or `outside` | Inside or outside the hall. Changes when a gate scan records an exit or a return. This is not sign-in. |
 
 #### 401
@@ -3965,7 +3948,6 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 Enrolment number already in use. Code `duplicate_username`.
 That room is not in use. Code `room_inactive`.
-Cannot activate a pending resident without a room. Code `room_required`.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
@@ -4113,7 +4095,7 @@ Body: [StaffAccount](#schema-staffaccount).
 | `username` | yes | string |  |
 | `role` | yes | `gate` or `warden` or `provost` |  |
 | `job_title` | yes | string |  |
-| `status` | yes | `active` or `suspended` or `pending` |  |
+| `status` | yes | `active` or `suspended` |  |
 
 #### 401
 
@@ -4163,7 +4145,7 @@ Body: [StaffUpdate](#schema-staffupdate).
 |---|---|---|---|
 | `full_name` | no | string | 1–120 characters. |
 | `job_title` | no | string | 1–80 characters. |
-| `status` | no | `active` or `suspended` or `pending` |  |
+| `status` | no | `active` or `suspended` |  |
 
 **Responses**
 
@@ -4180,7 +4162,7 @@ Body: [StaffAccount](#schema-staffaccount).
 | `username` | yes | string |  |
 | `role` | yes | `gate` or `warden` or `provost` |  |
 | `job_title` | yes | string |  |
-| `status` | yes | `active` or `suspended` or `pending` |  |
+| `status` | yes | `active` or `suspended` |  |
 
 #### 401
 
@@ -5198,7 +5180,7 @@ Each JSON object used above. An operation section already shows the fields for i
 | `role` | yes | `resident` or `gate` or `warden` or `provost` |  |
 | `full_name` | yes | string |  |
 | `username` | yes | string |  |
-| `status` | yes | `active` or `suspended` or `pending` |  |
+| `status` | yes | `active` or `suspended` |  |
 
 ### <a id="schema-role"></a>Role
 
@@ -5210,9 +5192,9 @@ One of: `gate`, `warden`, `provost`.
 
 ### <a id="schema-accountstatus"></a>AccountStatus
 
-`active` may sign in. `suspended` may not. `pending` is reserved for a future Hall Office activation workflow and is not produced by the current self-onboard path.
+`active` may sign in. `suspended` may not.
 
-One of: `active`, `suspended`, `pending`.
+One of: `active`, `suspended`.
 
 ### <a id="schema-currentuser"></a>CurrentUser
 
@@ -5222,7 +5204,7 @@ One of: `active`, `suspended`, `pending`.
 | `role` | yes | `resident` or `gate` or `warden` or `provost` |  |
 | `full_name` | yes | string |  |
 | `username` | yes | string |  |
-| `status` | yes | `active` or `suspended` or `pending` |  |
+| `status` | yes | `active` or `suspended` |  |
 | `resident` | no | [ResidentSummary](#schema-residentsummary) or null |  |
 | `staff` | no | [StaffSummary](#schema-staffsummary) or null |  |
 
@@ -5872,12 +5854,12 @@ One of: `not_due`, `sent`, `failed`.
 | `full_name` | yes | string |  |
 | `enrolment_number` | yes | string |  |
 | `course` | no | string or null |  |
-| `room_id` | yes | uuid or null | Empty while status is pending and the Hall Office has not assigned a room. Required when status is active. |
-| `room_label` | yes | string or null | Empty when room_id is empty. |
+| `room_id` | yes | uuid |  |
+| `room_label` | yes | string |  |
 | `phone` | no | string or null | The resident's own phone in E.164 with country code. Empty when the hall has not entered it. Optional; not the guardian phone. |
 | `guardian_name` | yes | string |  |
 | `guardian_phone` | yes | string | E.164, country code required. |
-| `status` | yes | `active` or `suspended` or `pending` |  |
+| `status` | yes | `active` or `suspended` |  |
 | `presence` | yes | `inside` or `outside` | Inside or outside the hall. Changes when a gate scan records an exit or a return. This is not sign-in. |
 
 ### <a id="schema-residentaccountpage"></a>ResidentAccountPage
@@ -5920,7 +5902,7 @@ One of: `not_due`, `sent`, `failed`.
 | `phone` | no | string or null | The resident's own phone. Set to null to clear. Same E.164 pattern as guardian_phone when present. |
 | `guardian_name` | no | string | 1–120 characters. |
 | `guardian_phone` | no | string | pattern `^\+[1-9][0-9]{7,14}$`. |
-| `status` | no | `active` or `suspended` or `pending` |  |
+| `status` | no | `active` or `suspended` |  |
 
 ### <a id="schema-staffaccount"></a>StaffAccount
 
@@ -5931,7 +5913,7 @@ One of: `not_due`, `sent`, `failed`.
 | `username` | yes | string |  |
 | `role` | yes | `gate` or `warden` or `provost` |  |
 | `job_title` | yes | string |  |
-| `status` | yes | `active` or `suspended` or `pending` |  |
+| `status` | yes | `active` or `suspended` |  |
 
 ### <a id="schema-staffpage"></a>StaffPage
 
@@ -5958,7 +5940,7 @@ One of: `not_due`, `sent`, `failed`.
 |---|---|---|---|
 | `full_name` | no | string | 1–120 characters. |
 | `job_title` | no | string | 1–80 characters. |
-| `status` | no | `active` or `suspended` or `pending` |  |
+| `status` | no | `active` or `suspended` |  |
 
 ### <a id="schema-block"></a>Block
 
