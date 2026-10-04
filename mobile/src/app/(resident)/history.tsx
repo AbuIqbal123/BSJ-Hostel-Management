@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from "react";
+import { Feather } from "@expo/vector-icons";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import { router, useFocusEffect, useNavigation } from "expo-router";
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -139,17 +140,45 @@ function DayChip({
   );
 }
 
+function openHistory(item: HistoryItem) {
+  if (item.kind === "guest_stay") {
+    router.push({ pathname: "/guest", params: { id: item.id } });
+    return;
+  }
+  if (item.kind === "late_night" || item.kind === "home_going") {
+    router.push({ pathname: "/permission", params: { id: item.id } });
+    return;
+  }
+  router.push({
+    pathname: "/outing",
+    params: {
+      place: item.place ?? "",
+      startedAt: item.startedAt,
+      endedAt: item.endedAt,
+      exitRecordedBy: item.exitRecordedBy ?? "",
+      returnRecordedBy: item.returnRecordedBy ?? "",
+      unused: item.unused ? "1" : "0",
+    },
+  });
+}
+
 function HistoryRow({ item }: { item: HistoryItem }) {
   const colors = useHallColors();
   const title = item.who ?? item.place ?? kindLabel(item.kind);
   const recorded = recordedLine(item);
   return (
-    <View style={styles.cell}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      onPress={() => openHistory(item)}
+      style={({ pressed }) => [styles.cell, pressed && styles.pressed]}
+    >
       <View style={styles.cellTop}>
         <Text numberOfLines={1} style={[styles.cellTitle, { color: colors.ink }]}>
           {title}
         </Text>
         <Text style={[text.body, { color: colors.inkSoft }]}>{kindLabel(item.kind)}</Text>
+        <Feather name="chevron-right" size={18} color={colors.inkFaint} />
       </View>
       <View style={styles.cellTop}>
         <Text numberOfLines={1} style={[styles.cellWhen, { color: colors.ink }]}>
@@ -164,7 +193,7 @@ function HistoryRow({ item }: { item: HistoryItem }) {
           {recorded}
         </Text>
       ) : null}
-    </View>
+    </Pressable>
   );
 }
 
