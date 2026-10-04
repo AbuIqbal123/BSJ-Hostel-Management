@@ -275,7 +275,7 @@ export default function HallPassScreen() {
             <View style={styles.note}>
               <Text style={[text.body, styles.center, { color: colors.ink }]}>You have a planned outing.</Text>
               <Text style={[text.body, styles.center, { color: colors.ink }]}>
-                {`Your QR code appears at ${formatWhen(before)}, 30 minutes before you leave.`}
+                {`Your QR code appears at ${formatWhen(before)}, 30 minutes before you leave`}
               </Text>
             </View>
           ) : null}

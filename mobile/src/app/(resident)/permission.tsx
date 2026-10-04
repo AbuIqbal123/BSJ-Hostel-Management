@@ -410,8 +410,8 @@ function PermissionForm({
   };
 
   const sentLine = existing
-    ? "Your changes have been sent for approval."
-    : "Your request has been submitted.";
+    ? "Your changes have been sent for approval"
+    : "Your request has been submitted";
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.paper }]}>
