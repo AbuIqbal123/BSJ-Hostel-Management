@@ -29,11 +29,11 @@ export default function ChangePasswordScreen() {
       return;
     }
     if (currentPassword.length < 1) {
-      setError("Enter your current password.");
+      setError("Enter your current password");
       return;
     }
     if (newPassword.length > 200) {
-      setError("Use 200 characters or fewer.");
+      setError("Use 200 characters or fewer");
       return;
     }
     if (!passwordRulesMet(newPassword)) {

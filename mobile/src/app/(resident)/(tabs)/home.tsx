@@ -377,7 +377,7 @@ export default function HomeScreen() {
             <Text style={[text.error, { color: colors.danger }]}>{error}</Text>
           ) : null}
           {loaded && out ? (
-            <Text style={[text.body, { color: colors.ink }]}>You are out.</Text>
+            <Text style={[text.body, { color: colors.ink }]}>You are out</Text>
           ) : null}
           {loaded && !out && windowOpen ? (
             <Text style={[text.body, { color: colors.ink }]}>

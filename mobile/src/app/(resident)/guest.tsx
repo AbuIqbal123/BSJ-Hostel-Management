@@ -332,7 +332,7 @@ function GuestForm({ existing }: { existing?: GuestStay }) {
           }}
         />
         {start && end && endDate < startDate ? (
-          <Text style={[text.error, { color: colors.danger }]}>Leaves has to be on or after Arrives.</Text>
+          <Text style={[text.error, { color: colors.danger }]}>Leaves has to be on or after Arrives</Text>
         ) : null}
       </Pressable>
       <View style={styles.submit}>

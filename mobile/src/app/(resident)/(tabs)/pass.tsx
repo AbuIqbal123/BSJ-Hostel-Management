@@ -253,7 +253,7 @@ export default function HallPassScreen() {
           {who}
           <PassCode value={code} size={codeSize} />
           <Text style={[text.body, styles.center, { color: colors.inkSoft }]}>
-            Show this pass to the gate staff.
+            Show this pass to the gate staff
           </Text>
           <View style={[styles.facts, { width: codeFrame }]}>
             {place ? (
@@ -266,14 +266,14 @@ export default function HallPassScreen() {
         <View style={[styles.stage, styles.waiting]}>
           {who}
           {failed ? (
-            <Text style={[text.error, styles.center, { color: colors.danger }]}>The pass didn't load.</Text>
+            <Text style={[text.error, styles.center, { color: colors.danger }]}>The pass didn't load</Text>
           ) : null}
           {empty ? (
-            <Text style={[text.body, styles.center, { color: colors.inkSoft }]}>No pass right now.</Text>
+            <Text style={[text.body, styles.center, { color: colors.inkSoft }]}>No pass right now</Text>
           ) : null}
           {before ? (
             <View style={styles.note}>
-              <Text style={[text.body, styles.center, { color: colors.ink }]}>You have a planned outing.</Text>
+              <Text style={[text.body, styles.center, { color: colors.ink }]}>You have a planned outing</Text>
               <Text style={[text.body, styles.center, { color: colors.ink }]}>
                 {`Your QR code appears at ${formatWhen(before)}, 30 minutes before you leave`}
               </Text>

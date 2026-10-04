@@ -22,10 +22,10 @@ const DAY_START = "06:30";
 const SUMMER_END = "18:30";
 const WINTER_END = "17:30";
 
-const START_FUTURE = "The outing start must be in the future.";
-const RETURN_FUTURE = "The expected return must be in the future.";
-const RETURN_AFTER = "The expected return must be after the start.";
-const SAME_DAY = "An ordinary outing starts and returns on the same hall day.";
+const START_FUTURE = "The outing start must be in the future";
+const RETURN_FUTURE = "The expected return must be in the future";
+const RETURN_AFTER = "The expected return must be after the start";
+const SAME_DAY = "An ordinary outing starts and returns on the same hall day";
 const OUTSIDE_HOURS =
   "These hours fall outside ordinary hours. Please request permission from the Permissions tab.";
 

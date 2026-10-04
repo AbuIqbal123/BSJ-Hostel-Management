@@ -339,7 +339,7 @@ export default function HistoryScreen() {
         />
       </View>
       </View>
-      {failed ? <Text style={[text.error, { color: colors.danger }]}>History didn't load.</Text> : null}
+      {failed ? <Text style={[text.error, { color: colors.danger }]}>History didn't load</Text> : null}
       {items !== null && items.length === 0 && !failed ? (
         <Text style={[text.body, { color: colors.inkFaint }]}>No history</Text>
       ) : null}

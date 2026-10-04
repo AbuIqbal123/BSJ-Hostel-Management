@@ -58,9 +58,9 @@ type BlockOption = {
   rooms: RoomOption[];
 };
 
-const EMPTY_ROOMS = "No rooms are open.";
-const HALL_UNREACHABLE = "The hall could not be reached.";
-const PHONE_LINE = "Use an Indian mobile: +91 and exactly 10 digits.";
+const EMPTY_ROOMS = "No rooms are open";
+const HALL_UNREACHABLE = "The hall could not be reached";
+const PHONE_LINE = "Use an Indian mobile: +91 and exactly 10 digits";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -127,7 +127,7 @@ function personError(value: string, empty: string): string | null {
     return empty;
   }
   if (length > 120) {
-    return "Use 120 characters or fewer.";
+    return "Use 120 characters or fewer";
   }
   return null;
 }
@@ -135,10 +135,10 @@ function personError(value: string, empty: string): string | null {
 function enrolmentError(value: string): string | null {
   const length = trimmedLength(value);
   if (length < 1) {
-    return "Enter your enrolment number.";
+    return "Enter your enrolment number";
   }
   if (length > 40) {
-    return "Use 40 characters or fewer.";
+    return "Use 40 characters or fewer";
   }
   return null;
 }
@@ -553,7 +553,7 @@ export default function OnboardScreen() {
 
   const personInvalid = useCallback(() => {
     return (
-      personError(fullName, "Enter your full name.") !== null ||
+      personError(fullName, "Enter your full name") !== null ||
       enrolmentError(enrolment) !== null ||
       phoneError(phone) !== null ||
       !passwordRulesMet(password)
@@ -562,7 +562,7 @@ export default function OnboardScreen() {
 
   const contactInvalid = useCallback(() => {
     return (
-      personError(guardianName, "Enter the guardian name.") !== null ||
+      personError(guardianName, "Enter the guardian name") !== null ||
       phoneError(guardianPhone) !== null
     );
   }, [guardianName, guardianPhone]);
@@ -711,21 +711,21 @@ export default function OnboardScreen() {
     paddingBottom: insets.bottom + 28,
   };
 
-  const nameNote = shown(fullNameField.visible, personError(fullName, "Enter your full name."));
+  const nameNote = shown(fullNameField.visible, personError(fullName, "Enter your full name"));
   const enrolmentNote = shown(enrolmentField.visible, enrolmentError(enrolment));
   const passwordNote = shown(
     passwordField.visible,
-    password.length > 200 ? "Use 200 characters or fewer." : failingPasswordRule(password),
+    password.length > 200 ? "Use 200 characters or fewer" : failingPasswordRule(password),
   );
   const ownPhoneNote = shown(phoneField.visible, phoneError(phone));
   const guardianNameNote = shown(
     guardianNameField.visible,
-    personError(guardianName, "Enter the guardian name."),
+    personError(guardianName, "Enter the guardian name"),
   );
   const guardianPhoneNote = shown(guardianPhoneField.visible, phoneError(guardianPhone));
-  const blockNote = choiceAttempt && block === null ? "Choose a block." : null;
-  const roomNote = choiceAttempt && room === null ? "Choose a room." : null;
-  const courseNote = choiceAttempt && !isCourse(course) ? "Choose a course." : null;
+  const blockNote = choiceAttempt && block === null ? "Choose a block" : null;
+  const roomNote = choiceAttempt && room === null ? "Choose a room" : null;
+  const courseNote = choiceAttempt && !isCourse(course) ? "Choose a course" : null;
   const action = step < 2 ? "Continue" : "Sign up";
 
   const person = (
