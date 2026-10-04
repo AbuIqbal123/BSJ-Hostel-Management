@@ -46,6 +46,17 @@ function hallDate(date: Date): string {
   return `${part("year")}-${part("month")}-${part("day")}`;
 }
 
+function dateOnHall(value: string): Date {
+  return new Date(`${value}T12:00:00+05:30`);
+}
+
+function relationFields(relation: string): { id: string; other: string } {
+  if (relation !== OTHER_RELATION && RELATIONS.includes(relation)) {
+    return { id: relation, other: "" };
+  }
+  return { id: OTHER_RELATION, other: relation };
+}
+
 function HallDate({
   label,
   value,
@@ -127,20 +138,22 @@ function useLeave() {
   }, [navigation]);
 }
 
-function GuestForm() {
+function GuestForm({ existing }: { existing?: GuestStay }) {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
-  const { submitGuestStay, loadGuestStays } = useSession();
+  const { submitGuestStay, updateGuestStay, cancelGuestStay, loadGuestStays } = useSession();
   const back = useLeave();
+  const seeded = existing ? relationFields(existing.relation) : null;
   const [stays, setStays] = useState<GuestStayCard[] | null>(null);
-  const [name, setName] = useState("");
-  const [relationId, setRelationId] = useState<string | null>(null);
-  const [otherRelation, setOtherRelation] = useState("");
-  const [reason, setReason] = useState("");
-  const [start, setStart] = useState<Date | null>(null);
-  const [end, setEnd] = useState<Date | null>(null);
+  const [name, setName] = useState(existing?.guestName ?? "");
+  const [relationId, setRelationId] = useState<string | null>(seeded?.id ?? null);
+  const [otherRelation, setOtherRelation] = useState(seeded?.other ?? "");
+  const [reason, setReason] = useState(existing?.reason ?? "");
+  const [start, setStart] = useState<Date | null>(existing ? dateOnHall(existing.startDate) : null);
+  const [end, setEnd] = useState<Date | null>(existing ? dateOnHall(existing.endDate) : null);
   const [error, setError] = useState<string | null>(null);
   const pending = useRef(false);
+  const alertAt = useRef(0);
   const startDate = start ? hallDate(start) : "";
   const endDate = end ? hallDate(end) : "";
   const relation =
@@ -155,6 +168,9 @@ function GuestForm() {
 
   useFocusEffect(
     useCallback(() => {
+      if (existing) {
+        return;
+      }
       let active = true;
       void loadGuestStays().then((result) => {
         if (!active || result.error !== null) {
@@ -165,8 +181,15 @@ function GuestForm() {
       return () => {
         active = false;
       };
-    }, [loadGuestStays]),
+    }, [existing, loadGuestStays]),
   );
+
+  const leaveAfterAlert = useCallback(() => {
+    const wait = Math.max(0, 250 - (Date.now() - alertAt.current));
+    setTimeout(() => {
+      InteractionManager.runAfterInteractions(back);
+    }, wait);
+  }, [back]);
 
   const submit = async () => {
     if (!ready || pending.current) {
@@ -174,19 +197,50 @@ function GuestForm() {
     }
     pending.current = true;
     setError(null);
-    const failure = await submitGuestStay({
+    const body = {
       guest_name: name.trim(),
       relation,
       guest_start_date: startDate,
       guest_end_date: endDate,
       reason: reason.trim(),
-    });
+    };
+    const failure = existing
+      ? await updateGuestStay(existing.id, body)
+      : await submitGuestStay(body);
     pending.current = false;
     if (failure) {
       setError(failure);
       return;
     }
     back();
+  };
+
+  const confirmCancel = async () => {
+    if (!existing || pending.current) {
+      return;
+    }
+    pending.current = true;
+    const failure = await cancelGuestStay(existing.id);
+    pending.current = false;
+    if (!failure) {
+      leaveAfterAlert();
+      return;
+    }
+    setError(failure.message);
+  };
+
+  const cancel = () => {
+    Alert.alert("Cancel guest stay", undefined, [
+      { text: "Back", style: "cancel" },
+      {
+        text: "Cancel guest stay",
+        style: "destructive",
+        onPress: () => {
+          alertAt.current = Date.now();
+          void confirmCancel();
+        },
+      },
+    ]);
   };
 
   return (
@@ -292,8 +346,13 @@ function GuestForm() {
             {error}
           </Text>
         ) : null}
+        {existing && existing.arrivedAt === null ? (
+          <Pressable accessibilityRole="button" onPress={cancel} style={styles.cancel}>
+            <Text style={[text.button, { color: colors.danger }]}>Cancel guest stay</Text>
+          </Pressable>
+        ) : null}
       </Pressable>
-      {stays !== null && stays.length > 0 ? (
+      {!existing && stays !== null && stays.length > 0 ? (
         <View>
           {stays.map((item, index) => (
             <View key={item.id}>
@@ -386,6 +445,10 @@ function GuestDetail({ id }: { id: string }) {
     stay !== null &&
     stay.arrivedAt === null &&
     (stay.status === "pending" || stay.status === "approved");
+
+  if (stay?.status === "pending") {
+    return <GuestForm existing={stay} />;
+  }
 
   return (
     <ScrollView

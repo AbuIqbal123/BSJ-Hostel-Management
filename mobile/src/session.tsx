@@ -243,6 +243,7 @@ type SessionValue = {
   loadGuestStays: () => Promise<GuestListResult>;
   loadGuestStay: (guestStayId: string) => Promise<GuestResult>;
   submitGuestStay: (body: GuestStayCreate) => Promise<string | null>;
+  updateGuestStay: (guestStayId: string, body: GuestStayCreate) => Promise<string | null>;
   cancelGuestStay: (guestStayId: string) => Promise<HallFailure | null>;
 };
 
@@ -989,6 +990,32 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const updateGuestStay = useCallback(async (guestStayId: string, body: GuestStayCreate) => {
+    const current = sessionRef.current;
+    if (!current) {
+      return "Sign in again.";
+    }
+    try {
+      const response = await hallFetch(
+        `/api/v1/me/guest-stays/${encodeURIComponent(guestStayId)}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${current.accessToken}`,
+          },
+          body: JSON.stringify(body),
+        },
+      );
+      if (response.status === 200) {
+        return null;
+      }
+      return await errorMessage(response);
+    } catch {
+      return "The hall could not be reached.";
+    }
+  }, []);
+
   const cancelGuestStay = useCallback(async (guestStayId: string) => {
     const current = sessionRef.current;
     if (!current) {
@@ -1267,6 +1294,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       loadGuestStays,
       loadGuestStay,
       submitGuestStay,
+      updateGuestStay,
       cancelGuestStay,
     }),
     [
@@ -1291,6 +1319,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       loadGuestStays,
       loadGuestStay,
       submitGuestStay,
+      updateGuestStay,
       cancelGuestStay,
     ],
   );
