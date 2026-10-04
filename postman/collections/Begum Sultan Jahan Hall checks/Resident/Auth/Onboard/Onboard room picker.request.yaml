@@ -1,0 +1,6 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/api/v1/auth/onboard/options'
+order: 100
+description: |-
+  Caller: anyone (no token). Public list for the resident self-onboard form only. Returns resident blocks A, B, C, and D with active rooms that have no resident assigned. Utility and other non-resident blocks are never included. Rate-limited like sign-in.

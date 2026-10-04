@@ -1,0 +1,7 @@
+$kind: collection
+name: Onboard
+order: 50
+description: |-
+  Public resident self-sign-up on dev. No token. Load room options, then onboard.
+auth:
+  type: noauth

@@ -1,0 +1,6 @@
+$kind: http-request
+method: POST
+url: '{{baseUrl}}/api/v1/me/expire-passed'
+order: 500
+description: |-
+  Caller: resident. Marks this resident's planned ordinary outings whose expected return has passed as cancelled, and marks unused approved permissions whose expected return has passed as expired. GET routes do not perform this work. Safe to call before painting home or lists. Bearer uses {{token_resident}}.
