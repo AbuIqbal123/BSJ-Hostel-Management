@@ -266,7 +266,7 @@ type SessionValue = {
   updatePermission: (permissionId: string, body: PermissionCreate) => Promise<string | null>;
   cancelPermission: (permissionId: string) => Promise<HallFailure | null>;
   loadHallPass: () => Promise<HallPassResult>;
-  loadHistory: () => Promise<HistoryResult>;
+  loadHistory: (filters?: { kind?: HistoryKind | "all"; on?: string | null }) => Promise<HistoryResult>;
   loadNotifications: () => Promise<NotificationListResult>;
   markNotificationsRead: () => Promise<MarkNotificationsReadResult>;
   loadGuestStays: () => Promise<GuestListResult>;
@@ -985,28 +985,40 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, [renew]);
 
-  const loadHistory = useCallback(async (): Promise<HistoryResult> => {
-    const current = sessionRef.current;
-    if (!current) {
-      return { error: "Sign in again." };
-    }
-    try {
-      const response = await hallFetch("/api/v1/me/history", {
-        method: "GET",
-        headers: { Authorization: `Bearer ${current.accessToken}` },
-      });
-      if (!response.ok) {
-        return { error: await errorMessage(response) };
+  const loadHistory = useCallback(
+    async (filters?: { kind?: HistoryKind | "all"; on?: string | null }): Promise<HistoryResult> => {
+      const current = sessionRef.current;
+      if (!current) {
+        return { error: "Sign in again." };
       }
-      const items = readHistory(await response.json());
-      if (!items) {
+      const query = new URLSearchParams();
+      if (filters?.kind && filters.kind !== "all") {
+        query.set("kind", filters.kind);
+      }
+      if (filters?.on && filters.on.length > 0) {
+        query.set("on", filters.on);
+      }
+      const suffix = query.toString();
+      const path = suffix.length > 0 ? `/api/v1/me/history?${suffix}` : "/api/v1/me/history";
+      try {
+        const response = await hallFetch(path, {
+          method: "GET",
+          headers: { Authorization: `Bearer ${current.accessToken}` },
+        });
+        if (!response.ok) {
+          return { error: await errorMessage(response) };
+        }
+        const items = readHistory(await response.json());
+        if (!items) {
+          return { error: "The hall could not be reached." };
+        }
+        return { error: null, items };
+      } catch {
         return { error: "The hall could not be reached." };
       }
-      return { error: null, items };
-    } catch {
-      return { error: "The hall could not be reached." };
-    }
-  }, []);
+    },
+    [],
+  );
 
   const loadNotifications = useCallback(async (): Promise<NotificationListResult> => {
     const current = sessionRef.current;
