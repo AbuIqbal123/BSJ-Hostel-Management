@@ -79,44 +79,62 @@ function recordedLine(item: HistoryItem): string | null {
 
 function DayChip({
   label,
+  empty,
   value,
   pickerKey,
   onChange,
+  onClear,
   onAndroid,
 }: {
   label: string;
+  empty: string;
   value: string | null;
   pickerKey: number;
   onChange: (date: Date) => void;
+  onClear: () => void;
   onAndroid: () => void;
 }) {
   const colors = useHallColors();
-  const shown = value ? formatHallDate(value) : "Any";
-  if (Platform.OS === "android") {
-    return (
+  const shown = value ? formatHallDate(value) : empty;
+  const chip =
+    Platform.OS === "android" ? (
       <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onAndroid} style={styles.datePress}>
         <Text style={[text.field, { color: value ? colors.ink : colors.inkFaint }]}>{shown}</Text>
       </Pressable>
+    ) : (
+      <View style={styles.chip}>
+        <Text style={styles.chipText}>{shown}</Text>
+        <DateTimePicker
+          key={pickerKey}
+          style={styles.chipHit}
+          value={value ? dayFromHall(value) : new Date()}
+          mode="date"
+          display="compact"
+          accentColor={colors.forest}
+          themeVariant="light"
+          timeZoneName={HALL_ZONE}
+          onValueChange={(_event, date) => {
+            if (date) {
+              onChange(date);
+            }
+          }}
+        />
+      </View>
     );
-  }
   return (
-    <View style={styles.chip}>
-      <Text style={styles.chipText}>{shown}</Text>
-      <DateTimePicker
-        key={pickerKey}
-        style={styles.chipHit}
-        value={value ? dayFromHall(value) : new Date()}
-        mode="date"
-        display="compact"
-        accentColor={colors.forest}
-        themeVariant="light"
-        timeZoneName={HALL_ZONE}
-        onValueChange={(_event, date) => {
-          if (date) {
-            onChange(date);
-          }
-        }}
-      />
+    <View style={styles.bound}>
+      {chip}
+      {value ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Clear ${label}`}
+          hitSlop={8}
+          onPress={onClear}
+          style={styles.clear}
+        >
+          <Text style={[styles.clearMark, { color: colors.inkSoft }]}>×</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -275,32 +293,24 @@ export default function HistoryScreen() {
         <Text style={[text.body, { color: colors.inkSoft }]}>From</Text>
         <DayChip
           label="From"
+          empty="Start"
           value={fromDay}
           pickerKey={fromKey}
           onChange={chooseFrom}
+          onClear={() => setFromDay(null)}
           onAndroid={() => openAndroid("from")}
         />
-        <Text style={[text.body, { color: colors.inkSoft }]}>To</Text>
+        <Text style={[styles.dash, { color: colors.inkFaint }]}>-</Text>
+        <Text style={[text.body, { color: colors.inkSoft }]}>to</Text>
         <DayChip
           label="To"
+          empty="End"
           value={toDay}
           pickerKey={toKey}
           onChange={chooseTo}
+          onClear={() => setToDay(null)}
           onAndroid={() => openAndroid("to")}
         />
-        {fromDay || toDay ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Any day"
-            onPress={() => {
-              setFromDay(null);
-              setToDay(null);
-            }}
-            style={styles.anyDay}
-          >
-            <Text style={[text.button, { color: colors.inkSoft }]}>Any</Text>
-          </Pressable>
-        ) : null}
       </View>
       </View>
       {failed ? <Text style={[text.error, { color: colors.danger }]}>History didn't load.</Text> : null}
@@ -346,7 +356,11 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 10,
   },
+  bound: { flexDirection: "row", alignItems: "center", gap: 4 },
   datePress: { minHeight: 44, justifyContent: "center" },
+  clear: { minWidth: 28, minHeight: 44, alignItems: "center", justifyContent: "center" },
+  clearMark: { fontSize: 18, lineHeight: 22 },
+  dash: { fontSize: 17, lineHeight: 22 },
   chip: {
     alignSelf: "flex-start",
     backgroundColor: "#C7C7CC",
@@ -370,7 +384,6 @@ const styles = StyleSheet.create({
     left: 0,
     opacity: 0.02,
   },
-  anyDay: { minHeight: 44, justifyContent: "center" },
   hairline: { height: StyleSheet.hairlineWidth },
   cell: { paddingVertical: 12, gap: 2 },
   cellTop: {
