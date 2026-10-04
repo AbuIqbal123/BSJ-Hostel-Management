@@ -265,6 +265,32 @@ def load_upcoming(connection: sqlite3.Connection, resident_id: str) -> list[Outi
     return [outing_from_row(row) for row in rows]
 
 
+def list_upcoming_page(
+    connection: sqlite3.Connection,
+    resident_id: str,
+    *,
+    limit: int,
+    offset: int,
+) -> tuple[int, list[OutingBody]]:
+    """Upcoming planned/outside outings with COUNT + LIMIT/OFFSET in SQL."""
+    where = "WHERE outings.resident_id = ? AND outings.status IN ('planned', 'outside')"
+    params: list[object] = [resident_id]
+    total = connection.execute(
+        f"SELECT COUNT(*) AS n FROM outings {where}",
+        params,
+    ).fetchone()["n"]
+    rows = connection.execute(
+        _OUTING_SELECT
+        + f"""
+        {where}
+        ORDER BY outings.expected_return_at, outings.id
+        LIMIT ? OFFSET ?
+        """,
+        [*params, limit, offset],
+    ).fetchall()
+    return int(total), [outing_from_row(row) for row in rows]
+
+
 def load_upcoming_outings(
     connection: sqlite3.Connection, resident_id: str, now: datetime
 ) -> list[UpcomingOuting]:
