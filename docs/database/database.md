@@ -332,7 +332,7 @@ A resident may hold more than one permission. She may also plan several future o
 
 ## Resident notifications
 
-A row is written when a warden or the provost approves or rejects a permission. One decision, one row. Nothing else writes this list. The resident reads her own rows, newest first, at most 50. Each row includes the permission's short place, kind, departure, and expected return. Opening that list does not mark them read. She marks every unread row read with one call.
+A row is written when a warden or the provost approves or rejects a permission. One decision, one row. Nothing else writes this list. The resident reads her own rows, newest first, at most 50. Each row includes the permission's short place, kind, departure, expected return, and the decider's name. The phone sentence is in `docs/design/notifications.md`. Opening that list does not mark them read. She marks every unread row read with one call.
 
 | Detail | Kept as | Required | Where it comes from | Rule |
 |---|---|---|---|---|

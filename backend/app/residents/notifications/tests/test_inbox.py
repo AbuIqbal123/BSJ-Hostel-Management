@@ -30,6 +30,7 @@ STABLE = (
     "place",
     "departure_at",
     "expected_return_at",
+    "decided_by_name",
     "created_at",
     "unread",
 )

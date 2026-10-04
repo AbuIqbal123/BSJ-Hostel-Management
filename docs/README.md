@@ -19,6 +19,7 @@ Organised by domain. Prefer these folders over dumping new files at the `docs/` 
 |---|---|
 | [`design/design-system.md`](design/design-system.md) | Palette, type, layout, motion, stress UI |
 | [`design/workflows.md`](design/workflows.md) | Auth, home, permissions, register, gate, guests, office |
+| [`design/notifications.md`](design/notifications.md) | Resident inbox sentences |
 | [`api/api.md`](api/api.md) | Endpoints for reading (do not edit by hand) |
 | [`database/database.md`](database/database.md) | Schema, rules, open hall decisions |
 | [`architecture/system-architecture.md`](architecture/system-architecture.md) | Diagram and parts in use |

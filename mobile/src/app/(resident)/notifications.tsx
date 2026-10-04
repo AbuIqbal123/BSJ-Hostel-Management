@@ -8,12 +8,16 @@ import { useSession, type HallNotification } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
-function kindLabel(item: HallNotification): string {
-  return item.permissionType === "late_night" ? "Late-night" : "Home going";
+function requestName(item: HallNotification): string {
+  return item.permissionType === "late_night" ? "late-night request" : "home-going request";
 }
 
-function decisionLabel(item: HallNotification): string {
-  return item.decision === "approved" ? "Approved" : "Not approved";
+function notificationSentence(item: HallNotification): string {
+  const name = item.decidedByName.trim() || "the hall";
+  if (item.decision === "approved") {
+    return `Your ${requestName(item)} has been approved by ${name}.`;
+  }
+  return `Your ${requestName(item)} has been rejected by ${name}.`;
 }
 
 function whenLine(item: HallNotification): string {
@@ -31,30 +35,21 @@ function whenLine(item: HallNotification): string {
   return `${start.clock}, ${start.day} to ${end.clock}, ${end.day}`;
 }
 
-function detailLine(item: HallNotification): string {
-  const when = formatWhenParts(item.createdAt);
-  const decided = when ? `${when.clock}, ${when.day}` : formatWhen(item.createdAt);
-  return `${kindLabel(item)} · ${whenLine(item)} · ${decided}`;
-}
-
 function NotificationRow({ item }: { item: HallNotification }) {
   const colors = useHallColors();
-  const decisionColor = item.decision === "approved" ? colors.forest : colors.danger;
+  const sentence = notificationSentence(item);
+  const place = item.place.trim();
+  const detail = place.length > 0 ? `${place} · ${whenLine(item)}` : whenLine(item);
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${item.place}. ${decisionLabel(item)}. ${detailLine(item)}`}
+      accessibilityLabel={`${sentence} ${detail}`}
       onPress={() => router.push({ pathname: "/permission", params: { id: item.permissionId } })}
       style={({ pressed }) => [styles.cell, pressed && styles.pressed]}
     >
-      <View style={styles.cellTop}>
-        <Text numberOfLines={1} style={[styles.cellTitle, { color: colors.ink }]}>
-          {item.place}
-        </Text>
-        <Text style={[styles.decision, { color: decisionColor }]}>{decisionLabel(item)}</Text>
-      </View>
+      <Text style={[styles.cellTitle, { color: colors.ink }]}>{sentence}</Text>
       <Text numberOfLines={1} style={[styles.detail, { color: colors.inkSoft }]}>
-        {detailLine(item)}
+        {detail}
       </Text>
     </Pressable>
   );
@@ -149,23 +144,11 @@ const styles = StyleSheet.create({
   back: { alignSelf: "flex-start", minHeight: 44, justifyContent: "center" },
   title: { textAlign: "left" },
   hairline: { height: StyleSheet.hairlineWidth },
-  cell: { minHeight: 56, justifyContent: "center", gap: 2, paddingVertical: 8 },
-  cellTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
+  cell: { justifyContent: "center", gap: 2, paddingVertical: 10 },
   cellTitle: {
-    flex: 1,
     fontFamily: "SourceSans3_600SemiBold",
     fontSize: 17,
     lineHeight: 22,
-  },
-  decision: {
-    fontFamily: "SourceSans3_600SemiBold",
-    fontSize: 15,
-    lineHeight: 20,
   },
   detail: {
     fontFamily: "SourceSans3_400Regular",

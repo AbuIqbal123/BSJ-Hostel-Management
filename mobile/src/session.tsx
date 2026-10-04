@@ -107,6 +107,7 @@ export type HallNotification = {
   place: string;
   departureAt: string;
   expectedReturnAt: string;
+  decidedByName: string;
   createdAt: string;
   unread: boolean;
 };
@@ -564,6 +565,7 @@ function readNotifications(value: unknown): HallNotification[] | null {
       typeof item.place !== "string" ||
       typeof item.departure_at !== "string" ||
       typeof item.expected_return_at !== "string" ||
+      typeof item.decided_by_name !== "string" ||
       typeof item.created_at !== "string" ||
       typeof item.unread !== "boolean"
     ) {
@@ -577,6 +579,7 @@ function readNotifications(value: unknown): HallNotification[] | null {
       place: item.place,
       departureAt: item.departure_at,
       expectedReturnAt: item.expected_return_at,
+      decidedByName: item.decided_by_name,
       createdAt: item.created_at,
       unread: item.unread,
     });

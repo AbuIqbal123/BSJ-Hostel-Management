@@ -502,6 +502,7 @@ paths:
                     place: Women's College
                     departure_at: "2026-09-30T14:00:00Z"
                     expected_return_at: "2026-09-30T18:00:00Z"
+                    decided_by_name: Sara Malik
                     created_at: "2026-09-30T13:00:00Z"
                     unread: true
         "401":
@@ -3458,7 +3459,7 @@ components:
     ResidentNotification:
       type: object
       additionalProperties: false
-      required: [id, permission_id, permission_type, decision, place, departure_at, expected_return_at, created_at, unread]
+      required: [id, permission_id, permission_type, decision, place, departure_at, expected_return_at, decided_by_name, created_at, unread]
       properties:
         id:
           type: string
@@ -3484,6 +3485,10 @@ components:
           type: string
           description: When she planned to be back. The same instant as on the permission.
           example: "2026-09-30T18:00:00Z"
+        decided_by_name:
+          type: string
+          description: Display name of the warden or provost who decided. The phone uses this in the sentence from docs/design/notifications.md.
+          example: Sara Malik
         created_at:
           type: string
           description: UTC instant when the decision was recorded.
