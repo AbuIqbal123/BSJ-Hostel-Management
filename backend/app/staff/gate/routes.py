@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query
@@ -13,7 +13,6 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.residents.outings.records import (
     OutingBody,
     expire_passed_plans,
-    hall_day,
     hours_refusal,
     load_outing,
     record_outing,
@@ -168,8 +167,8 @@ def _within_duplicate_window(
 ) -> bool:
     if last_at is None or window_seconds <= 0:
         return False
-    last = datetime.strptime(last_at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-    now = datetime.strptime(now_text, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    last = clock.parse_instant(last_at)
+    now = clock.parse_instant(now_text)
     return (now - last) <= timedelta(seconds=window_seconds)
 
 
@@ -241,9 +240,9 @@ def _usable_permission(
     ).fetchall()
     too_early: sqlite3.Row | None = None
     for row in rows:
-        window_start = datetime.strptime(row["departure_at"], "%Y-%m-%dT%H:%M:%SZ").replace(
-            tzinfo=timezone.utc
-        ) - timedelta(minutes=early_minutes)
+        window_start = clock.parse_instant(row["departure_at"]) - timedelta(
+            minutes=early_minutes
+        )
         window_start_text = clock.format_instant(window_start)
         if now_text < window_start_text:
             if too_early is None:
@@ -310,13 +309,11 @@ def _open_permission_exit(
 ) -> OutingBody:
     outing_id = str(uuid.uuid4())
     expected = permission["expected_return_at"]
-    expected_moment = datetime.strptime(expected, "%Y-%m-%dT%H:%M:%SZ").replace(
-        tzinfo=timezone.utc
-    )
+    expected_moment = clock.parse_instant(expected)
     grace_ends_at = clock.format_instant(
         expected_moment + timedelta(minutes=int(settings["grace_minutes"]))
     )
-    day = hall_day(expected_moment, settings["timezone"])
+    day = clock.hall_local_date(settings["timezone"], expected_moment)
     connection.execute(
         """
         INSERT INTO outings (
@@ -526,7 +523,7 @@ def scan_hall_pass(
             ),
         )
 
-    today = hall_day(now, settings["timezone"])
+    today = clock.hall_local_date(settings["timezone"], now)
     plan = _earliest_today_plan(connection, resident_id, today, now_text)
     inside_hours = hours_refusal(now, settings) is None
     if plan is not None and inside_hours:

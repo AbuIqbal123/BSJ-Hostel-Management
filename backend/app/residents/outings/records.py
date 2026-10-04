@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Literal
 from zoneinfo import ZoneInfo
 
@@ -54,10 +54,6 @@ def outing_lateness(status: str, grace_ends_at: str) -> Literal["on_time", "late
 _QR_LEAD = timedelta(minutes=30)
 
 
-def _parse_instant(value: str) -> datetime:
-    return datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-
-
 def qr_window(
     *,
     outing_type: str,
@@ -79,14 +75,14 @@ def qr_window(
         if status == "outside":
             return True, exited_at, None
         return False, None, None
-    start = _parse_instant(starts_at)
+    start = clock.parse_instant(starts_at)
     visible_from = clock.format_instant(start - _QR_LEAD)
     if status == "outside":
         return True, visible_from, None
     visible_until = expected_return_at
     if status != "planned":
         return False, visible_from, visible_until
-    if now >= _parse_instant(expected_return_at):
+    if now >= clock.parse_instant(expected_return_at):
         return False, visible_from, visible_until
     if now >= start - _QR_LEAD:
         return True, visible_from, visible_until
@@ -142,15 +138,6 @@ FROM outings
 LEFT JOIN users AS exit_staff ON exit_staff.id = outings.exit_recorded_by
 LEFT JOIN users AS return_staff ON return_staff.id = outings.return_recorded_by
 """
-
-
-def hall_day(moment: datetime, timezone_name: str) -> str:
-    return moment.astimezone(ZoneInfo(timezone_name)).date().isoformat()
-
-
-def _timezone(connection: sqlite3.Connection) -> str:
-    row = connection.execute("SELECT timezone FROM hall_settings WHERE id = 'hall'").fetchone()
-    return row["timezone"]
 
 
 def ordinary_window_is_open(
@@ -232,7 +219,7 @@ def load_current_outing(
     connection: sqlite3.Connection, resident_id: str, moment: datetime
 ) -> OutingBody | None:
     """The outing she is outside on, or the soonest plan for today."""
-    today = hall_day(moment, _timezone(connection))
+    today = clock.hall_local_date(connection, moment)
     row = connection.execute(
         _OUTING_SELECT
         + """

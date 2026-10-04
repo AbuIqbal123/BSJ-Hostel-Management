@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime
 from typing import Literal
-from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict
 
@@ -81,11 +79,6 @@ def _now_text() -> str:
     return clock.format_instant(clock.utc_now())
 
 
-def _hall_day(connection: sqlite3.Connection, moment: datetime) -> str:
-    row = connection.execute("SELECT timezone FROM hall_settings WHERE id = 'hall'").fetchone()
-    return moment.astimezone(ZoneInfo(row["timezone"])).date().isoformat()
-
-
 def register_state(presence: str, grace_ends_at: str | None, now_text: str) -> RegisterState:
     if presence != "outside":
         return "inside"
@@ -96,7 +89,7 @@ def register_state(presence: str, grace_ends_at: str | None, now_text: str) -> R
 
 def load_summary(connection: sqlite3.Connection) -> RegisterSummary:
     now_text = _now_text()
-    today = _hall_day(connection, clock.utc_now())
+    today = clock.hall_local_date(connection, clock.utc_now())
     blocks = connection.execute(
         """
         SELECT id AS block_id, code, name

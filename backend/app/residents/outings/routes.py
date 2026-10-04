@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from typing import Annotated
 
@@ -21,7 +21,6 @@ from app.residents.outings.records import (
     can_modify_outing,
     return_is_taken,
     expire_passed_plans,
-    hall_day,
     hours_refusal,
     load_current_outing,
     load_outing,
@@ -74,7 +73,7 @@ _WINDOW_MESSAGE = {
 
 def _instant(value: str) -> datetime:
     try:
-        moment = datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        moment = clock.parse_instant(value)
     except ValueError:
         raise ApiError(
             422,
@@ -125,7 +124,7 @@ def _require_ordinary_times(
         raise ApiError(422, "validation_error", "The outing start must be in the future.")
     if body.starts_at >= body.expected_return_at:
         raise ApiError(422, "validation_error", "The expected return must be after the start.")
-    if hall_day(start, settings["timezone"]) != hall_day(moment, settings["timezone"]):
+    if clock.hall_local_date(settings["timezone"], start) != clock.hall_local_date(settings["timezone"], moment):
         raise ApiError(
             422,
             "validation_error",
@@ -199,7 +198,7 @@ def plan_outing(
     _start, moment = _require_ordinary_times(body, settings, now_text)
     destination_id, place = _remembered_place(connection, body)
     expire_passed_plans(connection, account.id, now_text)
-    day = hall_day(moment, settings["timezone"])
+    day = clock.hall_local_date(settings["timezone"], moment)
     if ordinary_window_is_open(connection, account.id, now):
         connection.commit()
         raise ApiError(
@@ -273,7 +272,7 @@ def update_outing(
     ):
         raise ApiError(409, "return_already_planned", "You already have an outing ending at that time.")
     grace_ends_at = clock.format_instant(moment + timedelta(minutes=int(settings["grace_minutes"])))
-    day = hall_day(moment, settings["timezone"])
+    day = clock.hall_local_date(settings["timezone"], moment)
     changed = connection.execute(
         """
         UPDATE outings
