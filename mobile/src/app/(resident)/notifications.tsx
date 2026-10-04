@@ -15,9 +15,9 @@ function requestName(item: HallNotification): string {
 function notificationSentence(item: HallNotification): string {
   const name = item.decidedBy.trim() || "the hall";
   if (item.decision === "approved") {
-    return `Your ${requestName(item)} has been approved by ${name}.`;
+    return `Your ${requestName(item)} has been approved by ${name}`;
   }
-  return `Your ${requestName(item)} has been rejected by ${name}.`;
+  return `Your ${requestName(item)} has been rejected by ${name}`;
 }
 
 function whenLine(item: HallNotification): string {
