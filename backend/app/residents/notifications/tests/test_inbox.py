@@ -24,7 +24,15 @@ ZARA_ID = "d55fa000-0000-4000-8000-00000000000a"
 ROOM_B204 = "d4400000-0000-4000-8000-000000000004"
 ROOM_B205 = "d4400000-0000-4000-8000-000000000005"
 CREATED = "2026-09-30T00:00:00Z"
-STABLE = ("permission_type", "decision", "place", "created_at", "unread")
+STABLE = (
+    "permission_type",
+    "decision",
+    "place",
+    "departure_at",
+    "expected_return_at",
+    "created_at",
+    "unread",
+)
 
 
 class FrozenClock:

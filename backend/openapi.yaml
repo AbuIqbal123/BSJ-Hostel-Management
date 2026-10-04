@@ -500,6 +500,8 @@ paths:
                     permission_type: late_night
                     decision: approved
                     place: Women's College
+                    departure_at: "2026-09-30T14:00:00Z"
+                    expected_return_at: "2026-09-30T18:00:00Z"
                     created_at: "2026-09-30T13:00:00Z"
                     unread: true
         "401":
@@ -3434,7 +3436,7 @@ components:
     ResidentNotification:
       type: object
       additionalProperties: false
-      required: [id, permission_id, permission_type, decision, place, created_at, unread]
+      required: [id, permission_id, permission_type, decision, place, departure_at, expected_return_at, created_at, unread]
       properties:
         id:
           type: string
@@ -3452,6 +3454,14 @@ components:
         place:
           type: string
           description: The permission's short place, such as Women's College or Lucknow.
+        departure_at:
+          type: string
+          description: When she planned to leave. The same instant as on the permission.
+          example: "2026-09-30T14:00:00Z"
+        expected_return_at:
+          type: string
+          description: When she planned to be back. The same instant as on the permission.
+          example: "2026-09-30T18:00:00Z"
         created_at:
           type: string
           description: UTC instant when the decision was recorded.

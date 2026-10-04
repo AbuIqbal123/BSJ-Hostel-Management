@@ -23,6 +23,8 @@ class ResidentNotification(BaseModel):
     permission_type: Literal["late_night", "home_going"]
     decision: Literal["approved", "rejected"]
     place: str
+    departure_at: str
+    expected_return_at: str
     created_at: str
     unread: bool
 
@@ -51,7 +53,9 @@ def list_notifications(
           resident_notifications.created_at,
           resident_notifications.read_at,
           permissions.type AS permission_type,
-          permissions.short_place AS place
+          permissions.short_place AS place,
+          permissions.departure_at,
+          permissions.expected_return_at
         FROM resident_notifications
         JOIN permissions ON permissions.id = resident_notifications.permission_id
         WHERE resident_notifications.resident_id = ?
@@ -68,6 +72,8 @@ def list_notifications(
                 permission_type=row["permission_type"],
                 decision=row["decision"],
                 place=row["place"],
+                departure_at=row["departure_at"],
+                expected_return_at=row["expected_return_at"],
                 created_at=row["created_at"],
                 unread=row["read_at"] is None,
             )

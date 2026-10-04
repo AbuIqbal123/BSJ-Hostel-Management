@@ -859,6 +859,8 @@ Body: [ResidentNotificationList](#schema-residentnotificationlist).
       "permission_type": "late_night",
       "decision": "approved",
       "place": "Women's College",
+      "departure_at": "2026-09-30T14:00:00Z",
+      "expected_return_at": "2026-09-30T18:00:00Z",
       "created_at": "2026-09-30T13:00:00Z",
       "unread": true
     }
@@ -5514,6 +5516,8 @@ One of: `inside`, `outside`, `late`.
 | `permission_type` | yes | `late_night` or `home_going` |  |
 | `decision` | yes | `approved` or `rejected` |  |
 | `place` | yes | string | The permission's short place, such as Women's College or Lucknow. |
+| `departure_at` | yes | string | When she planned to leave. The same instant as on the permission. |
+| `expected_return_at` | yes | string | When she planned to be back. The same instant as on the permission. |
 | `created_at` | yes | string | UTC instant when the decision was recorded. |
 | `unread` | yes | boolean |  |
 

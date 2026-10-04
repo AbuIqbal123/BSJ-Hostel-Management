@@ -105,6 +105,8 @@ export type HallNotification = {
   permissionType: NotificationKind;
   decision: "approved" | "rejected";
   place: string;
+  departureAt: string;
+  expectedReturnAt: string;
   createdAt: string;
   unread: boolean;
 };
@@ -556,6 +558,8 @@ function readNotifications(value: unknown): HallNotification[] | null {
       typeof item.id !== "string" ||
       typeof item.permission_id !== "string" ||
       typeof item.place !== "string" ||
+      typeof item.departure_at !== "string" ||
+      typeof item.expected_return_at !== "string" ||
       typeof item.created_at !== "string" ||
       typeof item.unread !== "boolean"
     ) {
@@ -567,6 +571,8 @@ function readNotifications(value: unknown): HallNotification[] | null {
       permissionType: item.permission_type,
       decision: item.decision,
       place: item.place,
+      departureAt: item.departure_at,
+      expectedReturnAt: item.expected_return_at,
       createdAt: item.created_at,
       unread: item.unread,
     });

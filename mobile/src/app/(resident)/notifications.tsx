@@ -3,21 +3,66 @@ import { router, useFocusEffect, useNavigation } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { formatWhen, formatWhenParts } from "@/format-when";
 import { useSession, type HallNotification } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
-function notificationSentence(item: HallNotification): string {
-  const place = item.place.trim();
-  const toPlace = place.length > 0 ? ` to ${place}` : "";
-  if (item.permissionType === "late_night") {
-    return item.decision === "approved"
-      ? `Late night${toPlace} was approved.`
-      : `Late night${toPlace} was not approved.`;
+function kindLabel(item: HallNotification): string {
+  return item.permissionType === "late_night" ? "Late-night" : "Home going";
+}
+
+function decisionLabel(item: HallNotification): string {
+  return item.decision === "approved" ? "Approved" : "Not approved";
+}
+
+function whenLine(item: HallNotification): string {
+  const start = formatWhenParts(item.departureAt);
+  const end = formatWhenParts(item.expectedReturnAt);
+  if (!start || !end) {
+    return `${formatWhen(item.departureAt)} to ${formatWhen(item.expectedReturnAt)}`;
   }
-  return item.decision === "approved"
-    ? `Going home${toPlace} was approved.`
-    : `Going home${toPlace} was not approved.`;
+  if (item.permissionType === "home_going") {
+    return start.day === end.day ? start.day : `${start.day} to ${end.day}`;
+  }
+  if (start.day === end.day) {
+    return `${start.clock} to ${end.clock}, ${start.day}`;
+  }
+  return `${start.clock}, ${start.day} to ${end.clock}, ${end.day}`;
+}
+
+function decidedLine(item: HallNotification): string {
+  const when = formatWhenParts(item.createdAt);
+  if (!when) {
+    return `Decided ${formatWhen(item.createdAt)}`;
+  }
+  return `Decided ${when.clock}, ${when.day}`;
+}
+
+function NotificationRow({ item }: { item: HallNotification }) {
+  const colors = useHallColors();
+  const decisionColor = item.decision === "approved" ? colors.forest : colors.danger;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => router.push({ pathname: "/permission", params: { id: item.permissionId } })}
+      style={({ pressed }) => [styles.cell, pressed && styles.pressed]}
+    >
+      <View style={styles.cellTop}>
+        <Text numberOfLines={1} style={[styles.cellTitle, { color: colors.ink }]}>
+          {item.place}
+        </Text>
+        <Text style={[text.body, { color: decisionColor }]}>{decisionLabel(item)}</Text>
+      </View>
+      <Text style={[text.body, { color: colors.inkSoft }]}>{kindLabel(item)}</Text>
+      <Text numberOfLines={1} style={[text.body, { color: colors.ink }]}>
+        {whenLine(item)}
+      </Text>
+      <Text numberOfLines={1} style={[text.body, { color: colors.inkFaint }]}>
+        {decidedLine(item)}
+      </Text>
+    </Pressable>
+  );
 }
 
 export default function NotificationsScreen() {
@@ -86,11 +131,12 @@ export default function NotificationsScreen() {
         <Text style={[text.button, { color: colors.inkFaint }]}>No notifications.</Text>
       ) : null}
       {!failed && items !== null && items.length > 0 ? (
-        <View style={styles.list}>
-          {items.map((item) => (
-            <Text key={item.id} style={[text.button, { color: colors.ink }]}>
-              {notificationSentence(item)}
-            </Text>
+        <View>
+          {items.map((item, index) => (
+            <View key={item.id}>
+              {index > 0 ? <View style={[styles.hairline, { backgroundColor: colors.line }]} /> : null}
+              <NotificationRow item={item} />
+            </View>
           ))}
         </View>
       ) : null}
@@ -107,5 +153,19 @@ const styles = StyleSheet.create({
   },
   back: { alignSelf: "flex-start", minHeight: 44, justifyContent: "center" },
   title: { textAlign: "left" },
-  list: { gap: 16 },
+  hairline: { height: StyleSheet.hairlineWidth },
+  cell: { paddingVertical: 12, gap: 2 },
+  cellTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  cellTitle: {
+    flex: 1,
+    fontFamily: "SourceSans3_600SemiBold",
+    fontSize: 17,
+    lineHeight: 22,
+  },
+  pressed: { opacity: 0.6 },
 });
