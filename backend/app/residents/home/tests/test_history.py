@@ -120,6 +120,24 @@ CANCELLED_LATER = _row(
     "2026-10-02T08:00:00Z",
     unused=True,
 )
+REJECTED_PERMISSION = _row(
+    REJECTED_LATE,
+    "late_night",
+    "Refused place",
+    None,
+    "2026-09-20T14:00:00Z",
+    "2026-09-20T16:00:00Z",
+    unused=True,
+)
+REJECTED_STAY = _row(
+    REJECTED_GUEST,
+    "guest_stay",
+    None,
+    "Rejected Guest",
+    "2026-08-31T18:30:00Z",
+    "2026-09-02T18:29:59Z",
+    unused=True,
+)
 CANCELLED_PERMISSION = _row(
     CANCELLED_LATE,
     "late_night",
@@ -189,6 +207,8 @@ ALL_ROWS = [
     COMPLETED,
     UNUSED_CANCELLED,
     DEPARTED,
+    REJECTED_PERMISSION,
+    REJECTED_STAY,
 ]
 
 
@@ -581,10 +601,10 @@ def test_resident_history(database_path: Path, monkeypatch: pytest.MonkeyPatch) 
         assert CANCELLED_LATE in listed
         assert OTHER_OUTING not in listed
         assert LIVE_APPROVED not in listed
-        assert REJECTED_LATE not in listed
+        assert REJECTED_LATE in listed
         assert PENDING_LATE not in listed
         assert IN_USE_LATE not in listed
-        assert REJECTED_GUEST not in listed
+        assert REJECTED_GUEST in listed
         assert LIVE_GUEST not in listed
         assert ARRIVED_GUEST not in listed
         assert "status" not in full.json()["items"][0]
@@ -594,11 +614,16 @@ def test_resident_history(database_path: Path, monkeypatch: pytest.MonkeyPatch) 
         assert outings.status_code == 200
         assert outings.json()["items"] == [CANCELLED_LATER, FINISHED, UNUSED_PLAN, UNUSED_CANCELLED]
         late = client.get("/api/v1/me/history?kind=late_night", headers=headers)
-        assert late.json()["items"] == [CANCELLED_PERMISSION, EXPIRED, COMPLETED]
+        assert late.json()["items"] == [
+            CANCELLED_PERMISSION,
+            EXPIRED,
+            COMPLETED,
+            REJECTED_PERMISSION,
+        ]
         home = client.get("/api/v1/me/history?kind=home_going", headers=headers)
         assert home.json()["items"] == [UNUSED_HOME_ROW]
         guests = client.get("/api/v1/me/history?kind=guest_stay", headers=headers)
-        assert guests.json()["items"] == [UNUSED_STAY, DEPARTED]
+        assert guests.json()["items"] == [UNUSED_STAY, DEPARTED, REJECTED_STAY]
 
         # Hall date of the finished gate times is 30 September, not the UTC date.
         on_end = client.get("/api/v1/me/history?on=2026-09-30", headers=headers)
@@ -607,7 +632,7 @@ def test_resident_history(database_path: Path, monkeypatch: pytest.MonkeyPatch) 
         assert on_utc_date.json()["items"] == [UNUSED_PLAN]
         # Departed stay covers 20–22 September inclusive, including the day between.
         on_start = client.get("/api/v1/me/history?on=2026-09-20", headers=headers)
-        assert on_start.json()["items"] == [DEPARTED]
+        assert on_start.json()["items"] == [DEPARTED, REJECTED_PERMISSION]
         on_middle = client.get("/api/v1/me/history?on=2026-09-21", headers=headers)
         assert on_middle.json()["items"] == [DEPARTED]
         on_last = client.get("/api/v1/me/history?on=2026-09-22", headers=headers)
@@ -626,7 +651,7 @@ def test_resident_history(database_path: Path, monkeypatch: pytest.MonkeyPatch) 
             "/api/v1/me/history?from=2026-09-20&to=2026-09-22",
             headers=headers,
         )
-        assert span.json()["items"] == [DEPARTED]
+        assert span.json()["items"] == [DEPARTED, REJECTED_PERMISSION]
         one_day = client.get(
             "/api/v1/me/history?from=2026-09-30&to=2026-09-30",
             headers=headers,

@@ -1016,20 +1016,21 @@ planned return has passed. A future plan she has not cancelled is
 not a row.
 
 A late-night or home-going permission is a row when she cancelled it,
-when it was approved and the window ended without use (`unused` true;
-status `approved` or `expired`), or when it was approved and then
-completed (`unused` false; status `completed`). `started_at` and
-`ended_at` are `departure_at` and `expected_return_at`. A cancelled
-permission is `unused` true on that same window. Pending, rejected,
-and still-open approved or in-use permissions are not rows.
+when it was rejected, when it was approved and the window ended
+without use (`unused` true; status `approved` or `expired`), or when
+it was approved and then completed (`unused` false; status
+`completed`). `started_at` and `ended_at` are `departure_at` and
+`expected_return_at`. A cancelled or rejected permission is `unused`
+true on that same window. Pending, and still-open approved or in-use
+permissions are not rows.
 
-A guest stay is a row when it was approved and the stay dates ended
-without an arrival (`unused` true), or when it was approved and then
-departed (`unused` false; status `departed`). `started_at` and
-`ended_at` are the start of `guest_start_date` and the end of
-`guest_end_date` in Asia/Kolkata. Pending, rejected, cancelled, and
-stays that are still inside the window or arrived but not departed
-are not rows.
+A guest stay is a row when it was rejected or cancelled (`unused`
+true), when it was approved and the stay dates ended without an
+arrival (`unused` true), or when it was approved and then departed
+(`unused` false; status `departed`). `started_at` and `ended_at` are
+the start of `guest_start_date` and the end of `guest_end_date` in
+Asia/Kolkata. Pending stays, stays still inside the window, and an
+arrived stay that has not departed are not rows.
 
 `who` is the guest name for a guest stay and null otherwise. `place`
 is null when the record has nowhere (a guest stay). `exit_recorded_by`

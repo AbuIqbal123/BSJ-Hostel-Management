@@ -351,7 +351,7 @@ def _history_items(
         LEFT JOIN users AS return_staff ON return_staff.id = outings.return_recorded_by
         WHERE permissions.resident_id = ?
           AND (
-            permissions.status IN ('completed', 'cancelled')
+            permissions.status IN ('completed', 'cancelled', 'rejected')
             OR (
               permissions.status IN ('approved', 'expired')
               AND permissions.expected_return_at < ?
@@ -382,7 +382,7 @@ def _history_items(
         FROM guest_stays
         WHERE host_resident_id = ?
           AND (
-            status = 'departed'
+            status IN ('departed', 'rejected', 'cancelled')
             OR (
               status = 'approved'
               AND arrived_at IS NULL
