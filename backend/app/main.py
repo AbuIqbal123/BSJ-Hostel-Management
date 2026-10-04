@@ -21,6 +21,7 @@ from app.shared.errors import ApiError, api_error_handler, validation_error_hand
 from app.shared.migrate import migrate
 from app.shared.auth.routes import router as auth_router
 from app.residents.home.routes import router as home_router
+from app.residents.notifications.routes import router as notifications_router
 from app.residents.hall_pass.routes import router as hall_pass_router
 from app.residents.guests.routes import router as guests_router
 from app.residents.guests.staff_routes import router as guest_staff_router
@@ -91,6 +92,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan, docs_url="/docs", redoc_url="/redoc")
 app.include_router(auth_router)
 app.include_router(home_router)
+app.include_router(notifications_router)
 app.include_router(hall_pass_router)
 app.include_router(guests_router)
 app.include_router(guest_staff_router)

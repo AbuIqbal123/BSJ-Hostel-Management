@@ -1,0 +1,1 @@
+"""Resident permission-decision inbox."""

@@ -12,7 +12,8 @@
     "active_permission": null,
     "recent_history": [],
     "ordinary_outing_active": false,
-    "upcoming_outings": []
+    "upcoming_outings": [],
+    "notifications_unread": false
   },
   "outside": {
     "resident": {
@@ -139,6 +140,7 @@
       }
     ],
     "ordinary_outing_active": true,
-    "upcoming_outings": []
+    "upcoming_outings": [],
+    "notifications_unread": false
   }
 }

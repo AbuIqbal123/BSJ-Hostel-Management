@@ -7,7 +7,8 @@ info:
     is tracked separately in `docs/database/database.md` (0.3.4).
 
     This version is the contract. Auth, resident phone (home, history, hall pass,
-    destinations, ordinary outings, permissions, guest stays), register, staff
+    destinations, ordinary outings, permissions, guest stays, permission-decision
+    inbox), register, staff
     permission queue, staff guest stays, gate scans, guests, and occupancy, and hall office
     (settings, notifications, blocks, rooms, destinations, residents, staff, password reset,
     audit, SMS log, register export) respond. Swagger on this server is the
@@ -432,7 +433,8 @@ paths:
         outing is inside its show window now (`ordinary_outing_active`),
         presence, the open outing if there is one, her planned future ordinary
         outings (`upcoming_outings`), the permission the resident is waiting
-        on or cleared to use, and the last ten exit and return lines.
+        on or cleared to use, the last ten exit and return lines, and
+        `notifications_unread` (true when a permission decision is still unread).
         `upcoming_outings` is soonest start first. It leaves off returned,
         cancelled, outside, and plans whose expected return has already
         passed. A plan inside its show window stays on the list with
@@ -463,6 +465,7 @@ paths:
                     expected_return_at: "2026-10-01T08:00:00Z"
                     can_modify: true
                 active_permission: null
+                notifications_unread: false
                 recent_history:
                   - event: returned
                     place: Maulana Azad Library
@@ -470,6 +473,59 @@ paths:
                     exited_at: null
                     returned_at: "2026-09-12T15:16:00Z"
                     recorded_by: Fatima Khan
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/me/notifications:
+    get:
+      tags: [Resident]
+      operationId: list_resident_notifications
+      summary: Own permission decisions, newest first
+      description: |
+        Caller: resident. The newest 50 rows written when a warden or the
+        provost approved or rejected her permission. Does not mark them read.
+        Call POST /api/v1/me/notifications/read for that.
+      responses:
+        "200":
+          description: Her notification rows, newest first, at most 50.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResidentNotificationList"
+              example:
+                items:
+                  - id: 00000000-0000-4000-8000-0000000000a1
+                    permission_id: 00000000-0000-4000-8000-0000000000b1
+                    permission_type: late_night
+                    decision: approved
+                    place: Women's College
+                    created_at: "2026-09-30T13:00:00Z"
+                    unread: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/me/notifications/read:
+    post:
+      tags: [Resident]
+      operationId: mark_resident_notifications_read
+      summary: Mark her unread permission decisions read
+      description: |
+        Caller: resident. Sets read on every unread row of hers, including
+        any older than the 50 returned by the list. Returns how many rows
+        changed. A second call marks nothing.
+      responses:
+        "200":
+          description: How many rows were marked read.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResidentNotificationsMarked"
+              example:
+                marked: 1
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -3279,7 +3335,7 @@ components:
     ResidentHome:
       type: object
       additionalProperties: false
-      required: [resident, ordinary_outing_active, current_outing, upcoming_outings, active_permission, recent_history]
+      required: [resident, ordinary_outing_active, current_outing, upcoming_outings, active_permission, recent_history, notifications_unread]
       properties:
         resident:
           $ref: "#/components/schemas/HomeResident"
@@ -3312,6 +3368,60 @@ components:
           maxItems: 10
           items:
             $ref: "#/components/schemas/HistoryEvent"
+        notifications_unread:
+          type: boolean
+          description: |
+            True when she has at least one permission decision she has not
+            marked read. False when the inbox is empty or every row is read.
+
+    ResidentNotification:
+      type: object
+      additionalProperties: false
+      required: [id, permission_id, permission_type, decision, place, created_at, unread]
+      properties:
+        id:
+          type: string
+          format: uuid
+        permission_id:
+          type: string
+          format: uuid
+          description: The permission this decision is about.
+        permission_type:
+          type: string
+          enum: [late_night, home_going]
+        decision:
+          type: string
+          enum: [approved, rejected]
+        place:
+          type: string
+          description: The permission's short place, such as Women's College or Lucknow.
+        created_at:
+          type: string
+          description: UTC instant when the decision was recorded.
+          example: "2026-09-30T13:00:00Z"
+        unread:
+          type: boolean
+
+    ResidentNotificationList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/ResidentNotification"
+
+    ResidentNotificationsMarked:
+      type: object
+      additionalProperties: false
+      required: [marked]
+      properties:
+        marked:
+          type: integer
+          minimum: 0
+          description: How many of her rows changed from unread to read.
 
     HallPass:
       type: object
