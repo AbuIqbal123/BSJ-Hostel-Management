@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import sqlite3
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Literal
-from zoneinfo import ZoneInfo
-
 from pydantic import BaseModel, ConfigDict
 
 GuestStatus = Literal["pending", "approved", "rejected", "cancelled", "departed"]
@@ -81,14 +79,6 @@ def inclusive_days(start_date: str, end_date: str) -> int:
     start = date.fromisoformat(start_date)
     end = date.fromisoformat(end_date)
     return (end - start).days + 1
-
-
-def hall_today(connection: sqlite3.Connection, moment: datetime) -> str:
-    row = connection.execute(
-        "SELECT timezone FROM hall_settings WHERE id = 'hall'"
-    ).fetchone()
-    assert row is not None
-    return moment.astimezone(ZoneInfo(row["timezone"])).date().isoformat()
 
 
 def derive_bucket(

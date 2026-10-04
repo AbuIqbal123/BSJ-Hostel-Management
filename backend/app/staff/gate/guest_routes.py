@@ -10,7 +10,6 @@ from pydantic import BaseModel, ConfigDict
 
 from app.residents.guests.records import (
     derive_bucket,
-    hall_today,
     record_guest_stay,
 )
 from app.shared import clock
@@ -122,7 +121,7 @@ def gate_occupancy(
     _account: GateDep,
     connection: ConnectionDep,
 ) -> GateOccupancy:
-    today = hall_today(connection, clock.utc_now())
+    today = clock.hall_local_date(connection, clock.utc_now())
     return GateOccupancy(
         guests_in_hall_count=guests_in_hall_count(connection),
         guests_should_have_left_count=guests_should_have_left_count(connection, today),
@@ -136,7 +135,7 @@ def gate_guests(
     bucket: Annotated[GateGuestBucket, Query()],
     payment_status: Annotated[Literal["paid", "unpaid"] | None, Query()] = None,
 ) -> GateGuestList:
-    today = hall_today(connection, clock.utc_now())
+    today = clock.hall_local_date(connection, clock.utc_now())
     clauses = ["guest_stays.status = 'approved'"]
     params: list[object] = []
     if bucket == "expected":
@@ -214,7 +213,7 @@ def record_guest_arrival(
     row = _host_fields(connection, guest_stay_id)
     if row is None:
         raise ApiError(404, "not_found", "That record was not found.")
-    today = hall_today(connection, clock.utc_now())
+    today = clock.hall_local_date(connection, clock.utc_now())
     if row["status"] != "approved" or row["arrived_at"] is not None:
         raise ApiError(
             409,

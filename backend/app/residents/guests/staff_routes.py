@@ -19,7 +19,6 @@ from app.residents.guests.records import (
     GuestBucket,
     GuestStayBody,
     GuestStayPageBody,
-    hall_today,
     list_guest_stays,
     load_guest_stay,
     record_guest_stay,
@@ -77,7 +76,7 @@ def list_guest_stays_staff(
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> GuestStayPageBody:
-    today = hall_today(connection, clock.utc_now())
+    today = clock.hall_local_date(connection, clock.utc_now())
     return list_guest_stays(
         connection,
         host_resident_id=None,
@@ -95,7 +94,7 @@ def get_guest_stay(
     _account: RegisterDep,
     connection: ConnectionDep,
 ) -> GuestStayBody:
-    today = hall_today(connection, clock.utc_now())
+    today = clock.hall_local_date(connection, clock.utc_now())
     stay = load_guest_stay(connection, guest_stay_id, today=today)
     if stay is None:
         raise ApiError(404, "not_found", "That record was not found.")
@@ -165,7 +164,7 @@ def decide_guest_stay(
         guest_stay_id,
         f"{account.full_name} {verb} a guest stay for {row['guest_name']}.",
     )
-    today = hall_today(connection, clock.utc_now())
+    today = clock.hall_local_date(connection, clock.utc_now())
     stay = load_guest_stay(connection, guest_stay_id, today=today)
     assert stay is not None
     return stay
@@ -246,7 +245,7 @@ def mark_guest_payment(
         guest_stay_id,
         f"{account.full_name} marked guest payment {body.payment_status} for {updated['guest_name']}.",
     )
-    today = hall_today(connection, clock.utc_now())
+    today = clock.hall_local_date(connection, clock.utc_now())
     stay = load_guest_stay(connection, guest_stay_id, today=today)
     assert stay is not None
     return stay
@@ -309,7 +308,7 @@ async def upload_guest_payment_evidence(
         guest_stay_id,
         f"{account.full_name} uploaded payment evidence for {existing['guest_name']}.",
     )
-    today = hall_today(connection, clock.utc_now())
+    today = clock.hall_local_date(connection, clock.utc_now())
     stay = load_guest_stay(connection, guest_stay_id, today=today)
     assert stay is not None
     return stay
@@ -389,7 +388,7 @@ def clear_guest_payment_evidence(
         )
     else:
         connection.commit()
-    today = hall_today(connection, clock.utc_now())
+    today = clock.hall_local_date(connection, clock.utc_now())
     stay = load_guest_stay(connection, guest_stay_id, today=today)
     assert stay is not None
     return stay

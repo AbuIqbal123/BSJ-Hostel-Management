@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Annotated, Literal
 from zoneinfo import ZoneInfo
 
@@ -61,7 +61,7 @@ PermissionCreate = Annotated[
 
 def _instant(value: str, *, field: str) -> datetime:
     try:
-        moment = datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        moment = clock.parse_instant(value)
     except ValueError:
         raise ApiError(
             422,

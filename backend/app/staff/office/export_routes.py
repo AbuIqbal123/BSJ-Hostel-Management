@@ -8,7 +8,7 @@ import sqlite3
 
 from fastapi import APIRouter, Response
 
-from app.residents.guests.records import derive_bucket, hall_today
+from app.residents.guests.records import derive_bucket
 from app.shared import clock
 from app.shared.auth.routes import ConnectionDep
 from app.staff.office.routes import ProvostDep
@@ -65,7 +65,7 @@ def _write_row(writer: csv.DictWriter, item: dict[str, str]) -> None:
 def build_register_csv(connection: sqlite3.Connection) -> str:
     now = clock.utc_now()
     now_text = clock.format_instant(now)
-    today = hall_today(connection, now)
+    today = clock.hall_local_date(connection, now)
     buffer = io.StringIO()
     writer = csv.DictWriter(buffer, fieldnames=CSV_HEADER, lineterminator="\n")
     writer.writeheader()

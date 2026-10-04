@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import sqlite3
 import uuid
-from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
+from app.shared import clock
 from app.shared.config import get_settings
 
 
 def format_local_stamp(instant_utc: str, timezone_name: str) -> str:
-    moment = datetime.strptime(instant_utc, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    moment = clock.parse_instant(instant_utc)
     local = moment.astimezone(ZoneInfo(timezone_name))
     hour = local.hour % 12 or 12
     suffix = "AM" if local.hour < 12 else "PM"
