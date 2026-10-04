@@ -714,6 +714,13 @@ function PermissionDetail({ id }: { id: string }) {
       facts.push({ label: "Leave at", value: openedWhen(permission.departureAt) });
       facts.push({ label: "Back by", value: openedWhen(permission.expectedReturnAt) });
     }
+    const decider = permission.decidedBy?.trim() ?? "";
+    if (decider.length > 0) {
+      facts.push({
+        label: permission.status === "rejected" ? "Rejected by" : "Approved by",
+        value: decider,
+      });
+    }
     if (note.length > 0) {
       facts.push({ label: "Note", value: note });
     }
@@ -741,13 +748,6 @@ function PermissionDetail({ id }: { id: string }) {
               <StatusPill status={permission.status} />
             </View>
             <Text style={[text.body, { color: colors.inkSoft }]}>{kindLabel(permission.permissionType)}</Text>
-            {permission.decidedBy ? (
-              <Text style={[text.body, { color: colors.ink }]}>
-                {permission.status === "rejected"
-                  ? `Rejected by ${permission.decidedBy}`
-                  : `Approved by ${permission.decidedBy}`}
-              </Text>
-            ) : null}
           </View>
           <View>
             {facts.map((fact, index) => (
