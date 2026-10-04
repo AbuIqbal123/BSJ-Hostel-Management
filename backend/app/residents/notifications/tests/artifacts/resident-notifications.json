@@ -1,0 +1,18 @@
+{
+  "after_two_decisions": [
+    {
+      "permission_type": "home_going",
+      "decision": "rejected",
+      "place": "Lucknow",
+      "created_at": "2026-09-30T13:00:02Z",
+      "unread": true
+    },
+    {
+      "permission_type": "late_night",
+      "decision": "approved",
+      "place": "Women's College",
+      "created_at": "2026-09-30T13:00:00Z",
+      "unread": true
+    }
+  ]
+}

@@ -53,6 +53,7 @@ class ResidentHome(BaseModel):
     upcoming_outings: list[UpcomingOuting]
     active_permission: PermissionBody | None
     recent_history: list[HistoryEvent]
+    notifications_unread: bool
 
 
 def resident_account(account: AccountDep) -> Account:
@@ -168,6 +169,14 @@ def resident_home(account: ResidentDep, connection: ConnectionDep) -> ResidentHo
         upcoming_outings=load_upcoming_outings(connection, account.id, now),
         active_permission=_active_permission(connection, account.id),
         recent_history=load_history(connection, account.id, limit=10, offset=0).items,
+        notifications_unread=connection.execute(
+            """
+            SELECT 1 FROM resident_notifications
+            WHERE resident_id = ? AND read_at IS NULL
+            LIMIT 1
+            """,
+            (account.id,),
+        ).fetchone() is not None,
     )
 
 

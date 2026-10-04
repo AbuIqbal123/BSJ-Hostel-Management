@@ -25,6 +25,7 @@ This document is the source of truth for what is stored and how a record is allo
   - [Signed-in session](#signed-in-session)
 - [Permissions](#permissions)
   - [Permission lifecycle](#permission-lifecycle)
+- [Resident notifications](#resident-notifications)
 - [Outings](#outings)
   - [Ordinary outing](#ordinary-outing)
   - [Leaving on a permission](#leaving-on-a-permission)
@@ -329,6 +330,19 @@ The use window runs from the departure minus the early-leave setting, through th
 
 A resident may hold more than one permission. She may also plan several future ordinary outings, including more than one return on the same hall day. She cannot plan another while one ordinary outing is inside its show window (30 minutes before its start until that outing ends, including while she is outside on it). She may not be outside on two outings, and she may not have two planned or outside outings that end at the same instant. Planning or scanning resolves that, under Outings.
 
+## Resident notifications
+
+A row is written when a warden or the provost approves or rejects a permission. One decision, one row. Nothing else writes this list. The resident reads her own rows, newest first, at most 50. Opening that list does not mark them read. She marks every unread row read with one call.
+
+| Detail | Kept as | Required | Where it comes from | Rule |
+|---|---|---|---|---|
+| id | Identifier | Yes | System | Identifies this notice. |
+| resident_id | Identifier | Yes | The permission | The resident the decision is for. |
+| permission_id | Identifier | Yes | The permission | One row per permission. A second decision on the same permission is not stored. |
+| decision | Choice | Yes | The warden or provost | Approved or rejected. |
+| created_at | Instant | Yes | System, at the decision | When the row was written. The same instant as `decided_at`. |
+| read_at | Instant | Empty until she marks them read | System, when she marks her inbox read | Set on every unread row for her at that moment. |
+
 ## Outings
 
 Ordinary, late-night, and home going are kept as one outing record. The outing type says which it is. The gate, the register, lateness, and the message to the guardian all follow that one record. A resident may have several planned ordinary outings, including a morning return and an afternoon return on the same hall day. She has at most one outing that is outside, and at most one planned or outside outing for a given expected return.
@@ -572,7 +586,7 @@ A warden or the provost approves or rejects a permission and a guest stay, sees 
 | Action | Resident | Gate | Warden | Provost |
 |---|---|---|---|---|
 | Self-onboard (active account) | Yes | | | |
-| Own outing, own permission, own guest application, own hall pass | Yes (active only) | | | |
+| Own outing, own permission, own guest application, own hall pass, own permission-decision inbox | Yes (active only) | | | |
 | Scan a hall pass, record a guest's arrival and departure | | Yes | Yes | Yes |
 | Register, late list, waiting decisions, mark a guest paid, upload or clear optional payment evidence | | | Yes | Yes |
 | Export the register | | | | Yes |
@@ -605,7 +619,7 @@ A resident's own history is the same exits and returns for that resident, newest
 ## What this version does not keep
 
 - Emergency alerts, duty phone numbers, or a second emergency contact besides the guardian.
-- Phone notifications. Text messages to the guardian are kept above. What the resident's or the staff member's own phone notifies, and when, is not a record in this document.
+- Push notifications, and a notice on a staff phone. A resident keeps an inbox row when a warden or the provost approves or rejects her permission. Nothing else writes that list. Text messages to the guardian are kept above.
 - A payment amount or card collection. The office marks a guest stay paid or unpaid, may type a free-text payment note, and may optionally keep a JPEG, PNG, or PDF receipt file as payment evidence. Amounts and card rails are not kept.
 - Parent or guardian accounts.
 - More than one outside outing, or two planned or outside outings with the same expected return.
@@ -626,10 +640,11 @@ Besides the unique indexes that enforce one username, one open outside outing, a
 | audit_log_occurred_at | audit_log (occurred_at) | Provost audit log newest first. |
 | sessions_user_id | sessions (user_id) | Sign-out and password change revoke every live session for that person. |
 | guardian_messages_outing_id | guardian_messages (outing_id) | Register resident record looks up the late notice for the open outing. |
+| resident_notifications_resident_created | resident_notifications (resident_id, created_at) | A resident's permission-decision inbox, newest first, and whether any row is unread. |
 
 ## Implementation note (dev)
 
-Self-onboard is specified here and in the HTTP contract. A future pending status is reserved for a later Hall Office activation workflow. Migration `0012_resident_block_rooms.sql` seeds door numbers 1 through each published count for blocks A, B, C, and D. Utility has no seeded rooms. `0013_outing_starts_at.sql` adds nullable `outings.starts_at`. `0014_outing_updated_audit.sql` records an outing change. The next free migration number is `0015_…`. Leave this document's version at **0.3.4** until production.
+Self-onboard is specified here and in the HTTP contract. A future pending status is reserved for a later Hall Office activation workflow. Migration `0012_resident_block_rooms.sql` seeds door numbers 1 through each published count for blocks A, B, C, and D. Utility has no seeded rooms. `0013_outing_starts_at.sql` adds nullable `outings.starts_at`. `0014_outing_updated_audit.sql` records an outing change. `0015_resident_notifications.sql` keeps one row when a permission is approved or rejected. The next free migration number is `0016_…`. Leave this document's version at **0.3.4** until production.
 
 ## Revisions
 
