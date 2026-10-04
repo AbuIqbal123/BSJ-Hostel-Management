@@ -1,5 +1,4 @@
 import { useCallback, useRef, useState } from "react";
-import { Feather } from "@expo/vector-icons";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import { router, useFocusEffect, useNavigation } from "expo-router";
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -178,7 +177,6 @@ function HistoryRow({ item }: { item: HistoryItem }) {
           {title}
         </Text>
         <Text style={[text.body, { color: colors.inkSoft }]}>{kindLabel(item.kind)}</Text>
-        <Feather name="chevron-right" size={18} color={colors.inkFaint} />
       </View>
       <View style={styles.cellTop}>
         <Text numberOfLines={1} style={[styles.cellWhen, { color: colors.ink }]}>
@@ -329,7 +327,6 @@ export default function HistoryScreen() {
           onClear={() => setFromDay(null)}
           onAndroid={() => openAndroid("from")}
         />
-        <Text style={[styles.dash, { color: colors.inkFaint }]}>-</Text>
         <Text style={[text.body, { color: colors.inkSoft }]}>to</Text>
         <DayChip
           label="To"
@@ -389,7 +386,6 @@ const styles = StyleSheet.create({
   datePress: { minHeight: 44, justifyContent: "center" },
   clear: { minWidth: 28, minHeight: 44, alignItems: "center", justifyContent: "center" },
   clearMark: { fontSize: 18, lineHeight: 22 },
-  dash: { fontSize: 17, lineHeight: 22 },
   chip: {
     alignSelf: "flex-start",
     backgroundColor: "#C7C7CC",

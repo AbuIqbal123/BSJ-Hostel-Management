@@ -1742,6 +1742,7 @@ Body: [Permission](#schema-permission).
 | `expected_return_at` | yes | date-time |  |
 | `decision_note` | no | string or null |  |
 | `decided_at` | no | date-time or null |  |
+| `decided_by` | no | string or null | Display name of the warden or provost who decided. Not a user id. Empty while waiting. |
 | `created_at` | yes | date-time |  |
 
 #### 401
@@ -1800,6 +1801,7 @@ Body: [Permission](#schema-permission).
 | `expected_return_at` | yes | date-time |  |
 | `decision_note` | no | string or null |  |
 | `decided_at` | no | date-time or null |  |
+| `decided_by` | no | string or null | Display name of the warden or provost who decided. Not a user id. Empty while waiting. |
 | `created_at` | yes | date-time |  |
 
 #### 401
@@ -1887,6 +1889,7 @@ Body: [Permission](#schema-permission).
 | `expected_return_at` | yes | date-time |  |
 | `decision_note` | no | string or null |  |
 | `decided_at` | no | date-time or null |  |
+| `decided_by` | no | string or null | Display name of the warden or provost who decided. Not a user id. Empty while waiting. |
 | `created_at` | yes | date-time |  |
 
 #### 401
@@ -1957,6 +1960,7 @@ Body: [Permission](#schema-permission).
 | `expected_return_at` | yes | date-time |  |
 | `decision_note` | no | string or null |  |
 | `decided_at` | no | date-time or null |  |
+| `decided_by` | no | string or null | Display name of the warden or provost who decided. Not a user id. Empty while waiting. |
 | `created_at` | yes | date-time |  |
 
 #### 401
@@ -2115,6 +2119,7 @@ Body: [PermissionReview](#schema-permissionreview).
 | `expected_return_at` | yes | date-time |  |
 | `decision_note` | no | string or null |  |
 | `decided_at` | no | date-time or null |  |
+| `decided_by` | no | string or null | Display name of the warden or provost who decided. Not a user id. Empty while waiting. |
 | `created_at` | yes | date-time |  |
 | `resident_id` | yes | uuid |  |
 | `resident_name` | yes | string |  |
@@ -2197,6 +2202,7 @@ Body: [PermissionReview](#schema-permissionreview).
 | `expected_return_at` | yes | date-time |  |
 | `decision_note` | no | string or null |  |
 | `decided_at` | no | date-time or null |  |
+| `decided_by` | no | string or null | Display name of the warden or provost who decided. Not a user id. Empty while waiting. |
 | `created_at` | yes | date-time |  |
 | `resident_id` | yes | uuid |  |
 | `resident_name` | yes | string |  |
@@ -5752,6 +5758,7 @@ The `type` field selects the object:
 | `expected_return_at` | yes | date-time |  |
 | `decision_note` | no | string or null |  |
 | `decided_at` | no | date-time or null |  |
+| `decided_by` | no | string or null | Display name of the warden or provost who decided. Not a user id. Empty while waiting. |
 | `created_at` | yes | date-time |  |
 
 ### <a id="schema-permissionreview"></a>PermissionReview
@@ -5769,6 +5776,7 @@ The `type` field selects the object:
 | `expected_return_at` | yes | date-time |  |
 | `decision_note` | no | string or null |  |
 | `decided_at` | no | date-time or null |  |
+| `decided_by` | no | string or null | Display name of the warden or provost who decided. Not a user id. Empty while waiting. |
 | `created_at` | yes | date-time |  |
 | `resident_id` | yes | uuid |  |
 | `resident_name` | yes | string |  |

@@ -33,6 +33,7 @@ class PermissionBody(BaseModel):
     expected_return_at: str
     decision_note: str | None
     decided_at: str | None
+    decided_by: str | None
     created_at: str
 
 
@@ -80,7 +81,8 @@ SELECT
   permissions.resident_id,
   users.full_name AS resident_name,
   rooms.label AS room_label,
-  decider.full_name AS decided_by_name
+  decider.full_name AS decided_by_name,
+  decider.full_name AS decided_by
 FROM permissions
 JOIN residents ON residents.user_id = permissions.resident_id
 JOIN users ON users.id = permissions.resident_id
@@ -102,6 +104,7 @@ def permission_from_row(row: sqlite3.Row) -> PermissionBody:
         expected_return_at=row["expected_return_at"],
         decision_note=row["decision_note"],
         decided_at=row["decided_at"],
+        decided_by=row["decided_by"],
         created_at=row["created_at"],
     )
 
@@ -178,7 +181,12 @@ def expire_passed_permissions(
 
 def load_permission(connection: sqlite3.Connection, permission_id: str) -> PermissionBody:
     row = connection.execute(
-        f"SELECT {_PERMISSION_COLUMNS} FROM permissions WHERE id = ?",
+        f"""
+        SELECT {_PERMISSION_COLUMNS}, decider.full_name AS decided_by
+        FROM permissions
+        LEFT JOIN users AS decider ON decider.id = permissions.decided_by
+        WHERE permissions.id = ?
+        """,
         (permission_id,),
     ).fetchone()
     if row is None:
@@ -292,6 +300,7 @@ def list_own(
                 expected_return_at=item.expected_return_at,
                 decision_note=item.decision_note,
                 decided_at=item.decided_at,
+                decided_by=item.decided_by,
                 created_at=item.created_at,
             )
             for item in page.items

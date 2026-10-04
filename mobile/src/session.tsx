@@ -192,6 +192,7 @@ export type HallPermission = {
   expectedReturnAt: string;
   decisionNote: string | null;
   decidedAt: string | null;
+  decidedBy: string | null;
   createdAt: string;
 };
 
@@ -711,6 +712,7 @@ function readPermission(value: unknown): HallPermission | null {
   const address = optionalString(value.address);
   const decisionNote = optionalString(value.decision_note);
   const decidedAt = optionalString(value.decided_at);
+  const decidedBy = optionalString(value.decided_by);
   const { id, short_place, reason, departure_at, expected_return_at, created_at } = value;
   if (
     typeof id !== "string" ||
@@ -725,7 +727,8 @@ function readPermission(value: unknown): HallPermission | null {
     destinationDetail === undefined ||
     address === undefined ||
     decisionNote === undefined ||
-    decidedAt === undefined
+    decidedAt === undefined ||
+    decidedBy === undefined
   ) {
     return null;
   }
@@ -741,6 +744,7 @@ function readPermission(value: unknown): HallPermission | null {
     expectedReturnAt: expected_return_at,
     decisionNote,
     decidedAt,
+    decidedBy,
     createdAt: created_at,
   };
 }

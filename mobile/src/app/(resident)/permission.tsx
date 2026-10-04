@@ -741,6 +741,13 @@ function PermissionDetail({ id }: { id: string }) {
               <StatusPill status={permission.status} />
             </View>
             <Text style={[text.body, { color: colors.inkSoft }]}>{kindLabel(permission.permissionType)}</Text>
+            {permission.decidedBy ? (
+              <Text style={[text.body, { color: colors.ink }]}>
+                {permission.status === "rejected"
+                  ? `Rejected by ${permission.decidedBy}`
+                  : `Approved by ${permission.decidedBy}`}
+              </Text>
+            ) : null}
           </View>
           <View>
             {facts.map((fact, index) => (

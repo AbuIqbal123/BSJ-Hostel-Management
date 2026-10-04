@@ -4091,6 +4091,12 @@ components:
             - type: string
               format: date-time
             - type: "null"
+        decided_by:
+          oneOf:
+            - type: string
+            - type: "null"
+          description: Display name of the warden or provost who decided. Not a user id. Empty while waiting.
+          example: Sara Malik
         created_at:
           type: string
           format: date-time
