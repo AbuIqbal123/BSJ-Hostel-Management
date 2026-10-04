@@ -92,11 +92,14 @@ def _active_permission(connection: sqlite3.Connection, resident_id: str) -> Perm
     row = connection.execute(
         """
         SELECT
-          id, type, status, short_place, destination_detail, address, reason,
-          departure_at, expected_return_at, decision_note, decided_at, created_at
+          permissions.id, permissions.type, permissions.status, permissions.short_place,
+          permissions.destination_detail, permissions.address, permissions.reason,
+          permissions.departure_at, permissions.expected_return_at, permissions.decision_note,
+          permissions.decided_at, decider.full_name AS decided_by, permissions.created_at
         FROM permissions
-        WHERE resident_id = ? AND status IN ('pending', 'approved', 'in_use')
-        ORDER BY created_at DESC, id DESC
+        LEFT JOIN users AS decider ON decider.id = permissions.decided_by
+        WHERE permissions.resident_id = ? AND permissions.status IN ('pending', 'approved', 'in_use')
+        ORDER BY permissions.created_at DESC, permissions.id DESC
         LIMIT 1
         """,
         (resident_id,),
