@@ -1,4 +1,4 @@
-import { useColorScheme } from "react-native";
+import { useDark } from "@/theme/appearance";
 
 const light = {
   ink: "#14261F",
@@ -11,6 +11,9 @@ const light = {
   line: "#D4DBD4",
   danger: "#6E2430",
   dangerBg: "#F7E8EA",
+  pending: "#7A6328",
+  pendingBg: "#F3EDD8",
+  approvedBg: "#E5F0EA",
   onForest: "#FFFFFF",
 };
 
@@ -25,12 +28,14 @@ const dark = {
   line: "#2A3830",
   danger: "#E0707C",
   dangerBg: "#2E221C",
+  pending: "#D4C08A",
+  pendingBg: "#2A281C",
+  approvedBg: "#1C2E26",
   onForest: "#FFFFFF",
 };
 
 export type HallColors = typeof light;
 
 export function useHallColors(): HallColors {
-  const scheme = useColorScheme();
-  return scheme === "dark" ? dark : light;
+  return useDark() ? dark : light;
 }

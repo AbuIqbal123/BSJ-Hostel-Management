@@ -566,3 +566,131 @@ def test_permission_lifecycle(database_path: Path, monkeypatch: pytest.MonkeyPat
         assert ("permission.approved", PROVOST_ID, OTHER_PERM) in actions
         assert ("permission.expired", None, EXPIRED_ID) in actions
         assert ("permission.expired", None, STAFF_EXPIRE_ID) in actions
+
+
+def test_pending_permission_can_be_changed(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.shared import clock
+    from app.main import app
+
+    frozen = FrozenClock()
+    monkeypatch.setattr(clock, "utc_now", frozen.utc_now)
+    body = {
+        "permission_type": "late_night",
+        "short_place": "Women's College",
+        "reason": "Seminar.",
+        "departure_at": "2026-09-30T14:00:00Z",
+        "expected_return_at": "2026-09-30T16:00:00Z",
+    }
+    changed = {
+        **body,
+        "short_place": "Library",
+        "reason": "The seminar moved.",
+        "departure_at": "2026-09-30T15:00:00Z",
+        "expected_return_at": "2026-09-30T17:00:00Z",
+    }
+    with TestClient(app) as client:
+        issue_people(database_path)
+        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        created = client.post("/api/v1/me/permissions", headers=auth(resident), json=body)
+        assert created.status_code == 201
+        permission_id = created.json()["id"]
+        saved = client.patch(
+            f"/api/v1/me/permissions/{permission_id}",
+            headers=auth(resident),
+            json=changed,
+        )
+        assert saved.status_code == 200
+        assert saved.json()["status"] == "pending"
+        assert saved.json()["short_place"] == "Library"
+        assert saved.json()["reason"] == "The seminar moved."
+        assert saved.json()["departure_at"] == "2026-09-30T15:00:00Z"
+        assert_error(
+            client.patch(
+                f"/api/v1/me/permissions/{permission_id}",
+                headers=auth(resident),
+                json={**changed, "expected_return_at": "2026-09-30T15:00:00Z"},
+            ),
+            422,
+            "validation_error",
+            "The expected return must be after the departure.",
+        )
+        warden = sign_in(client, "warden.sara", WARDEN_PHRASE)
+        decided = client.post(
+            f"/api/v1/permissions/{permission_id}/decision",
+            headers=auth(warden),
+            json={"decision": "approved", "note": ""},
+        )
+        assert decided.status_code == 200
+        assert_error(
+            client.patch(
+                f"/api/v1/me/permissions/{permission_id}",
+                headers=auth(resident),
+                json=changed,
+            ),
+            409,
+            "not_editable",
+            "Only a pending permission can be changed.",
+        )
+
+
+def test_late_night_returns_the_same_night(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.shared import clock
+    from app.main import app
+
+    frozen = FrozenClock()
+    monkeypatch.setattr(clock, "utc_now", frozen.utc_now)
+    same_night = {
+        "permission_type": "late_night",
+        "short_place": "Women's College",
+        "reason": "Seminar.",
+        "departure_at": "2026-09-30T14:00:00Z",
+        "expected_return_at": "2026-09-30T16:00:00Z",
+    }
+    midnight = {
+        **same_night,
+        "expected_return_at": "2026-09-30T18:30:00Z",
+    }
+    next_morning = {
+        **same_night,
+        "expected_return_at": "2026-09-30T19:00:00Z",
+    }
+    home = {
+        "permission_type": "home_going",
+        "short_place": "Lucknow",
+        "address": "14, Civil Lines, Lucknow",
+        "reason": "Family visit.",
+        "departure_at": "2026-09-30T15:00:00Z",
+        "expected_return_at": "2026-10-02T13:30:00Z",
+    }
+    with TestClient(app) as client:
+        issue_people(database_path)
+        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        created = client.post("/api/v1/me/permissions", headers=auth(resident), json=same_night)
+        assert created.status_code == 201
+        at_midnight = client.post("/api/v1/me/permissions", headers=auth(resident), json=midnight)
+        assert at_midnight.status_code == 201
+        assert_error(
+            client.post("/api/v1/me/permissions", headers=auth(resident), json=next_morning),
+            422,
+            "validation_error",
+            "A late-night return has to be the same day. Only 12:00 AM can be the next day.",
+            "expected_return_at",
+        )
+        changed = client.patch(
+            f"/api/v1/me/permissions/{created.json()['id']}",
+            headers=auth(resident),
+            json=next_morning,
+        )
+        assert_error(
+            changed,
+            422,
+            "validation_error",
+            "A late-night return has to be the same day. Only 12:00 AM can be the next day.",
+            "expected_return_at",
+        )
+        home_going = client.post("/api/v1/me/permissions", headers=auth(resident), json=home)
+        assert home_going.status_code == 201

@@ -1,6 +1,7 @@
 import DateTimePicker, {
   DateTimePickerAndroid,
 } from "@react-native-community/datetimepicker";
+import { useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { formatWhenParts, utcInstant } from "@/format-when";
@@ -67,6 +68,11 @@ function hallInstant(daySource: Date, hour: number, minute: number): Date {
   return new Date(guess.getTime() - (wallUtc(guess) - guess.getTime()));
 }
 
+export function hallAt(day: string, hour: number, minute: number): Date {
+  const [year, month, date] = day.split("-").map(Number);
+  return hallInstant(new Date(Date.UTC(year, month - 1, date, 12, 0, 0)), hour, minute);
+}
+
 function withHallDay(daySource: Date, timeSource: Date): Date {
   return hallInstant(
     daySource,
@@ -91,6 +97,69 @@ function hoursNote(date: Date): string | null {
     return OUTSIDE_HOURS;
   }
   return null;
+}
+
+export function notBefore(floor: Date, current: Date | null): Date | null {
+  const base = current ?? proposalWhen();
+  if (hallDayKey(base) >= hallDayKey(floor)) {
+    return current;
+  }
+  return withHallDay(floor, base);
+}
+
+function shiftHallDay(daySource: Date, days: number): Date {
+  const [year, month, date] = hallDay(daySource).split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, date + days, 12, 0, 0));
+}
+
+/** A later leave day keeps the return clock. The return stays after that departure. */
+export function afterDeparture(leave: Date, back: Date | null): Date | null {
+  const aligned = notBefore(leave, back);
+  if (aligned === null || aligned.getTime() > leave.getTime()) {
+    return aligned;
+  }
+  return withHallDay(shiftHallDay(aligned, 1), aligned);
+}
+
+function hallHourMinute(date: Date): { hour: number; minute: number } {
+  return {
+    hour: Number(hallPart(date, "hour")),
+    minute: Number(hallPart(date, "minute")),
+  };
+}
+
+export function isNextHallMidnight(leave: Date, back: Date): boolean {
+  const clock = hallHourMinute(back);
+  if (clock.hour !== 0 || clock.minute !== 0) {
+    return false;
+  }
+  return hallDayKey(back) === hallDayKey(shiftHallDay(leave, 1));
+}
+
+/** Late night stays on the leave day. 12:00 AM the next day is the only later instant. */
+export function sameNight(leave: Date, back: Date | null): Date | null {
+  if (back && isNextHallMidnight(leave, back) && back.getTime() > leave.getTime()) {
+    return back;
+  }
+  const clockSource = back ?? leave;
+  const sameDay = withHallDay(leave, clockSource);
+  if (sameDay.getTime() > leave.getTime()) {
+    return sameDay;
+  }
+  const hourLater = new Date(leave.getTime() + 60 * 60 * 1000);
+  if (hallDayKey(hourLater) === hallDayKey(leave)) {
+    return hourLater;
+  }
+  return hallAt(hallDayKey(shiftHallDay(leave, 1)), 0, 0);
+}
+
+function hallDayKey(date: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: HALL_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
 }
 
 function commitDay(shown: Date, date: Date | undefined, onChange: (next: Date) => void) {
@@ -153,12 +222,14 @@ function AndroidWhen({
   shown,
   value,
   colors,
+  clockFirst,
   onChange,
 }: {
   label: string;
   shown: Date;
   value: Date | null;
   colors: HallColors;
+  clockFirst: boolean;
   onChange: (date: Date) => void;
 }) {
   const instant = utcInstant(value ?? shown);
@@ -189,22 +260,29 @@ function AndroidWhen({
     });
   };
 
+  const dateControl = (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={value ? `${label}, ${dayText}` : `${label}, date`}
+      onPress={openDate}
+    >
+      <Text style={[text.field, { color: ink }]}>{dayText}</Text>
+    </Pressable>
+  );
+  const timeControl = (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={value ? `${label}, ${clockText}` : `${label}, time`}
+      onPress={openTime}
+    >
+      <Text style={[text.field, { color: ink }]}>{clockText}</Text>
+    </Pressable>
+  );
+
   return (
     <View style={styles.controls}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={value ? `${label}, ${dayText}` : `${label}, date`}
-        onPress={openDate}
-      >
-        <Text style={[text.field, { color: ink }]}>{dayText}</Text>
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={value ? `${label}, ${clockText}` : `${label}, time`}
-        onPress={openTime}
-      >
-        <Text style={[text.field, { color: ink }]}>{clockText}</Text>
-      </Pressable>
+      {clockFirst ? timeControl : dateControl}
+      {clockFirst ? dateControl : timeControl}
     </View>
   );
 }
@@ -212,38 +290,77 @@ function AndroidWhen({
 function IosWhen({
   shown,
   colors,
+  clockFirst,
   onChange,
   onDismiss,
 }: {
   shown: Date;
   colors: HallColors;
+  clockFirst: boolean;
   onChange: (date: Date) => void;
   onDismiss?: () => void;
 }) {
-  return (
-    <View style={styles.controls}>
+  const [datePickerKey, setDatePickerKey] = useState(0);
+  const ignoreClockUntil = useRef(0);
+  const when = formatWhenParts(shown.toISOString());
+  const dayLabel = when
+    ? new Intl.DateTimeFormat("en-GB", {
+        timeZone: HALL_ZONE,
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }).format(shown)
+    : "";
+  const dateChip = (
+    <View style={styles.chip}>
+      <Text style={styles.chipText}>{dayLabel}</Text>
       <DateTimePicker
+        key={datePickerKey}
+        style={styles.chipHit}
         value={shown}
         mode="date"
         display="compact"
         accentColor={colors.forest}
+        themeVariant="light"
         timeZoneName={HALL_ZONE}
         onDismiss={onDismiss}
         onValueChange={(_event, date) => {
+          if (!date || hallDayKey(date) === hallDayKey(shown)) {
+            return;
+          }
+          ignoreClockUntil.current = Date.now() + 500;
           commitDay(shown, date, onChange);
+          setDatePickerKey((key) => key + 1);
         }}
       />
+    </View>
+  );
+  const timeChip = (
+    <View style={styles.chip}>
+      <Text style={styles.chipText}>{when?.clock ?? ""}</Text>
       <DateTimePicker
+        style={styles.chipHit}
         value={shown}
         mode="time"
         display="compact"
         accentColor={colors.forest}
+        themeVariant="light"
         timeZoneName={HALL_ZONE}
         onDismiss={onDismiss}
         onValueChange={(_event, date) => {
+          if (Date.now() < ignoreClockUntil.current) {
+            return;
+          }
           commitClock(shown, date, onChange);
         }}
       />
+    </View>
+  );
+
+  return (
+    <View style={styles.controls}>
+      {clockFirst ? timeChip : dateChip}
+      {clockFirst ? dateChip : timeChip}
     </View>
   );
 }
@@ -254,12 +371,14 @@ export function WhenField({
   onChange,
   onAdjust,
   note,
+  clockFirst = false,
 }: {
   label: string;
   value: Date | null;
   onChange: (date: Date | null) => void;
   onAdjust?: () => void;
   note: string | null;
+  clockFirst?: boolean;
 }) {
   const colors = useHallColors();
   const shown = value ?? proposalWhen();
@@ -272,13 +391,20 @@ export function WhenField({
     <View style={styles.field}>
       <Text style={[text.label, { color: colors.inkSoft }]}>{label}</Text>
       {Platform.OS === "ios" ? (
-        <IosWhen shown={shown} colors={colors} onChange={change} onDismiss={onAdjust} />
+        <IosWhen
+          shown={shown}
+          colors={colors}
+          clockFirst={clockFirst}
+          onChange={change}
+          onDismiss={onAdjust}
+        />
       ) : (
         <AndroidWhen
           label={label}
           shown={shown}
           value={value}
           colors={colors}
+          clockFirst={clockFirst}
           onChange={change}
         />
       )}
@@ -293,5 +419,27 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+  },
+  chip: {
+    backgroundColor: "#C7C7CC",
+    borderRadius: 8,
+    minHeight: 34,
+    paddingHorizontal: 11,
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  chipText: {
+    fontFamily: "SourceSans3_400Regular",
+    fontSize: 17,
+    lineHeight: 22,
+    color: "#14261F",
+  },
+  chipHit: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    opacity: 0.02,
   },
 });

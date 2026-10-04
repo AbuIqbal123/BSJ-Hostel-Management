@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Literal
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, ConfigDict, Field
@@ -27,6 +28,9 @@ router = APIRouter(prefix="/api/v1", tags=["Resident"])
 
 # Phones and the hall clock can disagree by a little; allow a short skew.
 DEPARTURE_PAST_SKEW = timedelta(minutes=5)
+LATE_NIGHT_SAME_DAY = (
+    "A late-night return has to be the same day. Only 12:00 AM can be the next day."
+)
 
 
 class LateNightCreate(BaseModel):
@@ -89,6 +93,30 @@ def _optional_text(value: str | None) -> str | None:
     return text or None
 
 
+def _require_same_late_night(
+    connection: ConnectionDep,
+    departure: datetime,
+    expected_return: datetime,
+) -> None:
+    row = connection.execute(
+        "SELECT timezone FROM hall_settings WHERE id = 'hall'"
+    ).fetchone()
+    zone = ZoneInfo(row["timezone"])
+    leave = departure.astimezone(zone)
+    back = expected_return.astimezone(zone)
+    if leave.date() == back.date():
+        return
+    next_day = leave.date() + timedelta(days=1)
+    if back.date() == next_day and (back.hour, back.minute) == (0, 0):
+        return
+    raise ApiError(
+        422,
+        "validation_error",
+        LATE_NIGHT_SAME_DAY,
+        field="expected_return_at",
+    )
+
+
 @router.get("/me/permissions", response_model=PermissionPageBody)
 def list_own_permissions(
     account: ResidentDep,
@@ -129,6 +157,8 @@ def submit_permission(
             "validation_error",
             "The expected return must be after the departure.",
         )
+    if request.permission_type == "late_night":
+        _require_same_late_night(connection, departure, expected_return)
     short_place = _required_text(request.short_place, field="short_place", label="Short place")
     reason = _required_text(request.reason, field="reason", label="Reason")
     now_text = clock.format_instant(clock.utc_now())
@@ -176,6 +206,85 @@ def submit_permission(
         permission_id,
         f"{account.full_name} submitted a {label} permission for {short_place}.",
     )
+    return load_permission(connection, permission_id)
+
+
+@router.patch("/me/permissions/{permission_id}", response_model=PermissionBody)
+def update_permission(
+    permission_id: str,
+    body: PermissionCreate,
+    account: ResidentDep,
+    connection: ConnectionDep,
+) -> PermissionBody:
+    row = connection.execute(
+        "SELECT resident_id, status, type FROM permissions WHERE id = ?",
+        (permission_id,),
+    ).fetchone()
+    if row is None or row["resident_id"] != account.id:
+        raise ApiError(404, "not_found", "That record was not found.")
+    if row["status"] != "pending":
+        raise ApiError(
+            409,
+            "not_editable",
+            "Only a pending permission can be changed.",
+        )
+    if body.permission_type != row["type"]:
+        raise ApiError(
+            422,
+            "validation_error",
+            "The kind of permission cannot be changed.",
+            field="permission_type",
+        )
+    request = body
+    departure = _instant(request.departure_at, field="departure_at")
+    expected_return = _instant(request.expected_return_at, field="expected_return_at")
+    now = clock.utc_now()
+    if departure < now - DEPARTURE_PAST_SKEW:
+        raise ApiError(
+            422,
+            "validation_error",
+            "The departure must not be in the past.",
+            field="departure_at",
+        )
+    if expected_return <= departure:
+        raise ApiError(
+            422,
+            "validation_error",
+            "The expected return must be after the departure.",
+        )
+    if request.permission_type == "late_night":
+        _require_same_late_night(connection, departure, expected_return)
+    short_place = _required_text(request.short_place, field="short_place", label="Short place")
+    reason = _required_text(request.reason, field="reason", label="Reason")
+    if request.permission_type == "late_night":
+        destination_detail = _optional_text(request.destination_detail)
+        address = None
+    else:
+        destination_detail = None
+        address = _required_text(request.address, field="address", label="Address")
+    now_text = clock.format_instant(now)
+    updated = connection.execute(
+        """
+        UPDATE permissions
+        SET short_place = ?, destination_detail = ?, address = ?, reason = ?,
+            departure_at = ?, expected_return_at = ?, updated_at = ?
+        WHERE id = ? AND resident_id = ? AND status = 'pending'
+        RETURNING id
+        """,
+        (
+            short_place,
+            destination_detail,
+            address,
+            reason,
+            request.departure_at,
+            request.expected_return_at,
+            now_text,
+            permission_id,
+            account.id,
+        ),
+    ).fetchone()
+    if updated is None:
+        raise ApiError(409, "not_editable", "Only a pending permission can be changed.")
     return load_permission(connection, permission_id)
 
 

@@ -71,6 +71,15 @@ export function formatWhenParts(iso: string): { day: string; clock: string } | n
   return whenPieces(iso);
 }
 
+export function formatHallDate(iso: string): string {
+  const [year, month, day] = iso.split("-");
+  const name = MONTHS[Number(month) - 1];
+  if (!year || !name || !day || Number.isNaN(Number(day))) {
+    return iso;
+  }
+  return `${Number(day)} ${name} ${year}`;
+}
+
 /** UTC instant the hall accepts: `YYYY-MM-DDTHH:MM:SSZ`, to the minute. */
 export function utcInstant(date: Date): string {
   const pad = (value: number) => String(value).padStart(2, "0");

@@ -16,7 +16,7 @@ import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
 import { utcInstant } from "@/format-when";
-import { OTHER_NAME, WhenField, leaveNote, returnNote } from "@/outing-when";
+import { OTHER_NAME, WhenField, leaveNote, notBefore, returnNote } from "@/outing-when";
 import { lockOuting, noteOutingLeft, useSession, type DestinationItem } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
@@ -320,7 +320,11 @@ export default function PlanScreen() {
               note={leaveProblem}
               onAdjust={holdPlan}
               onChange={(date) => {
+                if (!date) {
+                  return;
+                }
                 setLeaveAt(date);
+                setBackBy((current) => notBefore(date, current));
                 setError(null);
               }}
             />

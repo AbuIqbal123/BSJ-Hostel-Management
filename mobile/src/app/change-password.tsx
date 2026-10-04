@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
-import { Redirect, router } from "expo-router";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Redirect, router, useNavigation } from "expo-router";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
@@ -15,6 +16,8 @@ function passwordRulesMet(value: string): boolean {
 
 export default function ChangePasswordScreen() {
   const colors = useHallColors();
+  const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const { user, changePassword } = useSession();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -46,6 +49,14 @@ export default function ChangePasswordScreen() {
     router.replace("/sign-in");
   }, [changePassword, currentPassword, newPassword]);
 
+  const back = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    router.navigate(user?.role === "resident" ? "/settings" : "/signed-in");
+  };
+
   if (!user) {
     return <Redirect href="/sign-in" />;
   }
@@ -53,11 +64,23 @@ export default function ChangePasswordScreen() {
   return (
     <ScrollView
       style={[styles.screen, { backgroundColor: colors.paper }]}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[
+        styles.content,
+        { paddingTop: insets.top + 28, paddingBottom: insets.bottom + 28 },
+      ]}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="interactive"
       showsVerticalScrollIndicator={false}
     >
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Back"
+        onPress={back}
+        style={styles.back}
+      >
+        <Text style={[text.button, { color: colors.inkSoft }]}>Back</Text>
+      </Pressable>
+      <Text style={[text.hallName, styles.title, { color: colors.ink }]}>Change password</Text>
       <View style={styles.fields}>
         <TextField
           label="Current password"
@@ -130,9 +153,14 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     paddingHorizontal: 28,
-    paddingTop: 28,
-    paddingBottom: 28,
+    gap: 28,
   },
+  back: {
+    alignSelf: "flex-start",
+    minHeight: 44,
+    justifyContent: "center",
+  },
+  title: { textAlign: "left" },
   fields: { gap: 16 },
   passwordBlock: { gap: 8 },
   rules: { gap: 2 },
