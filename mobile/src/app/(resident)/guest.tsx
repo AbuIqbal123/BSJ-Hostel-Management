@@ -1,5 +1,14 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Feather } from "@expo/vector-icons";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withTiming,
+} from "react-native-reanimated";
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
 import { Alert, InteractionManager, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -8,10 +17,11 @@ import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
 import { formatHallDate } from "@/format-when";
-import { guestLine } from "@/app/(resident)/guests";
-import { useSession, type GuestStay, type GuestStayCard } from "@/session";
+import { useSession, type GuestStay } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
+
+const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 
 const HALL_ZONE = "Asia/Kolkata";
 const OTHER_RELATION = "Other";
@@ -123,23 +133,42 @@ function useLeave() {
       navigation.goBack();
       return;
     }
-    router.navigate("/guests");
+    router.navigate("/permissions");
   }, [navigation]);
 }
 
-function GuestForm() {
+function dateOnHall(value: string): Date {
+  return new Date(`${value}T12:00:00+05:30`);
+}
+
+function relationFields(relation: string): { id: string; other: string } {
+  if (relation !== OTHER_RELATION && RELATIONS.includes(relation)) {
+    return { id: relation, other: "" };
+  }
+  return { id: OTHER_RELATION, other: relation };
+}
+
+function GuestForm({ existing }: { existing?: GuestStay }) {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
-  const { submitGuestStay, loadGuestStays } = useSession();
+  const reduced = useReducedMotion();
+  const { submitGuestStay, updateGuestStay, cancelGuestStay } = useSession();
   const back = useLeave();
-  const [stays, setStays] = useState<GuestStayCard[] | null>(null);
-  const [name, setName] = useState("");
-  const [relationId, setRelationId] = useState<string | null>(null);
-  const [otherRelation, setOtherRelation] = useState("");
-  const [reason, setReason] = useState("");
-  const [start, setStart] = useState<Date | null>(null);
-  const [end, setEnd] = useState<Date | null>(null);
+  const seeded = existing ? relationFields(existing.relation) : null;
+  const formOpacity = useSharedValue(1);
+  const formShift = useSharedValue(0);
+  const markOpacity = useSharedValue(0);
+  const markScale = useSharedValue(0.92);
+  const lineOpacity = useSharedValue(0);
+  const lineShift = useSharedValue(8);
+  const [name, setName] = useState(existing?.guestName ?? "");
+  const [relationId, setRelationId] = useState<string | null>(seeded?.id ?? null);
+  const [otherRelation, setOtherRelation] = useState(seeded?.other ?? "");
+  const [reason, setReason] = useState(existing?.reason ?? "");
+  const [start, setStart] = useState<Date | null>(existing ? dateOnHall(existing.startDate) : null);
+  const [end, setEnd] = useState<Date | null>(existing ? dateOnHall(existing.endDate) : null);
   const [error, setError] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
   const pending = useRef(false);
   const startDate = start ? hallDate(start) : "";
   const endDate = end ? hallDate(end) : "";
@@ -153,49 +182,76 @@ function GuestForm() {
     endDate.length > 0 &&
     endDate >= startDate;
 
-  useFocusEffect(
-    useCallback(() => {
-      let active = true;
-      void loadGuestStays().then((result) => {
-        if (!active || result.error !== null) {
-          return;
-        }
-        setStays(result.items);
-      });
-      return () => {
-        active = false;
-      };
-    }, [loadGuestStays]),
-  );
-
   const submit = async () => {
     if (!ready || pending.current) {
       return;
     }
     pending.current = true;
     setError(null);
-    const failure = await submitGuestStay({
+    const body = {
       guest_name: name.trim(),
       relation,
       guest_start_date: startDate,
       guest_end_date: endDate,
       reason: reason.trim(),
-    });
+    };
+    const failure = existing ? await updateGuestStay(existing.id, body) : await submitGuestStay(body);
     pending.current = false;
     if (failure) {
       setError(failure);
       return;
     }
-    back();
+    setSent(true);
+  };
+
+  useEffect(() => {
+    if (!sent) {
+      return;
+    }
+    formOpacity.set(withTiming(0, { duration: 220, easing: EASE_OUT }));
+    markOpacity.set(withDelay(reduced ? 0 : 80, withTiming(1, { duration: reduced ? 180 : 280, easing: EASE_OUT })));
+    lineOpacity.set(withDelay(reduced ? 40 : 160, withTiming(1, { duration: reduced ? 180 : 240, easing: EASE_OUT })));
+    if (reduced) {
+      markScale.set(1);
+      lineShift.set(0);
+    } else {
+      formShift.set(withTiming(-8, { duration: 220, easing: EASE_OUT }));
+      markScale.set(withDelay(80, withTiming(1, { duration: 280, easing: EASE_OUT })));
+      lineShift.set(withDelay(160, withTiming(0, { duration: 240, easing: EASE_OUT })));
+    }
+    const timer = setTimeout(back, 1600);
+    return () => clearTimeout(timer);
+  }, [back, formOpacity, formShift, lineOpacity, lineShift, markOpacity, markScale, reduced, sent]);
+
+  const formMotion = useAnimatedStyle(() => ({
+    opacity: formOpacity.get(),
+    transform: [{ translateY: formShift.get() }],
+  }));
+  const markMotion = useAnimatedStyle(() => ({
+    opacity: markOpacity.get(),
+    transform: [{ scale: markScale.get() }],
+  }));
+  const lineMotion = useAnimatedStyle(() => ({
+    opacity: lineOpacity.get(),
+    transform: [{ translateY: lineShift.get() }],
+  }));
+
+  const frame = {
+    paddingTop: insets.top + 28,
+    paddingBottom: insets.bottom + 28,
   };
 
   return (
+    <View style={[styles.screen, { backgroundColor: colors.paper }]}>
+    <Animated.View
+      pointerEvents={sent ? "none" : "auto"}
+      accessibilityElementsHidden={sent}
+      importantForAccessibility={sent ? "no-hide-descendants" : "auto"}
+      style={[styles.screen, formMotion]}
+    >
     <ScrollView
       style={[styles.screen, { backgroundColor: colors.paper }]}
-      contentContainerStyle={[
-        styles.content,
-        { paddingTop: insets.top + 28, paddingBottom: insets.bottom + 28 },
-      ]}
+      contentContainerStyle={[styles.content, frame]}
       keyboardShouldPersistTaps="handled"
     >
       <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={back} style={styles.back}>
@@ -276,44 +332,41 @@ function GuestForm() {
           }}
         />
         {start && end && endDate < startDate ? (
-          <Text style={[text.error, { color: colors.danger }]}>She must leave on or after the day she arrives.</Text>
-        ) : null}
-        <View style={styles.submit}>
-          <HallButton
-            label="Submit"
-            disabled={!ready}
-            onPress={() => {
-              void submit();
-            }}
-          />
-        </View>
-        {error ? (
-          <Text selectable style={[text.error, { color: colors.danger }]}>
-            {error}
-          </Text>
+          <Text style={[text.error, { color: colors.danger }]}>Leaves has to be on or after Arrives.</Text>
         ) : null}
       </Pressable>
-      {stays !== null && stays.length > 0 ? (
-        <View>
-          {stays.map((item, index) => (
-            <View key={item.id}>
-              {index > 0 ? <View style={[styles.hairline, { backgroundColor: colors.line }]} /> : null}
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => router.push({ pathname: "/guest", params: { id: item.id } })}
-                style={({ pressed }) => [styles.stay, pressed && styles.pressed]}
-              >
-                <Text style={[styles.stayName, { color: colors.ink }]}>{item.guestName}</Text>
-                <Text style={[text.body, { color: colors.inkSoft }]}>
-                  {`${formatHallDate(item.startDate)} to ${formatHallDate(item.endDate)}`}
-                </Text>
-                <Text style={[text.body, { color: colors.ink }]}>{guestLine(item)}</Text>
-              </Pressable>
-            </View>
-          ))}
-        </View>
+      <View style={styles.submit}>
+        <HallButton
+          label={existing ? "Save" : "Submit"}
+          disabled={!ready}
+          onPress={() => {
+            setTimeout(() => {
+              void submit();
+            }, 50);
+          }}
+        />
+      </View>
+      {error ? (
+        <Text selectable style={[text.error, { color: colors.danger }]}>
+          {error}
+        </Text>
       ) : null}
     </ScrollView>
+    </Animated.View>
+    <Animated.View
+      pointerEvents="none"
+      accessibilityElementsHidden={!sent}
+      importantForAccessibility={sent ? "auto" : "no-hide-descendants"}
+      style={[styles.sent, frame]}
+    >
+      <Animated.View style={[styles.sentMark, { backgroundColor: colors.forest }, markMotion]}>
+        <Feather name="check" size={28} color={colors.onForest} />
+      </Animated.View>
+      <Animated.Text style={[text.body, styles.sentLine, { color: colors.ink }, lineMotion]}>
+        {existing ? "Your changes have been sent for approval." : "Your request has been submitted."}
+      </Animated.Text>
+    </Animated.View>
+    </View>
   );
 }
 
@@ -387,6 +440,10 @@ function GuestDetail({ id }: { id: string }) {
     stay.arrivedAt === null &&
     (stay.status === "pending" || stay.status === "approved");
 
+  if (stay?.status === "pending") {
+    return <GuestForm existing={stay} />;
+  }
+
   return (
     <ScrollView
       style={[styles.screen, { backgroundColor: colors.paper }]}
@@ -413,9 +470,7 @@ function GuestDetail({ id }: { id: string }) {
                 ? "Should have left"
                 : stay.status === "approved" && stay.paymentStatus === "unpaid"
                   ? "Approved, not yet paid"
-                  : stay.status === "pending"
-                    ? "Pending"
-                    : stay.status === "approved"
+                  : stay.status === "approved"
                       ? "Approved"
                       : stay.status === "rejected"
                         ? "Rejected"
@@ -487,13 +542,24 @@ const styles = StyleSheet.create({
     opacity: 0.02,
   },
   submit: { marginTop: 8 },
-  stay: { paddingVertical: 14, gap: 4 },
-  stayName: {
-    fontFamily: "SourceSerif4_600SemiBold",
-    fontSize: 17,
-    letterSpacing: -0.2,
+  sent: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 16,
+    paddingHorizontal: 28,
   },
-  hairline: { height: StyleSheet.hairlineWidth },
-  pressed: { opacity: 0.6 },
+  sentMark: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sentLine: { textAlign: "center" },
   cancel: { alignSelf: "flex-start", minHeight: 44, justifyContent: "center" },
 });

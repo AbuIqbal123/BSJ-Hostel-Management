@@ -4,10 +4,19 @@ import { router, useFocusEffect } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { formatWhenParts } from "@/format-when";
-import { useSession, type HallPermission, type PermissionKind, type PermissionStatus } from "@/session";
+import { guestLine } from "@/app/(resident)/guests";
+import { formatHallDate, formatWhenParts } from "@/format-when";
+import { useSession, type GuestStayCard, type HallPermission, type PermissionKind, type PermissionStatus } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
+
+type RequestTab = "late_night" | "home_going" | "guest";
+
+const REQUEST_TABS: { id: RequestTab; label: string }[] = [
+  { id: "late_night", label: "Late-night" },
+  { id: "home_going", label: "Home going" },
+  { id: "guest", label: "Guest stays" },
+];
 
 function kindLabel(kind: PermissionKind): string {
   return kind === "late_night" ? "Late-night" : "Home going";
@@ -87,6 +96,46 @@ function statusTone(status: PermissionStatus, colors: ReturnType<typeof useHallC
   return { color: colors.inkSoft, border: colors.line, background: colors.surface };
 }
 
+function guestTone(item: GuestStayCard, colors: ReturnType<typeof useHallColors>) {
+  if (item.status === "rejected") {
+    return { color: colors.danger, border: colors.danger, background: colors.dangerBg };
+  }
+  if (item.status === "pending") {
+    return { color: colors.pending, border: colors.pending, background: colors.pendingBg };
+  }
+  if (item.status === "approved" || item.bucket === "in_hall") {
+    return { color: colors.forest, border: colors.forest, background: colors.approvedBg };
+  }
+  return { color: colors.inkSoft, border: colors.line, background: colors.surface };
+}
+
+function GuestStayRow({ item }: { item: GuestStayCard }) {
+  const colors = useHallColors();
+  const tone = guestTone(item, colors);
+  const status = guestLine(item);
+  const dates = `${formatHallDate(item.startDate)} to ${formatHallDate(item.endDate)}`;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${item.guestName}. ${status}. ${dates}`}
+      onPress={() => router.push({ pathname: "/guest", params: { id: item.id } })}
+      style={({ pressed }) => [
+        styles.card,
+        { backgroundColor: colors.surface, borderColor: colors.line },
+        pressed && styles.pressed,
+      ]}
+    >
+      <View style={styles.cardTop}>
+        <Text style={[styles.place, { color: colors.ink }]}>{item.guestName}</Text>
+        <View style={[styles.status, { borderColor: tone.border, backgroundColor: tone.background }]}>
+          <Text style={[styles.statusText, { color: tone.color }]}>{status}</Text>
+        </View>
+      </View>
+      <Text style={[text.body, { color: colors.ink }]}>{dates}</Text>
+    </Pressable>
+  );
+}
+
 function PermissionRow({ item }: { item: HallPermission }) {
   const colors = useHallColors();
   const kind = kindLabel(item.permissionType);
@@ -134,11 +183,16 @@ function PermissionRow({ item }: { item: HallPermission }) {
 export default function PermissionsScreen() {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
-  const { loadPermissions } = useSession();
+  const { loadPermissions, loadGuestStays } = useSession();
   const [items, setItems] = useState<HallPermission[] | null>(null);
+  const [stays, setStays] = useState<GuestStayCard[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const [staysFailed, setStaysFailed] = useState(false);
+  const [tab, setTab] = useState<RequestTab>("late_night");
   const loadPermissionsRef = useRef(loadPermissions);
+  const loadGuestStaysRef = useRef(loadGuestStays);
   loadPermissionsRef.current = loadPermissions;
+  loadGuestStaysRef.current = loadGuestStays;
 
   const load = useCallback(() => {
     let active = true;
@@ -154,6 +208,18 @@ export default function PermissionsScreen() {
       setFailed(false);
       setItems(result.items);
     });
+    void loadGuestStaysRef.current().then((result) => {
+      if (!active) {
+        return;
+      }
+      if (result.error !== null) {
+        setStays(null);
+        setStaysFailed(true);
+        return;
+      }
+      setStaysFailed(false);
+      setStays(result.items);
+    });
     return () => {
       active = false;
     };
@@ -164,6 +230,14 @@ export default function PermissionsScreen() {
   const openForm = (kind: PermissionKind) => {
     router.push({ pathname: "/permission", params: { kind } });
   };
+  const shownPermissions =
+    tab === "guest" || items === null
+      ? []
+      : soonestFirst(items.filter((item) => item.permissionType === tab));
+  const shownStays =
+    tab !== "guest" || stays === null
+      ? []
+      : [...stays].sort((left, right) => left.startDate.localeCompare(right.startDate));
 
   return (
     <ScrollView
@@ -204,15 +278,41 @@ export default function PermissionsScreen() {
           <Feather name="chevron-right" size={18} color={colors.inkFaint} />
         </Pressable>
       </View>
-      {failed ? (
+      <View accessibilityRole="tablist" style={styles.tabs}>
+        {REQUEST_TABS.map((item) => {
+          const selected = tab === item.id;
+          return (
+            <Pressable
+              key={item.id}
+              accessibilityRole="tab"
+              accessibilityState={{ selected }}
+              accessibilityLabel={item.label}
+              onPress={() => setTab(item.id)}
+              style={({ pressed }) => [styles.tab, pressed && styles.pressed]}
+            >
+              <Text style={[text.button, styles.tabLabel, { color: selected ? colors.forest : colors.inkSoft }]}>
+                {item.label}
+              </Text>
+              <View style={[styles.tabMark, { backgroundColor: selected ? colors.forest : "transparent" }]} />
+            </Pressable>
+          );
+        })}
+      </View>
+      {tab !== "guest" && failed ? (
         <Text style={[text.error, { color: colors.danger }]}>Permissions didn't load.</Text>
       ) : null}
-      {items !== null && items.length > 0 ? (
+      {tab === "guest" && staysFailed ? (
+        <Text style={[text.error, { color: colors.danger }]}>Guest stays didn't load.</Text>
+      ) : null}
+      {shownPermissions.length > 0 || shownStays.length > 0 ? (
         <View style={[styles.requests, { borderTopColor: colors.line }]}>
           <Text style={[text.button, { color: colors.ink }]}>Your requests</Text>
           <View style={styles.list}>
-            {soonestFirst(items).map((item) => (
+            {shownPermissions.map((item) => (
               <PermissionRow key={item.id} item={item} />
+            ))}
+            {shownStays.map((item) => (
+              <GuestStayRow key={item.id} item={item} />
             ))}
           </View>
         </View>
@@ -230,6 +330,10 @@ const styles = StyleSheet.create({
   },
   title: { textAlign: "left" },
   rows: { gap: 4 },
+  tabs: { flexDirection: "row", gap: 16 },
+  tab: { flex: 1, minHeight: 44, justifyContent: "flex-end", gap: 8 },
+  tabLabel: { textAlign: "center" },
+  tabMark: { height: 2, borderRadius: 1 },
   row: {
     minHeight: 48,
     flexDirection: "row",

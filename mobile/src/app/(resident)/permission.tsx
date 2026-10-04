@@ -762,7 +762,7 @@ function PermissionDetail({ id }: { id: string }) {
           </View>
           {permission.status === "approved" ? (
             <Text style={[text.body, { color: colors.ink }]}>
-              The gate can use this from the lead time before you leave until you are due back.
+              Show this to the gate staff shortly before you leave, and until you are due back.
             </Text>
           ) : null}
           {canCancel ? (

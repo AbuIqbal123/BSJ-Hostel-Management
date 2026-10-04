@@ -56,6 +56,7 @@ export type ResidentHome = {
   out: boolean;
   windowOpen: boolean;
   upcoming: UpcomingOuting[];
+  notificationsUnread: boolean;
 };
 
 export type ResidentHomeResult =
@@ -95,6 +96,26 @@ export type HistoryItem = {
 export type HistoryResult =
   | { error: string; items?: undefined }
   | { error: null; items: HistoryItem[] };
+
+export type NotificationKind = "late_night" | "home_going";
+
+export type HallNotification = {
+  id: string;
+  permissionId: string;
+  permissionType: NotificationKind;
+  decision: "approved" | "rejected";
+  place: string;
+  createdAt: string;
+  unread: boolean;
+};
+
+export type NotificationListResult =
+  | { error: string; items?: undefined }
+  | { error: null; items: HallNotification[] };
+
+export type MarkNotificationsReadResult =
+  | { error: string; marked?: undefined }
+  | { error: null; marked: number };
 
 export type GuestStayCard = {
   id: string;
@@ -246,9 +267,12 @@ type SessionValue = {
   cancelPermission: (permissionId: string) => Promise<HallFailure | null>;
   loadHallPass: () => Promise<HallPassResult>;
   loadHistory: () => Promise<HistoryResult>;
+  loadNotifications: () => Promise<NotificationListResult>;
+  markNotificationsRead: () => Promise<MarkNotificationsReadResult>;
   loadGuestStays: () => Promise<GuestListResult>;
   loadGuestStay: (guestStayId: string) => Promise<GuestResult>;
   submitGuestStay: (body: GuestStayCreate) => Promise<string | null>;
+  updateGuestStay: (guestStayId: string, body: GuestStayCreate) => Promise<string | null>;
   cancelGuestStay: (guestStayId: string) => Promise<HallFailure | null>;
 };
 
@@ -385,7 +409,8 @@ function readResidentHome(value: unknown): ResidentHome | null {
     !isRecord(value) ||
     !isRecord(value.resident) ||
     !("current_outing" in value) ||
-    typeof value.ordinary_outing_active !== "boolean"
+    typeof value.ordinary_outing_active !== "boolean" ||
+    typeof value.notifications_unread !== "boolean"
   ) {
     return null;
   }
@@ -408,6 +433,7 @@ function readResidentHome(value: unknown): ResidentHome | null {
     out: resident.presence === "outside",
     windowOpen: value.ordinary_outing_active,
     upcoming: readUpcoming(value),
+    notificationsUnread: value.notifications_unread,
   };
 }
 
@@ -509,6 +535,43 @@ const GUEST_STATUS = ["pending", "approved", "rejected", "cancelled", "departed"
 
 function guestStatus(value: unknown): GuestStayCard["status"] | null {
   return GUEST_STATUS.find((status) => status === value) ?? null;
+}
+
+function readNotifications(value: unknown): HallNotification[] | null {
+  if (!isRecord(value) || !Array.isArray(value.items)) {
+    return null;
+  }
+  const items: HallNotification[] = [];
+  for (const item of value.items) {
+    if (!isRecord(item)) {
+      return null;
+    }
+    if (item.permission_type !== "late_night" && item.permission_type !== "home_going") {
+      return null;
+    }
+    if (item.decision !== "approved" && item.decision !== "rejected") {
+      return null;
+    }
+    if (
+      typeof item.id !== "string" ||
+      typeof item.permission_id !== "string" ||
+      typeof item.place !== "string" ||
+      typeof item.created_at !== "string" ||
+      typeof item.unread !== "boolean"
+    ) {
+      return null;
+    }
+    items.push({
+      id: item.id,
+      permissionId: item.permission_id,
+      permissionType: item.permission_type,
+      decision: item.decision,
+      place: item.place,
+      createdAt: item.created_at,
+      unread: item.unread,
+    });
+  }
+  return items;
 }
 
 function readGuestCard(item: Record<string, unknown>): GuestStayCard | null {
@@ -945,6 +1008,52 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const loadNotifications = useCallback(async (): Promise<NotificationListResult> => {
+    const current = sessionRef.current;
+    if (!current) {
+      return { error: "Sign in again." };
+    }
+    try {
+      const response = await hallFetch("/api/v1/me/notifications", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${current.accessToken}` },
+      });
+      if (!response.ok) {
+        return { error: await errorMessage(response) };
+      }
+      const items = readNotifications(await response.json());
+      if (!items) {
+        return { error: "The hall could not be reached." };
+      }
+      return { error: null, items };
+    } catch {
+      return { error: "The hall could not be reached." };
+    }
+  }, []);
+
+  const markNotificationsRead = useCallback(async (): Promise<MarkNotificationsReadResult> => {
+    const current = sessionRef.current;
+    if (!current) {
+      return { error: "Sign in again." };
+    }
+    try {
+      const response = await hallFetch("/api/v1/me/notifications/read", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${current.accessToken}` },
+      });
+      if (!response.ok) {
+        return { error: await errorMessage(response) };
+      }
+      const body: unknown = await response.json();
+      if (!isRecord(body) || typeof body.marked !== "number") {
+        return { error: "The hall could not be reached." };
+      }
+      return { error: null, marked: body.marked };
+    } catch {
+      return { error: "The hall could not be reached." };
+    }
+  }, []);
+
   const loadGuestStays = useCallback(async (): Promise<GuestListResult> => {
     const current = sessionRef.current;
     if (!current) {
@@ -1006,6 +1115,29 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify(body),
       });
       if (response.status === 201) {
+        return null;
+      }
+      return await errorMessage(response);
+    } catch {
+      return "The hall could not be reached.";
+    }
+  }, []);
+
+  const updateGuestStay = useCallback(async (guestStayId: string, body: GuestStayCreate) => {
+    const current = sessionRef.current;
+    if (!current) {
+      return "Sign in again.";
+    }
+    try {
+      const response = await hallFetch(`/api/v1/me/guest-stays/${encodeURIComponent(guestStayId)}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${current.accessToken}`,
+        },
+        body: JSON.stringify(body),
+      });
+      if (response.status === 200) {
         return null;
       }
       return await errorMessage(response);
@@ -1289,9 +1421,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       cancelPermission,
       loadHallPass,
       loadHistory,
+      loadNotifications,
+      markNotificationsRead,
       loadGuestStays,
       loadGuestStay,
       submitGuestStay,
+      updateGuestStay,
       cancelGuestStay,
     }),
     [
@@ -1313,9 +1448,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       cancelPermission,
       loadHallPass,
       loadHistory,
+      loadNotifications,
+      markNotificationsRead,
       loadGuestStays,
       loadGuestStay,
       submitGuestStay,
+      updateGuestStay,
       cancelGuestStay,
     ],
   );

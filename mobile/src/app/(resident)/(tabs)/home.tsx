@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import { BackHandler, InteractionManager, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated, { Easing, FadeIn, FadeOut, LinearTransition, ReduceMotion } from "react-native-reanimated";
@@ -104,6 +105,7 @@ export default function HomeScreen() {
   const [windowOpen, setWindowOpen] = useState(false);
   const [upcoming, setUpcoming] = useState<UpcomingOuting[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [notificationsUnread, setNotificationsUnread] = useState(false);
   const [places, setPlaces] = useState<{ id: string; name: string }[] | null>(null);
   const [destinationId, setDestinationId] = useState<string | null>(null);
   const [leaveAt, setLeaveAt] = useState<Date | null>(null);
@@ -133,6 +135,7 @@ export default function HomeScreen() {
       setOut(result.home.out);
       setWindowOpen(result.home.windowOpen);
       setUpcoming(result.home.upcoming);
+      setNotificationsUnread(result.home.notificationsUnread);
       setLoaded(true);
     });
     return () => {
@@ -344,15 +347,31 @@ export default function HomeScreen() {
         onPress={dismissOpenChoice}
       >
         <View style={styles.block}>
-          <View style={styles.identity}>
-            <Text selectable style={[text.hallName, styles.title, { color: colors.ink }]}>
-              {`Welcome, ${fullName ?? user.full_name}`}
-            </Text>
-            {room ? (
-              <Text selectable style={[text.body, { color: colors.inkSoft }]}>
-                {room}
+          <View style={styles.header}>
+            <View style={styles.identity}>
+              <Text selectable style={[text.hallName, styles.title, { color: colors.ink }]}>
+                {`Welcome, ${fullName ?? user.full_name}`}
               </Text>
-            ) : null}
+              {room ? (
+                <Text selectable style={[text.body, { color: colors.inkSoft }]}>
+                  {room}
+                </Text>
+              ) : null}
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Notifications"
+              hitSlop={12}
+              onPress={() => {
+                router.push("/notifications");
+              }}
+              style={styles.bell}
+            >
+              <Feather name="bell" size={24} color={colors.ink} />
+              {notificationsUnread ? (
+                <View style={[styles.dot, { backgroundColor: colors.forest }]} />
+              ) : null}
+            </Pressable>
           </View>
           {error && !planCard ? (
             <Text style={[text.error, { color: colors.danger }]}>{error}</Text>
@@ -412,7 +431,25 @@ const styles = StyleSheet.create({
   },
   dismiss: { flexGrow: 1 },
   block: { gap: 28 },
-  identity: { gap: 16 },
+  header: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 16,
+  },
+  identity: { flex: 1, gap: 16 },
+  bell: {
+    width: 24,
+    height: 24,
+    marginTop: 2,
+  },
+  dot: {
+    position: "absolute",
+    top: 1,
+    right: 1,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
   title: { textAlign: "left" },
   fields: { gap: 16 },
   confirm: { alignSelf: "flex-start" },
