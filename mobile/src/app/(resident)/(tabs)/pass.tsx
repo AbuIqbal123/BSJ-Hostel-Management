@@ -192,11 +192,27 @@ export default function HallPassScreen() {
         {empty ? (
           <Text style={[text.body, { color: colors.inkSoft }]}>No pass right now.</Text>
         ) : null}
+        {pass && (pass.place || pass.startsAt || pass.expectedReturnAt) ? (
+          <View style={styles.outing}>
+            {pass.place ? (
+              <Text style={[styles.place, { color: colors.ink }]}>{pass.place}</Text>
+            ) : null}
+            {pass.startsAt ? (
+              <Text style={[text.body, { color: colors.inkSoft }]}>
+                {`Leave ${formatWhen(pass.startsAt)}`}
+              </Text>
+            ) : null}
+            {pass.expectedReturnAt ? (
+              <Text style={[text.body, { color: colors.inkSoft }]}>
+                {`Back ${formatWhen(pass.expectedReturnAt)}`}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
         {before ? (
           <View style={styles.note}>
-            <Text style={[text.body, { color: colors.ink }]}>You have a planned outing.</Text>
             <Text style={[text.body, { color: colors.ink }]}>
-              {`Your QR code appears at ${formatWhen(before)}, 30 minutes before you leave.`}
+              {`Shows at ${formatWhen(before)}, 30 minutes before you leave.`}
             </Text>
           </View>
         ) : null}
@@ -224,6 +240,12 @@ const styles = StyleSheet.create({
   block: { gap: 28 },
   identity: { gap: 16 },
   title: { textAlign: "left" },
+  outing: { gap: 4 },
+  place: {
+    fontFamily: "SourceSerif4_600SemiBold",
+    fontSize: 17,
+    letterSpacing: -0.2,
+  },
   note: { gap: 12 },
   codeBlock: { gap: 16, alignItems: "center" },
   code: {

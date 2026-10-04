@@ -65,6 +65,9 @@ export type ResidentHomeResult =
 export type HallPass = {
   fullName: string;
   roomLabel: string;
+  place: string | null;
+  startsAt: string | null;
+  expectedReturnAt: string | null;
   qrVisible: boolean;
   qrPayload: string | null;
   qrVisibleFrom: string | null;
@@ -370,6 +373,15 @@ function readHallPass(value: unknown): HallPass | null {
   if (value.qr_visible_until !== null && typeof value.qr_visible_until !== "string") {
     return null;
   }
+  if (value.place !== null && typeof value.place !== "string") {
+    return null;
+  }
+  if (value.starts_at !== null && typeof value.starts_at !== "string") {
+    return null;
+  }
+  if (value.expected_return_at !== null && typeof value.expected_return_at !== "string") {
+    return null;
+  }
   const payload = typeof value.qr_payload === "string" && value.qr_payload.length > 0 ? value.qr_payload : null;
   if (value.qr_visible && payload === null) {
     return null;
@@ -377,6 +389,9 @@ function readHallPass(value: unknown): HallPass | null {
   return {
     fullName: value.full_name,
     roomLabel: value.room_label,
+    place: typeof value.place === "string" && value.place.length > 0 ? value.place : null,
+    startsAt: typeof value.starts_at === "string" ? value.starts_at : null,
+    expectedReturnAt: typeof value.expected_return_at === "string" ? value.expected_return_at : null,
     qrVisible: value.qr_visible,
     qrPayload: value.qr_visible ? payload : null,
     qrVisibleFrom: typeof value.qr_visible_from === "string" ? value.qr_visible_from : null,
