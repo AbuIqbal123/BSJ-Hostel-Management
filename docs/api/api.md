@@ -29,7 +29,7 @@ Do not edit this page by hand.
   - [GET `/api/v1/me/notifications` — Own permission decisions, newest first](#get-api-v1-me-notifications)
   - [POST `/api/v1/me/notifications/read` — Mark her unread permission decisions read](#post-api-v1-me-notifications-read)
   - [GET `/api/v1/me/hall-pass` — Hall pass for the outing in its window](#get-api-v1-me-hall-pass)
-  - [GET `/api/v1/me/history` — Own exit and return history](#get-api-v1-me-history)
+  - [GET `/api/v1/me/history` — Own history](#get-api-v1-me-history)
   - [GET `/api/v1/destinations` — Ordinary outing destinations](#get-api-v1-destinations)
   - [GET `/api/v1/me/outings` — Ordinary outing plans](#get-api-v1-me-outings)
   - [POST `/api/v1/me/outings` — Plan an ordinary outing](#post-api-v1-me-outings)
@@ -729,7 +729,7 @@ The resident phone. Ordinary outings, home, destinations, and the hall pass.
 | GET | `/api/v1/me/notifications` | [Own permission decisions, newest first](#get-api-v1-me-notifications) | resident |
 | POST | `/api/v1/me/notifications/read` | [Mark her unread permission decisions read](#post-api-v1-me-notifications-read) | resident |
 | GET | `/api/v1/me/hall-pass` | [Hall pass for the outing in its window](#get-api-v1-me-hall-pass) | resident |
-| GET | `/api/v1/me/history` | [Own exit and return history](#get-api-v1-me-history) | resident |
+| GET | `/api/v1/me/history` | [Own history](#get-api-v1-me-history) | resident |
 | GET | `/api/v1/destinations` | [Ordinary outing destinations](#get-api-v1-destinations) | Signed-in account |
 | GET | `/api/v1/me/outings` | [Ordinary outing plans](#get-api-v1-me-outings) | resident |
 | POST | `/api/v1/me/outings` | [Plan an ordinary outing](#post-api-v1-me-outings) | resident |
@@ -994,59 +994,90 @@ The signed-in role cannot call this operation.
 Body: [ErrorResponse](#schema-errorresponse).
 
 
-### <a id="get-api-v1-me-history"></a>GET `/api/v1/me/history` — Own exit and return history
+### <a id="get-api-v1-me-history"></a>GET `/api/v1/me/history` — Own history
 
 `resident_history`
 
 **Who.** resident. Bearer access token.
 
-Caller: resident. Newest first. Each outing contributes an exit line and, once returned, a return line.
+Caller: resident. One row per record that has left live use, newest
+`ended_at` first. No page control.
+
+An ordinary outing is a row in two cases. Unused (`unused` true): no
+gate exit, and the planned return has passed. `started_at` and
+`ended_at` are the planned leave and the planned return. Finished
+(`unused` false): the gate recorded both the exit and the return.
+Those gate times are `started_at` and `ended_at`. An exit with no
+return is not a row, even when the planned return has passed. A future
+plan is not a row.
+
+A late-night or home-going permission is a row when it was approved
+and the window ended without use (`unused` true; status `approved` or
+`expired`), or when it was approved and then completed (`unused`
+false; status `completed`). `started_at` and `ended_at` are
+`departure_at` and `expected_return_at`. Pending, rejected, cancelled,
+and still-open approved or in-use permissions are not rows.
+
+A guest stay is a row when it was approved and the stay dates ended
+without an arrival (`unused` true), or when it was approved and then
+departed (`unused` false; status `departed`). `started_at` and
+`ended_at` are the start of `guest_start_date` and the end of
+`guest_end_date` in Asia/Kolkata. Pending, rejected, cancelled, and
+stays that are still inside the window or arrived but not departed
+are not rows.
+
+`who` is the guest name for a guest stay and null otherwise. `place`
+is null when the record has nowhere (a guest stay). `exit_recorded_by`
+and `return_recorded_by` are staff display names from the gate exit
+and return on a finished ordinary outing, or on the outing of a
+completed permission. Otherwise both are null. There is no status
+field.
 
 **Parameters**
 
 | Name | In | Required | Type | Notes |
 |---|---|---|---|---|
-| `limit` | query | no | integer | 1–500. default `50`. |
-| `offset` | query | no | integer | minimum 0. default `0`. |
+| `kind` | query | no | `all` or `late_night` or `home_going` or `guest_stay` or `outing` | Omit or `all` for every kind. Otherwise exactly one of `late_night`, `home_going`, `guest_stay`, or `outing`. |
+| `True` | query | no | date | One calendar date in Asia/Kolkata, `YYYY-MM-DD`. Omit when she has not chosen a day. A row matches when that hall date is the calendar day of `started_at`, of `ended_at`, or a day between them (inclusive). |
 
 **Responses**
 
 #### 200
 
-History page.
+History rows, newest ended_at first.
 
-Body: [HistoryPage](#schema-historypage).
+Body: [HistoryList](#schema-historylist).
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `total` | yes | integer | minimum 0. |
-| `limit` | yes | integer |  |
-| `offset` | yes | integer |  |
-| `items` | yes | list of [HistoryEvent](#schema-historyevent) |  |
+| `items` | yes | list of [HistoryItem](#schema-historyitem) |  |
 
 **Example**
 
 ```json
 {
-  "total": 2,
-  "limit": 50,
-  "offset": 0,
   "items": [
     {
-      "event": "returned",
+      "id": "00000000-0000-4000-8000-000000000031",
+      "kind": "outing",
       "place": "Maulana Azad Library",
-      "outing_id": "00000000-0000-4000-8000-000000000001",
-      "exited_at": null,
-      "returned_at": "2026-09-12T15:16:00Z",
-      "recorded_by": "Fatima Khan"
+      "who": null,
+      "started_at": "2026-09-29T20:00:00Z",
+      "ended_at": "2026-09-29T21:00:00Z",
+      "exit_recorded_by": "Fatima Khan",
+      "return_recorded_by": "Sara Malik",
+      "unused": false
     },
     {
-      "event": "exited",
-      "place": "Maulana Azad Library",
-      "outing_id": "00000000-0000-4000-8000-000000000001",
-      "exited_at": "2026-09-12T14:00:00Z",
-      "returned_at": null,
-      "recorded_by": "Fatima Khan"
+      "id": "00000000-0000-4000-8000-000000000032",
+      "kind": "outing",
+      "place": "Women's College",
+      "who": null,
+      "started_at": "2026-09-29T04:00:00Z",
+      "ended_at": "2026-09-29T08:00:00Z",
+      "exit_recorded_by": null,
+      "return_recorded_by": null,
+      "unused": true
     }
   ]
 }
@@ -5532,14 +5563,25 @@ One of: `inside`, `outside`, `late`.
 | `returned_at` | yes | date-time or null | Set when event is returned; null when event is exited. |
 | `recorded_by` | yes | string | Display name of the staff member who recorded that exit or return (from outings.exit_recorded_by or outings.return_recorded_by). |
 
-### <a id="schema-historypage"></a>HistoryPage
+### <a id="schema-historyitem"></a>HistoryItem
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `total` | yes | integer | minimum 0. |
-| `limit` | yes | integer |  |
-| `offset` | yes | integer |  |
-| `items` | yes | list of [HistoryEvent](#schema-historyevent) |  |
+| `id` | yes | uuid |  |
+| `kind` | yes | `late_night` or `home_going` or `guest_stay` or `outing` |  |
+| `place` | yes | string or null | Null when the record has nowhere, such as a guest stay. |
+| `who` | yes | string or null | Guest name for a guest stay. Null for every other kind. |
+| `started_at` | yes | date-time | Outing: planned leave when unused, gate exit when finished. Permission: departure_at. Guest stay: start of guest_start_date in Asia/Kolkata. |
+| `ended_at` | yes | date-time | Outing: planned return when unused, gate return when finished. Permission: expected_return_at. Guest stay: end of guest_end_date in Asia/Kolkata (23:59:59). |
+| `exit_recorded_by` | yes | string or null | Display name of the staff member who recorded the gate exit. Null when there was no gate exit, including every unused row and every guest stay. |
+| `return_recorded_by` | yes | string or null | Display name of the staff member who recorded the gate return. Null when there was no gate return, including every unused row and every guest stay. |
+| `unused` | yes | boolean | True when an approved window or planned outing ended without use. False when the outing has both a gate exit and a gate return, the permission status is completed, or the guest stay status is departed. |
+
+### <a id="schema-historylist"></a>HistoryList
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `items` | yes | list of [HistoryItem](#schema-historyitem) |  |
 
 ### <a id="schema-destination"></a>Destination
 
