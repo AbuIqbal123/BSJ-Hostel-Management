@@ -10,4 +10,4 @@ queryParams:
     value: '2026-09-30'
     disabled: true
 description: |-
-  Caller: resident. One row per finished or unused outing, permission, or guest stay, newest ended_at first. Optional kind (all, late_night, home_going, guest_stay, outing) and optional on (one Asia/Kolkata hall date, YYYY-MM-DD). No page control. A gate, warden, or provost account is refused.
+  Caller: resident. One row per finished or unused outing, permission, or guest stay, newest ended_at first. Optional kind (all, late_night, home_going, guest_stay, outing), optional on (one Asia/Kolkata hall date, YYYY-MM-DD), and optional from and to for a date range. No page control. A gate, warden, or provost account is refused.

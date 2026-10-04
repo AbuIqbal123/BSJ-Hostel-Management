@@ -77,6 +77,50 @@ function recordedLine(item: HistoryItem): string | null {
   return `Recorded by ${unique.join(" and ")}`;
 }
 
+function DayChip({
+  label,
+  value,
+  pickerKey,
+  onChange,
+  onAndroid,
+}: {
+  label: string;
+  value: string | null;
+  pickerKey: number;
+  onChange: (date: Date) => void;
+  onAndroid: () => void;
+}) {
+  const colors = useHallColors();
+  const shown = value ? formatHallDate(value) : "Any";
+  if (Platform.OS === "android") {
+    return (
+      <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onAndroid} style={styles.datePress}>
+        <Text style={[text.field, { color: value ? colors.ink : colors.inkFaint }]}>{shown}</Text>
+      </Pressable>
+    );
+  }
+  return (
+    <View style={styles.chip}>
+      <Text style={styles.chipText}>{shown}</Text>
+      <DateTimePicker
+        key={pickerKey}
+        style={styles.chipHit}
+        value={value ? dayFromHall(value) : new Date()}
+        mode="date"
+        display="compact"
+        accentColor={colors.forest}
+        themeVariant="light"
+        timeZoneName={HALL_ZONE}
+        onValueChange={(_event, date) => {
+          if (date) {
+            onChange(date);
+          }
+        }}
+      />
+    </View>
+  );
+}
+
 function HistoryRow({ item }: { item: HistoryItem }) {
   const colors = useHallColors();
   const title = item.who ?? item.place ?? kindLabel(item.kind);
@@ -112,15 +156,17 @@ export default function HistoryScreen() {
   const navigation = useNavigation();
   const { loadHistory } = useSession();
   const [kind, setKind] = useState<KindFilter>("all");
-  const [on, setOn] = useState<string | null>(null);
-  const [pickerKey, setPickerKey] = useState(0);
+  const [fromDay, setFromDay] = useState<string | null>(null);
+  const [toDay, setToDay] = useState<string | null>(null);
+  const [fromKey, setFromKey] = useState(0);
+  const [toKey, setToKey] = useState(0);
   const [items, setItems] = useState<HistoryItem[] | null>(null);
   const [failed, setFailed] = useState(false);
   const requestId = useRef(0);
 
   const load = useCallback(() => {
     const id = ++requestId.current;
-    void loadHistory({ kind, on }).then((result) => {
+    void loadHistory({ kind, from: fromDay, to: toDay }).then((result) => {
       if (id !== requestId.current) {
         return;
       }
@@ -132,7 +178,7 @@ export default function HistoryScreen() {
       setFailed(false);
       setItems(result.items);
     });
-  }, [kind, loadHistory, on]);
+  }, [fromDay, kind, loadHistory, toDay]);
 
   useFocusEffect(load);
 
@@ -144,23 +190,43 @@ export default function HistoryScreen() {
     router.navigate("/settings");
   };
 
-  const chooseDay = (date: Date) => {
+  const chooseFrom = (date: Date) => {
     const next = hallDate(date);
-    if (next === on) {
+    if (next === fromDay) {
       return;
     }
-    setOn(next);
-    setPickerKey((key) => key + 1);
+    setFromDay(next);
+    if (toDay !== null && next > toDay) {
+      setToDay(next);
+    }
+    setFromKey((key) => key + 1);
   };
 
-  const openAndroidDate = () => {
+  const chooseTo = (date: Date) => {
+    const next = hallDate(date);
+    if (next === toDay) {
+      return;
+    }
+    setToDay(next);
+    if (fromDay !== null && next < fromDay) {
+      setFromDay(next);
+    }
+    setToKey((key) => key + 1);
+  };
+
+  const openAndroid = (which: "from" | "to") => {
+    const current = which === "from" ? fromDay : toDay;
     DateTimePickerAndroid.open({
-      value: on ? dayFromHall(on) : new Date(),
+      value: current ? dayFromHall(current) : new Date(),
       mode: "date",
       timeZoneName: HALL_ZONE,
       onChange: (event, date) => {
         if (event.type === "set" && date) {
-          chooseDay(date);
+          if (which === "from") {
+            chooseFrom(date);
+            return;
+          }
+          chooseTo(date);
         }
       },
     });
@@ -179,10 +245,12 @@ export default function HistoryScreen() {
         <Text style={[text.button, { color: colors.inkSoft }]}>Back</Text>
       </Pressable>
       <Text style={[text.hallName, styles.title, { color: colors.ink }]}>History</Text>
+      <View style={styles.controls}>
       <ScrollView
         horizontal
         accessibilityRole="tablist"
         showsHorizontalScrollIndicator={false}
+        style={styles.filterScroll}
         contentContainerStyle={styles.filters}
       >
         {KIND_FILTERS.map((item) => {
@@ -203,41 +271,37 @@ export default function HistoryScreen() {
           );
         })}
       </ScrollView>
-      <View style={styles.dateField}>
-        <Text style={[text.label, { color: colors.inkSoft }]}>Date</Text>
-        <View style={styles.dateRow}>
-          {Platform.OS === "android" ? (
-            <Pressable accessibilityRole="button" accessibilityLabel="Date" onPress={openAndroidDate} style={styles.datePress}>
-              <Text style={[text.field, { color: on ? colors.ink : colors.inkFaint }]}>
-                {on ? formatHallDate(on) : "Any day"}
-              </Text>
-            </Pressable>
-          ) : (
-            <View style={styles.chip}>
-              <Text style={styles.chipText}>{on ? formatHallDate(on) : "Any day"}</Text>
-              <DateTimePicker
-                key={pickerKey}
-                style={styles.chipHit}
-                value={on ? dayFromHall(on) : new Date()}
-                mode="date"
-                display="compact"
-                accentColor={colors.forest}
-                themeVariant="light"
-                timeZoneName={HALL_ZONE}
-                onValueChange={(_event, date) => {
-                  if (date) {
-                    chooseDay(date);
-                  }
-                }}
-              />
-            </View>
-          )}
-          {on ? (
-            <Pressable accessibilityRole="button" accessibilityLabel="Any day" onPress={() => setOn(null)} style={styles.anyDay}>
-              <Text style={[text.button, { color: colors.inkSoft }]}>Any day</Text>
-            </Pressable>
-          ) : null}
-        </View>
+      <View style={styles.range}>
+        <Text style={[text.body, { color: colors.inkSoft }]}>From</Text>
+        <DayChip
+          label="From"
+          value={fromDay}
+          pickerKey={fromKey}
+          onChange={chooseFrom}
+          onAndroid={() => openAndroid("from")}
+        />
+        <Text style={[text.body, { color: colors.inkSoft }]}>To</Text>
+        <DayChip
+          label="To"
+          value={toDay}
+          pickerKey={toKey}
+          onChange={chooseTo}
+          onAndroid={() => openAndroid("to")}
+        />
+        {fromDay || toDay ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Any day"
+            onPress={() => {
+              setFromDay(null);
+              setToDay(null);
+            }}
+            style={styles.anyDay}
+          >
+            <Text style={[text.button, { color: colors.inkSoft }]}>Any</Text>
+          </Pressable>
+        ) : null}
+      </View>
       </View>
       {failed ? <Text style={[text.error, { color: colors.danger }]}>History didn't load.</Text> : null}
       {items !== null && items.length === 0 && !failed ? (
@@ -266,6 +330,8 @@ const styles = StyleSheet.create({
   },
   back: { alignSelf: "flex-start", minHeight: 44, justifyContent: "center" },
   title: { textAlign: "left" },
+  controls: { gap: 12 },
+  filterScroll: { flexGrow: 0 },
   filters: {
     flexDirection: "row",
     alignItems: "flex-end",
@@ -274,8 +340,12 @@ const styles = StyleSheet.create({
   },
   filter: { minHeight: 44, justifyContent: "flex-end", gap: 8 },
   filterMark: { height: 2, borderRadius: 1 },
-  dateField: { gap: 8 },
-  dateRow: { flexDirection: "row", alignItems: "center", gap: 16 },
+  range: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 10,
+  },
   datePress: { minHeight: 44, justifyContent: "center" },
   chip: {
     alignSelf: "flex-start",

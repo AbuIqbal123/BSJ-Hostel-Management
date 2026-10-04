@@ -268,7 +268,11 @@ type SessionValue = {
   updatePermission: (permissionId: string, body: PermissionCreate) => Promise<string | null>;
   cancelPermission: (permissionId: string) => Promise<HallFailure | null>;
   loadHallPass: () => Promise<HallPassResult>;
-  loadHistory: (filters?: { kind?: HistoryKind | "all"; on?: string | null }) => Promise<HistoryResult>;
+  loadHistory: (filters?: {
+    kind?: HistoryKind | "all";
+    from?: string | null;
+    to?: string | null;
+  }) => Promise<HistoryResult>;
   loadNotifications: () => Promise<NotificationListResult>;
   markNotificationsRead: () => Promise<MarkNotificationsReadResult>;
   loadGuestStays: () => Promise<GuestListResult>;
@@ -992,7 +996,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [renew]);
 
   const loadHistory = useCallback(
-    async (filters?: { kind?: HistoryKind | "all"; on?: string | null }): Promise<HistoryResult> => {
+    async (filters?: {
+      kind?: HistoryKind | "all";
+      from?: string | null;
+      to?: string | null;
+    }): Promise<HistoryResult> => {
       const current = sessionRef.current;
       if (!current) {
         return { error: "Sign in again." };
@@ -1001,8 +1009,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (filters?.kind && filters.kind !== "all") {
         query.set("kind", filters.kind);
       }
-      if (filters?.on && filters.on.length > 0) {
-        query.set("on", filters.on);
+      if (filters?.from && filters.from.length > 0) {
+        query.set("from", filters.from);
+      }
+      if (filters?.to && filters.to.length > 0) {
+        query.set("to", filters.to);
       }
       const suffix = query.toString();
       const path = suffix.length > 0 ? `/api/v1/me/history?${suffix}` : "/api/v1/me/history";

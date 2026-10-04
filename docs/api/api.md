@@ -1041,6 +1041,8 @@ field.
 |---|---|---|---|---|
 | `kind` | query | no | `all` or `late_night` or `home_going` or `guest_stay` or `outing` | Omit or `all` for every kind. Otherwise exactly one of `late_night`, `home_going`, `guest_stay`, or `outing`. |
 | `True` | query | no | date | One calendar date in Asia/Kolkata, `YYYY-MM-DD`. Omit when she has not chosen a day. A row matches when that hall date is the calendar day of `started_at`, of `ended_at`, or a day between them (inclusive). |
+| `from` | query | no | date | First calendar date in Asia/Kolkata, `YYYY-MM-DD`. A row matches when its hall days overlap the range from this date through `to`. Omit for no lower bound. |
+| `to` | query | no | date | Last calendar date in Asia/Kolkata, `YYYY-MM-DD`. A row matches when its hall days overlap the range through this date. Omit for no upper bound. |
 
 **Responses**
 

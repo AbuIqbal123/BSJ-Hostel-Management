@@ -224,12 +224,34 @@ def _hall_instant(day: str, zone: ZoneInfo, *, end: bool) -> str:
     return clock.format_instant(local)
 
 
-def _covers_hall_day(started_at: str, ended_at: str, on: date, zone: ZoneInfo) -> bool:
+def _hall_span(started_at: str, ended_at: str, zone: ZoneInfo) -> tuple[date, date]:
     start = _hall_day(started_at, zone)
     end = _hall_day(ended_at, zone)
     if end < start:
-        start, end = end, start
+        return end, start
+    return start, end
+
+
+def _covers_hall_day(started_at: str, ended_at: str, on: date, zone: ZoneInfo) -> bool:
+    start, end = _hall_span(started_at, ended_at, zone)
     return start <= on <= end
+
+
+def _overlaps_range(
+    started_at: str,
+    ended_at: str,
+    first: date | None,
+    last: date | None,
+    zone: ZoneInfo,
+) -> bool:
+    if first is None and last is None:
+        return True
+    start, end = _hall_span(started_at, ended_at, zone)
+    if first is not None and end < first:
+        return False
+    if last is not None and start > last:
+        return False
+    return True
 
 
 def _history_items(
@@ -393,6 +415,8 @@ def resident_history(
     connection: ConnectionDep,
     kind: Annotated[HistoryKind | None, Query()] = None,
     on: Annotated[date | None, Query()] = None,
+    from_day: Annotated[date | None, Query(alias="from")] = None,
+    to_day: Annotated[date | None, Query(alias="to")] = None,
 ) -> HistoryList:
     now = clock.utc_now()
     zone = _hall_zone(connection)
@@ -411,6 +435,12 @@ def resident_history(
             item
             for item in items
             if _covers_hall_day(item.started_at, item.ended_at, on, zone)
+        ]
+    if from_day is not None or to_day is not None:
+        items = [
+            item
+            for item in items
+            if _overlaps_range(item.started_at, item.ended_at, from_day, to_day, zone)
         ]
     return HistoryList(items=items)
 

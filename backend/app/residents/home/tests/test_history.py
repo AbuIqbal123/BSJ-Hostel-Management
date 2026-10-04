@@ -584,6 +584,17 @@ def test_resident_history(database_path: Path, monkeypatch: pytest.MonkeyPatch) 
             headers=headers,
         )
         assert narrowed.json()["items"] == [UNUSED_PLAN]
+        # A range matches any row whose hall days overlap those dates.
+        span = client.get(
+            "/api/v1/me/history?from=2026-09-20&to=2026-09-22",
+            headers=headers,
+        )
+        assert span.json()["items"] == [DEPARTED]
+        one_day = client.get(
+            "/api/v1/me/history?from=2026-09-30&to=2026-09-30",
+            headers=headers,
+        )
+        assert one_day.json()["items"] == [FINISHED]
 
         connection = sqlite3.connect(database_path)
         try:

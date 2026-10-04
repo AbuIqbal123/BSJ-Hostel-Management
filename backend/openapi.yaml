@@ -635,6 +635,28 @@ paths:
             type: string
             format: date
             example: "2026-09-30"
+        - name: from
+          in: query
+          required: false
+          description: |
+            First calendar date in Asia/Kolkata, `YYYY-MM-DD`. A row matches
+            when its hall days overlap the range from this date through `to`.
+            Omit for no lower bound.
+          schema:
+            type: string
+            format: date
+            example: "2026-09-20"
+        - name: to
+          in: query
+          required: false
+          description: |
+            Last calendar date in Asia/Kolkata, `YYYY-MM-DD`. A row matches
+            when its hall days overlap the range through this date. Omit for
+            no upper bound.
+          schema:
+            type: string
+            format: date
+            example: "2026-09-22"
       responses:
         "200":
           description: History rows, newest ended_at first.
