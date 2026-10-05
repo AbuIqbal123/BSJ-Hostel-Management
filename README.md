@@ -1,6 +1,6 @@
 # Begum Sultan Jahan Hall
 
-Hostel movement system for residents, wardens, gate staff, and the provost. The mobile app will be React Native. The API is FastAPI. This checkout is the local foundation: the data model, the HTTP contract, and the implemented hall API under `/api/v1`.
+Hostel movement system for residents, wardens, gate staff, and the provost. The hall API is FastAPI under `/api/v1`. The resident phone app is Expo, in `mobile/`.
 
 Read these three first.
 
@@ -13,7 +13,7 @@ Read these three first.
 | [`docs/design/design-system.md`](docs/design/design-system.md) | Visual design lock for the Expo client |
 | [`docs/design/workflows.md`](docs/design/workflows.md) | Product workflows (auth, home, permissions, register, gate, guests) |
 
-Swagger serves the same HTTP contract at http://localhost:8000/docs from `backend/openapi.yaml`. The test catalog is [`docs/tests/tests.md`](docs/tests/tests.md) (thirty-four recorded checks).
+Swagger serves the same HTTP contract at http://localhost:8000/docs from `backend/openapi.yaml`. The test catalog is [`docs/tests/tests.md`](docs/tests/tests.md).
 
 ## Repository
 
@@ -21,10 +21,12 @@ Swagger serves the same HTTP contract at http://localhost:8000/docs from `backen
 |---|---|
 | `backend/app/main.py` | Starts the process |
 | `backend/app/shared/` | Sign-in, the clock, errors, settings, the database connection, and creating the hall. Sign-in tests are in `backend/app/shared/auth/tests/` |
-| `backend/app/residents/` | Resident phone: `home`, `outings`, `permissions`, `guests`, `hall_pass` |
+| `backend/app/residents/` | Resident phone: `home`, `notifications`, `outings`, `permissions`, `guests`, `hall_pass` |
 | `backend/app/staff/` | Gate, the register, and the hall office: `gate`, `register`, `office` |
 | `backend/app/dev_seed.py` | Local sign-in accounts. Not created when the service starts |
 | `backend/tests/` | Startup check for the whole hall, and the development-account check |
+| `mobile/` | Expo resident phone app. Commands and rules are in `mobile/AGENTS.md` |
+| `postman/` | Postman checks for the hall API. Folders match the OpenAPI tags |
 | `docs/` | Domain folders: design, api, database, architecture, tests, engineering. See `docs/README.md` |
 | `reference/` | The original proposal, demo, and prototype. Not the application |
 | `AGENTS.md` | Engineering rules for changes in this repo |
@@ -60,20 +62,7 @@ Then open:
 - Health: http://localhost:8000/health
 - Ready: http://localhost:8000/ready
 
-### Implemented routes
-
-Paths in `backend/openapi.yaml` that the process serves today:
-
-| Area | Paths |
-|---|---|
-| Auth | `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, `POST /api/v1/auth/logout`, `GET /api/v1/auth/me`, `POST /api/v1/auth/change-password`. `POST /api/v1/auth/onboard` (public; active resident; no tokens), `GET /api/v1/auth/onboard/options` (public room picker) |
-| Resident | `GET /api/v1/me/home`, `GET /api/v1/me/history`, `GET /api/v1/me/hall-pass`, `GET /api/v1/destinations`, ordinary outings under `/api/v1/me/outings*`, permissions under `/api/v1/me/permissions*`, guest stays under `/api/v1/me/guest-stays*` |
-| Register | `GET /api/v1/register/summary`, `GET /api/v1/register/residents`, `GET /api/v1/register/residents/{resident_id}`, `GET /api/v1/register/late` |
-| Permissions (staff) | `GET /api/v1/permissions`, `GET /api/v1/permissions/{permission_id}`, `POST /api/v1/permissions/{permission_id}/decision` |
-| Guest stays (staff) | `GET /api/v1/guest-stays`, `GET /api/v1/guest-stays/{guest_stay_id}`, decision and payment under `/api/v1/guest-stays/{guest_stay_id}/*` |
-| Gate | `POST /api/v1/gate/scans`, `GET /api/v1/gate/activity`, guest arrival and departure under `/api/v1/gate/guests*` |
-| Hall office | Settings, blocks, rooms, destinations, residents, staff, password reset, audit log, SMS log, and register CSV export under `/api/v1/admin/*` |
-| Operations | `GET /health`, `GET /ready` |
+Every path in `backend/openapi.yaml` is served. [`docs/api/api.md`](docs/api/api.md) lists them for reading.
 
 In development, `/docs` re-reads `openapi.yaml` on each load. A business route must be in that file before it is registered, or the process will not start.
 
@@ -87,7 +76,6 @@ From `backend/`, run the checks with `.venv/bin/pytest`. A push to `dev`, and a 
 
 ## What is deliberately not here
 
-- React Native / Expo client
 - Docker, Nginx, and the VPS
 - Live parent SMS provider (development stays on the mock driver; late/return notices are recorded only)
 - Emergency alerts (the proposal leaves those out of the first version)
@@ -95,11 +83,4 @@ From `backend/`, run the checks with `.venv/bin/pytest`. A push to `dev`, and a 
 
 ## Open decisions
 
-These are in `docs/database/database.md` and in hall settings, because the proposal did not fix them:
-
-- The clock time when ordinary hours end
-- How many seconds a second gate scan is ignored so it cannot undo the first
-- How early a resident may scan out on an approved permission
-- How far ahead an ordinary expected return may be set
-
-Sign-in is hall-issued username and password. A resident's username is the enrolment number. That screen was not in the proposal.
+The values the hall has not fixed yet are under "Still for the hall to decide" in [`docs/database/database.md`](docs/database/database.md). They are hall settings, so they change without reshaping the records.
