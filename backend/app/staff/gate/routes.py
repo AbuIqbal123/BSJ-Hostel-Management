@@ -119,10 +119,6 @@ def _settings(connection: sqlite3.Connection) -> sqlite3.Row:
     return row
 
 
-def _resident_details(full_name: str, room_label: str, presence: str) -> dict:
-    return {"full_name": full_name, "room_label": room_label, "presence": presence}
-
-
 def _load_resident_by_qr(
     connection: sqlite3.Connection, qr_payload: str
 ) -> sqlite3.Row | None:
@@ -172,19 +168,16 @@ def _within_duplicate_window(
     return (now - last) <= timedelta(seconds=window_seconds)
 
 
-def _refuse(
-    code: str,
-    message: str,
-    *,
-    full_name: str,
-    room_label: str,
-    presence: str,
-) -> None:
+def _refuse(code: str, message: str, resident: sqlite3.Row) -> None:
     raise ApiError(
         409,
         code,
         message,
-        details=_resident_details(full_name, room_label, presence),
+        details={
+            "full_name": resident["full_name"],
+            "room_label": resident["room_label"],
+            "presence": resident["presence"],
+        },
     )
 
 
@@ -422,12 +415,12 @@ def _record_return(
     return load_outing(connection, outing_id)
 
 
-@router.post("/scans", response_model=ScanExitResult | ScanReturnResult)
+@router.post("/scans", response_model=ScanResult)
 def scan_hall_pass(
     body: ScanRequest,
     account: GateDep,
     connection: ConnectionDep,
-) -> ScanExitResult | ScanReturnResult:
+) -> ScanResult:
     resident = _load_resident_by_qr(connection, body.qr_payload)
     if resident is None:
         raise ApiError(404, "unknown_hall_pass", "That hall pass was not recognised.")
@@ -439,9 +432,7 @@ def scan_hall_pass(
         _refuse(
             "resident_suspended",
             "This resident account is suspended. Contact the Hall Office.",
-            full_name=full_name,
-            room_label=room_label,
-            presence=presence,
+            resident,
         )
 
     settings = _settings(connection)
@@ -466,23 +457,11 @@ def scan_hall_pass(
                 "This resident was just recorded at the gate. "
                 "Wait a moment before scanning again."
             )
-        _refuse(
-            "duplicate_scan",
-            message,
-            full_name=full_name,
-            room_label=room_label,
-            presence=presence,
-        )
+        _refuse("duplicate_scan", message, resident)
 
     stray_outside = _outside_outing(connection, resident_id)
     if presence == "inside" and stray_outside is not None:
-        _refuse(
-            "open_outing_exists",
-            "This resident already has an open outing outside.",
-            full_name=full_name,
-            room_label=room_label,
-            presence=presence,
-        )
+        _refuse("open_outing_exists", "This resident already has an open outing outside.", resident)
 
     if presence == "outside":
         open_row = stray_outside
@@ -490,9 +469,7 @@ def scan_hall_pass(
             _refuse(
                 "no_outing_planned",
                 "This resident is marked outside but no open outing was found to return on.",
-                full_name=full_name,
-                room_label=room_label,
-                presence=presence,
+                resident,
             )
         outing = _record_return(
             connection,
@@ -553,9 +530,7 @@ def scan_hall_pass(
             _refuse(
                 "return_already_planned",
                 "This resident already has an outing ending at that time.",
-                full_name=full_name,
-                room_label=room_label,
-                presence=presence,
+                resident,
             )
         outing = _open_permission_exit(
             connection,
@@ -577,24 +552,18 @@ def scan_hall_pass(
         _refuse(
             "permission_not_yet_valid",
             "That permission is not yet valid for leaving.",
-            full_name=full_name,
-            room_label=room_label,
-            presence=presence,
+            resident,
         )
     if plan is not None and not inside_hours:
         _refuse(
             "outside_ordinary_hours",
             "Ordinary outings can only leave during ordinary hours.",
-            full_name=full_name,
-            room_label=room_label,
-            presence=presence,
+            resident,
         )
     _refuse(
         "no_outing_planned",
         "There is no planned outing for this resident to leave on.",
-        full_name=full_name,
-        room_label=room_label,
-        presence=presence,
+        resident,
     )
 
 
