@@ -10,6 +10,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 
 from app.shared import clock
+from app.shared.audit import record_audit
 from app.shared.auth.routes import ConnectionDep
 from app.shared.errors import ApiError
 from app.staff.office.records import (
@@ -19,7 +20,6 @@ from app.staff.office.records import (
     list_rooms,
     load_block,
     load_room,
-    record_room_audit,
     residents_in_room,
 )
 from app.staff.office.routes import ProvostDep
@@ -74,11 +74,12 @@ def create_room(
                 "That number is already used in the block.",
             ) from exc
         raise
-    record_room_audit(
+    record_audit(
         connection,
         now_text,
         account.id,
         "room.created",
+        "room",
         room_id,
         f"{account.full_name} created room {label}.",
     )
@@ -181,11 +182,12 @@ def update_room(
         },
         sort_keys=True,
     )
-    record_room_audit(
+    record_audit(
         connection,
         now_text,
         account.id,
         "room.updated",
+        "room",
         room_id,
         f"{account.full_name} updated room {changes.get('label', current.label)}.",
         detail,

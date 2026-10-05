@@ -9,6 +9,7 @@ import uuid
 from fastapi import APIRouter
 
 from app.shared import clock
+from app.shared.audit import record_audit
 from app.shared.auth.routes import ConnectionDep
 from app.shared.errors import ApiError
 from app.staff.office.records import (
@@ -17,7 +18,6 @@ from app.staff.office.records import (
     BlockUpdate,
     list_blocks,
     load_block,
-    record_block_audit,
 )
 from app.staff.office.routes import ProvostDep
 
@@ -61,11 +61,12 @@ def create_block(
         if "blocks_code" in str(exc).lower() or "unique" in str(exc).lower():
             raise ApiError(409, "duplicate_block", "Code already in use.") from exc
         raise
-    record_block_audit(
+    record_audit(
         connection,
         now_text,
         account.id,
         "block.created",
+        "block",
         block_id,
         f"{account.full_name} created block {code}.",
     )
@@ -132,11 +133,12 @@ def update_block(
         {"before": {key: getattr(current, key) for key in changes}, "after": changes},
         sort_keys=True,
     )
-    record_block_audit(
+    record_audit(
         connection,
         now_text,
         account.id,
         "block.updated",
+        "block",
         block_id,
         f"{account.full_name} updated block {current.code}.",
         detail,

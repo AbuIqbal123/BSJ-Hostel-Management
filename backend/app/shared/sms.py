@@ -7,6 +7,7 @@ import uuid
 from zoneinfo import ZoneInfo
 
 from app.shared import clock
+from app.shared.audit import record_audit
 from app.shared.config import get_settings
 
 
@@ -75,14 +76,7 @@ def _insert_message(
     if cursor.rowcount != 1:
         return False
     action = "sms.late_notice" if notice_type == "late_notice" else "sms.return_notice"
-    connection.execute(
-        """
-        INSERT INTO audit_log (
-          id, occurred_at, actor_user_id, action, entity_type, entity_id, summary, detail
-        ) VALUES (?, ?, NULL, ?, 'guardian_message', ?, ?, NULL)
-        """,
-        (str(uuid.uuid4()), now_text, action, message_id, summary),
-    )
+    record_audit(connection, now_text, None, action, "guardian_message", message_id, summary)
     return True
 
 

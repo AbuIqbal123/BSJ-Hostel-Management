@@ -10,6 +10,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 
 from app.shared import clock
+from app.shared.audit import record_audit
 from app.shared.auth.routes import ConnectionDep
 from app.shared.auth.security import hash_password
 from app.shared.errors import ApiError
@@ -20,7 +21,6 @@ from app.staff.office.records import (
     StaffUpdate,
     list_staff_accounts,
     load_staff_account,
-    record_resident_audit,
     revoke_live_sessions,
 )
 from app.staff.office.routes import ProvostDep
@@ -81,7 +81,7 @@ def admin_create_staff(
             raise ApiError(409, "duplicate_username", _DUPLICATE) from exc
         raise
 
-    record_resident_audit(
+    record_audit(
         connection,
         now_text,
         account.id,
@@ -165,7 +165,7 @@ def admin_update_staff(
         },
         sort_keys=True,
     )
-    record_resident_audit(
+    record_audit(
         connection,
         now_text,
         account.id,

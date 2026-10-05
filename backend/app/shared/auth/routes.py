@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, Header, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.shared import clock
+from app.shared.audit import record_audit
 from app.shared.db import get_connection
 from app.shared.errors import ApiError
 from app.shared.auth.rate_limit import client_key, login_limiter, refresh_limiter
@@ -181,14 +182,7 @@ AccountDep = Annotated[Account, Depends(current_user)]
 
 
 def _record(connection: sqlite3.Connection, when: str, account: Account, action: str, summary: str) -> None:
-    connection.execute(
-        """
-        INSERT INTO audit_log (
-          id, occurred_at, actor_user_id, action, entity_type, entity_id, summary, detail
-        ) VALUES (?, ?, ?, ?, 'person', ?, ?, NULL)
-        """,
-        (str(uuid.uuid4()), when, account.id, action, account.id, summary),
-    )
+    record_audit(connection, when, account.id, action, "person", account.id, summary)
 
 
 def _revoke_live(connection: sqlite3.Connection, user_id: str, when: str) -> None:

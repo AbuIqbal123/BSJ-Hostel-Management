@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import secrets
 import sqlite3
-import uuid
 
 from typing import Literal
 
@@ -116,24 +115,6 @@ def load_notifications(connection: sqlite3.Connection) -> HallNotifications:
 
 def template_keeps_placeholders(template: str, required: tuple[str, ...]) -> bool:
     return all(token in template for token in required)
-
-
-def record_settings_updated(
-    connection: sqlite3.Connection,
-    occurred_at: str,
-    actor_user_id: str,
-    summary: str,
-    detail: str | None = None,
-) -> None:
-    connection.execute(
-        """
-        INSERT INTO audit_log (
-          id, occurred_at, actor_user_id, action, entity_type, entity_id, summary, detail
-        ) VALUES (?, ?, ?, 'settings.updated', 'settings', 'hall', ?, ?)
-        """,
-        (str(uuid.uuid4()), occurred_at, actor_user_id, summary, detail),
-    )
-
 
 
 def _apply_patch(
@@ -252,25 +233,6 @@ def load_block(connection: sqlite3.Connection, block_id: str) -> Block | None:
     return row_to_block(row)
 
 
-def record_block_audit(
-    connection: sqlite3.Connection,
-    occurred_at: str,
-    actor_user_id: str,
-    action: str,
-    block_id: str,
-    summary: str,
-    detail: str | None = None,
-) -> None:
-    connection.execute(
-        """
-        INSERT INTO audit_log (
-          id, occurred_at, actor_user_id, action, entity_type, entity_id, summary, detail
-        ) VALUES (?, ?, ?, ?, 'block', ?, ?, ?)
-        """,
-        (str(uuid.uuid4()), occurred_at, actor_user_id, action, block_id, summary, detail),
-    )
-
-
 ROOM_COLUMNS = (
     "id",
     "block_id",
@@ -363,25 +325,6 @@ def residents_in_room(connection: sqlite3.Connection, room_id: str) -> int:
     return int(row["n"])
 
 
-def record_room_audit(
-    connection: sqlite3.Connection,
-    occurred_at: str,
-    actor_user_id: str,
-    action: str,
-    room_id: str,
-    summary: str,
-    detail: str | None = None,
-) -> None:
-    connection.execute(
-        """
-        INSERT INTO audit_log (
-          id, occurred_at, actor_user_id, action, entity_type, entity_id, summary, detail
-        ) VALUES (?, ?, ?, ?, 'room', ?, ?, ?)
-        """,
-        (str(uuid.uuid4()), occurred_at, actor_user_id, action, room_id, summary, detail),
-    )
-
-
 DESTINATION_COLUMNS = ("id", "name", "is_other", "is_active")
 
 
@@ -455,33 +398,6 @@ def active_other_exists(
             (excluding_id,),
         ).fetchone()
     return row is not None
-
-
-def record_destination_audit(
-    connection: sqlite3.Connection,
-    occurred_at: str,
-    actor_user_id: str,
-    action: str,
-    destination_id: str,
-    summary: str,
-    detail: str | None = None,
-) -> None:
-    connection.execute(
-        """
-        INSERT INTO audit_log (
-          id, occurred_at, actor_user_id, action, entity_type, entity_id, summary, detail
-        ) VALUES (?, ?, ?, ?, 'destination', ?, ?, ?)
-        """,
-        (
-            str(uuid.uuid4()),
-            occurred_at,
-            actor_user_id,
-            action,
-            destination_id,
-            summary,
-            detail,
-        ),
-    )
 
 
 AccountStatus = Literal["active", "suspended"]
@@ -651,35 +567,6 @@ def revoke_live_sessions(
         WHERE user_id = ? AND revoked_at IS NULL
         """,
         (when, user_id),
-    )
-
-
-def record_resident_audit(
-    connection: sqlite3.Connection,
-    occurred_at: str,
-    actor_user_id: str,
-    action: str,
-    entity_type: str,
-    entity_id: str,
-    summary: str,
-    detail: str | None = None,
-) -> None:
-    connection.execute(
-        """
-        INSERT INTO audit_log (
-          id, occurred_at, actor_user_id, action, entity_type, entity_id, summary, detail
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            str(uuid.uuid4()),
-            occurred_at,
-            actor_user_id,
-            action,
-            entity_type,
-            entity_id,
-            summary,
-            detail,
-        ),
     )
 
 
