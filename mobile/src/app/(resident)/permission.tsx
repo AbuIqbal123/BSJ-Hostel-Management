@@ -194,7 +194,7 @@ function lateNightReturnNote(leaveAt: Date | null, backBy: Date | null): string 
   if (hallDay(leaveAt) === hallDay(backBy) || isNextHallMidnight(leaveAt, backBy)) {
     return null;
   }
-  return "A late-night return has to be the same day Only 12:00 AM can be the next day";
+  return "A late-night return has to be the same day. Only 12:00 AM can be the next day";
 }
 
 function usePermissionBack() {

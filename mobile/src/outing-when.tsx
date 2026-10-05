@@ -27,7 +27,7 @@ const RETURN_FUTURE = "The expected return must be in the future";
 const RETURN_AFTER = "The expected return must be after the start";
 const SAME_DAY = "An ordinary outing starts and returns on the same hall day";
 const OUTSIDE_HOURS =
-  "These hours fall outside ordinary hours Please request permission from the Permissions tab";
+  "These hours fall outside ordinary hours. Please request permission from the Permissions tab";
 
 const hallFormat = new Intl.DateTimeFormat("en-GB", {
   timeZone: HALL_ZONE,
