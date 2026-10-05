@@ -1,6 +1,6 @@
 # Agent notes
 
-Begum Sultan Jahan Hall hostel management. Residents, wardens, gate staff, and the provost. A `mobile/` Expo sign-in shell exists; full React Native product work and Docker are later. The current focus is the local FastAPI contract.
+Begum Sultan Jahan Hall hostel management. Residents, wardens, gate staff, and the provost. The hall API is the local FastAPI service in `backend/`. The resident phone app is Expo, in `mobile/`, with its own notes in `mobile/AGENTS.md`. Docker is later.
 
 Before changing API behavior, the database, or the shape of the system, follow `.grok/skills/contract-maintenance/SKILL.md` and the rules below.
 
@@ -81,7 +81,7 @@ Group the service by business area.
 | Area | Code | Tests |
 |---|---|---|
 | Sign-in | `backend/app/shared/auth/` | `backend/app/shared/auth/tests/` |
-| Resident phone | `backend/app/residents/` with `home`, `outings`, `permissions`, `guests`, `hall_pass` | Beside that area, in its `tests/` folder |
+| Resident phone | `backend/app/residents/` with `home`, `notifications`, `outings`, `permissions`, `guests`, `hall_pass` | Beside that area, in its `tests/` folder |
 | Gate, register, and hall office | `backend/app/staff/` with `gate`, `register`, `office` | Beside that area, in its `tests/` folder |
 | Startup of the whole hall | `backend/app/shared/migrate.py` and `backend/app/shared/migrations/` | `backend/tests/` |
 
