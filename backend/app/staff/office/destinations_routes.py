@@ -9,6 +9,7 @@ import uuid
 from fastapi import APIRouter
 
 from app.shared import clock
+from app.shared.audit import record_audit
 from app.shared.auth.routes import ConnectionDep
 from app.shared.errors import ApiError
 from app.staff.office.records import (
@@ -19,7 +20,6 @@ from app.staff.office.records import (
     active_other_exists,
     list_admin_destinations,
     load_destination,
-    record_destination_audit,
 )
 from app.staff.office.routes import ProvostDep
 
@@ -72,11 +72,12 @@ def create_destination(
             raise ApiError(409, "duplicate_destination", _DUPLICATE) from exc
         raise
 
-    record_destination_audit(
+    record_audit(
         connection,
         now_text,
         account.id,
         "destination.created",
+        "destination",
         destination_id,
         f"{account.full_name} created destination {name}.",
     )
@@ -166,11 +167,12 @@ def update_destination(
         {"before": {key: getattr(current, key) for key in changes}, "after": changes},
         sort_keys=True,
     )
-    record_destination_audit(
+    record_audit(
         connection,
         now_text,
         account.id,
         "destination.updated",
+        "destination",
         destination_id,
         f"{account.full_name} updated destination {changes.get('name', current.name)}.",
         detail,

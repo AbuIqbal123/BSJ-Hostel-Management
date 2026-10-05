@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import sqlite3
-import uuid
 from datetime import date, timedelta
 from typing import Literal
 from pydantic import BaseModel, ConfigDict
+
+from app.shared.audit import record_audit
 
 GuestStatus = Literal["pending", "approved", "rejected", "cancelled", "departed"]
 PaymentStatus = Literal["unpaid", "paid"]
@@ -373,13 +374,8 @@ def record_guest_stay(
     guest_stay_id: str,
     summary: str,
 ) -> None:
-    connection.execute(
-        """
-        INSERT INTO audit_log (
-          id, occurred_at, actor_user_id, action, entity_type, entity_id, summary, detail
-        ) VALUES (?, ?, ?, ?, 'guest_stay', ?, ?, NULL)
-        """,
-        (str(uuid.uuid4()), occurred_at, actor_user_id, action, guest_stay_id, summary),
+    record_audit(
+        connection, occurred_at, actor_user_id, action, "guest_stay", guest_stay_id, summary
     )
     connection.commit()
 

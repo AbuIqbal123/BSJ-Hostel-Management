@@ -8,6 +8,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 
 from app.shared import clock
+from app.shared.audit import record_audit
 from app.shared.auth.routes import Account, AccountDep, ConnectionDep
 from app.shared.errors import ApiError
 from app.staff.office.records import (
@@ -21,7 +22,6 @@ from app.staff.office.records import (
     apply_settings_update,
     load_notifications,
     load_settings,
-    record_settings_updated,
     template_keeps_placeholders,
 )
 
@@ -121,10 +121,13 @@ def update_settings(
         {"before": {key: getattr(current, key) for key in changes}, "after": changes},
         sort_keys=True,
     )
-    record_settings_updated(
+    record_audit(
         connection,
         now_text,
         account.id,
+        "settings.updated",
+        "settings",
+        "hall",
         f"{account.full_name} updated hall settings.",
         detail,
     )
@@ -167,10 +170,13 @@ def update_notifications(
         {"before": {key: getattr(current, key) for key in changes}, "after": changes},
         sort_keys=True,
     )
-    record_settings_updated(
+    record_audit(
         connection,
         now_text,
         account.id,
+        "settings.updated",
+        "settings",
+        "hall",
         f"{account.full_name} updated hall notification templates.",
         detail,
     )

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import sqlite3
-import uuid
 from datetime import datetime, timedelta
 from typing import Literal
 from zoneinfo import ZoneInfo
@@ -11,6 +10,7 @@ from zoneinfo import ZoneInfo
 from pydantic import BaseModel, ConfigDict
 
 from app.shared import clock
+from app.shared.audit import record_audit
 
 
 class UpcomingOuting(BaseModel):
@@ -336,14 +336,7 @@ def record_outing(
     outing_id: str,
     summary: str,
 ) -> None:
-    connection.execute(
-        """
-        INSERT INTO audit_log (
-          id, occurred_at, actor_user_id, action, entity_type, entity_id, summary, detail
-        ) VALUES (?, ?, ?, ?, 'outing', ?, ?, NULL)
-        """,
-        (str(uuid.uuid4()), when, actor_user_id, action, outing_id, summary),
-    )
+    record_audit(connection, when, actor_user_id, action, "outing", outing_id, summary)
 
 
 def expire_passed_plans(connection: sqlite3.Connection, resident_id: str, now_text: str) -> int:

@@ -10,6 +10,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 
 from app.shared import clock
+from app.shared.audit import record_audit
 from app.shared.auth.routes import ConnectionDep
 from app.shared.auth.security import hash_password
 from app.shared.errors import ApiError
@@ -23,7 +24,6 @@ from app.staff.office.records import (
     list_resident_accounts,
     load_resident_account,
     new_hall_pass_token,
-    record_resident_audit,
     revoke_live_sessions,
     room_exists,
     room_has_capacity,
@@ -123,7 +123,7 @@ def admin_create_resident(
             raise ApiError(422, "validation_error", _ROOM_FULL) from exc
         raise
 
-    record_resident_audit(
+    record_audit(
         connection,
         now_text,
         account.id,
@@ -282,7 +282,7 @@ def admin_update_resident(
         },
         sort_keys=True,
     )
-    record_resident_audit(
+    record_audit(
         connection,
         now_text,
         account.id,
@@ -317,7 +317,7 @@ def reissue_hall_pass(
         """,
         (qr_payload, now_text, resident_id),
     )
-    record_resident_audit(
+    record_audit(
         connection,
         now_text,
         account.id,
