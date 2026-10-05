@@ -177,15 +177,15 @@ export default function PlanScreen() {
       return;
     }
     if (!destinationId) {
-      setError("Choose a place.");
+      setError("Choose a place");
       return;
     }
     if (!leaveAt) {
-      setError("Choose when you will leave.");
+      setError("Choose when you will leave");
       return;
     }
     if (!backBy) {
-      setError("Choose when you will be back.");
+      setError("Choose when you will be back");
       return;
     }
     if (leaveNote(leaveAt) || returnNote(leaveAt, backBy)) {
@@ -194,7 +194,7 @@ export default function PlanScreen() {
     }
     const placeText = where.trim();
     if (other && placeText.length === 0) {
-      setError("Say where.");
+      setError("Say where");
       return;
     }
     pending.current = true;

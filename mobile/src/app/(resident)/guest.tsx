@@ -332,7 +332,7 @@ function GuestForm({ existing }: { existing?: GuestStay }) {
           }}
         />
         {start && end && endDate < startDate ? (
-          <Text style={[text.error, { color: colors.danger }]}>Leaves has to be on or after Arrives.</Text>
+          <Text style={[text.error, { color: colors.danger }]}>Leaves has to be on or after Arrives</Text>
         ) : null}
       </Pressable>
       <View style={styles.submit}>
@@ -363,7 +363,7 @@ function GuestForm({ existing }: { existing?: GuestStay }) {
         <Feather name="check" size={28} color={colors.onForest} />
       </Animated.View>
       <Animated.Text style={[text.body, styles.sentLine, { color: colors.ink }, lineMotion]}>
-        {existing ? "Your changes have been sent for approval." : "Your request has been submitted."}
+        {existing ? "Your changes have been sent for approval" : "Your request has been submitted"}
       </Animated.Text>
     </Animated.View>
     </View>

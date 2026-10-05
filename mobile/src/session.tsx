@@ -349,11 +349,11 @@ async function hallFailure(response: Response): Promise<HallFailure> {
     const message =
       typeof body.error?.message === "string" && body.error.message.length > 0
         ? body.error.message
-        : "The hall could not be reached.";
+        : "The hall could not be reached";
     const code = typeof body.error?.code === "string" ? body.error.code : null;
     return { code, message };
   } catch {
-    return { code: null, message: "The hall could not be reached." };
+    return { code: null, message: "The hall could not be reached" };
   }
 }
 
@@ -845,7 +845,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setSession(next);
       return null;
     } catch {
-      return "The hall could not be reached.";
+      return "The hall could not be reached";
     }
   }, []);
 
@@ -877,21 +877,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const message = await errorMessage(response);
       const lowered = message.toLowerCase();
       if (lowered.includes("already in use") || lowered.includes("enrolment already")) {
-        return "Username or password is wrong.";
+        return "Username or password is wrong";
       }
-      if (response.status === 401 && message === "The hall could not be reached.") {
-        return "Username or password is wrong.";
+      if (response.status === 401 && message === "The hall could not be reached") {
+        return "Username or password is wrong";
       }
       return message;
     } catch {
-      return "The hall could not be reached.";
+      return "The hall could not be reached";
     }
   }, []);
 
   const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
     const current = sessionRef.current;
     if (!current) {
-      return "Sign in again.";
+      return "Sign in again";
     }
     try {
       const response = await hallFetch("/api/v1/auth/change-password", {
@@ -913,7 +913,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
       return await errorMessage(response);
     } catch {
-      return "The hall could not be reached.";
+      return "The hall could not be reached";
     }
   }, []);
 
@@ -971,7 +971,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const loadResidentHome = useCallback(async (): Promise<ResidentHomeResult> => {
     let current = sessionRef.current;
     if (!current) {
-      return { error: "Sign in again." };
+      return { error: "Sign in again" };
     }
     const call = (token: string, path: string, method: string) =>
       hallFetch(path, { method, headers: { Authorization: `Bearer ${token}` } });
@@ -980,7 +980,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (expired.status === 401) {
         const renewed = await renew();
         if (!renewed) {
-          return { error: "Sign in again." };
+          return { error: "Sign in again" };
         }
         current = renewed;
         expired = await call(current.accessToken, "/api/v1/me/expire-passed", "POST");
@@ -994,11 +994,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
       const home = readResidentHome(await homeResponse.json());
       if (!home) {
-        return { error: "The hall could not be reached." };
+        return { error: "The hall could not be reached" };
       }
       return { error: null, home };
     } catch {
-      return { error: "The hall could not be reached." };
+      return { error: "The hall could not be reached" };
     }
   }, [renew]);
 
@@ -1010,7 +1010,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }): Promise<HistoryResult> => {
       const current = sessionRef.current;
       if (!current) {
-        return { error: "Sign in again." };
+        return { error: "Sign in again" };
       }
       const query = new URLSearchParams();
       if (filters?.kind && filters.kind !== "all") {
@@ -1034,11 +1034,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
         const items = readHistory(await response.json());
         if (!items) {
-          return { error: "The hall could not be reached." };
+          return { error: "The hall could not be reached" };
         }
         return { error: null, items };
       } catch {
-        return { error: "The hall could not be reached." };
+        return { error: "The hall could not be reached" };
       }
     },
     [],
@@ -1047,7 +1047,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const loadNotifications = useCallback(async (): Promise<NotificationListResult> => {
     const current = sessionRef.current;
     if (!current) {
-      return { error: "Sign in again." };
+      return { error: "Sign in again" };
     }
     try {
       const response = await hallFetch("/api/v1/me/notifications", {
@@ -1059,18 +1059,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
       const items = readNotifications(await response.json());
       if (!items) {
-        return { error: "The hall could not be reached." };
+        return { error: "The hall could not be reached" };
       }
       return { error: null, items };
     } catch {
-      return { error: "The hall could not be reached." };
+      return { error: "The hall could not be reached" };
     }
   }, []);
 
   const markNotificationsRead = useCallback(async (): Promise<MarkNotificationsReadResult> => {
     const current = sessionRef.current;
     if (!current) {
-      return { error: "Sign in again." };
+      return { error: "Sign in again" };
     }
     try {
       const response = await hallFetch("/api/v1/me/notifications/read", {
@@ -1082,18 +1082,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
       const body: unknown = await response.json();
       if (!isRecord(body) || typeof body.marked !== "number") {
-        return { error: "The hall could not be reached." };
+        return { error: "The hall could not be reached" };
       }
       return { error: null, marked: body.marked };
     } catch {
-      return { error: "The hall could not be reached." };
+      return { error: "The hall could not be reached" };
     }
   }, []);
 
   const loadGuestStays = useCallback(async (): Promise<GuestListResult> => {
     const current = sessionRef.current;
     if (!current) {
-      return { error: "Sign in again." };
+      return { error: "Sign in again" };
     }
     try {
       const response = await hallFetch("/api/v1/me/guest-stays?limit=50", {
@@ -1105,18 +1105,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
       const items = readGuestPage(await response.json());
       if (!items) {
-        return { error: "The hall could not be reached." };
+        return { error: "The hall could not be reached" };
       }
       return { error: null, items };
     } catch {
-      return { error: "The hall could not be reached." };
+      return { error: "The hall could not be reached" };
     }
   }, []);
 
   const loadGuestStay = useCallback(async (guestStayId: string): Promise<GuestResult> => {
     const current = sessionRef.current;
     if (!current) {
-      return { error: "Sign in again." };
+      return { error: "Sign in again" };
     }
     try {
       const response = await hallFetch(`/api/v1/me/guest-stays/${encodeURIComponent(guestStayId)}`, {
@@ -1128,18 +1128,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
       const stay = readGuestStay(await response.json());
       if (!stay) {
-        return { error: "The hall could not be reached." };
+        return { error: "The hall could not be reached" };
       }
       return { error: null, stay };
     } catch {
-      return { error: "The hall could not be reached." };
+      return { error: "The hall could not be reached" };
     }
   }, []);
 
   const submitGuestStay = useCallback(async (body: GuestStayCreate) => {
     const current = sessionRef.current;
     if (!current) {
-      return "Sign in again.";
+      return "Sign in again";
     }
     try {
       const response = await hallFetch("/api/v1/me/guest-stays", {
@@ -1155,14 +1155,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
       return await errorMessage(response);
     } catch {
-      return "The hall could not be reached.";
+      return "The hall could not be reached";
     }
   }, []);
 
   const updateGuestStay = useCallback(async (guestStayId: string, body: GuestStayCreate) => {
     const current = sessionRef.current;
     if (!current) {
-      return "Sign in again.";
+      return "Sign in again";
     }
     try {
       const response = await hallFetch(`/api/v1/me/guest-stays/${encodeURIComponent(guestStayId)}`, {
@@ -1178,14 +1178,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
       return await errorMessage(response);
     } catch {
-      return "The hall could not be reached.";
+      return "The hall could not be reached";
     }
   }, []);
 
   const cancelGuestStay = useCallback(async (guestStayId: string) => {
     const current = sessionRef.current;
     if (!current) {
-      return { code: null, message: "Sign in again." };
+      return { code: null, message: "Sign in again" };
     }
     try {
       const response = await hallFetch(
@@ -1200,14 +1200,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
       return await hallFailure(response);
     } catch {
-      return { code: null, message: "The hall could not be reached." };
+      return { code: null, message: "The hall could not be reached" };
     }
   }, []);
 
   const loadHallPass = useCallback(async (): Promise<HallPassResult> => {
     const current = sessionRef.current;
     if (!current) {
-      return { error: "Sign in again." };
+      return { error: "Sign in again" };
     }
     try {
       const response = await hallFetch("/api/v1/me/hall-pass", {
@@ -1219,18 +1219,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
       const pass = readHallPass(await response.json());
       if (!pass) {
-        return { error: "The hall could not be reached." };
+        return { error: "The hall could not be reached" };
       }
       return { error: null, pass };
     } catch {
-      return { error: "The hall could not be reached." };
+      return { error: "The hall could not be reached" };
     }
   }, []);
 
   const loadDestinations = useCallback(async (): Promise<DestinationResult> => {
     const current = sessionRef.current;
     if (!current) {
-      return { error: "Sign in again." };
+      return { error: "Sign in again" };
     }
     try {
       const response = await hallFetch("/api/v1/destinations", {
@@ -1242,18 +1242,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
       const items = readDestinations(await response.json());
       if (!items) {
-        return { error: "The hall could not be reached." };
+        return { error: "The hall could not be reached" };
       }
       return { error: null, items };
     } catch {
-      return { error: "The hall could not be reached." };
+      return { error: "The hall could not be reached" };
     }
   }, []);
 
   const planOuting = useCallback(async (body: PlanOutingBody) => {
     const current = sessionRef.current;
     if (!current) {
-      return "Sign in again.";
+      return "Sign in again";
     }
     try {
       const response = await hallFetch("/api/v1/me/outings", {
@@ -1269,14 +1269,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
       return await errorMessage(response);
     } catch {
-      return "The hall could not be reached.";
+      return "The hall could not be reached";
     }
   }, []);
 
   const updateOuting = useCallback(async (outingId: string, body: PlanOutingBody) => {
     const current = sessionRef.current;
     if (!current) {
-      return "Sign in again.";
+      return "Sign in again";
     }
     try {
       const response = await hallFetch(`/api/v1/me/outings/${outingId}`, {
@@ -1292,14 +1292,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
       return await errorMessage(response);
     } catch {
-      return "The hall could not be reached.";
+      return "The hall could not be reached";
     }
   }, []);
 
   const cancelOuting = useCallback(async (outingId: string) => {
     const current = sessionRef.current;
     if (!current) {
-      return { code: null, message: "Sign in again." };
+      return { code: null, message: "Sign in again" };
     }
     try {
       const response = await hallFetch(`/api/v1/me/outings/${outingId}/cancel`, {
@@ -1311,14 +1311,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
       return await hallFailure(response);
     } catch {
-      return { code: null, message: "The hall could not be reached." };
+      return { code: null, message: "The hall could not be reached" };
     }
   }, []);
 
   const loadPermissions = useCallback(async (): Promise<PermissionListResult> => {
     const current = sessionRef.current;
     if (!current) {
-      return { error: "Sign in again." };
+      return { error: "Sign in again" };
     }
     try {
       await expirePassed(current.accessToken);
@@ -1331,18 +1331,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
       const items = readPermissionPage(await response.json());
       if (!items) {
-        return { error: "The hall could not be reached." };
+        return { error: "The hall could not be reached" };
       }
       return { error: null, items };
     } catch {
-      return { error: "The hall could not be reached." };
+      return { error: "The hall could not be reached" };
     }
   }, []);
 
   const loadPermission = useCallback(async (permissionId: string): Promise<PermissionResult> => {
     const current = sessionRef.current;
     if (!current) {
-      return { error: "Sign in again." };
+      return { error: "Sign in again" };
     }
     try {
       await expirePassed(current.accessToken);
@@ -1358,18 +1358,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
       const permission = readPermission(await response.json());
       if (!permission) {
-        return { error: "The hall could not be reached." };
+        return { error: "The hall could not be reached" };
       }
       return { error: null, permission };
     } catch {
-      return { error: "The hall could not be reached." };
+      return { error: "The hall could not be reached" };
     }
   }, []);
 
   const submitPermission = useCallback(async (body: PermissionCreate) => {
     const current = sessionRef.current;
     if (!current) {
-      return "Sign in again.";
+      return "Sign in again";
     }
     try {
       const response = await hallFetch("/api/v1/me/permissions", {
@@ -1385,14 +1385,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
       return await errorMessage(response);
     } catch {
-      return "The hall could not be reached.";
+      return "The hall could not be reached";
     }
   }, []);
 
   const updatePermission = useCallback(async (permissionId: string, body: PermissionCreate) => {
     const current = sessionRef.current;
     if (!current) {
-      return "Sign in again.";
+      return "Sign in again";
     }
     try {
       const response = await hallFetch(
@@ -1411,14 +1411,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
       return await errorMessage(response);
     } catch {
-      return "The hall could not be reached.";
+      return "The hall could not be reached";
     }
   }, []);
 
   const cancelPermission = useCallback(async (permissionId: string) => {
     const current = sessionRef.current;
     if (!current) {
-      return { code: null, message: "Sign in again." };
+      return { code: null, message: "Sign in again" };
     }
     try {
       const response = await hallFetch(
@@ -1433,7 +1433,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
       return await hallFailure(response);
     } catch {
-      return { code: null, message: "The hall could not be reached." };
+      return { code: null, message: "The hall could not be reached" };
     }
   }, []);
 

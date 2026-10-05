@@ -83,7 +83,7 @@ export default function GuestsScreen() {
       </Pressable>
       <Text style={[text.hallName, styles.title, { color: colors.ink }]}>Guest stay</Text>
       {failed ? (
-        <Text style={[text.error, { color: colors.danger }]}>Guest stays didn't load.</Text>
+        <Text style={[text.error, { color: colors.danger }]}>Guest stays didn't load</Text>
       ) : null}
       {items !== null && items.length > 0 ? (
         <View>

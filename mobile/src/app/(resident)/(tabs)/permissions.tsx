@@ -299,10 +299,10 @@ export default function PermissionsScreen() {
         })}
       </View>
       {tab !== "guest" && failed ? (
-        <Text style={[text.error, { color: colors.danger }]}>Permissions didn't load.</Text>
+        <Text style={[text.error, { color: colors.danger }]}>Permissions didn't load</Text>
       ) : null}
       {tab === "guest" && staysFailed ? (
-        <Text style={[text.error, { color: colors.danger }]}>Guest stays didn't load.</Text>
+        <Text style={[text.error, { color: colors.danger }]}>Guest stays didn't load</Text>
       ) : null}
       {shownPermissions.length > 0 || shownStays.length > 0 ? (
         <View style={[styles.requests, { borderTopColor: colors.line }]}>

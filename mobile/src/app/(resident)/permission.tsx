@@ -171,7 +171,7 @@ function departureNote(leaveAt: Date | null): string | null {
     return null;
   }
   if (leaveAt.getTime() < Date.now()) {
-    return "Departure must not be in the past.";
+    return "Departure must not be in the past";
   }
   return null;
 }
@@ -181,7 +181,7 @@ function returnAfterNote(leaveAt: Date | null, backBy: Date | null): string | nu
     return null;
   }
   if (backBy.getTime() <= leaveAt.getTime()) {
-    return "Expected return must be after departure.";
+    return "Expected return must be after departure";
   }
   return null;
 }
@@ -194,7 +194,7 @@ function lateNightReturnNote(leaveAt: Date | null, backBy: Date | null): string 
   if (hallDay(leaveAt) === hallDay(backBy) || isNextHallMidnight(leaveAt, backBy)) {
     return null;
   }
-  return "A late-night return has to be the same day. Only 12:00 AM can be the next day.";
+  return "A late-night return has to be the same day. Only 12:00 AM can be the next day";
 }
 
 function usePermissionBack() {
@@ -278,15 +278,15 @@ function PermissionForm({
   const leaveProblem =
     kind === "home_going"
       ? leaveDay.length > 0 && leaveDay < today
-        ? "Leave must not be in the past."
+        ? "Leave must not be in the past"
         : null
       : departureNote(leaveAt);
   const backProblem =
     kind === "home_going"
       ? backDay.length > 0 && leaveDay.length > 0 && backDay < leaveDay
-        ? "Back must be on or after the day you leave."
+        ? "Back must be on or after the day you leave"
         : homeTimes !== null && homeTimes.back.getTime() <= homeTimes.departure.getTime()
-          ? "Choose a later back date."
+          ? "Choose a later back date"
           : null
       : lateNightReturnNote(leaveAt, backBy);
   const ready =
@@ -410,8 +410,8 @@ function PermissionForm({
   };
 
   const sentLine = existing
-    ? "Your changes have been sent for approval."
-    : "Your request has been submitted.";
+    ? "Your changes have been sent for approval"
+    : "Your request has been submitted";
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.paper }]}>
@@ -436,7 +436,7 @@ function PermissionForm({
         {existing ? <StatusPill status="pending" /> : null}
       </View>
       {existing ? (
-        <Text style={[text.body, { color: colors.ink }]}>Any change needs approval again.</Text>
+        <Text style={[text.body, { color: colors.ink }]}>Any change needs approval again</Text>
       ) : null}
       <View style={styles.fields}>
         <TextField

@@ -115,10 +115,10 @@ export default function NotificationsScreen() {
       </Pressable>
       <Text style={[text.hallName, styles.title, { color: colors.ink }]}>Notifications</Text>
       {failed ? (
-        <Text style={[text.button, { color: colors.danger }]}>Notifications didn't load.</Text>
+        <Text style={[text.button, { color: colors.danger }]}>Notifications didn't load</Text>
       ) : null}
       {!failed && items !== null && items.length === 0 ? (
-        <Text style={[text.button, { color: colors.inkFaint }]}>No notifications.</Text>
+        <Text style={[text.button, { color: colors.inkFaint }]}>No notifications</Text>
       ) : null}
       {!failed && items !== null && items.length > 0 ? (
         <View>
