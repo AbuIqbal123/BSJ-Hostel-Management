@@ -2240,7 +2240,7 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 ## <a id="tag-guest-stays"></a>Guest Stays
 
-Guest applications. Resident applies and edits under /api/v1/me/guest-stays; warden or provost review under /api/v1/guest-stays. A resident edit returns the stay to pending so staff must approve again. Gate arrival and departure stay under Gate.
+Guest applications. Resident applies and edits under /api/v1/me/guest-stays; warden or provost review under /api/v1/guest-stays. A resident may edit only while the stay is pending and before arrival; the stay stays pending. Gate arrival and departure stay under Gate.
 
 | Method | Path | Purpose | Who |
 |---|---|---|---|
@@ -2469,24 +2469,19 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 Caller: resident, and only for a stay they host.
 
-Before arrival (`pending` or `approved`, and arrival not yet recorded):
-send all of `guest_name`, `relation`, `guest_start_date`, `guest_end_date`, and
-`reason` (full replace of those fields). Status, payment, arrival, and
-departure are not editable here.
+Allowed only while the stay is `pending` and arrival has not been
+recorded. Send all of `guest_name`, `relation`, `guest_start_date`,
+`guest_end_date`, and `reason` (full replace of those fields). Status,
+payment, arrival, and departure are not editable here.
 
-After arrival and before departure: only `guest_start_date` and/or `guest_end_date`
-may change. `guest_name`, `relation`, and `reason` are locked once the
-guest has arrived.
+An approved stay cannot be edited. A stay cannot be edited after
+arrival, including when it is still `pending`. `departed`, `rejected`,
+and `cancelled` cannot be edited. Each of those returns 409
+`not_editable`.
 
-Not editable when the stay is `departed`, `rejected`, or `cancelled`
-(409 `not_editable`).
-
-Every successful edit returns the stay to `pending`, clears
-`decided_by`, `decided_at`, and `decision_note`, and leaves
-`payment_status` unchanged. A warden or the provost must approve
-again — including when the stay was already approved, and including a
-date change after the guest has arrived. Staff see the stay back in
-the pending queue.
+A successful edit leaves the stay `pending` (it stays pending, and the
+decision fields stay empty) and leaves `payment_status` unchanged.
+Staff still have to approve it.
 
 **Parameters**
 
@@ -2522,8 +2517,8 @@ Body: [GuestStayUpdate](#schema-gueststayupdate).
 
 #### 200
 
-Guest stay updated and returned to pending. Decision fields are
-cleared; payment_status is unchanged.
+Guest stay updated and still pending. Decision fields stay empty;
+payment_status is unchanged.
 
 Body: [GuestStay](#schema-gueststay).
 
@@ -2575,8 +2570,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 #### 409
 
-The stay cannot be edited (departed, rejected, cancelled, or
-otherwise closed). Code `not_editable`.
+The stay cannot be edited. Code `not_editable` when it is not
+pending (approved, rejected, cancelled, or departed) or when the
+guest has already arrived.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
@@ -2789,11 +2785,11 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** warden or provost. Bearer access token.
 
-Caller: warden or provost. Only while `pending`. A resident edit returns
-an approved stay (and a post-arrival date change) to pending, so staff
-must decide again. When the guest has already arrived, only `approved`
-is allowed — reject is refused (the guest is in the hall). Approval does
-not mark payment and does not clear or set arrival.
+Caller: warden or provost. Only while `pending`. A resident cannot edit
+an approved stay, and cannot edit after arrival, so those stays are not
+sent back for another decision. When the guest has already arrived, only
+`approved` is allowed — reject is refused (the guest is in the hall).
+Approval does not mark payment and does not clear or set arrival.
 
 **Parameters**
 
@@ -5827,12 +5823,11 @@ One of: `pending`, `upcoming`, `expected`, `not_expected`, `in_hall`, `should_ha
 
 ### <a id="schema-gueststayupdate"></a>GuestStayUpdate
 
-Editable fields for PATCH own guest stay. Before arrival, send all five
-fields (full replace of name, relation, dates, and reason). After arrival
-and before departure, only `guest_start_date` and/or `guest_end_date` may be present —
-name, relation, and reason are locked. Every successful edit returns
-status to pending and clears the decision so a warden or the provost must
-approve again; payment_status is left unchanged.
+Editable fields for PATCH own guest stay. Only while the stay is pending
+and before arrival. Send all five fields (full replace of name, relation,
+dates, and reason). The stay stays pending and the decision stays empty;
+payment_status is left unchanged. An approved stay, and any stay after
+arrival, is refused.
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
