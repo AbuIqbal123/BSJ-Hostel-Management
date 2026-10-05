@@ -2,4 +2,4 @@ $kind: collection
 name: Home
 order: 1000
 description: |-
-  What the resident sees on opening the phone, her own history, and expiring her passed plans.
+  What the resident sees on opening the phone, her own history, her permission-decision inbox, and expiring her passed plans.

@@ -1,0 +1,6 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/api/v1/me/notifications'
+order: 3000
+description: |-
+  Caller: resident. The newest 50 rows written when a warden or the provost approved or rejected her permission, newest first. Each row has the permission type, place, departure and expected return, who decided, and unread. Reading does not mark them read. A gate, warden, or provost account is refused.

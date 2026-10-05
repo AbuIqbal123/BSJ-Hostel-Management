@@ -1,0 +1,6 @@
+$kind: http-request
+method: POST
+url: '{{baseUrl}}/api/v1/me/notifications/read'
+order: 4000
+description: |-
+  Caller: resident. Sets read on every unread decision row of hers, including any older than the 50 the list returns. Returns marked, the number of rows changed. A second call marks 0. A gate, warden, or provost account is refused.
