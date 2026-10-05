@@ -45,19 +45,6 @@ export default function ResidentTabs() {
       screenOptions={{
         headerShown: false,
         animation: "none",
-        tabBarShowLabel: true,
-        tabBarActiveTintColor: colors.forest,
-        tabBarInactiveTintColor: colors.inkFaint,
-        tabBarStyle: {
-          backgroundColor: colors.paper,
-          borderTopColor: colors.line,
-          borderTopWidth: StyleSheet.hairlineWidth,
-          elevation: 0,
-          shadowOpacity: 0,
-          height: 52 + tabBottom,
-          paddingBottom: tabBottom,
-          paddingTop: 8,
-        },
       }}
       tabBar={({ state, descriptors, navigation }) => (
           <View
@@ -67,23 +54,15 @@ export default function ResidentTabs() {
                 backgroundColor: colors.paper,
                 borderTopColor: colors.line,
                 height: 52 + tabBottom,
-                paddingTop: 8,
                 paddingBottom: tabBottom,
               },
             ]}
           >
             {state.routes.map((route, index) => {
               const { options } = descriptors[route.key];
-              const hidden = StyleSheet.flatten(options.tabBarItemStyle)?.display === "none";
-              if (hidden) {
-                return null;
-              }
               const focused = state.index === index;
               const color = focused ? colors.forest : colors.inkFaint;
-              const label =
-                typeof options.tabBarLabel === "string"
-                  ? options.tabBarLabel
-                  : (options.title ?? route.name);
+              const label = options.title ?? route.name;
               return (
                 <Pressable
                   key={route.key}
@@ -113,13 +92,6 @@ export default function ResidentTabs() {
             })}
           </View>
       )}
-      screenListeners={({ navigation }) => ({
-        tabPress: (event) => {
-          if (navigation.isFocused()) {
-            event.preventDefault();
-          }
-        },
-      })}
     >
       <Tabs.Screen
         name="home"
