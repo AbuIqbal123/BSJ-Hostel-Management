@@ -1,8 +1,33 @@
-import { memo, useCallback, useMemo, useState, type ReactNode, type Ref } from "react";
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import { memo, useCallback, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
+import { Platform, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
+
+function droppedOneCharacter(previous: string, incoming: string): boolean {
+  if (incoming.length !== previous.length - 1) {
+    return false;
+  }
+  let index = 0;
+  while (index < incoming.length && previous[index] === incoming[index]) {
+    index += 1;
+  }
+  return previous.slice(index + 1) === incoming.slice(index);
+}
+
+// iOS redraws a secure field as an empty value. Keep an append or a one-character delete.
+function securePasswordEdit(previous: string, incoming: string): string {
+  if (incoming.startsWith(previous)) {
+    return incoming;
+  }
+  if (droppedOneCharacter(previous, incoming)) {
+    return incoming;
+  }
+  if (incoming.length === 0) {
+    return previous;
+  }
+  return previous + incoming;
+}
 
 type TextFieldProps = {
   label: string;
@@ -50,6 +75,8 @@ export const TextField = memo(function TextField({
 }: TextFieldProps) {
   const colors = useHallColors();
   const [focused, setFocused] = useState(false);
+  const valueRef = useRef(value);
+  valueRef.current = value;
   const labelStyle = useMemo(() => [text.label, { color: colors.inkSoft }], [colors]);
   const inputStyle = useMemo(
     () => [
@@ -69,6 +96,22 @@ export const TextField = memo(function TextField({
     ],
     [colors, painted, prefix],
   );
+  const changeText = useCallback(
+    (incoming: string) => {
+      if (!secureTextEntry || Platform.OS !== "ios") {
+        onChangeText(incoming);
+        return;
+      }
+      const previous = valueRef.current;
+      const next = securePasswordEdit(previous, incoming);
+      if (next === previous) {
+        return;
+      }
+      valueRef.current = next;
+      onChangeText(next);
+    },
+    [onChangeText, secureTextEntry],
+  );
   const showFocus = useCallback(() => {
     setFocused(true);
     onFocus?.();
@@ -86,7 +129,7 @@ export const TextField = memo(function TextField({
         <TextInput
           ref={inputRef}
           value={value}
-          onChangeText={onChangeText}
+          onChangeText={changeText}
           secureTextEntry={secureTextEntry}
           autoCapitalize={autoCapitalize}
           autoCorrect={false}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { router } from "expo-router";
+import { router, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -286,6 +286,7 @@ let signupDraft = emptySignupDraft();
 export default function OnboardScreen() {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const { onboard, signIn } = useSession();
   const [step, setStep] = useState(signupDraft.step);
   const [entered, setEntered] = useState(false);
@@ -706,6 +707,21 @@ export default function OnboardScreen() {
     [onStepSwipe],
   );
 
+  const leave = useCallback(() => {
+    if (dismissOpenChoice()) {
+      return;
+    }
+    if (stepRef.current > 0) {
+      showStepRef.current(stepRef.current - 1);
+      return;
+    }
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    router.replace("/sign-in");
+  }, [navigation]);
+
   const frame = {
     paddingTop: insets.top + 28,
     paddingBottom: insets.bottom + 28,
@@ -875,6 +891,14 @@ export default function OnboardScreen() {
       keyboardDismissMode="interactive"
       showsVerticalScrollIndicator={false}
     >
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Back"
+        onPress={leave}
+        style={styles.back}
+      >
+        <Text style={[text.button, { color: colors.inkSoft }]}>Back</Text>
+      </Pressable>
       <Pressable style={styles.dismiss} onPress={dismissOpenChoice}>
       <View style={styles.progress}>
         <View style={styles.track}>
@@ -962,6 +986,11 @@ export default function OnboardScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   dismiss: { flexGrow: 1 },
+  back: {
+    alignSelf: "flex-start",
+    minHeight: 44,
+    justifyContent: "center",
+  },
   content: {
     flexGrow: 1,
     paddingHorizontal: 28,
