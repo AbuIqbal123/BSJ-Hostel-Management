@@ -71,8 +71,7 @@ def _validate_stay_window(
     *,
     start: str,
     end: str,
-    require_lead: bool,
-    today: str | None = None,
+    today: str,
 ) -> None:
     if end < start:
         raise ApiError(
@@ -81,15 +80,13 @@ def _validate_stay_window(
             "The end date must be on or after the start date.",
         )
     settings = guest_settings(connection)
-    if require_lead:
-        hall_date = today if today is not None else clock.hall_local_date(connection, clock.utc_now())
-        earliest = earliest_start_date(hall_date, int(settings["guest_min_lead_days"]))
-        if start < earliest:
-            raise ApiError(
-                422,
-                "validation_error",
-                "The start date must be at least the hall lead time after today's hall date.",
-            )
+    earliest = earliest_start_date(today, int(settings["guest_min_lead_days"]))
+    if start < earliest:
+        raise ApiError(
+            422,
+            "validation_error",
+            "The start date must be at least the hall lead time after today's hall date.",
+        )
     days = inclusive_days(start, end)
     maximum = int(settings["guest_max_inclusive_days"])
     if days > maximum:
@@ -127,7 +124,7 @@ def submit_guest_stay(
     end = _parse_date(body.guest_end_date, field="guest_end_date")
     now = clock.utc_now()
     today = clock.hall_local_date(connection, now)
-    _validate_stay_window(connection, start=start, end=end, require_lead=True, today=today)
+    _validate_stay_window(connection, start=start, end=end, today=today)
     stay_id = str(uuid.uuid4())
     now_text = clock.format_instant(now)
     guest_name = body.guest_name.strip()
@@ -245,7 +242,7 @@ def edit_guest_stay(
         )
     start = _parse_date(body.guest_start_date or "", field="guest_start_date")
     end = _parse_date(body.guest_end_date or "", field="guest_end_date")
-    _validate_stay_window(connection, start=start, end=end, require_lead=True)
+    _validate_stay_window(connection, start=start, end=end, today=today)
 
     now_text = clock.format_instant(clock.utc_now())
     updated = connection.execute(
@@ -257,10 +254,6 @@ def edit_guest_stay(
           guest_start_date = ?,
           guest_end_date = ?,
           reason = ?,
-          status = 'pending',
-          decided_by = NULL,
-          decided_at = NULL,
-          decision_note = NULL,
           updated_at = ?
         WHERE id = ?
           AND host_resident_id = ?

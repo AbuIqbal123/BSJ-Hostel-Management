@@ -112,7 +112,7 @@ def decide_guest_stay(
     note = None if body.note is None else body.note.strip() or None
     existing = connection.execute(
         """
-        SELECT id, status, arrived_at, departed_at, guest_name
+        SELECT id, status, arrived_at, guest_name
         FROM guest_stays
         WHERE id = ?
         """,
@@ -120,7 +120,7 @@ def decide_guest_stay(
     ).fetchone()
     if existing is None:
         raise ApiError(404, "not_found", "That record was not found.")
-    if existing["status"] != "pending" or existing["departed_at"] is not None:
+    if existing["status"] != "pending":
         raise ApiError(
             409,
             "not_pending",
@@ -142,7 +142,7 @@ def decide_guest_stay(
           decided_at = ?,
           decision_note = ?,
           updated_at = ?
-        WHERE id = ? AND status = 'pending' AND departed_at IS NULL
+        WHERE id = ? AND status = 'pending'
         RETURNING id, guest_name
         """,
         (body.decision, account.id, now_text, note, now_text, guest_stay_id),
@@ -263,7 +263,7 @@ async def upload_guest_payment_evidence(
 ) -> GuestStayBody:
     existing = _require_mutable_stay(connection, guest_stay_id)
     raw = await evidence.read(MAX_EVIDENCE_BYTES + 1)
-    original_name, content_type, _ext = validate_upload(
+    original_name, content_type = validate_upload(
         filename=evidence.filename,
         content_type=evidence.content_type,
         size=len(raw),

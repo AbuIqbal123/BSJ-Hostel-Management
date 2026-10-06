@@ -44,8 +44,8 @@ def validate_upload(
     filename: str | None,
     content_type: str | None,
     size: int,
-) -> tuple[str, str, str]:
-    """Return (original_name, content_type, stored_extension)."""
+) -> tuple[str, str]:
+    """Return (original_name, content_type)."""
     if not filename or not filename.strip():
         raise ApiError(
             422,
@@ -101,7 +101,7 @@ def validate_upload(
             "Evidence file must be at most 5 MiB.",
             field="evidence",
         )
-    return original, normalized_type, ALLOWED_CONTENT_TYPES[normalized_type]
+    return original, normalized_type
 
 
 def store_evidence_file(
