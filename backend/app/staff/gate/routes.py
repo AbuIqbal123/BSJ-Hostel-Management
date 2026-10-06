@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 import uuid
 from datetime import timedelta
-from typing import Annotated, Literal
+from typing import Annotated, Literal, NoReturn
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict, Field
@@ -168,7 +168,7 @@ def _within_duplicate_window(
     return (now - last) <= timedelta(seconds=window_seconds)
 
 
-def _refuse(code: str, message: str, resident: sqlite3.Row) -> None:
+def _refuse(code: str, message: str, resident: sqlite3.Row) -> NoReturn:
     raise ApiError(
         409,
         code,
@@ -224,27 +224,26 @@ def _usable_permission(
 ) -> tuple[sqlite3.Row | None, str | None]:
     rows = connection.execute(
         """
-        SELECT id, type, short_place, departure_at, expected_return_at, status
+        SELECT id, type, short_place, departure_at, expected_return_at
         FROM permissions
         WHERE resident_id = ? AND status = 'approved'
         ORDER BY departure_at ASC, id ASC
         """,
         (resident_id,),
     ).fetchall()
-    too_early: sqlite3.Row | None = None
+    too_early = False
     for row in rows:
         window_start = clock.parse_instant(row["departure_at"]) - timedelta(
             minutes=early_minutes
         )
         window_start_text = clock.format_instant(window_start)
         if now_text < window_start_text:
-            if too_early is None:
-                too_early = row
+            too_early = True
             continue
         if now_text > row["expected_return_at"]:
             continue
         return row, None
-    if too_early is not None:
+    if too_early:
         return None, "permission_not_yet_valid"
     return None, None
 

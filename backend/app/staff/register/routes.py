@@ -15,7 +15,6 @@ from app.staff.register.records import (
     RegisterState,
     RegisterSummary,
     ResidentRecord,
-    late_list,
     list_register,
     load_resident_record,
     load_summary,
@@ -87,4 +86,6 @@ def register_late(
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> RegisterPage:
     _run_late_notices(connection)
-    return late_list(connection, limit=limit, offset=offset)
+    return list_register(
+        connection, q=None, state="late", block_id=None, limit=limit, offset=offset
+    )

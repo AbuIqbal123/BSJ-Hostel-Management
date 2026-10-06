@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict
 from app.shared import clock
 from app.shared.auth.routes import Account, AccountDep, ConnectionDep
 from app.shared.errors import ApiError
-from app.residents.outings.records import OutingBody, UpcomingOuting, expire_passed_plans, load_current_outing, load_upcoming, load_upcoming_outings
+from app.residents.outings.records import OutingBody, UpcomingOuting, expire_passed_plans, load_current_outing, load_upcoming_outings, ordinary_window_is_open
 from app.residents.permissions.records import PermissionBody, expire_passed_permissions, permission_from_row
 
 router = APIRouter(prefix="/api/v1", tags=["Resident"])
@@ -27,14 +27,6 @@ class HistoryEvent(BaseModel):
     exited_at: str | None
     returned_at: str | None
     recorded_by: str
-
-
-class HistoryPage(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    total: int
-    limit: int
-    offset: int
-    items: list[HistoryEvent]
 
 
 HistoryKind = Literal["all", "late_night", "home_going", "guest_stay", "outing"]
@@ -137,48 +129,32 @@ FROM (
 """
 
 
-def load_history(
-    connection: sqlite3.Connection,
-    resident_id: str,
-    *,
-    limit: int,
-    offset: int,
-) -> HistoryPage:
-    total = connection.execute(
-        f"SELECT COUNT(*) AS n FROM ({_HISTORY_EVENTS_SQL})",
-        (resident_id, resident_id),
-    ).fetchone()["n"]
+def _recent_history(connection: sqlite3.Connection, resident_id: str) -> list[HistoryEvent]:
     rows = connection.execute(
         f"""
         {_HISTORY_EVENTS_SQL}
         ORDER BY COALESCE(returned_at, exited_at) DESC,
           CASE event WHEN 'returned' THEN 0 ELSE 1 END, outing_id DESC
-        LIMIT ? OFFSET ?
+        LIMIT 10
         """,
-        (resident_id, resident_id, limit, offset),
+        (resident_id, resident_id),
     ).fetchall()
-    return HistoryPage(
-        total=total,
-        limit=limit,
-        offset=offset,
-        items=[
-            HistoryEvent(
-                event=row["event"],
-                place=row["place"],
-                outing_id=row["outing_id"],
-                exited_at=row["exited_at"],
-                returned_at=row["returned_at"],
-                recorded_by=row["recorded_by"],
-            )
-            for row in rows
-        ],
-    )
+    return [
+        HistoryEvent(
+            event=row["event"],
+            place=row["place"],
+            outing_id=row["outing_id"],
+            exited_at=row["exited_at"],
+            returned_at=row["returned_at"],
+            recorded_by=row["recorded_by"],
+        )
+        for row in rows
+    ]
 
 
 @router.get("/me/home", response_model=ResidentHome)
 def resident_home(account: ResidentDep, connection: ConnectionDep) -> ResidentHome:
     now = clock.utc_now()
-    upcoming = load_upcoming(connection, account.id)
     return ResidentHome(
         resident=HomeResident(
             full_name=account.full_name,
@@ -188,13 +164,11 @@ def resident_home(account: ResidentDep, connection: ConnectionDep) -> ResidentHo
             block_name=account.block_name or "",
             presence=account.presence or "inside",
         ),
-        ordinary_outing_active=any(
-            item.outing_type == "ordinary" and item.qr_visible for item in upcoming
-        ),
+        ordinary_outing_active=ordinary_window_is_open(connection, account.id, now),
         current_outing=load_current_outing(connection, account.id, now),
         upcoming_outings=load_upcoming_outings(connection, account.id, now),
         active_permission=_active_permission(connection, account.id),
-        recent_history=load_history(connection, account.id, limit=10, offset=0).items,
+        recent_history=_recent_history(connection, account.id),
         notifications_unread=connection.execute(
             """
             SELECT 1 FROM resident_notifications

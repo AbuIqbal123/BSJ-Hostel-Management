@@ -6117,7 +6117,6 @@ the audit/write timestamp. No client-supplied time in this release.
 | `state` | yes | `inside` or `outside` or `late` |  |
 | `outside_destination` | no | string or null | Place on the open outing. Empty when the resident is inside. |
 | `expected_return_at` | no | date-time or null |  |
-| `returned_at` | no | date-time or null |  |
 
 ### <a id="schema-registerpage"></a>RegisterPage
 

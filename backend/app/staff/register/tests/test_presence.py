@@ -557,7 +557,6 @@ def expected_artifact() -> dict:
         "state": "inside",
         "outside_destination": None,
         "expected_return_at": None,
-        "returned_at": None,
     }
     maryam_row = {
         "id": MARYAM_ID,
@@ -567,7 +566,6 @@ def expected_artifact() -> dict:
         "state": "outside",
         "outside_destination": "Maulana Azad Library",
         "expected_return_at": "2026-09-30T13:30:00Z",
-        "returned_at": None,
     }
     zara_row = {
         "id": ZARA_ID,
@@ -577,7 +575,6 @@ def expected_artifact() -> dict:
         "state": "late",
         "outside_destination": "Shamshad Market",
         "expected_return_at": "2026-09-30T12:00:00Z",
-        "returned_at": None,
     }
     return {
         "empty": {
