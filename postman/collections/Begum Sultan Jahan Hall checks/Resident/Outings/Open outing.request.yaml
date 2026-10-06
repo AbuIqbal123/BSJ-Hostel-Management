@@ -3,4 +3,4 @@ method: GET
 url: '{{baseUrl}}/api/v1/me/outings/current'
 order: 3000
 description: |-
-  Caller: resident. The outing she is outside on, or the soonest plan for today, or null. A later return today, and a plan for a later day, are on Ordinary outing plans. If a planned return has passed, this read cancels that plan, with no staff member. An outside outing stays outside. It is late only after grace.
+  Caller: resident. The outing she is outside on, or the soonest plan for today, or null. A later return today, and a plan for a later day, are on Ordinary outing plans. An outside outing stays outside. It is late only after grace. Call expire-passed to cancel a planned return that has passed.

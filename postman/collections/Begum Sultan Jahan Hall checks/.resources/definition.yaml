@@ -26,9 +26,9 @@ variables:
   - key: outingId
     value: ''
   - key: permissionId
-    value: 00000000-0000-4000-8000-0000000000a1
+    value: ''
   - key: guestStayId
-    value: 00000000-0000-4000-8000-0000000000a2
+    value: ''
   - key: token_resident
     value: ''
   - key: token_warden

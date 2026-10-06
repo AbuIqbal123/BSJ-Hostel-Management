@@ -30,18 +30,11 @@ scripts:
               throw new Error("Could not sign in as Halima Begum.");
           }
           const signedIn = res.json();
-          pm.request.headers.upsert({
-              key: "Authorization",
-              value: "Bearer " + signedIn.access_token
+          pm.request.body.update({
+              mode: "raw",
+              raw: JSON.stringify({refresh_token: signedIn.refresh_token}),
+              options: {raw: {language: "json"}}
           });
-          const target = String(pm.request.url);
-          if (target.indexOf("/api/v1/auth/refresh") !== -1) {
-              pm.request.body.update({
-                  mode: "raw",
-                  raw: JSON.stringify({refresh_token: signedIn.refresh_token}),
-                  options: {raw: {language: "json"}}
-              });
-          }
       });
   - type: afterResponse
     language: text/javascript

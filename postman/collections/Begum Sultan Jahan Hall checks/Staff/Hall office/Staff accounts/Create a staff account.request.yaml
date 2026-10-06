@@ -20,13 +20,7 @@ scripts:
   - type: beforeRequest
     language: text/javascript
     code: |-
-      const raw = pm.request.body && pm.request.body.raw;
-      const payload = raw ? JSON.parse(raw) : {
-          full_name: "Imran Qureshi",
-          username: "imran.qureshi",
-          role: "gate",
-          job_title: "Gatekeeper"
-      };
+      const payload = JSON.parse(pm.request.body.raw);
       payload["temporary_" + ["pass", "word"].join("")] = ["Gate", "pass", "30"].join("-");
       pm.request.body.update({
           mode: "raw",

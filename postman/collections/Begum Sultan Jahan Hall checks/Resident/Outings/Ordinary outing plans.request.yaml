@@ -3,4 +3,4 @@ method: GET
 url: '{{baseUrl}}/api/v1/me/outings'
 order: 2500
 description: |-
-  Caller: resident. Her planned and outside outings, soonest return first. Several may fall on the same day. A later return today, and a later day, stay on this list. Open outing shows the outing she is outside on, or the soonest plan for today. A planned outing whose expected return has passed is cancelled by this read, with no staff member, and then left off the list.
+  Caller: resident. Her planned and outside outings, soonest return first. Several may fall on the same day. A later return today, and a later day, stay on this list. Open outing shows the outing she is outside on, or the soonest plan for today. Call expire-passed to cancel a planned return that has passed; this list only reads.
