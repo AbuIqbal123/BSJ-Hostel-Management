@@ -70,8 +70,7 @@
     "created_at": "2026-09-30T13:00:02Z",
     "resident_id": "b22de000-0000-4000-8000-000000000002",
     "resident_name": "Aisha Khan",
-    "room_label": "B-204",
-    "decided_by_name": null
+    "room_label": "B-204"
   },
   "approved": {
     "permission_type": "late_night",
@@ -88,8 +87,7 @@
     "created_at": "2026-09-30T13:00:02Z",
     "resident_id": "b22de000-0000-4000-8000-000000000002",
     "resident_name": "Aisha Khan",
-    "room_label": "B-204",
-    "decided_by_name": "Sara Malik"
+    "room_label": "B-204"
   },
   "cancelled_approved": {
     "permission_type": "late_night",
@@ -120,8 +118,7 @@
     "created_at": "2026-09-30T13:00:04Z",
     "resident_id": "b22de000-0000-4000-8000-000000000002",
     "resident_name": "Aisha Khan",
-    "room_label": "B-204",
-    "decided_by_name": "Sara Malik"
+    "room_label": "B-204"
   },
   "expired": {
     "permission_type": "home_going",

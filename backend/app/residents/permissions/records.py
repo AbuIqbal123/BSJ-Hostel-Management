@@ -42,7 +42,6 @@ class PermissionReviewBody(PermissionBody):
     resident_id: str
     resident_name: str
     room_label: str
-    decided_by_name: str | None = None
 
 
 class PermissionPageBody(BaseModel):
@@ -82,7 +81,6 @@ SELECT
   permissions.resident_id,
   users.full_name AS resident_name,
   rooms.label AS room_label,
-  decider.full_name AS decided_by_name,
   decider.full_name AS decided_by
 FROM permissions
 JOIN residents ON residents.user_id = permissions.resident_id
@@ -116,7 +114,6 @@ def review_from_row(row: sqlite3.Row) -> PermissionReviewBody:
         resident_id=row["resident_id"],
         resident_name=row["resident_name"],
         room_label=row["room_label"],
-        decided_by_name=row["decided_by_name"],
     )
 
 

@@ -117,6 +117,59 @@ def _require_same_late_night(
     )
 
 
+class _PermissionFields(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    permission_type: Literal["late_night", "home_going"]
+    short_place: str
+    destination_detail: str | None
+    address: str | None
+    reason: str
+    departure_at: str
+    expected_return_at: str
+    label: str
+
+
+def _permission_fields(
+    connection: ConnectionDep,
+    body: LateNightCreate | HomeGoingCreate,
+    now: datetime,
+) -> _PermissionFields:
+    departure = _instant(body.departure_at, field="departure_at")
+    expected_return = _instant(body.expected_return_at, field="expected_return_at")
+    if departure < now - DEPARTURE_PAST_SKEW:
+        raise ApiError(
+            422,
+            "validation_error",
+            "The departure must not be in the past.",
+            field="departure_at",
+        )
+    if expected_return <= departure:
+        raise ApiError(
+            422,
+            "validation_error",
+            "The expected return must be after the departure.",
+        )
+    if body.permission_type == "late_night":
+        _require_same_late_night(connection, departure, expected_return)
+        destination_detail = _optional_text(body.destination_detail)
+        address = None
+        label = "late-night"
+    else:
+        destination_detail = None
+        address = _required_text(body.address, field="address", label="Address")
+        label = "home-going"
+    return _PermissionFields(
+        permission_type=body.permission_type,
+        short_place=_required_text(body.short_place, field="short_place", label="Short place"),
+        destination_detail=destination_detail,
+        address=address,
+        reason=_required_text(body.reason, field="reason", label="Reason"),
+        departure_at=body.departure_at,
+        expected_return_at=body.expected_return_at,
+        label=label,
+    )
+
+
 @router.get("/me/permissions", response_model=PermissionPageBody)
 def list_own_permissions(
     account: ResidentDep,
@@ -140,38 +193,11 @@ def submit_permission(
     account: ResidentDep,
     connection: ConnectionDep,
 ) -> PermissionBody:
-    request = body
-    departure = _instant(request.departure_at, field="departure_at")
-    expected_return = _instant(request.expected_return_at, field="expected_return_at")
     now = clock.utc_now()
-    if departure < now - DEPARTURE_PAST_SKEW:
-        raise ApiError(
-            422,
-            "validation_error",
-            "The departure must not be in the past.",
-            field="departure_at",
-        )
-    if expected_return <= departure:
-        raise ApiError(
-            422,
-            "validation_error",
-            "The expected return must be after the departure.",
-        )
-    if request.permission_type == "late_night":
-        _require_same_late_night(connection, departure, expected_return)
-    short_place = _required_text(request.short_place, field="short_place", label="Short place")
-    reason = _required_text(request.reason, field="reason", label="Reason")
-    now_text = clock.format_instant(clock.utc_now())
+    fields = _permission_fields(connection, body, now)
+    now_text = clock.format_instant(now)
     expire_passed_permissions(connection, now_text, resident_id=account.id)
     permission_id = str(uuid.uuid4())
-    if request.permission_type == "late_night":
-        destination_detail = _optional_text(request.destination_detail)
-        address = None
-        label = "late-night"
-    else:
-        destination_detail = None
-        address = _required_text(request.address, field="address", label="Address")
-        label = "home-going"
     connection.execute(
         """
         INSERT INTO permissions (
@@ -187,13 +213,13 @@ def submit_permission(
         (
             permission_id,
             account.id,
-            request.permission_type,
-            short_place,
-            destination_detail,
-            address,
-            reason,
-            request.departure_at,
-            request.expected_return_at,
+            fields.permission_type,
+            fields.short_place,
+            fields.destination_detail,
+            fields.address,
+            fields.reason,
+            fields.departure_at,
+            fields.expected_return_at,
             now_text,
             now_text,
         ),
@@ -204,7 +230,7 @@ def submit_permission(
         account.id,
         "permission.submitted",
         permission_id,
-        f"{account.full_name} submitted a {label} permission for {short_place}.",
+        f"{account.full_name} submitted a {fields.label} permission for {fields.short_place}.",
     )
     return load_permission(connection, permission_id)
 
@@ -235,33 +261,8 @@ def update_permission(
             "The kind of permission cannot be changed.",
             field="permission_type",
         )
-    request = body
-    departure = _instant(request.departure_at, field="departure_at")
-    expected_return = _instant(request.expected_return_at, field="expected_return_at")
     now = clock.utc_now()
-    if departure < now - DEPARTURE_PAST_SKEW:
-        raise ApiError(
-            422,
-            "validation_error",
-            "The departure must not be in the past.",
-            field="departure_at",
-        )
-    if expected_return <= departure:
-        raise ApiError(
-            422,
-            "validation_error",
-            "The expected return must be after the departure.",
-        )
-    if request.permission_type == "late_night":
-        _require_same_late_night(connection, departure, expected_return)
-    short_place = _required_text(request.short_place, field="short_place", label="Short place")
-    reason = _required_text(request.reason, field="reason", label="Reason")
-    if request.permission_type == "late_night":
-        destination_detail = _optional_text(request.destination_detail)
-        address = None
-    else:
-        destination_detail = None
-        address = _required_text(request.address, field="address", label="Address")
+    fields = _permission_fields(connection, body, now)
     now_text = clock.format_instant(now)
     updated = connection.execute(
         """
@@ -272,12 +273,12 @@ def update_permission(
         RETURNING id
         """,
         (
-            short_place,
-            destination_detail,
-            address,
-            reason,
-            request.departure_at,
-            request.expected_return_at,
+            fields.short_place,
+            fields.destination_detail,
+            fields.address,
+            fields.reason,
+            fields.departure_at,
+            fields.expected_return_at,
             now_text,
             permission_id,
             account.id,
