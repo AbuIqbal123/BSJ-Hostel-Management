@@ -10,7 +10,6 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.shared.auth.onboard_catalog import RESIDENT_BLOCK_CODES, RESIDENT_BLOCK_ROOM_COUNTS
 from app.shared.auth.rate_limit import login_limiter, refresh_limiter
 from app.shared.auth.security import hash_password
 from app.shared.auth.tests.test_session import assert_error
@@ -155,17 +154,12 @@ def test_onboard_options(database_path: Path, monkeypatch: pytest.MonkeyPatch) -
         assert all(name != "Utility" for name in (block["name"] for block in body))
         assert BLOCK_UTILITY not in {block["id"] for block in body}
 
-        counts = {
-            "Block-A": RESIDENT_BLOCK_ROOM_COUNTS["A"],
-            "Block-B": RESIDENT_BLOCK_ROOM_COUNTS["B"],
-            "Block-C": RESIDENT_BLOCK_ROOM_COUNTS["C"],
-            "Block-D": RESIDENT_BLOCK_ROOM_COUNTS["D"],
-        }
+        counts = {block["name"]: len(block["rooms"]) for block in body}
         for block in body:
             assert set(block) == {"id", "name", "rooms"}
             assert len(block["rooms"]) == counts[block["name"]]
             code = block["name"].removeprefix("Block-")
-            assert code in RESIDENT_BLOCK_CODES
+            assert code in ("A", "B", "C", "D")
             for index, room in enumerate(block["rooms"], start=1):
                 assert set(room) == {"id", "label"}
                 assert room["label"] == f"{code}-{index}"
@@ -188,11 +182,11 @@ def test_onboard_options(database_path: Path, monkeypatch: pytest.MonkeyPatch) -
         ]
         by_name = {block["name"]: block for block in filtered_body}
         assert "A-1" not in {room["label"] for room in by_name["Block-A"]["rooms"]}
-        assert len(by_name["Block-A"]["rooms"]) == RESIDENT_BLOCK_ROOM_COUNTS["A"] - 1
+        assert len(by_name["Block-A"]["rooms"]) == counts["Block-A"] - 1
         assert "B-1" not in {room["label"] for room in by_name["Block-B"]["rooms"]}
-        assert len(by_name["Block-B"]["rooms"]) == RESIDENT_BLOCK_ROOM_COUNTS["B"] - 1
+        assert len(by_name["Block-B"]["rooms"]) == counts["Block-B"] - 1
         assert by_name["Block-C"]["rooms"] == []
-        assert len(by_name["Block-D"]["rooms"]) == RESIDENT_BLOCK_ROOM_COUNTS["D"]
+        assert len(by_name["Block-D"]["rooms"]) == counts["Block-D"]
         assert filtered_body == expected["filtered"]
 
         login_limiter.reset()

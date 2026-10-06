@@ -17,8 +17,7 @@ from app.shared.audit import record_audit
 from app.shared.db import get_connection
 from app.shared.errors import ApiError
 from app.shared.auth.rate_limit import client_key, login_limiter, refresh_limiter
-from app.staff.office.records import new_hall_pass_token, room_has_capacity
-from app.shared.auth.onboard_catalog import RESIDENT_BLOCK_CODES
+from app.staff.office.records import new_hall_pass_token, revoke_live_sessions, room_has_capacity
 from app.shared.auth.password_rules import IndianMobile, StrongPassword
 from app.shared.auth.security import (
     ACCESS_TOKEN_SECONDS,
@@ -33,6 +32,8 @@ from app.shared.auth.security import (
 )
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
+
+RESIDENT_BLOCK_CODES = ("A", "B", "C", "D")
 
 _BAD_CREDENTIALS = "Username or password is wrong."
 
@@ -185,17 +186,6 @@ def _record(connection: sqlite3.Connection, when: str, account: Account, action:
     record_audit(connection, when, account.id, action, "person", account.id, summary)
 
 
-def _revoke_live(connection: sqlite3.Connection, user_id: str, when: str) -> None:
-    connection.execute(
-        """
-        UPDATE sessions
-        SET revoked_at = ?
-        WHERE user_id = ? AND revoked_at IS NULL
-        """,
-        (when, user_id),
-    )
-
-
 def _start_session(connection: sqlite3.Connection, account: Account, now: datetime) -> TokenResponse:
     secret = secrets.token_urlsafe(32)
     created = clock.format_instant(now)
@@ -237,9 +227,6 @@ def login(body: LoginRequest, request: Request, connection: ConnectionDep) -> To
         consume_unknown_password(body.password)
         raise ApiError(401, "unauthenticated", _BAD_CREDENTIALS)
     account = _load_account(connection, row["id"])
-    if account is None:
-        consume_unknown_password(body.password)
-        raise ApiError(401, "unauthenticated", _BAD_CREDENTIALS)
     if not password_matches(account.password_hash, body.password):
         raise ApiError(401, "unauthenticated", _BAD_CREDENTIALS)
     if account.status != "active":
@@ -294,7 +281,7 @@ def refresh(body: RefreshRequest, request: Request, connection: ConnectionDep) -
 @router.post("/logout", status_code=204)
 def logout(account: AccountDep, connection: ConnectionDep) -> Response:
     stamp = clock.format_instant(clock.utc_now())
-    _revoke_live(connection, account.id, stamp)
+    revoke_live_sessions(connection, account.id, stamp)
     _record(connection, stamp, account, "auth.logout", f"{account.full_name} signed out.")
     return Response(status_code=204)
 
@@ -334,7 +321,7 @@ def change_password(
         """,
         (hash_password(body.new_password), stamp, account.id),
     )
-    _revoke_live(connection, account.id, stamp)
+    revoke_live_sessions(connection, account.id, stamp)
     return Response(status_code=204)
 
 
