@@ -112,15 +112,6 @@ function shiftHallDay(daySource: Date, days: number): Date {
   return new Date(Date.UTC(year, month - 1, date + days, 12, 0, 0));
 }
 
-/** A later leave day keeps the return clock. The return stays after that departure. */
-export function afterDeparture(leave: Date, back: Date | null): Date | null {
-  const aligned = notBefore(leave, back);
-  if (aligned === null || aligned.getTime() > leave.getTime()) {
-    return aligned;
-  }
-  return withHallDay(shiftHallDay(aligned, 1), aligned);
-}
-
 function hallHourMinute(date: Date): { hour: number; minute: number } {
   return {
     hour: Number(hallPart(date, "hour")),

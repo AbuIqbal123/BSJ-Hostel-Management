@@ -50,7 +50,6 @@ function routeSettled(
   return here === "sign-in" || onSignUp;
 }
 
-// Meridian keeps a splash, and only that, until the session is known.
 // The restored route can be signup. It stays underneath until this lifts.
 function LaunchShell({ fontsReady }: { fontsReady: boolean }) {
   const colors = useHallColors();

@@ -65,7 +65,6 @@ export default function PlanScreen() {
   const alertAt = useRef(0);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const seeded = useRef<string | null>(null);
-  const seenOuting = useRef<string>("");
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => dismissOpenChoice());
@@ -92,21 +91,6 @@ export default function PlanScreen() {
       active = false;
     };
   }, [editing, loadDestinations, places]);
-
-  useEffect(() => {
-    if (seenOuting.current === outingId) {
-      return;
-    }
-    if (seenOuting.current.length > 0 && outingId.length === 0) {
-      setDestinationId(null);
-      setLeaveAt(null);
-      setBackBy(null);
-      setWhere("");
-      setError(null);
-      seeded.current = null;
-    }
-    seenOuting.current = outingId;
-  }, [outingId]);
 
   useEffect(() => {
     if (!editing || !places || seeded.current === outingId) {
