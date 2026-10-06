@@ -19,7 +19,7 @@ scripts:
     code: |-
       const raw = pm.request.body && pm.request.body.raw;
       const payload = raw ? JSON.parse(raw) : {username: "24-GLLB-118"};
-      payload[["pass", "word"].join("")] = ["resident", "10"].join("-");
+      payload[["pass", "word"].join("")] = ["Resident", "10"].join("-");
       pm.request.body.update({
           mode: "raw",
           raw: JSON.stringify(payload),

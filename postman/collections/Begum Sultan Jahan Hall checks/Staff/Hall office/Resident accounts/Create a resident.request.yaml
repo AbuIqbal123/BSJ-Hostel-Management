@@ -14,7 +14,7 @@ body:
       "full_name": "Maryam Siddiqui",
       "enrolment_number": "26-BA-001",
       "course": "B.A.",
-      "room_id": "{{roomId}}",
+      "room_id": "b9d8a3e2-9c67-50e2-a1a4-8f241f823ab1",
       "phone": "+919811112222",
       "guardian_name": "Yusuf Siddiqui",
       "guardian_phone": "+919800000001"
@@ -28,12 +28,12 @@ scripts:
           full_name: "Maryam Siddiqui",
           enrolment_number: "26-BA-001",
           course: "B.A.",
-          room_id: pm.collectionVariables.get("roomId"),
+          room_id: "b9d8a3e2-9c67-50e2-a1a4-8f241f823ab1",
           phone: "+919811112222",
           guardian_name: "Yusuf Siddiqui",
           guardian_phone: "+919800000001"
       };
-      payload["temporary_" + ["pass", "word"].join("")] = ["resident", "20"].join("-");
+      payload["temporary_" + ["pass", "word"].join("")] = ["Resident", "20"].join("-");
       pm.request.body.update({
           mode: "raw",
           raw: JSON.stringify(payload),

@@ -27,7 +27,7 @@ scripts:
           role: "gate",
           job_title: "Gatekeeper"
       };
-      payload["temporary_" + ["pass", "word"].join("")] = ["gate", "pass", "30"].join("-");
+      payload["temporary_" + ["pass", "word"].join("")] = ["Gate", "pass", "30"].join("-");
       pm.request.body.update({
           mode: "raw",
           raw: JSON.stringify(payload),

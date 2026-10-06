@@ -26,11 +26,11 @@ def joined(*parts: str) -> str:
     return "-".join(parts)
 
 
-GATE_PHRASE = joined("gate", "pass", "10")
-RESIDENT_PHRASE = joined("resident", "10")
-SUSPENDED_PHRASE = joined("suspended", "10")
-WARDEN_PHRASE = joined("warden", "pass", "10")
-PROVOST_PHRASE = joined("provost", "pass", "10")
+GATE_PHRASE = joined("Gate", "pass", "10")
+RESIDENT_PHRASE = joined("Resident", "10")
+SUSPENDED_PHRASE = joined("Suspended", "10")
+WARDEN_PHRASE = joined("Warden", "pass", "10")
+PROVOST_PHRASE = joined("Provost", "pass", "10")
 
 
 @dataclass(frozen=True)

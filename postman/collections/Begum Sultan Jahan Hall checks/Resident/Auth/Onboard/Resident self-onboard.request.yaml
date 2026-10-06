@@ -15,7 +15,7 @@ body:
       "enrolment_number": "26-BA-002",
       "phone": "+919811112233",
       "block_id": "{{blockId}}",
-      "room_id": "{{roomId}}",
+      "room_id": "b9d8a3e2-9c67-50e2-a1a4-8f241f823ab1",
       "guardian_name": "Yusuf Siddiqui",
       "guardian_phone": "+919800000001"
     }
@@ -29,7 +29,7 @@ scripts:
           enrolment_number: "26-BA-002",
           phone: "+919811112233",
           block_id: pm.collectionVariables.get("blockId"),
-          room_id: pm.collectionVariables.get("roomId"),
+          room_id: "b9d8a3e2-9c67-50e2-a1a4-8f241f823ab1",
           guardian_name: "Yusuf Siddiqui",
           guardian_phone: "+919800000001"
       };
