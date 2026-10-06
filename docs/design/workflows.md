@@ -1,6 +1,6 @@
 # BSJ Hall: product workflows
 
-**Status:** design lock for Expo screens. Not implemented UI.
+**Status:** resident Expo screens are in use in `mobile/`.
 **Owns:** who does what, in what order, against the live contract.
 **Sources:** `backend/openapi.yaml`, `docs/api/api.md`, `docs/database/database.md`, `docs/architecture/system-architecture.md`, `reference/prototype/`, `reference/demo/`.
 **Visual language:** [`docs/design/design-system.md`](design-system.md).
@@ -55,7 +55,7 @@ Keep this document Fowler-simple: one workflow per section, steps a person can n
 
 | Role | Goal | Key screens | Critical states | Success |
 |---|---|---|---|---|
-| **Resident** | Know presence; start outing / permission / guest; open hall pass or history | `GET /api/v1/me/home` hub: name, room, presence, the open outing, upcoming ordinary outings, and the active permission; actions that can sit together: Plan outing, Request permission, Guest stay, Hall pass, History | Inside idle; several future plans, including two returns on the same hall day, until one ordinary outing is inside its show window. While that window is open, including when she is outside on it, she cannot plan another. Pending permission; approved permission usable. A suspended account never reaches this screen: sign-in and the next refresh fail, and she sees the Hall Office sentence | One glance answers "where am I?" and the next action |
+| **Resident** | Know presence; plan an ordinary outing; open permissions, guest stays, hall pass, history, and settings from tabs | `GET /api/v1/me/home`: Welcome with name, room, a bell, the plan form when she may plan, and upcoming ordinary outings. Pass, Permissions (late-night / home-going / guest stays tabs), and Settings are separate tabs | Inside idle; several future plans, including two returns on the same hall day, until one ordinary outing is inside its show window. While that window is open, including when she is outside on it, she cannot plan another. Pending permission; approved permission usable. A suspended account never reaches this screen: sign-in and the next refresh fail, and she sees the Hall Office sentence | One glance answers "where am I?" and the next action |
 | **Gate** | Ready to scan; see recent activity | Dark home: primary Scan; list from `GET /api/v1/gate/activity`; entry to guests | Idle; last result flash | Thumb on Scan in under a second |
 | **Warden** | Hall pulse | Register summary counts; shortcuts to Late, Permissions waiting, Guest stays waiting | Quiet night vs busy late list | Counts match `GET /api/v1/register/summary` |
 | **Provost** | Same as warden + office entry | Warden home + Hall office | (none special) | Office reachable without burying register |

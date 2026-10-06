@@ -1,6 +1,6 @@
 # BSJ Hall: design principles and visual system
 
-**Status:** lock before UI build. Not implemented UI.
+**Status:** lock for the resident Expo UI in `mobile/`.
 **Audience:** whoever designs or ships the React Native / Expo client.
 **Workflows (screens and steps):** [`docs/design/workflows.md`](workflows.md).
 **Sources:** `backend/openapi.yaml`, `docs/database/database.md`, `docs/api/api.md`, `docs/architecture/system-architecture.md`, `reference/prototype/`, `reference/demo/`, proposal phone shots. Emergency screens in the prototype are **out of scope for v1** (see database: emergency alerts are not kept).
@@ -118,18 +118,11 @@ The product is named for **Sultan Jahan Begum of Bhopal** (r. 1901–1926): educ
 | Source | What we take | What we refuse |
 |---|---|---|
 | **Begum as educator / AMU Chancellor** | Calm institutional green (`forest` / `leaf`): growth, campus shade, seriousness without military camo | Neon campus “spirit” colours; sports-club rainbow |
-| **Bhopal Begum architecture (Taj-ul-Masajid)** | Warm **pink sandstone** in sun → soft gold/cream (`gold`, `gold.soft`, `paper`); **white marble** → `surface` / cool paper; dusk warmth → `gate.gold` | Literal pink UI chrome on every screen; marble-texture gimmicks |
+| **Bhopal Begum architecture (Taj-ul-Masajid)** | Warm stone in sun → soft gold/cream (`gold`, `gold.soft`, `paper`); cool paper → `surface`; dusk warmth → `gate.gold` | Literal pink UI chrome on every screen; texture gimmicks |
 | **Night gate / hall security** | Deep garden ink (`gate.bg`, `ink`): lake-city evening, not cyberpunk black | Pure `#000` void, purple neon |
 | **Dignity of a Begum’s court** | Sparse gold for attention and “ready” moments only | Gold gradients, foil, luxury-app gloss |
 
-Primary tokens stay the locked prototype forest/paper/gold set (already in `reference/prototype/styles.css`). Heritage adds **meaning and one optional sandstone accent**, not a second palette.
-
-**Optional ceremonial accent** (headers, brand mark only; never body text):
-
-| Token | Hex | Use |
-|---|---|---|
-| `sandstone` | `#C4A484` | Rare brand-mark highlight; light-mode favicon warm edge |
-| `marble` | `#F7F5F0` | Alternate paper for ceremonial splash / empty brand frames |
+Primary tokens stay the locked prototype forest/paper/gold set (already in `reference/prototype/styles.css`). Heritage adds meaning, not a second palette.
 
 Do not invent a “royal purple” or Mughal-pattern wallpaper. Beauty is restraint: Jony Ive reading a Begum’s library, not a theme-park palace.
 
@@ -219,8 +212,6 @@ Light tokens are the Core table above. Dark tokens invert paper/ink into a calm 
 | `approved.bg` | `#1C2E26` | Approved soft fill |
 | `danger` | `#E0707C` | Destructive / hard refusal only |
 | `danger.bg` | `#2E1A1E` | Error soft fill |
-| `sandstone` | `#C4A484` | Rare brand-mark highlight (same as light) |
-| `marble` | `#1E2620` | Ceremonial dark paper alternate |
 
 WCAG: `ink` on `paper`/`surface` >= 7:1. Primary button: dark ink or white on `forest` >= 4.5:1. Prefer white (`#FFFFFF`) or light `paper` on `forest` for filled primary in dark mode.
 
@@ -473,22 +464,5 @@ Change vs prototype screenshots:
 - Drop Emergency workflow from the build plan.
 - Curate HD icons/favicons per §5 instead of ad-hoc SVGs/emoji.
 - Align every label and empty/error string with OpenAPI messages and database vocabulary.
-
----
-
-## 11. Lock checklist
-
-Before UI implementation starts, agree:
-
-- [ ] Fowler-simple / performance bias locked (§1 intro + principle 11)
-- [ ] Font trio via expo-font / Expo Google Fonts + case rules + `text-wrap: pretty` default (§2)
-- [ ] Palette tokens: light + resident/warden/provost dark + gate dark shell (§3)
-- [ ] Spacing / radius / list-vs-card / RN elevation 0-2 (§4)
-- [ ] Custom icon set + Expo app icon sizes (§5)
-- [ ] Motion / micro-interactions budget + stagger rule (§6)
-- [ ] Workflows reviewed in `docs/design/workflows.md` (§7 pointer)
-- [ ] Worst-case content fixtures agreed (§8)
-- [ ] No em dashes (U+2014) in product copy or this doc
-- [ ] Workflow priority order for first sprint (recommended: Auth → Resident home/outing/hall pass → Gate scan → Register → Permissions → Guests → Office)
 
 *End of design lock document.*

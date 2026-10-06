@@ -1,6 +1,6 @@
 # Reference material
 
-These folders are the hall materials the contracts were written from. They are not the application and they are not deployed.
+These folders are hall materials the contracts were written from. They are not the application. `demo/` is a static page set that can be hosted once for the proposal (for example via `demo/vercel.json`); the other folders are not deployed.
 
 | Folder | What it is |
 |---|---|
