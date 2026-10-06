@@ -4846,11 +4846,6 @@ components:
             - type: string
               format: date-time
             - type: "null"
-        returned_at:
-          oneOf:
-            - type: string
-              format: date-time
-            - type: "null"
 
     RegisterPage:
       allOf:

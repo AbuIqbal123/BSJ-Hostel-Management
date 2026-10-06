@@ -153,8 +153,7 @@
         "presence": "inside",
         "state": "inside",
         "outside_destination": null,
-        "expected_return_at": null,
-        "returned_at": null
+        "expected_return_at": null
       },
       {
         "id": "c44ef000-0000-4000-8000-000000000009",
@@ -163,8 +162,7 @@
         "presence": "outside",
         "state": "outside",
         "outside_destination": "Maulana Azad Library",
-        "expected_return_at": "2026-09-30T13:30:00Z",
-        "returned_at": null
+        "expected_return_at": "2026-09-30T13:30:00Z"
       },
       {
         "id": "d55fa000-0000-4000-8000-00000000000a",
@@ -173,8 +171,7 @@
         "presence": "outside",
         "state": "late",
         "outside_destination": "Shamshad Market",
-        "expected_return_at": "2026-09-30T12:00:00Z",
-        "returned_at": null
+        "expected_return_at": "2026-09-30T12:00:00Z"
       }
     ]
   },
@@ -190,8 +187,7 @@
         "presence": "inside",
         "state": "inside",
         "outside_destination": null,
-        "expected_return_at": null,
-        "returned_at": null
+        "expected_return_at": null
       }
     ]
   },
@@ -207,8 +203,7 @@
         "presence": "outside",
         "state": "late",
         "outside_destination": "Shamshad Market",
-        "expected_return_at": "2026-09-30T12:00:00Z",
-        "returned_at": null
+        "expected_return_at": "2026-09-30T12:00:00Z"
       }
     ]
   },
@@ -224,8 +219,7 @@
         "presence": "outside",
         "state": "late",
         "outside_destination": "Shamshad Market",
-        "expected_return_at": "2026-09-30T12:00:00Z",
-        "returned_at": null
+        "expected_return_at": "2026-09-30T12:00:00Z"
       }
     ]
   },
@@ -241,8 +235,7 @@
         "presence": "outside",
         "state": "late",
         "outside_destination": "Shamshad Market",
-        "expected_return_at": "2026-09-30T12:00:00Z",
-        "returned_at": null
+        "expected_return_at": "2026-09-30T12:00:00Z"
       }
     ]
   },

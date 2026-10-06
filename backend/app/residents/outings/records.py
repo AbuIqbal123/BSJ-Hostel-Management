@@ -1,4 +1,4 @@
-"""Outing rows shared by the resident's home screen and her outing requests."""
+"""Outing rows and the hall-pass window, shared by resident, gate, and register routes."""
 
 from __future__ import annotations
 
@@ -119,7 +119,7 @@ def outing_from_row(row: sqlite3.Row) -> OutingBody:
     )
 
 
-_OUTING_SELECT = """
+OUTING_SELECT = """
 SELECT
   outings.id,
   outings.permission_id,
@@ -221,7 +221,7 @@ def load_current_outing(
     """The outing she is outside on, or the soonest plan for today."""
     today = clock.hall_local_date(connection, moment)
     row = connection.execute(
-        _OUTING_SELECT
+        OUTING_SELECT
         + """
         WHERE outings.resident_id = ?
           AND (
@@ -240,18 +240,6 @@ def load_current_outing(
     return outing_from_row(row)
 
 
-def load_upcoming(connection: sqlite3.Connection, resident_id: str) -> list[OutingBody]:
-    rows = connection.execute(
-        _OUTING_SELECT
-        + """
-        WHERE outings.resident_id = ? AND outings.status IN ('planned', 'outside')
-        ORDER BY outings.expected_return_at, outings.id
-        """,
-        (resident_id,),
-    ).fetchall()
-    return [outing_from_row(row) for row in rows]
-
-
 def list_upcoming_page(
     connection: sqlite3.Connection,
     resident_id: str,
@@ -267,7 +255,7 @@ def list_upcoming_page(
         params,
     ).fetchone()["n"]
     rows = connection.execute(
-        _OUTING_SELECT
+        OUTING_SELECT
         + f"""
         {where}
         ORDER BY outings.expected_return_at, outings.id
@@ -320,7 +308,7 @@ def load_upcoming_outings(
 
 def load_outing(connection: sqlite3.Connection, outing_id: str) -> OutingBody:
     row = connection.execute(
-        _OUTING_SELECT + "WHERE outings.id = ?",
+        OUTING_SELECT + "WHERE outings.id = ?",
         (outing_id,),
     ).fetchone()
     if row is None:

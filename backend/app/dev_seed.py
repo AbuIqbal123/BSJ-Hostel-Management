@@ -1,10 +1,9 @@
 """Local sign-in accounts.
 
 Startup creates the hall and does not create people. This command adds
-the accounts used on a development machine. Room B-204 is only for that
-resident: the published hall page does not list door numbers, so the hall
-migration leaves rooms empty. A second run leaves an existing account,
-including a password that was changed.
+the accounts used on a development machine. Room B-204 is a dev-only room
+for that resident. A second run leaves an existing account, including a
+password that was changed.
 """
 
 from __future__ import annotations

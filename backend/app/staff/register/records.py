@@ -7,7 +7,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
-from app.residents.outings.records import OutingBody, outing_from_row
+from app.residents.outings.records import OUTING_SELECT, OutingBody, outing_from_row
 from app.shared import clock
 
 
@@ -50,7 +50,6 @@ class RegisterRow(BaseModel):
     state: RegisterState
     outside_destination: str | None = None
     expected_return_at: str | None = None
-    returned_at: str | None = None
 
 
 class RegisterPage(BaseModel):
@@ -207,23 +206,15 @@ def load_summary(connection: sqlite3.Connection) -> RegisterSummary:
 
 def _row_from_resident(row: sqlite3.Row, now_text: str) -> RegisterRow:
     state = register_state(row["presence"], row["grace_ends_at"], now_text)
-    if state == "inside":
-        outside_destination = None
-        expected_return_at = None
-        returned_at = None
-    else:
-        outside_destination = row["place"]
-        expected_return_at = row["expected_return_at"]
-        returned_at = None
+    inside = state == "inside"
     return RegisterRow(
         id=row["id"],
         full_name=row["full_name"],
         room_label=row["room_label"],
         presence=row["presence"],
         state=state,
-        outside_destination=outside_destination,
-        expected_return_at=expected_return_at,
-        returned_at=returned_at,
+        outside_destination=None if inside else row["place"],
+        expected_return_at=None if inside else row["expected_return_at"],
     )
 
 
@@ -298,43 +289,11 @@ def list_register(
     return RegisterPage(total=total, limit=limit, offset=offset, items=items)
 
 
-def late_list(connection: sqlite3.Connection, *, limit: int, offset: int) -> RegisterPage:
-    return list_register(
-        connection,
-        q=None,
-        state="late",
-        block_id=None,
-        limit=limit,
-        offset=offset,
-    )
-
-
-_OUTING_SELECT = """
-SELECT
-  outings.id,
-  outings.permission_id,
-  outings.type,
-  outings.status,
-  outings.place,
-  outings.starts_at,
-  outings.expected_return_at,
-  outings.grace_ends_at,
-  outings.exited_at,
-  outings.returned_at,
-  outings.created_at,
-  exit_staff.full_name AS exit_recorded_by_name,
-  return_staff.full_name AS return_recorded_by_name
-FROM outings
-LEFT JOIN users AS exit_staff ON exit_staff.id = outings.exit_recorded_by
-LEFT JOIN users AS return_staff ON return_staff.id = outings.return_recorded_by
-"""
-
-
 def load_open_outing(
     connection: sqlite3.Connection, resident_id: str
 ) -> OutingBody | None:
     row = connection.execute(
-        _OUTING_SELECT
+        OUTING_SELECT
         + """
         WHERE outings.resident_id = ?
           AND outings.status = 'outside'
@@ -350,9 +309,7 @@ def load_open_outing(
 def guardian_notice_for(
     connection: sqlite3.Connection, *, outing: OutingBody | None, state: RegisterState
 ) -> GuardianNotice:
-    if outing is None or outing.status != "outside":
-        return "not_due"
-    if state != "late":
+    if outing is None or state != "late":
         return "not_due"
     row = connection.execute(
         """
