@@ -284,13 +284,18 @@ type SessionValue = {
 const SessionContext = createContext<SessionValue | null>(null);
 
 const LOCAL_HALL = "http://127.0.0.1:8000";
+const RENDER_HALL = "https://bsj-hostel-api.onrender.com";
 
 function explicitHall(): string | null {
   const configured = process.env.EXPO_PUBLIC_API_URL;
-  if (!configured) {
-    return null;
+  if (configured) {
+    return configured.replace(/\/$/, "");
   }
-  return configured.replace(/\/$/, "");
+  // Release builds talk to the hall on Render. Expo Go still finds the laptop.
+  if (!__DEV__) {
+    return RENDER_HALL;
+  }
+  return null;
 }
 
 // Localhost is the phone itself, or the Android emulator. Only then use the

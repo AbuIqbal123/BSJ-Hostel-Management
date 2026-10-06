@@ -1,0 +1,40 @@
+{
+  "configVersion": 0,
+  "apple": {
+    "copyright": "2026 Begum Sultan Jahan Hall",
+    "categories": ["EDUCATION", "UTILITIES"],
+    "info": {
+      "en-US": {
+        "title": "Begum Sultan Jahan Hall",
+        "subtitle": "Plan outings and leave",
+        "description": "Begum Sultan Jahan Hall is the phone for residents of the hall. Sign in with the account the hall office gave you, or sign up for a room that is free.\n\nPlan an ordinary outing, with where you are going and when you will be back. Show your hall pass to the gate. Ask for late-night leave or home going, and request a guest stay. When the warden or the provost decides, the notice is on your phone.\n\nThe app needs a connection to the hall. Your sign-in stays on this phone until you sign out. The hall does not sell this information, and the app does not show ads.",
+        "keywords": [
+          "hostel,permission,guest,warden,gate,aligarh,enrolment,curfew,homegoing,qr,pass,late,night,provost"
+        ],
+        "releaseNotes": "First release for residents. Sign in, plan an outing, show the hall pass, and request late-night leave, home going, or a guest stay.",
+        "promoText": "The resident phone for the hall. Plan an outing, show your hall pass, and request leave."
+      }
+    },
+    "advisory": {
+      "alcoholTobaccoOrDrugUseOrReferences": "NONE",
+      "gamblingSimulated": "NONE",
+      "medicalOrTreatmentInformation": "NONE",
+      "profanityOrCrudeHumor": "NONE",
+      "sexualContentGraphicAndNudity": "NONE",
+      "sexualContentOrNudity": "NONE",
+      "horrorOrFearThemes": "NONE",
+      "matureOrSuggestiveThemes": "NONE",
+      "violenceCartoonOrFantasy": "NONE",
+      "violenceRealistic": "NONE",
+      "violenceRealisticProlongedGraphicOrSadistic": "NONE",
+      "contests": "NONE",
+      "gambling": false,
+      "unrestrictedWebAccess": false,
+      "seventeenPlus": false
+    },
+    "release": {
+      "automaticRelease": false,
+      "phasedRelease": false
+    }
+  }
+}

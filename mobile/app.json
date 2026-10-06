@@ -8,10 +8,25 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#F2F4F0",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F2F4F0"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.abuiqbal.bsjhall",
+      "icon": {
+        "light": "./assets/icon.png",
+        "dark": "./assets/icon-dark.png"
+      },
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.abuiqbal.bsjhall",
+      "icon": "./assets/icon.png",
       "adaptiveIcon": {
         "backgroundColor": "#F2F4F0",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -31,11 +46,23 @@
       [
         "expo-splash-screen",
         {
+          "backgroundColor": "#F2F4F0",
           "image": "./assets/splash-icon.png",
+          "imageWidth": 112,
           "resizeMode": "contain",
-          "backgroundColor": "#F2F4F0"
+          "dark": {
+            "image": "./assets/splash-icon.png",
+            "backgroundColor": "#121A16"
+          }
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "cc55ec14-611e-449d-b394-767101db214a"
+      }
+    },
+    "owner": "the_abu"
   }
 }
