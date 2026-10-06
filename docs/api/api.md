@@ -213,7 +213,7 @@ Body: [Ready](#schema-ready).
 ```json
 {
   "status": "ready",
-  "user_version": 14
+  "user_version": 15
 }
 ```
 

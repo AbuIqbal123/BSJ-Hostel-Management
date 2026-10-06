@@ -17,3 +17,18 @@ body:
       "departure_at": "2026-09-30T15:00:00Z",
       "expected_return_at": "2026-09-30T17:00:00Z"
     }
+scripts:
+  - type: beforeRequest
+    language: text/javascript
+    code: |-
+      const now = new Date();
+      let departure = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 13, 30, 0));
+      if (departure.getTime() <= now.getTime()) {
+          departure = new Date(departure.getTime() + 24 * 60 * 60 * 1000);
+      }
+      const expected = new Date(departure.getTime() + 150 * 60 * 1000);
+      const payload = JSON.parse(pm.request.body.raw);
+      payload.departure_at = departure.toISOString().replace(".000Z", "Z");
+      payload.expected_return_at = expected.toISOString().replace(".000Z", "Z");
+      pm.request.body.raw = JSON.stringify(payload, null, 2);
+

@@ -56,11 +56,12 @@ scripts:
               throw new Error("No free ordinary return in the next two weeks.");
           }
           const payload = JSON.parse(pm.request.body.raw);
-          let start = new Date(candidate.getTime() - 2 * 60 * 60 * 1000);
+          const targetAt = new Date(target);
+          let start = new Date(targetAt.getTime() - 2 * 60 * 60 * 1000);
           if (start.getTime() <= now.getTime()) {
               start = new Date(now.getTime() + 60 * 1000);
           }
-          if (start.getTime() >= candidate.getTime()) {
+          if (start.getTime() >= targetAt.getTime()) {
               throw new Error("No start before that return.");
           }
           payload.starts_at = start.toISOString().replace(".000Z", "Z");

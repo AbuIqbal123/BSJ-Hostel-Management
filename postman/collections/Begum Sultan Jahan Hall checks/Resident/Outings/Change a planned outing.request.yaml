@@ -15,3 +15,31 @@ body:
       "starts_at": "2026-10-01T06:30:00Z",
       "expected_return_at": "2026-10-01T10:30:00Z"
     }
+scripts:
+  - type: beforeRequest
+    language: text/javascript
+    code: |-
+      const now = new Date();
+      const slots = [6 * 60 + 30, 11 * 60 + 30];
+      let target = null;
+      for (let day = 1; day < 14 && target === null; day += 1) {
+          const base = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + day);
+          for (let slot = 0; slot < slots.length; slot += 1) {
+              const candidate = new Date(base + slots[slot] * 60 * 1000);
+              target = candidate.toISOString().replace(".000Z", "Z");
+              break;
+          }
+      }
+      if (target === null) {
+          throw new Error("No ordinary return in the next two weeks.");
+      }
+      const targetAt = new Date(target);
+      let start = new Date(targetAt.getTime() - 2 * 60 * 60 * 1000);
+      if (start.getTime() <= now.getTime()) {
+          start = new Date(now.getTime() + 60 * 1000);
+      }
+      const payload = JSON.parse(pm.request.body.raw);
+      payload.starts_at = start.toISOString().replace(".000Z", "Z");
+      payload.expected_return_at = target;
+      pm.request.body.raw = JSON.stringify(payload, null, 2);
+

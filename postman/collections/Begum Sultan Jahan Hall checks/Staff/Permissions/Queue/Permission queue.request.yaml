@@ -5,7 +5,7 @@ order: 5000
 queryParams:
   - key: status
     value: pending
-  - key: type
+  - key: permission_type
     value: ''
     description: Optional. late_night or home_going.
     disabled: true
