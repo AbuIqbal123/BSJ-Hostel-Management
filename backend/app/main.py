@@ -8,6 +8,7 @@ Paths in the file may exist before they are implemented.
 
 from __future__ import annotations
 
+import sqlite3
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -44,6 +45,30 @@ from app.staff.office.export_routes import router as office_export_router
 
 SPEC_PATH = Path(__file__).resolve().parent.parent / "openapi.yaml"
 DOCUMENTATION_PATHS = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
+ROUTERS = (
+    auth_router,
+    home_router,
+    notifications_router,
+    hall_pass_router,
+    guests_router,
+    guest_staff_router,
+    outings_router,
+    permissions_router,
+    register_router,
+    permission_queue_router,
+    gate_router,
+    gate_guests_router,
+    office_router,
+    office_blocks_router,
+    office_rooms_router,
+    office_destinations_router,
+    office_residents_router,
+    office_staff_router,
+    office_password_router,
+    office_audit_router,
+    office_sms_router,
+    office_export_router,
+)
 
 
 class Health(BaseModel):
@@ -64,10 +89,11 @@ def load_spec() -> dict:
 
 def ensure_routes_documented(app: FastAPI, spec: dict) -> None:
     documented = set(spec["paths"])
+    routes = [*app.routes, *(route for router in ROUTERS for route in router.routes)]
     missing = sorted(
         {
             route.path
-            for route in app.routes
+            for route in routes
             if getattr(route, "methods", None)
             and route.path not in DOCUMENTATION_PATHS
             and route.path not in documented
@@ -90,28 +116,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan, docs_url="/docs", redoc_url="/redoc")
-app.include_router(auth_router)
-app.include_router(home_router)
-app.include_router(notifications_router)
-app.include_router(hall_pass_router)
-app.include_router(guests_router)
-app.include_router(guest_staff_router)
-app.include_router(outings_router)
-app.include_router(permissions_router)
-app.include_router(register_router)
-app.include_router(permission_queue_router)
-app.include_router(gate_router)
-app.include_router(gate_guests_router)
-app.include_router(office_router)
-app.include_router(office_blocks_router)
-app.include_router(office_rooms_router)
-app.include_router(office_destinations_router)
-app.include_router(office_residents_router)
-app.include_router(office_staff_router)
-app.include_router(office_password_router)
-app.include_router(office_audit_router)
-app.include_router(office_sms_router)
-app.include_router(office_export_router)
+for router in ROUTERS:
+    app.include_router(router)
 app.add_exception_handler(ApiError, api_error_handler)
 app.add_exception_handler(RequestValidationError, validation_error_handler)
 
@@ -123,11 +129,6 @@ def health() -> Health:
 
 @app.get("/ready", response_model=Ready)
 def ready() -> Ready:
-    import sqlite3
-
-    from app.shared.config import get_settings
-    from app.shared.errors import ApiError
-
     path = get_settings().database_path
     if not path.is_file():
         raise ApiError(503, "not_ready", "The hall database could not be opened.")
