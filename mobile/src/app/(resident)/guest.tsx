@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
+import { guestLine } from "@/app/(resident)/(tabs)/permissions";
 import { formatHallDate } from "@/format-when";
 import { useSession, type GuestStay } from "@/session";
 import { useHallColors } from "@/theme/colors";
@@ -463,21 +464,7 @@ function GuestDetail({ id }: { id: string }) {
             {`${formatHallDate(stay.startDate)} to ${formatHallDate(stay.endDate)}`}
           </Text>
           <Text style={[text.body, { color: colors.ink }]}>{stay.reason}</Text>
-          <Text style={[text.body, { color: colors.ink }]}>
-            {stay.bucket === "in_hall"
-              ? "In the hall"
-              : stay.bucket === "should_have_left"
-                ? "Should have left"
-                : stay.status === "approved" && stay.paymentStatus === "unpaid"
-                  ? "Approved, not yet paid"
-                  : stay.status === "approved"
-                      ? "Approved"
-                      : stay.status === "rejected"
-                        ? "Rejected"
-                        : stay.status === "cancelled"
-                          ? "Cancelled"
-                          : "Departed"}
-          </Text>
+          <Text style={[text.body, { color: colors.ink }]}>{guestLine(stay)}</Text>
           {stay.decisionNote ? (
             <Text style={[text.body, { color: colors.inkSoft }]}>{stay.decisionNote}</Text>
           ) : null}

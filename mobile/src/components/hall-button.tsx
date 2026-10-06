@@ -30,7 +30,6 @@ export function HallButton({ label, onPress, disabled = false }: HallButtonProps
         {
           backgroundColor: pressed ? colors.forestDeep : colors.forest,
           opacity: disabled ? 0.6 : 1,
-          // Design §6: button press scale 0.98 (transform stays on the compositor).
           transform: [{ scale: pressed && !disabled ? 0.98 : 1 }],
         },
       ]}

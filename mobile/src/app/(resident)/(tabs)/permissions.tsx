@@ -4,7 +4,6 @@ import { router, useFocusEffect } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { guestLine } from "@/app/(resident)/guests";
 import { formatHallDate, formatWhenParts } from "@/format-when";
 import { useSession, type GuestStayCard, type HallPermission, type PermissionKind, type PermissionStatus } from "@/session";
 import { useHallColors } from "@/theme/colors";
@@ -17,6 +16,31 @@ const REQUEST_TABS: { id: RequestTab; label: string }[] = [
   { id: "home_going", label: "Home going" },
   { id: "guest", label: "Guest stays" },
 ];
+
+export function guestLine(item: GuestStayCard): string {
+  if (item.bucket === "in_hall") {
+    return "In the hall";
+  }
+  if (item.bucket === "should_have_left") {
+    return "Should have left";
+  }
+  if (item.status === "approved" && item.paymentStatus === "unpaid") {
+    return "Approved, not yet paid";
+  }
+  if (item.status === "pending") {
+    return "Pending";
+  }
+  if (item.status === "approved") {
+    return "Approved";
+  }
+  if (item.status === "rejected") {
+    return "Rejected";
+  }
+  if (item.status === "cancelled") {
+    return "Cancelled";
+  }
+  return "Departed";
+}
 
 function kindLabel(kind: PermissionKind): string {
   return kind === "late_night" ? "Late-night" : "Home going";

@@ -97,12 +97,10 @@ export type HistoryResult =
   | { error: string; items?: undefined }
   | { error: null; items: HistoryItem[] };
 
-export type NotificationKind = "late_night" | "home_going";
-
 export type HallNotification = {
   id: string;
   permissionId: string;
-  permissionType: NotificationKind;
+  permissionType: "late_night" | "home_going";
   decision: "approved" | "rejected";
   place: string;
   departureAt: string;
@@ -191,7 +189,6 @@ export type HallPermission = {
   departureAt: string;
   expectedReturnAt: string;
   decisionNote: string | null;
-  decidedAt: string | null;
   decidedBy: string | null;
   createdAt: string;
 };
@@ -416,7 +413,6 @@ function readResidentHome(value: unknown): ResidentHome | null {
   if (
     !isRecord(value) ||
     !isRecord(value.resident) ||
-    !("current_outing" in value) ||
     typeof value.ordinary_outing_active !== "boolean" ||
     typeof value.notifications_unread !== "boolean"
   ) {
@@ -430,11 +426,6 @@ function readResidentHome(value: unknown): ResidentHome | null {
     return null;
   }
   const roomLabel = typeof resident.room_label === "string" ? resident.room_label : null;
-  if (value.current_outing !== null) {
-    if (!isRecord(value.current_outing) || typeof value.current_outing.status !== "string") {
-      return null;
-    }
-  }
   return {
     fullName: resident.full_name,
     roomLabel,
@@ -468,8 +459,6 @@ function readHallPass(value: unknown): HallPass | null {
   if (value.qr_visible && payload === null) {
     return null;
   }
-  const textOrNull = (field: unknown): string | null =>
-    typeof field === "string" && field.length > 0 ? field : null;
   return {
     fullName: value.full_name,
     roomLabel: value.room_label,
@@ -483,7 +472,7 @@ function readHallPass(value: unknown): HallPass | null {
   };
 }
 
-function textOrEmpty(field: unknown): string | null {
+function textOrNull(field: unknown): string | null {
   return typeof field === "string" && field.length > 0 ? field : null;
 }
 
@@ -643,8 +632,8 @@ function readGuestStay(value: unknown): GuestStay | null {
     ...card,
     relation: value.relation,
     reason: value.reason,
-    arrivedAt: textOrEmpty(value.arrived_at),
-    decisionNote: textOrEmpty(value.decision_note),
+    arrivedAt: textOrNull(value.arrived_at),
+    decisionNote: textOrNull(value.decision_note),
   };
 }
 
@@ -711,7 +700,6 @@ function readPermission(value: unknown): HallPermission | null {
   const destinationDetail = optionalString(value.destination_detail);
   const address = optionalString(value.address);
   const decisionNote = optionalString(value.decision_note);
-  const decidedAt = optionalString(value.decided_at);
   const decidedBy = optionalString(value.decided_by);
   const { id, short_place, reason, departure_at, expected_return_at, created_at } = value;
   if (
@@ -727,7 +715,6 @@ function readPermission(value: unknown): HallPermission | null {
     destinationDetail === undefined ||
     address === undefined ||
     decisionNote === undefined ||
-    decidedAt === undefined ||
     decidedBy === undefined
   ) {
     return null;
@@ -743,7 +730,6 @@ function readPermission(value: unknown): HallPermission | null {
     departureAt: departure_at,
     expectedReturnAt: expected_return_at,
     decisionNote,
-    decidedAt,
     decidedBy,
     createdAt: created_at,
   };
@@ -870,19 +856,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      // Ready copy only after a real 201. This call returns no tokens.
       if (response.status === 201) {
         return null;
       }
-      const message = await errorMessage(response);
-      const lowered = message.toLowerCase();
-      if (lowered.includes("already in use") || lowered.includes("enrolment already")) {
-        return "Username or password is wrong";
-      }
-      if (response.status === 401 && message === "The hall could not be reached") {
-        return "Username or password is wrong";
-      }
-      return message;
+      return await errorMessage(response);
     } catch {
       return "The hall could not be reached";
     }
@@ -1287,7 +1264,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         },
         body: JSON.stringify(outingPayload(body)),
       });
-      if (response.status === 200 || response.status === 201) {
+      if (response.status === 200) {
         return null;
       }
       return await errorMessage(response);
@@ -1306,7 +1283,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         method: "POST",
         headers: { Authorization: `Bearer ${current.accessToken}` },
       });
-      if (response.status === 200 || response.status === 201) {
+      if (response.status === 200) {
         return null;
       }
       return await hallFailure(response);
