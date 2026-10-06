@@ -33,7 +33,7 @@ scripts:
           guardian_name: "Yusuf Siddiqui",
           guardian_phone: "+919800000001"
       };
-      payload["temporary_" + ["pass", "word"].join("")] = ["resident", "20"].join("-");
+      payload["temporary_" + ["pass", "word"].join("")] = ["Resident", "20"].join("-");
       pm.request.body.update({
           mode: "raw",
           raw: JSON.stringify(payload),
