@@ -2127,7 +2127,6 @@ Body: [PermissionReview](#schema-permissionreview).
 | `resident_id` | yes | uuid |  |
 | `resident_name` | yes | string |  |
 | `room_label` | yes | string |  |
-| `decided_by_name` | no | string or null |  |
 
 #### 401
 
@@ -2210,7 +2209,6 @@ Body: [PermissionReview](#schema-permissionreview).
 | `resident_id` | yes | uuid |  |
 | `resident_name` | yes | string |  |
 | `room_label` | yes | string |  |
-| `decided_by_name` | no | string or null |  |
 
 #### 401
 
@@ -5780,7 +5778,6 @@ The `type` field selects the object:
 | `resident_id` | yes | uuid |  |
 | `resident_name` | yes | string |  |
 | `room_label` | yes | string |  |
-| `decided_by_name` | no | string or null |  |
 
 ### <a id="schema-permissionpage"></a>PermissionPage
 

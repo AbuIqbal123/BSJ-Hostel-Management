@@ -541,7 +541,7 @@ def test_permission_lifecycle(database_path: Path, monkeypatch: pytest.MonkeyPat
         )
         assert provost_decision.status_code == 200
         assert provost_decision.json()["status"] == "approved"
-        assert provost_decision.json()["decided_by_name"] == "Halima Begum"
+        assert provost_decision.json()["decided_by"] == "Halima Begum"
         assert outing_count_for(database_path, OTHER_PERM) == 0
 
         expired_get = client.get(

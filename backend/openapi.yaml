@@ -4114,10 +4114,6 @@ components:
               type: string
             room_label:
               type: string
-            decided_by_name:
-              oneOf:
-                - type: string
-                - type: "null"
 
     PermissionPage:
       allOf:
