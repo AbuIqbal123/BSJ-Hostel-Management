@@ -3,7 +3,7 @@ import { router, useFocusEffect, useNavigation } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { formatWhen, formatWhenParts } from "@/format-when";
+import { formatSpan } from "@/format-when";
 import { useSession, type HallNotification } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
@@ -21,18 +21,7 @@ function notificationSentence(item: HallNotification): string {
 }
 
 function whenLine(item: HallNotification): string {
-  const start = formatWhenParts(item.departureAt);
-  const end = formatWhenParts(item.expectedReturnAt);
-  if (!start || !end) {
-    return `${formatWhen(item.departureAt)} to ${formatWhen(item.expectedReturnAt)}`;
-  }
-  if (item.permissionType === "home_going") {
-    return start.day === end.day ? start.day : `${start.day} to ${end.day}`;
-  }
-  if (start.day === end.day) {
-    return `${start.clock} to ${end.clock}, ${start.day}`;
-  }
-  return `${start.clock}, ${start.day} to ${end.clock}, ${end.day}`;
+  return formatSpan(item.departureAt, item.expectedReturnAt, item.permissionType === "home_going");
 }
 
 function NotificationRow({ item }: { item: HallNotification }) {

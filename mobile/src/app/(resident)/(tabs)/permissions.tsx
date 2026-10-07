@@ -5,7 +5,8 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { formatHallDate, formatWhenParts } from "@/format-when";
-import { useSession, type GuestStayCard, type HallPermission, type PermissionKind, type PermissionStatus } from "@/session";
+import { guestLine, kindLabel, statusSentence, statusTone } from "@/requests";
+import { useSession, type GuestStayCard, type HallPermission, type PermissionKind } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
@@ -16,54 +17,6 @@ const REQUEST_TABS: { id: RequestTab; label: string }[] = [
   { id: "home_going", label: "Home going" },
   { id: "guest", label: "Guest stays" },
 ];
-
-export function guestLine(item: GuestStayCard): string {
-  if (item.bucket === "in_hall") {
-    return "In the hall";
-  }
-  if (item.bucket === "should_have_left") {
-    return "Should have left";
-  }
-  if (item.status === "approved" && item.paymentStatus === "unpaid") {
-    return "Approved, not yet paid";
-  }
-  if (item.status === "pending") {
-    return "Pending";
-  }
-  if (item.status === "approved") {
-    return "Approved";
-  }
-  if (item.status === "rejected") {
-    return "Rejected";
-  }
-  if (item.status === "cancelled") {
-    return "Cancelled";
-  }
-  return "Departed";
-}
-
-function kindLabel(kind: PermissionKind): string {
-  return kind === "late_night" ? "Late-night" : "Home going";
-}
-
-function statusSentence(status: PermissionStatus): string {
-  switch (status) {
-    case "pending":
-      return "Pending";
-    case "approved":
-      return "Approved";
-    case "rejected":
-      return "Rejected";
-    case "cancelled":
-      return "Cancelled";
-    case "in_use":
-      return "Out";
-    case "completed":
-      return "Completed";
-    case "expired":
-      return "Expired";
-  }
-}
 
 function permissionWhen(departureAt: string, expectedReturnAt: string): { day: string; span: string } {
   const leave = formatWhenParts(departureAt);
@@ -105,19 +58,6 @@ function soonestFirst(items: HallPermission[]): HallPermission[] {
     }
     return 0;
   });
-}
-
-function statusTone(status: PermissionStatus, colors: ReturnType<typeof useHallColors>) {
-  if (status === "approved" || status === "in_use") {
-    return { color: colors.forest, border: colors.forest, background: colors.approvedBg };
-  }
-  if (status === "rejected") {
-    return { color: colors.danger, border: colors.danger, background: colors.dangerBg };
-  }
-  if (status === "pending") {
-    return { color: colors.pending, border: colors.pending, background: colors.pendingBg };
-  }
-  return { color: colors.inkSoft, border: colors.line, background: colors.surface };
 }
 
 function guestTone(item: GuestStayCard, colors: ReturnType<typeof useHallColors>) {

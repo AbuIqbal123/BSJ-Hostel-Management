@@ -4,7 +4,8 @@ import { router, useFocusEffect, useNavigation } from "expo-router";
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { formatHallDate, formatWhen, formatWhenParts } from "@/format-when";
+import { formatHallDate, formatSpan } from "@/format-when";
+import { kindLabel } from "@/requests";
 import { useSession, type HistoryItem, type HistoryKind } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
@@ -38,32 +39,8 @@ function dayFromHall(on: string): Date {
   return new Date(Date.UTC(year, month - 1, day, 6, 30));
 }
 
-function kindLabel(kind: HistoryKind): string {
-  switch (kind) {
-    case "late_night":
-      return "Late-night";
-    case "home_going":
-      return "Home going";
-    case "guest_stay":
-      return "Guest stay";
-    case "outing":
-      return "Outing";
-  }
-}
-
 function whenLine(item: HistoryItem): string {
-  const start = formatWhenParts(item.startedAt);
-  const end = formatWhenParts(item.endedAt);
-  if (!start || !end) {
-    return `${formatWhen(item.startedAt)} to ${formatWhen(item.endedAt)}`;
-  }
-  if (item.kind === "home_going" || item.kind === "guest_stay") {
-    return start.day === end.day ? start.day : `${start.day} to ${end.day}`;
-  }
-  if (start.day === end.day) {
-    return `${start.clock} to ${end.clock}, ${start.day}`;
-  }
-  return `${start.clock}, ${start.day} to ${end.clock}, ${end.day}`;
+  return formatSpan(item.startedAt, item.endedAt, item.kind === "home_going" || item.kind === "guest_stay");
 }
 
 function recordedLine(item: HistoryItem): string | null {
