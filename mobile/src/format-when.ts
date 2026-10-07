@@ -71,6 +71,31 @@ export function formatWhenParts(iso: string): { day: string; clock: string } | n
   return whenPieces(iso);
 }
 
+/** `7:00 PM, 5 September 2026`. */
+export function formatClockDay(iso: string): string {
+  const pieces = whenPieces(iso);
+  if (!pieces) {
+    return iso;
+  }
+  return `${pieces.clock}, ${pieces.day}`;
+}
+
+/** Start to end on the hall clock. `daysOnly` drops the clock times. */
+export function formatSpan(startIso: string, endIso: string, daysOnly: boolean): string {
+  const start = whenPieces(startIso);
+  const end = whenPieces(endIso);
+  if (!start || !end) {
+    return `${formatWhen(startIso)} to ${formatWhen(endIso)}`;
+  }
+  if (daysOnly) {
+    return start.day === end.day ? start.day : `${start.day} to ${end.day}`;
+  }
+  if (start.day === end.day) {
+    return `${start.clock} to ${end.clock}, ${start.day}`;
+  }
+  return `${start.clock}, ${start.day} to ${end.clock}, ${end.day}`;
+}
+
 export function formatHallDate(iso: string): string {
   const [year, month, day] = iso.split("-");
   const name = MONTHS[Number(month) - 1];

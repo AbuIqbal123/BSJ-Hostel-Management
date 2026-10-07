@@ -2,21 +2,13 @@ import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { formatWhen, formatWhenParts } from "@/format-when";
+import { formatClockDay } from "@/format-when";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
 function paramText(value: string | string[] | undefined): string {
   const raw = Array.isArray(value) ? value[0] : value;
   return raw ?? "";
-}
-
-function whenLine(iso: string): string {
-  const parts = formatWhenParts(iso);
-  if (!parts) {
-    return formatWhen(iso);
-  }
-  return `${parts.clock}, ${parts.day}`;
 }
 
 export default function OutingRecordScreen() {
@@ -38,8 +30,8 @@ export default function OutingRecordScreen() {
   const returnRecordedBy = paramText(params.returnRecordedBy);
   const unused = paramText(params.unused) === "1";
   const facts = [
-    { label: "Leave at", value: startedAt ? whenLine(startedAt) : "" },
-    { label: "Back by", value: endedAt ? whenLine(endedAt) : "" },
+    { label: "Leave at", value: startedAt ? formatClockDay(startedAt) : "" },
+    { label: "Back by", value: endedAt ? formatClockDay(endedAt) : "" },
     { label: "Exit recorded by", value: exitRecordedBy },
     { label: "Return recorded by", value: returnRecordedBy },
   ].filter((fact) => fact.value.length > 0);

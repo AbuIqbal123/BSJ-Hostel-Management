@@ -15,8 +15,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
-import { formatWhenParts, utcInstant } from "@/format-when";
+import { formatClockDay, formatWhenParts, utcInstant } from "@/format-when";
 import { WhenField, hallAt, hallDay, isNextHallMidnight, sameNight } from "@/outing-when";
+import { kindLabel, statusSentence, statusTone } from "@/requests";
 import {
   useSession,
   type HallPermission,
@@ -38,14 +39,6 @@ function kindParam(value: string): PermissionKind | null {
     return value;
   }
   return null;
-}
-
-function openedWhen(iso: string): string {
-  const pieces = formatWhenParts(iso);
-  if (!pieces) {
-    return iso;
-  }
-  return `${pieces.clock}, ${pieces.day}`;
 }
 
 function hallDayLabel(iso: string): string {
@@ -118,42 +111,6 @@ function DateField({
       )}
     </View>
   );
-}
-
-function kindLabel(kind: PermissionKind): string {
-  return kind === "late_night" ? "Late-night" : "Home going";
-}
-
-function statusSentence(status: PermissionStatus): string {
-  switch (status) {
-    case "pending":
-      return "Pending";
-    case "approved":
-      return "Approved";
-    case "rejected":
-      return "Rejected";
-    case "cancelled":
-      return "Cancelled";
-    case "in_use":
-      return "Out";
-    case "completed":
-      return "Completed";
-    case "expired":
-      return "Expired";
-  }
-}
-
-function statusTone(status: PermissionStatus, colors: ReturnType<typeof useHallColors>) {
-  if (status === "approved" || status === "in_use") {
-    return { color: colors.forest, border: colors.forest, background: colors.approvedBg };
-  }
-  if (status === "rejected") {
-    return { color: colors.danger, border: colors.danger, background: colors.dangerBg };
-  }
-  if (status === "pending") {
-    return { color: colors.pending, border: colors.pending, background: colors.pendingBg };
-  }
-  return { color: colors.inkSoft, border: colors.line, background: colors.surface };
 }
 
 function StatusPill({ status }: { status: PermissionStatus }) {
@@ -711,8 +668,8 @@ function PermissionDetail({ id }: { id: string }) {
       facts.push({ label: "Leave", value: hallDayLabel(permission.departureAt) });
       facts.push({ label: "Back", value: hallDayLabel(permission.expectedReturnAt) });
     } else {
-      facts.push({ label: "Leave at", value: openedWhen(permission.departureAt) });
-      facts.push({ label: "Back by", value: openedWhen(permission.expectedReturnAt) });
+      facts.push({ label: "Leave at", value: formatClockDay(permission.departureAt) });
+      facts.push({ label: "Back by", value: formatClockDay(permission.expectedReturnAt) });
     }
     const decider = permission.decidedBy?.trim() ?? "";
     if (decider.length > 0) {
