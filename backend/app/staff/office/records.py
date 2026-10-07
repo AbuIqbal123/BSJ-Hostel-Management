@@ -5,11 +5,11 @@ from __future__ import annotations
 import secrets
 import sqlite3
 
-from typing import Literal
+from typing import Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.shared.schemas import Destination, DestinationList, HallPass
+from app.shared.schemas import Destination, DestinationList
 
 SETTINGS_COLUMNS = (
     "hall_name",
@@ -117,14 +117,14 @@ def template_keeps_placeholders(template: str, required: tuple[str, ...]) -> boo
     return all(token in template for token in required)
 
 
-def _apply_patch(
-    data: dict[str, object],
-    patch_fields_set: set[str],
-    patch: object,
-) -> tuple[dict[str, object], dict[str, object]]:
+ModelT = TypeVar("ModelT", bound=BaseModel)
+
+
+def apply_patch(current: ModelT, patch: BaseModel) -> tuple[ModelT, dict[str, object]]:
+    """Return the merged model and the changed field map (new values only)."""
     changes: dict[str, object] = {}
-    merged = dict(data)
-    for field_name in patch_fields_set:
+    merged = current.model_dump()
+    for field_name in patch.model_fields_set:
         value = getattr(patch, field_name)
         if value is None:
             continue
@@ -135,25 +135,7 @@ def _apply_patch(
         if merged[field_name] != value:
             changes[field_name] = value
             merged[field_name] = value
-    return merged, changes
-
-
-def apply_settings_update(
-    current: HallSettings,
-    patch: HallSettingsUpdate,
-) -> tuple[HallSettings, dict[str, object]]:
-    """Return merged settings and the changed field map (new values only)."""
-    merged, changes = _apply_patch(current.model_dump(), patch.model_fields_set, patch)
-    return HallSettings(**merged), changes
-
-
-def apply_notifications_update(
-    current: HallNotifications,
-    patch: HallNotificationsUpdate,
-) -> tuple[HallNotifications, dict[str, object]]:
-    """Return merged notification templates and the changed field map."""
-    merged, changes = _apply_patch(current.model_dump(), patch.model_fields_set, patch)
-    return HallNotifications(**merged), changes
+    return type(current)(**merged), changes
 
 
 BLOCK_COLUMNS = (
@@ -437,6 +419,13 @@ class ResidentCreate(BaseModel):
     guardian_name: str = Field(min_length=1, max_length=120)
     guardian_phone: str = Field(pattern=r"^\+[1-9][0-9]{7,14}$")
     temporary_password: str = Field(min_length=10, max_length=200)
+
+
+class HallPass(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    qr_payload: str
+    full_name: str
+    room_label: str
 
 
 class ResidentCreated(BaseModel):

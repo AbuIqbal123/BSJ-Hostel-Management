@@ -7,13 +7,6 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class HallPass(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    qr_payload: str
-    full_name: str
-    room_label: str
-
-
 class Destination(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: str

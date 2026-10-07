@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 
 from app.shared import clock
 from app.shared.audit import record_audit
@@ -18,8 +20,7 @@ from app.staff.office.records import (
     HallNotificationsUpdate,
     HallSettings,
     HallSettingsUpdate,
-    apply_notifications_update,
-    apply_settings_update,
+    apply_patch,
     load_notifications,
     load_settings,
     template_keeps_placeholders,
@@ -87,25 +88,13 @@ def _require_sms_placeholders(
         )
 
 
-@router.get("/settings", response_model=HallSettings)
-def get_settings(_account: ProvostDep, connection: ConnectionDep) -> HallSettings:
-    return load_settings(connection)
-
-
-@router.patch("/settings", response_model=HallSettings)
-def update_settings(
-    body: HallSettingsUpdate,
-    account: ProvostDep,
-    connection: ConnectionDep,
-) -> HallSettings:
-    current = load_settings(connection)
-    merged, changes = apply_settings_update(current, body)
-    if not changes:
-        return current
-
-    _require_hours_order(merged)
-    _require_distinct_seasons(merged)
-
+def _save_hall_patch(
+    connection: sqlite3.Connection,
+    account: Account,
+    current: BaseModel,
+    changes: dict[str, object],
+    summary: str,
+) -> None:
     now_text = clock.format_instant(clock.utc_now())
     assignments = ", ".join(f"{key} = ?" for key in changes)
     values = [changes[key] for key in changes]
@@ -128,10 +117,34 @@ def update_settings(
         "settings.updated",
         "settings",
         "hall",
-        f"{account.full_name} updated hall settings.",
+        summary,
         detail,
     )
     connection.commit()
+
+
+@router.get("/settings", response_model=HallSettings)
+def get_settings(_account: ProvostDep, connection: ConnectionDep) -> HallSettings:
+    return load_settings(connection)
+
+
+@router.patch("/settings", response_model=HallSettings)
+def update_settings(
+    body: HallSettingsUpdate,
+    account: ProvostDep,
+    connection: ConnectionDep,
+) -> HallSettings:
+    current = load_settings(connection)
+    merged, changes = apply_patch(current, body)
+    if not changes:
+        return current
+
+    _require_hours_order(merged)
+    _require_distinct_seasons(merged)
+
+    _save_hall_patch(
+        connection, account, current, changes, f"{account.full_name} updated hall settings."
+    )
     return load_settings(connection)
 
 
@@ -149,36 +162,17 @@ def update_notifications(
     connection: ConnectionDep,
 ) -> HallNotifications:
     current = load_notifications(connection)
-    merged, changes = apply_notifications_update(current, body)
+    merged, changes = apply_patch(current, body)
     if not changes:
         return current
 
     _require_sms_placeholders(merged, changes)
 
-    now_text = clock.format_instant(clock.utc_now())
-    assignments = ", ".join(f"{key} = ?" for key in changes)
-    values = [changes[key] for key in changes]
-    connection.execute(
-        f"""
-        UPDATE hall_settings
-        SET {assignments}, updated_at = ?
-        WHERE id = 'hall'
-        """,
-        (*values, now_text),
-    )
-    detail = json.dumps(
-        {"before": {key: getattr(current, key) for key in changes}, "after": changes},
-        sort_keys=True,
-    )
-    record_audit(
+    _save_hall_patch(
         connection,
-        now_text,
-        account.id,
-        "settings.updated",
-        "settings",
-        "hall",
+        account,
+        current,
+        changes,
         f"{account.full_name} updated hall notification templates.",
-        detail,
     )
-    connection.commit()
     return load_notifications(connection)
