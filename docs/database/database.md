@@ -64,7 +64,7 @@ The rules in this document are the contract. The room inventory is taken from th
 - A guest stay is applied for by the host resident at least one day before the start date, for at most 7 days counting the first and last day. 18 September 2026 through 21 September 2026 is 4 days. Payment is marked at the hall office, not collected in the app. Guests have no hall pass. Gate staff record arrival and departure from a list. A guest stays on the dining count until departure is recorded, including when the end date has passed.
 - Emergency alerts are not in this version. An alert must not approve leave or change whether a resident is outside.
 - Parents and guardians do not use the app. A text message is the only channel to them.
-- A resident may self-onboard with her full name, enrolment number, chosen password, own phone, guardian name and phone, and a selected block and room. On that form the resident phone and the guardian phone are Indian mobiles: +91 followed by exactly 10 digits. The account starts **active**, can sign in immediately, and receives its hall pass. The Hall Office activation workflow is deferred. Staff (gate, warden, provost) are never self-onboarded.
+- A resident may self-onboard with her full name, enrolment number, chosen password, own phone, guardian name and phone, and a selected block and room. On that form the resident phone and the guardian phone are Indian mobiles: +91 followed by exactly 10 digits. The account starts **active**, can sign in immediately, and receives its hall pass. Staff (gate, warden, provost) are never self-onboarded.
 - Every time a person sees is India time, on a 12-hour clock. Every date a person sees is the day, the month name, and the year.
 
 ## Still for the hall to decide
@@ -201,7 +201,7 @@ The hall page publishes how many rooms each block has, but not the painted door 
 | bed_count | Whole number | Yes | Copied from the block's beds per room when the room is created | How many residents this room can hold. Starts at 2. |
 | is_active | Yes or no | Yes | Provost | Yes while the room can be assigned. No when it is retired. HTTP `status` is `active` or `inactive`. |
 
-A block cannot contain the same room number twice. Every active resident points at an active room; the room's block is the resident's block. The number of active residents assigned to a room, including a suspended resident who has not been moved, cannot be more than that room's bed count. A future pending account may have no room and would not count toward beds. Changing rooms updates the resident and writes an audit log entry. Past outings keep the place and the resident. They do not keep a copy of the old room. The register shows the room the resident has now.
+A block cannot contain the same room number twice. Every active resident points at an active room; the room's block is the resident's block. The number of active residents assigned to a room, including a suspended resident who has not been moved, cannot be more than that room's bed count. Changing rooms updates the resident and writes an audit log entry. Past outings keep the place and the resident. They do not keep a copy of the old room. The register shows the room the resident has now.
 
 ### Destinations
 
@@ -237,14 +237,12 @@ At most one active destination is the free-text choice.
 | username | Text | Yes | Provost for staff and office-created residents. Self-onboard uses the enrolment number. | Unique, ignoring capitals. |
 | full_name | Text | Yes | Provost, or the resident on self-onboard | The name people see. |
 | password_hash | Protected value | Yes | System, from the password she chooses on self-onboard, or the temporary password the provost sets, using Argon2id | Never the password itself. |
-| status | Choice | Yes | Self-onboard and office-created residents and staff start **active**. A future office workflow may use pending; the provost may suspend or reinstate. | Active, suspended, or pending. |
+| status | Choice | Yes | Self-onboard and office-created residents and staff start **active**. The provost may suspend or reinstate. | Active or suspended. |
 | created_at | Instant | Yes | System | When the account was created. |
 | updated_at | Instant | Yes | System | When the account last changed. |
 | last_login_at | Instant | Empty until the first sign-in | System, at each successful sign-in | When this person last signed in. |
 
 A suspended person cannot sign in and cannot be scanned out or in. The account stays.
-
-A **pending** person cannot sign in (the API says the account is waiting for the Hall Office). She has no usable hall pass and is not on the register. Pending is reserved for a future Hall Office activation workflow; current self-onboard creates active residents.
 
 ### Residents
 
@@ -268,7 +266,7 @@ The resident's own phone is separate from the guardian phone. Self-onboard and o
 | created_at | Instant | Yes | System | When the profile was created. |
 | updated_at | Instant | Yes | System | When it last changed. |
 
-A future Hall Office activation of a pending account would assign a room and issue the first hall-pass code at that moment; that workflow is deferred. The hall pass code stays the same from outing to outing. It changes only when the provost issues a new one. The resident phone returns that code on her hall pass only while an outing's show window is open. The provost does that on the resident's record, for example after a lost phone or because someone else has seen the code. The provost does not type the new code. The system makes a new random code, puts it in place of the old one at that moment, and writes an audit log entry. The old code stops working immediately. The resident's phone shows the new code the next time it loads the pass.
+The hall pass code stays the same from outing to outing. It changes only when the provost issues a new one. The resident phone returns that code on her hall pass only while an outing's show window is open. The provost does that on the resident's record, for example after a lost phone or because someone else has seen the code. The provost does not type the new code. The system makes a new random code, puts it in place of the old one at that moment, and writes an audit log entry. The old code stops working immediately. The resident's phone shows the new code the next time it loads the pass.
 
 ### Staff
 
@@ -573,15 +571,13 @@ This is the audit log: the record of who did what. Each entry is one action that
 | Late guardian message | sms.late_notice |
 | Return guardian message | sms.return_notice |
 
-`resident.activated` is reserved for a future Hall Office activation workflow; it is not used on the current self-onboard (active) path.
-
 ## Who can do what
 
 What a person may do comes from her or his role.
 
 Gate staff scan a hall pass and record a guest's arrival and departure. They do not approve a permission, they do not approve a guest stay, and they do not change residents, rooms, or settings. Their screens are the scan result, recent gate activity, and the guest lists.
 
-A warden or the provost approves or rejects a permission and a guest stay, sees the register and the late list, and marks a guest paid. The provost also creates and edits residents, creates staff, rooms, destinations, and settings, issues a new hall pass, resets a password, exports the register, and reads guardian messages and the audit log. A future Hall Office activation workflow is deferred.
+A warden or the provost approves or rejects a permission and a guest stay, sees the register and the late list, and marks a guest paid. The provost also creates and edits residents, creates staff, rooms, destinations, and settings, issues a new hall pass, resets a password, exports the register, and reads guardian messages and the audit log.
 
 | Action | Resident | Gate | Warden | Provost |
 |---|---|---|---|---|
@@ -596,7 +592,7 @@ A warden or the provost approves or rejects a permission and a guest stay, sees 
 
 ## What the register counts
 
-The same counts are kept for the whole hall and, separately, for each block. A resident counts in the block of the room she is assigned to now. A future pending resident without a room would be left out of these counts. A guest counts in the block of the host's room. A permission waiting counts in the resident's block.
+The same counts are kept for the whole hall and, separately, for each block. A resident counts in the block of the room she is assigned to now. A guest counts in the block of the host's room. A permission waiting counts in the resident's block.
 
 | Count | Who is included |
 |---|---|
@@ -608,7 +604,7 @@ The same counts are kept for the whole hall and, separately, for each block. A r
 | Should have left | The guest list of that name. |
 | Guest stays waiting | Guest stays still waiting. |
 
-The whole-hall figure is the sum of the blocks. Suspended and pending residents stay in the account list and are left out of the inside and outside counts.
+The whole-hall figure is the sum of the blocks. Suspended residents stay in the account list and are left out of the inside and outside counts.
 
 ## History that is not its own list
 
@@ -646,7 +642,7 @@ Besides the unique indexes that enforce one username, one open outside outing, a
 
 ## Implementation note (dev)
 
-Self-onboard is specified here and in the HTTP contract. A future pending status is reserved for a later Hall Office activation workflow. Migration `0012_resident_block_rooms.sql` seeds door numbers 1 through each published count for blocks A, B, C, and D. Utility has no seeded rooms. `0013_outing_starts_at.sql` adds nullable `outings.starts_at`. `0014_outing_updated_audit.sql` records an outing change. `0015_resident_notifications.sql` keeps one row when a permission is approved or rejected. The next free migration number is `0016_…`. Leave this document's version at **0.3.4** until production.
+Self-onboard is specified here and in the HTTP contract. Migration `0012_resident_block_rooms.sql` seeds door numbers 1 through each published count for blocks A, B, C, and D. Utility has no seeded rooms. `0013_outing_starts_at.sql` adds nullable `outings.starts_at`. `0014_outing_updated_audit.sql` records an outing change. `0015_resident_notifications.sql` keeps one row when a permission is approved or rejected. The next free migration number is `0016_…`. Leave this document's version at **0.3.4** until production.
 
 ## Revisions
 
