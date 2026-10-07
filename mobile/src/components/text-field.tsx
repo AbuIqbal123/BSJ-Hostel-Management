@@ -39,7 +39,6 @@ type TextFieldProps = {
   textContentType?: "username" | "password";
   returnKeyType?: "next" | "go";
   submitBehavior?: "submit" | "blurAndSubmit";
-  autoFocus?: boolean;
   inputRef?: Ref<TextInput>;
   onSubmitEditing?: () => void;
   onFocus?: () => void;
@@ -63,7 +62,6 @@ export const TextField = memo(function TextField({
   textContentType,
   returnKeyType = "next",
   submitBehavior = "blurAndSubmit",
-  autoFocus = false,
   inputRef,
   onSubmitEditing,
   onFocus,
@@ -135,7 +133,6 @@ export const TextField = memo(function TextField({
           autoCorrect={false}
           spellCheck={false}
           autoComplete={autoComplete}
-          autoFocus={autoFocus}
           onFocus={showFocus}
           onBlur={hideFocus}
           textContentType={textContentType}

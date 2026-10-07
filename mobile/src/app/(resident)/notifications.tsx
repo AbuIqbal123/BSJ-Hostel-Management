@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { router, useFocusEffect, useNavigation } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -62,11 +62,9 @@ export default function NotificationsScreen() {
   const { loadNotifications, markNotificationsRead } = useSession();
   const [items, setItems] = useState<HallNotification[] | null>(null);
   const [failed, setFailed] = useState(false);
-  const marked = useRef(false);
 
   const load = useCallback(() => {
     let active = true;
-    marked.current = false;
     void loadNotifications().then(async (result) => {
       if (!active) {
         return;
@@ -78,10 +76,7 @@ export default function NotificationsScreen() {
       }
       setFailed(false);
       setItems(result.items);
-      if (!marked.current) {
-        marked.current = true;
-        await markNotificationsRead();
-      }
+      await markNotificationsRead();
     });
     return () => {
       active = false;

@@ -67,7 +67,6 @@ export type HallPass = {
   fullName: string;
   roomLabel: string;
   place: string | null;
-  startsAt: string | null;
   expectedReturnAt: string | null;
   qrVisible: boolean;
   qrPayload: string | null;
@@ -106,17 +105,11 @@ export type HallNotification = {
   departureAt: string;
   expectedReturnAt: string;
   decidedBy: string;
-  createdAt: string;
-  unread: boolean;
 };
 
 export type NotificationListResult =
   | { error: string; items?: undefined }
   | { error: null; items: HallNotification[] };
-
-export type MarkNotificationsReadResult =
-  | { error: string; marked?: undefined }
-  | { error: null; marked: number };
 
 export type GuestStayCard = {
   id: string;
@@ -273,7 +266,7 @@ type SessionValue = {
     to?: string | null;
   }) => Promise<HistoryResult>;
   loadNotifications: () => Promise<NotificationListResult>;
-  markNotificationsRead: () => Promise<MarkNotificationsReadResult>;
+  markNotificationsRead: () => Promise<void>;
   loadGuestStays: () => Promise<GuestListResult>;
   loadGuestStay: (guestStayId: string) => Promise<GuestResult>;
   submitGuestStay: (body: GuestStayCreate) => Promise<string | null>;
@@ -468,7 +461,6 @@ function readHallPass(value: unknown): HallPass | null {
     fullName: value.full_name,
     roomLabel: value.room_label,
     place: textOrNull(value.place),
-    startsAt: textOrNull(value.starts_at),
     expectedReturnAt: textOrNull(value.expected_return_at),
     qrVisible: value.qr_visible,
     qrPayload: value.qr_visible ? payload : null,
@@ -560,9 +552,7 @@ function readNotifications(value: unknown): HallNotification[] | null {
       typeof item.place !== "string" ||
       typeof item.departure_at !== "string" ||
       typeof item.expected_return_at !== "string" ||
-      typeof item.decided_by !== "string" ||
-      typeof item.created_at !== "string" ||
-      typeof item.unread !== "boolean"
+      typeof item.decided_by !== "string"
     ) {
       return null;
     }
@@ -575,8 +565,6 @@ function readNotifications(value: unknown): HallNotification[] | null {
       departureAt: item.departure_at,
       expectedReturnAt: item.expected_return_at,
       decidedBy: item.decided_by,
-      createdAt: item.created_at,
-      unread: item.unread,
     });
   }
   return items;
@@ -1049,26 +1037,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const markNotificationsRead = useCallback(async (): Promise<MarkNotificationsReadResult> => {
+  const markNotificationsRead = useCallback(async (): Promise<void> => {
     const current = sessionRef.current;
     if (!current) {
-      return { error: "Sign in again" };
+      return;
     }
     try {
-      const response = await hallFetch("/api/v1/me/notifications/read", {
+      await hallFetch("/api/v1/me/notifications/read", {
         method: "POST",
         headers: { Authorization: `Bearer ${current.accessToken}` },
       });
-      if (!response.ok) {
-        return { error: await errorMessage(response) };
-      }
-      const body: unknown = await response.json();
-      if (!isRecord(body) || typeof body.marked !== "number") {
-        return { error: "The hall could not be reached" };
-      }
-      return { error: null, marked: body.marked };
     } catch {
-      return { error: "The hall could not be reached" };
+      return;
     }
   }, []);
 
