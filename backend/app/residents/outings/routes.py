@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.shared import clock
 from app.shared.schemas import Destination, DestinationList
 from app.shared.auth.routes import AccountDep, ConnectionDep
+from app.shared.db import hall_settings
 from app.shared.errors import ApiError
 from app.residents.home.routes import ResidentDep
 from app.residents.outings.records import (
@@ -71,31 +72,6 @@ _WINDOW_MESSAGE = {
 }
 
 
-def _instant(value: str) -> datetime:
-    try:
-        moment = clock.parse_instant(value)
-    except ValueError:
-        raise ApiError(
-            422,
-            "validation_error",
-            "Use a UTC instant, such as 2026-09-30T13:00:00Z.",
-        ) from None
-    if clock.format_instant(moment) != value:
-        raise ApiError(
-            422,
-            "validation_error",
-            "Use a UTC instant, such as 2026-09-30T13:00:00Z.",
-        )
-    return moment
-
-
-def _settings(connection: sqlite3.Connection) -> sqlite3.Row:
-    row = connection.execute("SELECT * FROM hall_settings WHERE id = 'hall'").fetchone()
-    if row is None:
-        raise ApiError(422, "validation_error", "The hall settings are missing.")
-    return row
-
-
 def _destination(connection: sqlite3.Connection, destination_id: str) -> sqlite3.Row:
     row = connection.execute(
         """
@@ -113,8 +89,8 @@ def _destination(connection: sqlite3.Connection, destination_id: str) -> sqlite3
 def _require_ordinary_times(
     body: PlanOutingRequest, settings: sqlite3.Row, now_text: str
 ) -> tuple[datetime, datetime]:
-    moment = _instant(body.expected_return_at)
-    start = _instant(body.starts_at)
+    moment = clock.wire_instant(body.expected_return_at)
+    start = clock.wire_instant(body.starts_at)
     if body.expected_return_at <= now_text:
         raise ApiError(422, "validation_error", "The expected return must be in the future.")
     refusal = hours_refusal(moment, settings)
@@ -124,7 +100,7 @@ def _require_ordinary_times(
         raise ApiError(422, "validation_error", "The outing start must be in the future.")
     if body.starts_at >= body.expected_return_at:
         raise ApiError(422, "validation_error", "The expected return must be after the start.")
-    if clock.hall_local_date(settings["timezone"], start) != clock.hall_local_date(settings["timezone"], moment):
+    if clock.hall_local_date(start) != clock.hall_local_date(moment):
         raise ApiError(
             422,
             "validation_error",
@@ -194,11 +170,11 @@ def plan_outing(
 ) -> OutingBody:
     now = clock.utc_now()
     now_text = clock.format_instant(now)
-    settings = _settings(connection)
+    settings = hall_settings(connection)
     _start, moment = _require_ordinary_times(body, settings, now_text)
     destination_id, place = _remembered_place(connection, body)
     expire_passed_plans(connection, account.id, now_text)
-    day = clock.hall_local_date(settings["timezone"], moment)
+    day = clock.hall_local_date(moment)
     if ordinary_window_is_open(connection, account.id, now):
         connection.commit()
         raise ApiError(
@@ -261,7 +237,7 @@ def update_outing(
     connection.commit()
     outing = _own_outing(connection, outing_id, account.id)
     _refuse_unless_changeable(outing, now)
-    settings = _settings(connection)
+    settings = hall_settings(connection)
     _start, moment = _require_ordinary_times(body, settings, now_text)
     destination_id, place = _remembered_place(connection, body)
     if return_is_taken(
@@ -272,7 +248,7 @@ def update_outing(
     ):
         raise ApiError(409, "return_already_planned", "You already have an outing ending at that time.")
     grace_ends_at = clock.format_instant(moment + timedelta(minutes=int(settings["grace_minutes"])))
-    day = clock.hall_local_date(settings["timezone"], moment)
+    day = clock.hall_local_date(moment)
     changed = connection.execute(
         """
         UPDATE outings

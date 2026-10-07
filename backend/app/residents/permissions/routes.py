@@ -5,7 +5,6 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timedelta
 from typing import Annotated, Literal
-from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, ConfigDict, Field
@@ -59,26 +58,6 @@ PermissionCreate = Annotated[
 ]
 
 
-def _instant(value: str, *, field: str) -> datetime:
-    try:
-        moment = clock.parse_instant(value)
-    except ValueError:
-        raise ApiError(
-            422,
-            "validation_error",
-            "Use a UTC instant, such as 2026-09-30T13:00:00Z.",
-            field=field,
-        ) from None
-    if clock.format_instant(moment) != value:
-        raise ApiError(
-            422,
-            "validation_error",
-            "Use a UTC instant, such as 2026-09-30T13:00:00Z.",
-            field=field,
-        )
-    return moment
-
-
 def _required_text(value: str, *, field: str, label: str) -> str:
     text = value.strip()
     if not text:
@@ -94,16 +73,11 @@ def _optional_text(value: str | None) -> str | None:
 
 
 def _require_same_late_night(
-    connection: ConnectionDep,
     departure: datetime,
     expected_return: datetime,
 ) -> None:
-    row = connection.execute(
-        "SELECT timezone FROM hall_settings WHERE id = 'hall'"
-    ).fetchone()
-    zone = ZoneInfo(row["timezone"])
-    leave = departure.astimezone(zone)
-    back = expected_return.astimezone(zone)
+    leave = departure.astimezone(clock.HALL_ZONE)
+    back = expected_return.astimezone(clock.HALL_ZONE)
     if leave.date() == back.date():
         return
     next_day = leave.date() + timedelta(days=1)
@@ -130,12 +104,11 @@ class _PermissionFields(BaseModel):
 
 
 def _permission_fields(
-    connection: ConnectionDep,
     body: LateNightCreate | HomeGoingCreate,
     now: datetime,
 ) -> _PermissionFields:
-    departure = _instant(body.departure_at, field="departure_at")
-    expected_return = _instant(body.expected_return_at, field="expected_return_at")
+    departure = clock.wire_instant(body.departure_at, field="departure_at")
+    expected_return = clock.wire_instant(body.expected_return_at, field="expected_return_at")
     if departure < now - DEPARTURE_PAST_SKEW:
         raise ApiError(
             422,
@@ -150,7 +123,7 @@ def _permission_fields(
             "The expected return must be after the departure.",
         )
     if body.permission_type == "late_night":
-        _require_same_late_night(connection, departure, expected_return)
+        _require_same_late_night(departure, expected_return)
         destination_detail = _optional_text(body.destination_detail)
         address = None
         label = "late-night"
@@ -194,7 +167,7 @@ def submit_permission(
     connection: ConnectionDep,
 ) -> PermissionBody:
     now = clock.utc_now()
-    fields = _permission_fields(connection, body, now)
+    fields = _permission_fields(body, now)
     now_text = clock.format_instant(now)
     expire_passed_permissions(connection, now_text, resident_id=account.id)
     permission_id = str(uuid.uuid4())
@@ -262,7 +235,7 @@ def update_permission(
             field="permission_type",
         )
     now = clock.utc_now()
-    fields = _permission_fields(connection, body, now)
+    fields = _permission_fields(body, now)
     now_text = clock.format_instant(now)
     updated = connection.execute(
         """

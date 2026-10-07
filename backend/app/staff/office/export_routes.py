@@ -65,7 +65,7 @@ def _write_row(writer: csv.DictWriter, item: dict[str, str]) -> None:
 def build_register_csv(connection: sqlite3.Connection) -> str:
     now = clock.utc_now()
     now_text = clock.format_instant(now)
-    today = clock.hall_local_date(connection, now)
+    today = clock.hall_local_date(now)
     buffer = io.StringIO()
     writer = csv.DictWriter(buffer, fieldnames=CSV_HEADER, lineterminator="\n")
     writer.writeheader()

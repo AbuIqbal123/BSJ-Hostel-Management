@@ -5,7 +5,6 @@ from __future__ import annotations
 import sqlite3
 from datetime import datetime, timedelta
 from typing import Literal
-from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict
 
@@ -219,7 +218,7 @@ def load_current_outing(
     connection: sqlite3.Connection, resident_id: str, moment: datetime
 ) -> OutingBody | None:
     """The outing she is outside on, or the soonest plan for today."""
-    today = clock.hall_local_date(connection, moment)
+    today = clock.hall_local_date(moment)
     row = connection.execute(
         OUTING_SELECT
         + """
@@ -355,7 +354,7 @@ def hours_refusal(moment: datetime, settings: sqlite3.Row) -> str | None:
     The start is not included. The end is included. A later return needs a
     permission. An earlier return is outside ordinary hours.
     """
-    local = moment.astimezone(ZoneInfo(settings["timezone"]))
+    local = moment.astimezone(clock.HALL_ZONE)
     month_day = local.strftime("%m-%d")
     summer_start = settings["summer_season_start"]
     winter_start = settings["winter_season_start"]

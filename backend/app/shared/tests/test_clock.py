@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import sqlite3
 from datetime import datetime, timezone
 
 import pytest
 
 from app.shared import clock
+from app.shared.errors import ApiError
 
 
 def test_parse_instant_utc() -> None:
@@ -21,20 +21,21 @@ def test_parse_instant_rejects_bad_value() -> None:
         clock.parse_instant("2026-09-30T13:00:00+00:00")
 
 
-def test_hall_local_date_from_timezone_name() -> None:
+def test_wire_instant_refuses_other_forms() -> None:
+    assert clock.wire_instant("2026-09-30T13:00:00Z") == datetime(
+        2026, 9, 30, 13, 0, tzinfo=timezone.utc
+    )
+    for value in ("2026-09-30T13:00:00+00:00", "2026-9-30T13:00:00Z"):
+        with pytest.raises(ApiError) as refused:
+            clock.wire_instant(value, field="departure_at")
+        assert refused.value.status_code == 422
+        assert refused.value.message == "Use a UTC instant, such as 2026-09-30T13:00:00Z."
+        assert refused.value.field == "departure_at"
+
+
+def test_hall_local_date_and_time() -> None:
     # Asia/Kolkata is UTC+5:30, so 18:30Z is midnight local.
     moment = clock.parse_instant("2026-09-30T18:30:00Z")
-    assert clock.hall_local_date("Asia/Kolkata", moment) == "2026-10-01"
-
-
-def test_hall_local_date_from_connection() -> None:
-    connection = sqlite3.connect(":memory:")
-    connection.row_factory = sqlite3.Row
-    connection.execute(
-        "CREATE TABLE hall_settings (id TEXT PRIMARY KEY, timezone TEXT NOT NULL)"
-    )
-    connection.execute(
-        "INSERT INTO hall_settings (id, timezone) VALUES ('hall', 'Asia/Kolkata')"
-    )
-    moment = clock.parse_instant("2026-09-30T18:30:00Z")
-    assert clock.hall_local_date(connection, moment) == "2026-10-01"
+    assert clock.hall_local_date(moment) == "2026-10-01"
+    assert clock.hall_time_12("2026-09-30T18:30:00Z") == "12:00 AM"
+    assert clock.hall_time_12("2026-09-30T13:00:00Z") == "6:30 PM"

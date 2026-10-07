@@ -5,7 +5,6 @@ from __future__ import annotations
 import sqlite3
 from datetime import date, datetime
 from typing import Annotated, Literal
-from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict
@@ -180,37 +179,29 @@ def resident_home(account: ResidentDep, connection: ConnectionDep) -> ResidentHo
     )
 
 
-def _hall_zone(connection: sqlite3.Connection) -> ZoneInfo:
-    row = connection.execute(
-        "SELECT timezone FROM hall_settings WHERE id = 'hall'"
-    ).fetchone()
-    assert row is not None
-    return ZoneInfo(row["timezone"])
+def _hall_day(instant: str) -> date:
+    return clock.parse_instant(instant).astimezone(clock.HALL_ZONE).date()
 
 
-def _hall_day(instant: str, zone: ZoneInfo) -> date:
-    return clock.parse_instant(instant).astimezone(zone).date()
-
-
-def _hall_instant(day: str, zone: ZoneInfo, *, end: bool) -> str:
+def _hall_instant(day: str, *, end: bool) -> str:
     year, month, day_number = (int(part) for part in day.split("-"))
     if end:
-        local = datetime(year, month, day_number, 23, 59, 59, tzinfo=zone)
+        local = datetime(year, month, day_number, 23, 59, 59, tzinfo=clock.HALL_ZONE)
     else:
-        local = datetime(year, month, day_number, 0, 0, 0, tzinfo=zone)
+        local = datetime(year, month, day_number, 0, 0, 0, tzinfo=clock.HALL_ZONE)
     return clock.format_instant(local)
 
 
-def _hall_span(started_at: str, ended_at: str, zone: ZoneInfo) -> tuple[date, date]:
-    start = _hall_day(started_at, zone)
-    end = _hall_day(ended_at, zone)
+def _hall_span(started_at: str, ended_at: str) -> tuple[date, date]:
+    start = _hall_day(started_at)
+    end = _hall_day(ended_at)
     if end < start:
         return end, start
     return start, end
 
 
-def _covers_hall_day(started_at: str, ended_at: str, on: date, zone: ZoneInfo) -> bool:
-    start, end = _hall_span(started_at, ended_at, zone)
+def _covers_hall_day(started_at: str, ended_at: str, on: date) -> bool:
+    start, end = _hall_span(started_at, ended_at)
     return start <= on <= end
 
 
@@ -219,11 +210,10 @@ def _overlaps_range(
     ended_at: str,
     first: date | None,
     last: date | None,
-    zone: ZoneInfo,
 ) -> bool:
     if first is None and last is None:
         return True
-    start, end = _hall_span(started_at, ended_at, zone)
+    start, end = _hall_span(started_at, ended_at)
     if first is not None and end < first:
         return False
     if last is not None and start > last:
@@ -237,7 +227,6 @@ def _history_items(
     *,
     now_text: str,
     today: str,
-    zone: ZoneInfo,
 ) -> list[HistoryItem]:
     items: list[HistoryItem] = []
     outings = connection.execute(
@@ -376,8 +365,8 @@ def _history_items(
                 kind="guest_stay",
                 place=None,
                 who=row["guest_name"],
-                started_at=_hall_instant(row["guest_start_date"], zone, end=False),
-                ended_at=_hall_instant(row["guest_end_date"], zone, end=True),
+                started_at=_hall_instant(row["guest_start_date"], end=False),
+                ended_at=_hall_instant(row["guest_end_date"], end=True),
                 exit_recorded_by=None,
                 return_recorded_by=None,
                 unused=row["status"] != "departed",
@@ -397,14 +386,12 @@ def resident_history(
     to_day: Annotated[date | None, Query(alias="to")] = None,
 ) -> HistoryList:
     now = clock.utc_now()
-    zone = _hall_zone(connection)
-    today = now.astimezone(zone).date().isoformat()
+    today = clock.hall_local_date(now)
     items = _history_items(
         connection,
         account.id,
         now_text=clock.format_instant(now),
         today=today,
-        zone=zone,
     )
     if kind is not None and kind != "all":
         items = [item for item in items if item.kind == kind]
@@ -412,13 +399,13 @@ def resident_history(
         items = [
             item
             for item in items
-            if _covers_hall_day(item.started_at, item.ended_at, on, zone)
+            if _covers_hall_day(item.started_at, item.ended_at, on)
         ]
     if from_day is not None or to_day is not None:
         items = [
             item
             for item in items
-            if _overlaps_range(item.started_at, item.ended_at, from_day, to_day, zone)
+            if _overlaps_range(item.started_at, item.ended_at, from_day, to_day)
         ]
     return HistoryList(items=items)
 

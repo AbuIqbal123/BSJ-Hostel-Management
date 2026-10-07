@@ -1,4 +1,4 @@
-"""Guest stay rows shared by the resident phone and later staff/gate routes."""
+"""Guest stay rows shared by the resident phone and the staff and gate routes."""
 
 from __future__ import annotations
 
@@ -100,7 +100,6 @@ def derive_bucket(
         return "cancelled"
     if status == "departed" or departed_at is not None:
         return "departed"
-    # approved
     if arrived_at is None:
         if today < start_date:
             return "upcoming"
@@ -378,17 +377,6 @@ def record_guest_stay(
         connection, occurred_at, actor_user_id, action, "guest_stay", guest_stay_id, summary
     )
     connection.commit()
-
-
-def guest_settings(connection: sqlite3.Connection) -> sqlite3.Row:
-    row = connection.execute(
-        """
-        SELECT guest_min_lead_days, guest_max_inclusive_days, timezone
-        FROM hall_settings WHERE id = 'hall'
-        """
-    ).fetchone()
-    assert row is not None
-    return row
 
 
 def earliest_start_date(today: str, lead_days: int) -> str:

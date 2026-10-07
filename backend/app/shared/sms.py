@@ -4,19 +4,15 @@ from __future__ import annotations
 
 import sqlite3
 import uuid
-from zoneinfo import ZoneInfo
 
 from app.shared import clock
 from app.shared.audit import record_audit
 from app.shared.config import get_settings
 
 
-def format_local_stamp(instant_utc: str, timezone_name: str) -> str:
-    moment = clock.parse_instant(instant_utc)
-    local = moment.astimezone(ZoneInfo(timezone_name))
-    hour = local.hour % 12 or 12
-    suffix = "AM" if local.hour < 12 else "PM"
-    return f"{local.day} {local.strftime('%B %Y')}, {hour}:{local.minute:02d} {suffix}"
+def format_local_stamp(instant_utc: str) -> str:
+    local = clock.parse_instant(instant_utc).astimezone(clock.HALL_ZONE)
+    return f"{local.day} {local.strftime('%B %Y')}, {clock.hall_time_12(instant_utc)}"
 
 
 def fill_template(template: str, values: dict[str, str]) -> str:
@@ -92,8 +88,7 @@ def consider_late_notices(connection: sqlite3.Connection, now_text: str) -> int:
           rooms.label AS room,
           residents.guardian_phone,
           hall_settings.hall_name,
-          hall_settings.late_sms_template,
-          hall_settings.timezone
+          hall_settings.late_sms_template
         FROM outings
         JOIN residents ON residents.user_id = outings.resident_id
         JOIN users ON users.id = outings.resident_id
@@ -110,7 +105,7 @@ def consider_late_notices(connection: sqlite3.Connection, now_text: str) -> int:
     ).fetchall()
     sent = 0
     for row in rows:
-        local_expected = format_local_stamp(row["expected_return_at"], row["timezone"])
+        local_expected = format_local_stamp(row["expected_return_at"])
         body = fill_template(
             row["late_sms_template"],
             {
@@ -169,8 +164,7 @@ def send_return_notice_if_due(
           rooms.label AS room,
           residents.guardian_phone,
           hall_settings.hall_name,
-          hall_settings.return_sms_template,
-          hall_settings.timezone
+          hall_settings.return_sms_template
         FROM outings
         JOIN residents ON residents.user_id = outings.resident_id
         JOIN users ON users.id = outings.resident_id
@@ -187,7 +181,7 @@ def send_return_notice_if_due(
         {
             "resident_name": row["resident_name"],
             "room": row["room"],
-            "returned_at_local": format_local_stamp(now_text, row["timezone"]),
+            "returned_at_local": format_local_stamp(now_text),
             "hall_name": row["hall_name"],
         },
     )
