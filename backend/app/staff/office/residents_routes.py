@@ -117,9 +117,9 @@ def admin_create_resident(
         )
     except sqlite3.IntegrityError as exc:
         message = str(exc).lower()
-        if "users_username" in message or "residents_enrolment" in message or "unique" in message:
+        if "unique" in message:
             raise ApiError(409, "duplicate_username", _DUPLICATE) from exc
-        if "beds" in message or "residents as it has beds" in message:
+        if "beds" in message:
             raise ApiError(422, "validation_error", _ROOM_FULL) from exc
         raise
 
@@ -257,9 +257,9 @@ def admin_update_resident(
             )
     except sqlite3.IntegrityError as exc:
         message = str(exc).lower()
-        if "users_username" in message or "residents_enrolment" in message or "unique" in message:
+        if "unique" in message:
             raise ApiError(409, "duplicate_username", _DUPLICATE) from exc
-        if "beds" in message or "residents as it has beds" in message:
+        if "beds" in message:
             raise ApiError(422, "validation_error", _ROOM_FULL) from exc
         raise
 

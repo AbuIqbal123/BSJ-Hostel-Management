@@ -10,24 +10,8 @@ from pathlib import Path
 
 from app.shared.db import create_connection
 
-SCHEMA_VERSION = 15
-MIGRATIONS = (
-    Path(__file__).resolve().parent / "migrations" / "0001_create_hall.sql",
-    Path(__file__).resolve().parent / "migrations" / "0002_outing_days.sql",
-    Path(__file__).resolve().parent / "migrations" / "0003_outing_returns.sql",
-    Path(__file__).resolve().parent / "migrations" / "0004_query_indexes.sql",
-    Path(__file__).resolve().parent / "migrations" / "0005_late_sms_hall_name.sql",
-    Path(__file__).resolve().parent / "migrations" / "0006_guest_stay_date_columns.sql",
-    Path(__file__).resolve().parent / "migrations" / "0007_guest_stay_pending_after_arrival.sql",
-    Path(__file__).resolve().parent / "migrations" / "0008_guest_stay_payment_note.sql",
-    Path(__file__).resolve().parent / "migrations" / "0009_settings_outing_lead_rename.sql",
-    Path(__file__).resolve().parent / "migrations" / "0010_resident_phone.sql",
-    Path(__file__).resolve().parent / "migrations" / "0011_guest_stay_payment_evidence.sql",
-    Path(__file__).resolve().parent / "migrations" / "0012_resident_block_rooms.sql",
-    Path(__file__).resolve().parent / "migrations" / "0013_outing_starts_at.sql",
-    Path(__file__).resolve().parent / "migrations" / "0014_outing_updated_audit.sql",
-    Path(__file__).resolve().parent / "migrations" / "0015_resident_notifications.sql",
-)
+MIGRATIONS = tuple(sorted((Path(__file__).resolve().parent / "migrations").glob("*.sql")))
+SCHEMA_VERSION = len(MIGRATIONS)
 
 
 def migrate() -> None:
