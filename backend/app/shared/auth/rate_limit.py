@@ -7,7 +7,6 @@ import time
 
 from app.shared.errors import ApiError
 
-# Defaults stay modest for a single-process local API.
 LOGIN_LIMIT = 30
 REFRESH_LIMIT = 60
 WINDOW_SECONDS = 60

@@ -31,7 +31,7 @@ Swagger serves the same HTTP contract at http://localhost:8000/docs from `backen
 | `reference/` | The original proposal, demo, and prototype. Not the application |
 | `AGENTS.md` | Engineering rules for changes in this repo |
 
-Docker is not part of local development. Hosting is written in code when that work starts.
+Local development runs the API at http://localhost:8000, without Docker. Release phone builds use the hall API at https://bsj-hostel-api.onrender.com (`mobile/eas.json`).
 
 Secret scanning for commits is documented in [`docs/engineering/dev-pre-commit.md`](docs/engineering/dev-pre-commit.md) (free Gitleaks via pre-commit; no API key).
 
@@ -76,7 +76,7 @@ From `backend/`, run the checks with `.venv/bin/pytest`. A push to `dev`, and a 
 
 ## What is deliberately not here
 
-- Docker, Nginx, and the VPS
+- Docker and Nginx
 - Live parent SMS provider (development stays on the mock driver; late/return notices are recorded only)
 - Emergency alerts (the proposal leaves those out of the first version)
 - A payment gateway (the hall office marks a guest stay paid or unpaid)

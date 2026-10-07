@@ -446,7 +446,7 @@ Design and QA principle for Expo screens **before** shipping. Try to break what 
 - **Presence ≠ login.** Home shows hall presence from records, not “online.”
 - **Ordinary outing** needs destination + expected return before exit scan; no warden approval.
 - **Grace** copy should mention parent notify when still outside after grace. Do not invent SMS timing beyond settings.
-- **Actions that can be true together.** Plan another outing, show the hall pass, and read an outside outing or a waiting permission can all be on screen. Do not hide planning because a plan or an outside outing already exists. Block a second outside outing, and a second open outing that ends at the same time.
+- **Actions that can be true together.** Plan another outing, show the hall pass, and read an outside outing or a waiting permission can all be on screen. Block a second outside outing, and a second open outing that ends at the same time.
 
 ---
 
