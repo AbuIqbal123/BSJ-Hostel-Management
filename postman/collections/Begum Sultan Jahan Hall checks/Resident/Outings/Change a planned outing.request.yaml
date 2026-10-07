@@ -3,7 +3,7 @@ method: PATCH
 url: '{{baseUrl}}/api/v1/me/outings/{{outingId}}'
 order: 3500
 description: |-
-  Caller: resident. Changes the plan in `outingId`. The body is the same as planning: destination, start, and expected return. Allowed only while that outing is still planned and its hall-pass window is not open. Once the window is open, this call says she cannot change this outing while its window is open. If she is already outside on this outing, this call says she is already outside. Another plan ending at the new return says she already has an outing ending at that time. Grace is recalculated from the new expected return. Bearer uses {{token_resident}}.
+  Caller: resident. Changes the plan in `outingId`. The body is the same as planning: destination, start, and expected return. Allowed only while that outing is still planned and its hall-pass window is not open. Once the window is open, this call says she cannot change this outing while its window is open. If she is already outside on this outing, this call says she is already outside. Another plan ending at the new return says she already has an outing ending at that time. Grace is recalculated from the new expected return.
 headers:
   - key: Content-Type
     value: application/json
@@ -20,26 +20,9 @@ scripts:
     language: text/javascript
     code: |-
       const now = new Date();
-      const slots = [6 * 60 + 30, 11 * 60 + 30];
-      let target = null;
-      for (let day = 1; day < 14 && target === null; day += 1) {
-          const base = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + day);
-          for (let slot = 0; slot < slots.length; slot += 1) {
-              const candidate = new Date(base + slots[slot] * 60 * 1000);
-              target = candidate.toISOString().replace(".000Z", "Z");
-              break;
-          }
-      }
-      if (target === null) {
-          throw new Error("No ordinary return in the next two weeks.");
-      }
-      const targetAt = new Date(target);
-      let start = new Date(targetAt.getTime() - 2 * 60 * 60 * 1000);
-      if (start.getTime() <= now.getTime()) {
-          start = new Date(now.getTime() + 60 * 1000);
-      }
+      const returnAt = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 6, 30);
       const payload = JSON.parse(pm.request.body.raw);
-      payload.starts_at = start.toISOString().replace(".000Z", "Z");
-      payload.expected_return_at = target;
+      payload.starts_at = new Date(returnAt - 2 * 60 * 60 * 1000).toISOString().replace(".000Z", "Z");
+      payload.expected_return_at = new Date(returnAt).toISOString().replace(".000Z", "Z");
       pm.request.body.raw = JSON.stringify(payload, null, 2);
 

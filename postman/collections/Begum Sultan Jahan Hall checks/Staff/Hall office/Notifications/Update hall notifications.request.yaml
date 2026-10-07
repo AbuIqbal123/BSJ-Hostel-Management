@@ -3,7 +3,7 @@ method: PATCH
 url: '{{baseUrl}}/api/v1/admin/notifications'
 order: 2000
 description: |-
-  Caller: provost. Send only the fields that change. This sample sends the published late template, so Press Send leaves the hall message as it is when that text is already stored. Bearer uses {{token_provost}}.
+  Caller: provost. Send only the fields that change. This sample sends the published late template, so Press Send leaves the hall message as it is when that text is already stored.
 headers:
   - key: Content-Type
     value: application/json

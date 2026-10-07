@@ -3,7 +3,7 @@ method: POST
 url: '{{baseUrl}}/api/v1/me/guest-stays'
 order: 2000
 description: |-
-  Caller: resident. Start date must be at least `guest_min_lead_days` after today in Asia/Kolkata (by default, tomorrow or later). Inclusive days from start through end must be within `guest_max_inclusive_days` (by default, 7). Send sets the start to two hall days ahead and the end three days after that, four inclusive days. Payment is not taken here. The new guest stay id is saved for review, payment, arrival, and cancel. Bearer uses {{token_resident}}.
+  Caller: resident. Start date must be at least `guest_min_lead_days` after today in Asia/Kolkata (by default, tomorrow or later). Inclusive days from start through end must be within `guest_max_inclusive_days` (by default, 7). Send sets the start to two hall days ahead and the end three days after that, four inclusive days. Payment is not taken here. The new guest stay id is saved for review, payment, arrival, and cancel.
 headers:
   - key: Content-Type
     value: application/json

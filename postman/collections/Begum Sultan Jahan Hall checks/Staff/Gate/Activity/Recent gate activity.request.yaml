@@ -15,5 +15,4 @@ description: |-
   Resident exit/return: `resident_name` and `room_label` are set;
   `guest_name`, `host_name`, and `host_room_label` are null. Guest
   arrival/departure: `guest_name`, `host_name`, and `host_room_label` are
-  set; `resident_name` and `room_label` are null. `title` and `subtitle`
-  are gone.
+  set; `resident_name` and `room_label` are null.
