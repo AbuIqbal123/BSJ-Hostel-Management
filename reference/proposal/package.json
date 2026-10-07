@@ -2,7 +2,6 @@
   "name": "proposal",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
   "scripts": {
     "build": "node presentation.js"
   },
@@ -11,8 +10,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "pptxgenjs": "^4.0.1",
-    "sharp": "^0.35.4"
+    "pptxgenjs": "^4.0.1"
   },
   "devDependencies": {
     "playwright": "^1.63.0"
