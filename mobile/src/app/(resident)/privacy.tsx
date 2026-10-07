@@ -56,7 +56,9 @@ export default function PrivacyScreen() {
         <Text style={[text.button, { color: colors.ink }]}>What stays on this phone</Text>
         <Text style={[text.body, styles.paragraph, { color: colors.ink }]}>
           This phone keeps your sign-in until you sign out. Signing out ends that session. You can
-          change your password from Settings.
+          change your password from Settings, and you can delete your account there. Deleting it
+          removes your name, phone, and hall pass. The hall keeps the record of outings it already
+          has, without your name.
         </Text>
       </View>
       <View style={styles.section}>

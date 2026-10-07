@@ -104,6 +104,12 @@ export default function SettingsScreen() {
           onPress={() => router.push("/privacy")}
         />
         <Row
+          label="Delete account"
+          color={colors.danger}
+          chevron
+          onPress={() => router.push("/delete-account")}
+        />
+        <Row
           label="Sign out"
           color={colors.danger}
           onPress={() => {

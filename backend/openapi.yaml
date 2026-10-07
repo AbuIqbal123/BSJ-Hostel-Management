@@ -45,10 +45,8 @@ info:
 servers:
   - url: http://localhost:8000
     description: Local development
-  - url: https://api-dev.domain.com
-    description: Development environment, mock SMS only
-  - url: https://api.domain.com
-    description: Production
+  - url: https://bsj-hostel-api.onrender.com
+    description: Hall API used by release phone builds
 
 tags:
   - name: Operations
@@ -576,6 +574,49 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /api/v1/me/account/delete:
+    post:
+      tags: [Resident]
+      operationId: delete_own_account
+      summary: Delete own account
+      description: |
+        Caller: resident. She confirms with her current password. The hall
+        revokes her sessions, cancels planned outings and permissions and
+        guest stays that have not arrived, frees her room, and removes the
+        name, phone, guardian, enrolment, and hall pass from the account.
+        Sign-in with the old enrolment then fails. History the hall must keep
+        stays, without her name. Refused while she is outside or a guest of
+        hers is still in the hall.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteAccountRequest"
+      responses:
+        "204":
+          description: The account can no longer sign in. No body.
+        "401":
+          description: |
+            Wrong password, or no token. Wrong password says the current
+            password is wrong. No token says to sign in again.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: |
+            `account_in_use` says to return to the hall first, or that a guest
+            is still in the hall.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+
   /api/v1/me/history:
     get:
       tags: [Resident]
@@ -627,7 +668,7 @@ paths:
           schema:
             type: string
             enum: [all, late_night, home_going, guest_stay, outing]
-        - name: on
+        - name: "on"
           in: query
           required: false
           description: |
@@ -891,7 +932,9 @@ paths:
         "409":
           description: |
             `outing_window_open` says she cannot change this outing while its
-            window is open. `already_outside` says she is already outside.
+            window is open, or that she cannot start another outing while one
+            is inside its window when the new start would open a second show
+            window. `already_outside` says she is already outside.
             `no_outing_planned` says there is no planned outing.
             `return_already_planned` says she already has an outing ending at
             that time. `outside_ordinary_hours` and `permission_required` are
@@ -3085,7 +3128,7 @@ components:
             `permission_not_yet_valid`,
             `duplicate_scan`, `resident_suspended`, `unknown_hall_pass`,
             `not_pending`, `permission_in_use`, `not_cancellable`, `not_editable`, `guest_not_expected`, `guest_not_in_hall`,
-            `payment_required`, `payment_locked`.
+            `payment_required`, `payment_locked`, `account_in_use`.
         message:
           type: string
           description: Sentence the phone can show. Not a stack trace.
@@ -3126,6 +3169,17 @@ components:
       properties:
         refresh_token:
           type: string
+
+    DeleteAccountRequest:
+      type: object
+      additionalProperties: false
+      required: [password]
+      properties:
+        password:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Her current password, sent once to confirm the deletion.
 
     ChangePasswordRequest:
       type: object

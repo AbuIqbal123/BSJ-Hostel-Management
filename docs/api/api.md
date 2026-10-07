@@ -29,6 +29,7 @@ Do not edit this page by hand.
   - [GET `/api/v1/me/notifications` — Own permission decisions, newest first](#get-api-v1-me-notifications)
   - [POST `/api/v1/me/notifications/read` — Mark her unread permission decisions read](#post-api-v1-me-notifications-read)
   - [GET `/api/v1/me/hall-pass` — Hall pass for the outing in its window](#get-api-v1-me-hall-pass)
+  - [POST `/api/v1/me/account/delete` — Delete own account](#post-api-v1-me-account-delete)
   - [GET `/api/v1/me/history` — Own history](#get-api-v1-me-history)
   - [GET `/api/v1/destinations` — Ordinary outing destinations](#get-api-v1-destinations)
   - [GET `/api/v1/me/outings` — Ordinary outing plans](#get-api-v1-me-outings)
@@ -141,8 +142,7 @@ repeat the column list. The reading copy of this contract is `docs/api/api.md`.
 | Server | Use |
 |---|---|
 | `http://localhost:8000` | Local development |
-| `https://api-dev.domain.com` | Development environment, mock SMS only |
-| `https://api.domain.com` | Production |
+| `https://bsj-hostel-api.onrender.com` | Hall API used by release phone builds |
 
 JSON names are snake_case. Send `Authorization: Bearer` plus the access token, except where an operation says no token.
 
@@ -728,6 +728,7 @@ The resident phone. Ordinary outings, home, destinations, and the hall pass.
 | GET | `/api/v1/me/notifications` | [Own permission decisions, newest first](#get-api-v1-me-notifications) | resident |
 | POST | `/api/v1/me/notifications/read` | [Mark her unread permission decisions read](#post-api-v1-me-notifications-read) | resident |
 | GET | `/api/v1/me/hall-pass` | [Hall pass for the outing in its window](#get-api-v1-me-hall-pass) | resident |
+| POST | `/api/v1/me/account/delete` | [Delete own account](#post-api-v1-me-account-delete) | resident |
 | GET | `/api/v1/me/history` | [Own history](#get-api-v1-me-history) | resident |
 | GET | `/api/v1/destinations` | [Ordinary outing destinations](#get-api-v1-destinations) | Signed-in account |
 | GET | `/api/v1/me/outings` | [Ordinary outing plans](#get-api-v1-me-outings) | resident |
@@ -996,6 +997,63 @@ The signed-in role cannot call this operation.
 Body: [ErrorResponse](#schema-errorresponse).
 
 
+### <a id="post-api-v1-me-account-delete"></a>POST `/api/v1/me/account/delete` — Delete own account
+
+`delete_own_account`
+
+**Who.** resident. Bearer access token.
+
+Caller: resident. She confirms with her current password. The hall
+revokes her sessions, cancels planned outings and permissions and
+guest stays that have not arrived, frees her room, and removes the
+name, phone, guardian, enrolment, and hall pass from the account.
+Sign-in with the old enrolment then fails. History the hall must keep
+stays, without her name. Refused while she is outside or a guest of
+hers is still in the hall.
+
+**Request.** Required.
+
+Body: [DeleteAccountRequest](#schema-deleteaccountrequest).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `password` | yes | string | Her current password, sent once to confirm the deletion. 1–200 characters. |
+
+**Responses**
+
+#### 204
+
+The account can no longer sign in. No body.
+
+No body.
+
+#### 401
+
+Wrong password, or no token. Wrong password says the current
+password is wrong. No token says to sign in again.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 409
+
+`account_in_use` says to return to the hall first, or that a guest
+is still in the hall.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 422
+
+The JSON is the wrong shape, or a field fails a constraint that does not depend on existing rows.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
 ### <a id="get-api-v1-me-history"></a>GET `/api/v1/me/history` — Own history
 
 `resident_history`
@@ -1043,7 +1101,7 @@ field.
 | Name | In | Required | Type | Notes |
 |---|---|---|---|---|
 | `kind` | query | no | `all` or `late_night` or `home_going` or `guest_stay` or `outing` | Omit or `all` for every kind. Otherwise exactly one of `late_night`, `home_going`, `guest_stay`, or `outing`. |
-| `True` | query | no | date | One calendar date in Asia/Kolkata, `YYYY-MM-DD`. Omit when she has not chosen a day. A row matches when that hall date is the calendar day of `started_at`, of `ended_at`, or a day between them (inclusive). |
+| `on` | query | no | date | One calendar date in Asia/Kolkata, `YYYY-MM-DD`. Omit when she has not chosen a day. A row matches when that hall date is the calendar day of `started_at`, of `ended_at`, or a day between them (inclusive). |
 | `from` | query | no | date | First calendar date in Asia/Kolkata, `YYYY-MM-DD`. A row matches when its hall days overlap the range from this date through `to`. Omit for no lower bound. |
 | `to` | query | no | date | Last calendar date in Asia/Kolkata, `YYYY-MM-DD`. A row matches when its hall days overlap the range through this date. Omit for no upper bound. |
 
@@ -1457,7 +1515,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 #### 409
 
 `outing_window_open` says she cannot change this outing while its
-window is open. `already_outside` says she is already outside.
+window is open, or that she cannot start another outing while one
+is inside its window when the new start would open a second show
+window. `already_outside` says she is already outside.
 `no_outing_planned` says there is no planned outing.
 `return_already_planned` says she already has an outing ending at
 that time. `outside_ordinary_hours` and `permission_required` are
@@ -5344,7 +5404,7 @@ Each JSON object used above. An operation section already shows the fields for i
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `code` | yes | string | Stable machine code. Known codes: `unauthenticated`, `rate_limited`, `not_ready`, `forbidden`, `not_found`, `validation_error`, `duplicate_username`, `duplicate_block`, `duplicate_room`, `duplicate_destination`, `room_in_use`, `room_inactive`, `other_exists`, `already_outside`, `return_already_planned`, `open_outing_exists`, `outside_ordinary_hours`, `permission_required`, `no_outing_planned`, `permission_not_yet_valid`, `duplicate_scan`, `resident_suspended`, `unknown_hall_pass`, `not_pending`, `permission_in_use`, `not_cancellable`, `not_editable`, `guest_not_expected`, `guest_not_in_hall`, `payment_required`, `payment_locked`. |
+| `code` | yes | string | Stable machine code. Known codes: `unauthenticated`, `rate_limited`, `not_ready`, `forbidden`, `not_found`, `validation_error`, `duplicate_username`, `duplicate_block`, `duplicate_room`, `duplicate_destination`, `room_in_use`, `room_inactive`, `other_exists`, `already_outside`, `return_already_planned`, `open_outing_exists`, `outside_ordinary_hours`, `permission_required`, `no_outing_planned`, `permission_not_yet_valid`, `duplicate_scan`, `resident_suspended`, `unknown_hall_pass`, `not_pending`, `permission_in_use`, `not_cancellable`, `not_editable`, `guest_not_expected`, `guest_not_in_hall`, `payment_required`, `payment_locked`, `account_in_use`. |
 | `message` | yes | string | Sentence the phone can show. Not a stack trace. |
 | `details` | no | object |  |
 
@@ -5368,6 +5428,12 @@ Each JSON object used above. An operation section already shows the fields for i
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `refresh_token` | yes | string |  |
+
+### <a id="schema-deleteaccountrequest"></a>DeleteAccountRequest
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `password` | yes | string | Her current password, sent once to confirm the deletion. 1–200 characters. |
 
 ### <a id="schema-changepasswordrequest"></a>ChangePasswordRequest
 

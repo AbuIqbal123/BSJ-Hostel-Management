@@ -207,6 +207,40 @@ def read_auth_state(path: Path) -> dict:
         connection.close()
 
 
+def test_logout_does_not_succeed_when_the_commit_fails(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.main import app
+
+    with TestClient(app) as client:
+        issue_accounts(database_path)
+        signed = client.post(
+            "/api/v1/auth/login",
+            json=_login_body("gate.fatima", GATE_PHRASE),
+        )
+        assert signed.status_code == 200
+        token = signed.json()["access_token"]
+
+        def fail_commit(scope: object) -> None:
+            raise sqlite3.OperationalError("disk I/O error")
+
+        monkeypatch.setattr("app.main.commit_request", fail_commit)
+        try:
+            response = client.post("/api/v1/auth/logout", headers=bearer(token))
+        finally:
+            monkeypatch.undo()
+        assert response.status_code == 500
+        connection = sqlite3.connect(database_path)
+        try:
+            connection.row_factory = sqlite3.Row
+            live = connection.execute(
+                "SELECT COUNT(*) AS n FROM sessions WHERE revoked_at IS NULL"
+            ).fetchone()["n"]
+        finally:
+            connection.close()
+        assert live == 1
+
+
 def test_auth_session(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     expected = json.loads(ARTIFACT.read_text(encoding="utf-8"))
     from app.shared import clock

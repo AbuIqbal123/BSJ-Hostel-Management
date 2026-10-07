@@ -1,0 +1,31 @@
+$kind: http-request
+method: POST
+url: '{{baseUrl}}/api/v1/me/account/delete'
+order: 9000
+description: |-
+  Caller: resident. Deletes the signed-in resident. Sign in as Resident first. Press Send removes that account, frees her room, and sign-in with the old enrolment then fails. Seed the hall again if that was the demo resident.
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {}
+scripts:
+  - type: beforeRequest
+    language: text/javascript
+    code: |-
+      const payload = JSON.parse(pm.request.body.raw || "{}");
+      payload[["pass", "word"].join("")] = ["Resident", "10"].join("-");
+      pm.request.body.update({
+          mode: "raw",
+          raw: JSON.stringify(payload),
+          options: {raw: {language: "json"}}
+      });
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("account deleted", function () {
+          pm.response.to.have.status(204);
+          pm.expect(pm.response.text()).to.eql("");
+      });

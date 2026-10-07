@@ -3,12 +3,19 @@
 Each connection uses WAL, a busy timeout, and foreign keys. The hall
 records are created by app.shared.migrate when the service starts. Callers open
 a short transaction and close it.
+
+The success response is sent only after this transaction commits. FastAPI runs
+the code after `yield` once the response has already started, so a failed
+commit there cannot change the status line.
 """
 
 from __future__ import annotations
 
 import sqlite3
 from collections.abc import Iterator
+from typing import Any
+
+from fastapi import Request
 
 from app.shared.config import get_settings
 
@@ -29,15 +36,25 @@ def create_connection() -> sqlite3.Connection:
     return connection
 
 
-def get_connection() -> Iterator[sqlite3.Connection]:
+def commit_request(scope: dict[str, Any]) -> None:
+    """Commit the open request transaction before the status line is sent."""
+    state = scope.get("state")
+    connection = state.get("hall_connection") if isinstance(state, dict) else None
+    if connection is not None:
+        connection.commit()
+
+
+def get_connection(request: Request) -> Iterator[sqlite3.Connection]:
     connection = create_connection()
+    request.state.hall_connection = connection
     try:
         yield connection
-        connection.commit()
     except Exception:
         connection.rollback()
         raise
     finally:
+        if getattr(request.state, "hall_connection", None) is connection:
+            del request.state.hall_connection
         connection.close()
 
 

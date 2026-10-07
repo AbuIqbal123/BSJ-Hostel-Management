@@ -287,7 +287,7 @@ export default function OnboardScreen() {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const { onboard, signIn } = useSession();
+  const { onboard, signIn, user } = useSession();
   const [step, setStep] = useState(signupDraft.step);
   const [entered, setEntered] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -443,7 +443,7 @@ export default function OnboardScreen() {
     return () => subscription.remove();
   }, []);
 
-  usePreventRemove(step > 0 && !entered, () => {
+  usePreventRemove(step > 0 && !entered && !user, () => {
     if (dismissOpenChoice()) {
       return;
     }
@@ -456,12 +456,6 @@ export default function OnboardScreen() {
       backLock.current = false;
     });
   });
-
-  useEffect(() => {
-    if (entered) {
-      router.replace("/home");
-    }
-  }, [entered]);
 
   const onViewport = useCallback(
     (event: LayoutChangeEvent) => {

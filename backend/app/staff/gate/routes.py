@@ -364,6 +364,9 @@ def _record_return(
     full_name: str,
     place: str,
 ) -> OutingBody:
+    # She is still outside here. A late notice is due before the return
+    # changes that, including when nobody has opened the register.
+    consider_late_notices(connection, now_text)
     connection.execute(
         """
         UPDATE outings
@@ -401,7 +404,6 @@ def _record_return(
         outing_id,
         f"{account.full_name} recorded a return for {full_name} from {place}.",
     )
-    consider_late_notices(connection, now_text)
     send_return_notice_if_due(connection, outing_id=outing_id, now_text=now_text)
     connection.commit()
     return load_outing(connection, outing_id)

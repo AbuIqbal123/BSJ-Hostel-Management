@@ -247,6 +247,7 @@ type SessionValue = {
   user: HallUser | null;
   signIn: (username: string, password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
+  deleteAccount: (password: string) => Promise<string | null>;
   onboard: (body: OnboardBody) => Promise<string | null>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<string | null>;
   loadResidentHome: () => Promise<ResidentHomeResult>;
@@ -743,17 +744,6 @@ function readPermissionPage(value: unknown): HallPermission[] | null {
   return items;
 }
 
-async function expirePassed(token: string): Promise<void> {
-  try {
-    await hallFetch("/api/v1/me/expire-passed", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-  } catch {
-    // Listing still runs when expiry cannot be reached.
-  }
-}
-
 async function readSession(): Promise<StoredSession | null> {
   const raw = await SecureStore.getItemAsync(SESSION_KEY);
   if (!raw) {
@@ -864,7 +854,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return "Sign in again";
     }
     try {
-      const response = await hallFetch("/api/v1/auth/change-password", {
+      const response = await authorized("/api/v1/auth/change-password", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -887,78 +877,100 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const renewing = useRef<Promise<StoredSession | null> | null>(null);
+
+  const renew = useCallback(async (): Promise<StoredSession | null> => {
+    if (renewing.current) {
+      return renewing.current;
+    }
+    const run = (async (): Promise<StoredSession | null> => {
+      const current = sessionRef.current;
+      if (!current?.refreshToken) {
+        return null;
+      }
+      try {
+        const response = await hallFetch("/api/v1/auth/refresh", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: current.refreshToken }),
+        });
+        if (!response.ok) {
+          return null;
+        }
+        const body = (await response.json()) as {
+          access_token: string;
+          refresh_token: string;
+          user: HallUser;
+        };
+        const next: StoredSession = {
+          accessToken: body.access_token,
+          refreshToken: body.refresh_token,
+          user: body.user,
+        };
+        if (sessionRef.current?.refreshToken !== current.refreshToken) {
+          return sessionRef.current;
+        }
+        sessionRef.current = next;
+        await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(next));
+        setSession(next);
+        return next;
+      } catch {
+        return null;
+      }
+    })();
+    renewing.current = run.finally(() => {
+      renewing.current = null;
+    });
+    return renewing.current;
+  }, []);
+
+  const authorized = useCallback(
+    async (path: string, init: RequestInit = {}): Promise<Response> => {
+      const send = (token: string) => {
+        const headers = new Headers(init.headers);
+        headers.set("Authorization", `Bearer ${token}`);
+        return hallFetch(path, { ...init, headers });
+      };
+      const current = sessionRef.current;
+      if (!current) {
+        return new Response(null, { status: 401 });
+      }
+      const response = await send(current.accessToken);
+      if (response.status !== 401) {
+        return response;
+      }
+      const next = await renew();
+      if (!next) {
+        return response;
+      }
+      return send(next.accessToken);
+    },
+    [renew],
+  );
+
   const signOut = useCallback(async () => {
-    const current = sessionRef.current;
+    if (sessionRef.current) {
+      try {
+        await authorized("/api/v1/auth/logout", { method: "POST" });
+      } catch {
+        // The phone still signs out when the hall cannot be reached.
+      }
+    }
     sessionRef.current = null;
     setSession(null);
     await SecureStore.deleteItemAsync(SESSION_KEY);
-    if (!current) {
-      return;
-    }
-    try {
-      await hallFetch("/api/v1/auth/logout", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${current.accessToken}` },
-      });
-    } catch {
-      // The phone session is already cleared.
-    }
-  }, []);
-
-  const renew = useCallback(async (): Promise<StoredSession | null> => {
-    const current = sessionRef.current;
-    if (!current?.refreshToken) {
-      return null;
-    }
-    try {
-      const response = await hallFetch("/api/v1/auth/refresh", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh_token: current.refreshToken }),
-      });
-      if (!response.ok) {
-        return null;
-      }
-      const body = (await response.json()) as {
-        access_token: string;
-        refresh_token: string;
-        user: HallUser;
-      };
-      const next: StoredSession = {
-        accessToken: body.access_token,
-        refreshToken: body.refresh_token,
-        user: body.user,
-      };
-      sessionRef.current = next;
-      await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(next));
-      setSession(next);
-      return next;
-    } catch {
-      return null;
-    }
-  }, []);
+  }, [authorized]);
 
   const loadResidentHome = useCallback(async (): Promise<ResidentHomeResult> => {
-    let current = sessionRef.current;
-    if (!current) {
+    if (!sessionRef.current) {
       return { error: "Sign in again" };
     }
-    const call = (token: string, path: string, method: string) =>
-      hallFetch(path, { method, headers: { Authorization: `Bearer ${token}` } });
     try {
-      let expired = await call(current.accessToken, "/api/v1/me/expire-passed", "POST");
-      if (expired.status === 401) {
-        const renewed = await renew();
-        if (!renewed) {
-          return { error: "Sign in again" };
-        }
-        current = renewed;
-        expired = await call(current.accessToken, "/api/v1/me/expire-passed", "POST");
-      }
+      const expired = await authorized("/api/v1/me/expire-passed", { method: "POST" });
       if (!expired.ok) {
         return { error: await errorMessage(expired) };
       }
-      const homeResponse = await call(current.accessToken, "/api/v1/me/home", "GET");
+      const homeResponse = await authorized("/api/v1/me/home", { method: "GET" });
       if (!homeResponse.ok) {
         return { error: await errorMessage(homeResponse) };
       }
@@ -970,7 +982,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     } catch {
       return { error: "The hall could not be reached" };
     }
-  }, [renew]);
+  }, [authorized]);
 
   const loadHistory = useCallback(
     async (filters?: {
@@ -995,7 +1007,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const suffix = query.toString();
       const path = suffix.length > 0 ? `/api/v1/me/history?${suffix}` : "/api/v1/me/history";
       try {
-        const response = await hallFetch(path, {
+        const response = await authorized(path, {
           method: "GET",
           headers: { Authorization: `Bearer ${current.accessToken}` },
         });
@@ -1020,7 +1032,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return { error: "Sign in again" };
     }
     try {
-      const response = await hallFetch("/api/v1/me/notifications", {
+      const response = await authorized("/api/v1/me/notifications", {
         method: "GET",
         headers: { Authorization: `Bearer ${current.accessToken}` },
       });
@@ -1043,7 +1055,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return;
     }
     try {
-      await hallFetch("/api/v1/me/notifications/read", {
+      await authorized("/api/v1/me/notifications/read", {
         method: "POST",
         headers: { Authorization: `Bearer ${current.accessToken}` },
       });
@@ -1058,7 +1070,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return { error: "Sign in again" };
     }
     try {
-      const response = await hallFetch("/api/v1/me/guest-stays?limit=50", {
+      const response = await authorized("/api/v1/me/guest-stays?limit=50", {
         method: "GET",
         headers: { Authorization: `Bearer ${current.accessToken}` },
       });
@@ -1081,7 +1093,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return { error: "Sign in again" };
     }
     try {
-      const response = await hallFetch(`/api/v1/me/guest-stays/${encodeURIComponent(guestStayId)}`, {
+      const response = await authorized(`/api/v1/me/guest-stays/${encodeURIComponent(guestStayId)}`, {
         method: "GET",
         headers: { Authorization: `Bearer ${current.accessToken}` },
       });
@@ -1104,7 +1116,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return "Sign in again";
     }
     try {
-      const response = await hallFetch("/api/v1/me/guest-stays", {
+      const response = await authorized("/api/v1/me/guest-stays", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1127,7 +1139,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return "Sign in again";
     }
     try {
-      const response = await hallFetch(`/api/v1/me/guest-stays/${encodeURIComponent(guestStayId)}`, {
+      const response = await authorized(`/api/v1/me/guest-stays/${encodeURIComponent(guestStayId)}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -1150,7 +1162,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return { code: null, message: "Sign in again" };
     }
     try {
-      const response = await hallFetch(
+      const response = await authorized(
         `/api/v1/me/guest-stays/${encodeURIComponent(guestStayId)}/cancel`,
         {
           method: "POST",
@@ -1172,7 +1184,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return { error: "Sign in again" };
     }
     try {
-      const response = await hallFetch("/api/v1/me/hall-pass", {
+      const response = await authorized("/api/v1/me/hall-pass", {
         method: "GET",
         headers: { Authorization: `Bearer ${current.accessToken}` },
       });
@@ -1195,7 +1207,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return { error: "Sign in again" };
     }
     try {
-      const response = await hallFetch("/api/v1/destinations", {
+      const response = await authorized("/api/v1/destinations", {
         method: "GET",
         headers: { Authorization: `Bearer ${current.accessToken}` },
       });
@@ -1218,7 +1230,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return "Sign in again";
     }
     try {
-      const response = await hallFetch("/api/v1/me/outings", {
+      const response = await authorized("/api/v1/me/outings", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1241,7 +1253,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return "Sign in again";
     }
     try {
-      const response = await hallFetch(`/api/v1/me/outings/${outingId}`, {
+      const response = await authorized(`/api/v1/me/outings/${outingId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -1264,7 +1276,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return { code: null, message: "Sign in again" };
     }
     try {
-      const response = await hallFetch(`/api/v1/me/outings/${outingId}/cancel`, {
+      const response = await authorized(`/api/v1/me/outings/${outingId}/cancel`, {
         method: "POST",
         headers: { Authorization: `Bearer ${current.accessToken}` },
       });
@@ -1283,8 +1295,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return { error: "Sign in again" };
     }
     try {
-      await expirePassed(current.accessToken);
-      const response = await hallFetch("/api/v1/me/permissions?limit=500", {
+      await authorized("/api/v1/me/expire-passed", { method: "POST" });
+      const response = await authorized("/api/v1/me/permissions?limit=500", {
         method: "GET",
         headers: { Authorization: `Bearer ${current.accessToken}` },
       });
@@ -1307,8 +1319,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return { error: "Sign in again" };
     }
     try {
-      await expirePassed(current.accessToken);
-      const response = await hallFetch(
+      await authorized("/api/v1/me/expire-passed", { method: "POST" });
+      const response = await authorized(
         `/api/v1/me/permissions/${encodeURIComponent(permissionId)}`,
         {
           method: "GET",
@@ -1334,7 +1346,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return "Sign in again";
     }
     try {
-      const response = await hallFetch("/api/v1/me/permissions", {
+      const response = await authorized("/api/v1/me/permissions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1357,7 +1369,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return "Sign in again";
     }
     try {
-      const response = await hallFetch(
+      const response = await authorized(
         `/api/v1/me/permissions/${encodeURIComponent(permissionId)}`,
         {
           method: "PATCH",
@@ -1383,7 +1395,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return { code: null, message: "Sign in again" };
     }
     try {
-      const response = await hallFetch(
+      const response = await authorized(
         `/api/v1/me/permissions/${encodeURIComponent(permissionId)}/cancel`,
         {
           method: "POST",
@@ -1399,12 +1411,38 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const deleteAccount = useCallback(
+    async (password: string) => {
+      if (!sessionRef.current) {
+        return "Sign in again";
+      }
+      try {
+        const response = await authorized("/api/v1/me/account/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password }),
+        });
+        if (response.status === 204) {
+          sessionRef.current = null;
+          setSession(null);
+          await SecureStore.deleteItemAsync(SESSION_KEY);
+          return null;
+        }
+        return await errorMessage(response);
+      } catch {
+        return "The hall could not be reached";
+      }
+    },
+    [authorized],
+  );
+
   const value = useMemo<SessionValue>(
     () => ({
       ready,
       user: session?.user ?? null,
       signIn,
       signOut,
+      deleteAccount,
       onboard,
       changePassword,
       loadResidentHome,
@@ -1432,6 +1470,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       session,
       signIn,
       signOut,
+      deleteAccount,
       onboard,
       changePassword,
       loadResidentHome,

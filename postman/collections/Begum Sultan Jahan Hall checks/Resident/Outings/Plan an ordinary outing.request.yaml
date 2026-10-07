@@ -3,7 +3,7 @@ method: POST
 url: '{{baseUrl}}/api/v1/me/outings'
 order: 2000
 description: |-
-  Caller: resident. This is required before an ordinary exit scan. The scan does not ask for a destination or an expected return. She may plan several returns, including two on the same day. Sets destination, starts_at, and expected return. She cannot start another while one ordinary outing is inside its show window (30 minutes before the start until the outing ends). Does not record the exit and does not change whether she is inside. The gate scan does that. No warden approval. Grace is the hall's `grace_minutes` added to the expected return. The expected return must be in the future and inside ordinary hours on that hall date. The start of the window is not included. The end is included. Summer, 1 April through 30 September, is 6:30 AM to 6:30 PM. Winter, 1 October through 31 March, is 6:30 AM to 5:30 PM. A return at or before the start is outside ordinary hours. A return after the end asks her to submit a permission request. A second plan ending at the same instant says she already has an outing ending at that time. When the chosen destination is the Other row, `destination_text` is required. Send fills the next free return at 12:00 PM, then 5:00 PM, then the next day. Both times are inside summer and winter hours. The new outing id is saved for Cancel.
+  Caller: resident. This is required before an ordinary exit scan. The scan does not ask for a destination or an expected return. She may plan several returns, including two on the same day. Sets destination, starts_at, and expected return. She cannot start another while one ordinary outing is inside its show window (30 minutes before the start until the outing ends). Does not record the exit and does not change whether she is inside. The gate scan does that. No warden approval. Grace is the hall's `grace_minutes` added to the expected return. The expected return must be in the future and inside ordinary hours on that hall date. The start of the window is not included. The end is included. Summer, 1 April through 30 September, is 6:30 AM to 6:30 PM. Winter, 1 October through 31 March, is 6:30 AM to 5:30 PM. A return at or before the start is outside ordinary hours. A return after the end asks her to submit a permission request. A second plan ending at the same instant says she already has an outing ending at that time. When the chosen destination is the Other row, `destination_text` is required. Send fills the next free return at 12:00 PM, then 5:00 PM, then the next day, skipping a slot whose show window is already open. Both times are inside summer and winter hours. The new outing id is saved for Cancel.
 headers:
   - key: Content-Type
     value: application/json
@@ -36,12 +36,16 @@ scripts:
           }
           const now = new Date();
           const slots = [6 * 60 + 30, 11 * 60 + 30];
+          const leadMs = 30 * 60 * 1000;
+          const beforeReturnMs = 2 * 60 * 60 * 1000;
           let target = null;
+          let start = null;
           for (let day = 0; day < 14 && target === null; day += 1) {
               const base = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + day);
               for (let slot = 0; slot < slots.length; slot += 1) {
                   const candidate = new Date(base + slots[slot] * 60 * 1000);
-                  if (candidate.getTime() <= now.getTime()) {
+                  const startAt = new Date(candidate.getTime() - beforeReturnMs);
+                  if (startAt.getTime() - leadMs <= now.getTime()) {
                       continue;
                   }
                   const iso = candidate.toISOString().replace(".000Z", "Z");
@@ -49,21 +53,14 @@ scripts:
                       continue;
                   }
                   target = iso;
+                  start = startAt;
                   break;
               }
           }
-          if (target === null) {
+          if (target === null || start === null) {
               throw new Error("No free ordinary return in the next two weeks.");
           }
           const payload = JSON.parse(pm.request.body.raw);
-          const targetAt = new Date(target);
-          let start = new Date(targetAt.getTime() - 2 * 60 * 60 * 1000);
-          if (start.getTime() <= now.getTime()) {
-              start = new Date(now.getTime() + 60 * 1000);
-          }
-          if (start.getTime() >= targetAt.getTime()) {
-              throw new Error("No start before that return.");
-          }
           payload.starts_at = start.toISOString().replace(".000Z", "Z");
           payload.expected_return_at = target;
           pm.request.body.raw = JSON.stringify(payload, null, 2);

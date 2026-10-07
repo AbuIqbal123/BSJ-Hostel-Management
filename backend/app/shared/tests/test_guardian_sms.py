@@ -222,6 +222,42 @@ def test_mock_late_and_return_notices(database_path: Path, monkeypatch: pytest.M
             connection.close()
 
 
+def test_return_sends_late_notice_when_the_register_was_not_opened(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.main import app
+    from app.shared import clock
+
+    monkeypatch.setattr(clock, "utc_now", FrozenClock(NOW).utc_now)
+    with TestClient(app) as client:
+        assert client.get("/health").json() == {"status": "ok"}
+        issue_late_outside(database_path)
+        gate = _sign_in(client, "gate.fatima", GATE_PHRASE)
+        returned = client.post(
+            "/api/v1/gate/scans",
+            json={"qr_payload": QR},
+            headers=_bearer(gate),
+        )
+        assert returned.status_code == 200
+        assert returned.json()["return_record"]["return_timeliness"] == "late"
+        connection = sqlite3.connect(database_path)
+        connection.row_factory = sqlite3.Row
+        try:
+            notices = connection.execute(
+                """
+                SELECT notice_type, status
+                FROM guardian_messages
+                WHERE outing_id = ?
+                ORDER BY notice_type
+                """,
+                (OUTING_ID,),
+            ).fetchall()
+        finally:
+            connection.close()
+        assert [row["notice_type"] for row in notices] == ["late_notice", "return_notice"]
+        assert {row["status"] for row in notices} == {"sent"}
+
+
 def test_duplicate_notice_does_not_drop_the_return(database_path: Path) -> None:
     """A second insert of the same notice must not abort the return transaction."""
     from app.main import app

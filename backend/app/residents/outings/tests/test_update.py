@@ -68,6 +68,66 @@ def plan(client: TestClient, token: str, body: dict):
     )
 
 
+def test_update_refuses_a_second_open_window(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A change must not open a second show window while one is already open."""
+    from app.shared import clock
+    from app.main import app
+
+    monkeypatch.setattr(clock, "utc_now", FrozenClock().utc_now)
+    with TestClient(app) as client:
+        issue_people(database_path)
+        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        later = plan(
+            client,
+            resident,
+            {
+                "destination_id": LIBRARY,
+                "starts_at": "2026-09-30T10:00:00Z",
+                "expected_return_at": "2026-09-30T12:00:00Z",
+            },
+        )
+        assert later.status_code == 201
+        assert later.json()["qr_visible"] is False
+        near = plan(
+            client,
+            resident,
+            {
+                "destination_id": SHAMSHAD,
+                "starts_at": "2026-09-30T08:10:00Z",
+                "expected_return_at": "2026-09-30T10:00:00Z",
+            },
+        )
+        assert near.status_code == 201
+        assert near.json()["qr_visible"] is True
+        refused = change(
+            client,
+            resident,
+            later.json()["id"],
+            {
+                "destination_id": LIBRARY,
+                "starts_at": "2026-09-30T08:20:00Z",
+                "expected_return_at": "2026-09-30T11:00:00Z",
+            },
+        )
+        assert_error(
+            refused,
+            409,
+            "outing_window_open",
+            "You cannot start another outing while one is inside its window.",
+        )
+        kept = client.get(
+            "/api/v1/me/outings",
+            headers={"Authorization": f"Bearer {resident}"},
+        )
+        assert kept.status_code == 200
+        rows = {item["id"]: item for item in kept.json()["items"]}
+        assert rows[later.json()["id"]]["starts_at"] == "2026-09-30T10:00:00Z"
+        assert rows[later.json()["id"]]["qr_visible"] is False
+        assert rows[near.json()["id"]]["qr_visible"] is True
+
+
 def test_update_outing(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     expected = json.loads(ARTIFACT.read_text(encoding="utf-8"))
     from app.shared import clock

@@ -500,7 +500,7 @@ def list_resident_accounts(
     limit: int,
     offset: int,
 ) -> ResidentAccountPage:
-    filters = ["users.role = 'resident'"]
+    filters = ["users.role = 'resident'", "users.username NOT LIKE 'deleted-%'"]
     params: list[object] = []
     if q is not None and q.strip():
         needle = f"%{q.strip().lower()}%"

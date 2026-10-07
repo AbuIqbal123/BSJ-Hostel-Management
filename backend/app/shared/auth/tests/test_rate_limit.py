@@ -71,6 +71,39 @@ def issue_gate(path: Path) -> None:
         connection.close()
 
 
+def test_forwarded_clients_do_not_share_a_limit(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(login_limiter, "limit", 2)
+    from app.main import app
+
+    with TestClient(app) as client:
+        assert client.get("/health").json() == {"status": "ok"}
+        issue_gate(database_path)
+    proxy = TestClient(app, client=("127.0.0.1", 443))
+    first = {"X-Forwarded-For": "203.0.113.10"}
+    second = {"X-Forwarded-For": "203.0.113.20"}
+    for _ in range(2):
+        refused = proxy.post(
+            "/api/v1/auth/login",
+            json=_login_body("gate.fatima", WRONG_PHRASE),
+            headers=first,
+        )
+        assert refused.status_code == 401
+    blocked = proxy.post(
+        "/api/v1/auth/login",
+        json=_login_body("gate.fatima", WRONG_PHRASE),
+        headers=first,
+    )
+    assert_error(blocked, 429, "rate_limited", "Too many attempts. Try again shortly.")
+    other = proxy.post(
+        "/api/v1/auth/login",
+        json=_login_body("gate.fatima", WRONG_PHRASE),
+        headers=second,
+    )
+    assert other.status_code == 401
+
+
 def test_login_and_refresh_rate_limit(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(login_limiter, "limit", 3)
     monkeypatch.setattr(refresh_limiter, "limit", 3)

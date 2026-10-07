@@ -140,11 +140,15 @@ LEFT JOIN users AS return_staff ON return_staff.id = outings.return_recorded_by
 
 
 def ordinary_window_is_open(
-    connection: sqlite3.Connection, resident_id: str, now: datetime
+    connection: sqlite3.Connection,
+    resident_id: str,
+    now: datetime,
+    *,
+    except_outing_id: str | None = None,
 ) -> bool:
     rows = connection.execute(
         """
-        SELECT type, status, starts_at, expected_return_at, exited_at
+        SELECT id, type, status, starts_at, expected_return_at, exited_at
         FROM outings
         WHERE resident_id = ?
           AND type = 'ordinary'
@@ -153,6 +157,8 @@ def ordinary_window_is_open(
         (resident_id,),
     ).fetchall()
     for row in rows:
+        if except_outing_id is not None and row["id"] == except_outing_id:
+            continue
         visible, _, _ = qr_window(
             outing_type=row["type"],
             status=row["status"],

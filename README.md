@@ -52,6 +52,8 @@ source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 uvicorn app.main:app --reload
+
+The hosted process is `backend/start.sh`. It trusts `X-Forwarded-For` (`FORWARDED_ALLOW_IPS`, default `*`) and turns uvicorn's own proxy handling off, so each phone has its own sign-in limit behind Render.
 ```
 
 Then open:

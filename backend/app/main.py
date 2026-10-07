@@ -8,20 +8,24 @@ Paths in the file may exist before they are implemented.
 
 from __future__ import annotations
 
+import os
 import sqlite3
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 import yaml
 from fastapi import FastAPI
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel
 
 from app.shared.config import get_settings
+from app.shared.db import commit_request
 from app.shared.errors import ApiError, api_error_handler, validation_error_handler
 from app.shared.migrate import migrate
 from app.shared.auth.routes import router as auth_router
 from app.residents.home.routes import router as home_router
+from app.residents.account_routes import router as account_router
 from app.residents.notifications.routes import router as notifications_router
 from app.residents.hall_pass.routes import router as hall_pass_router
 from app.residents.guests.routes import router as guests_router
@@ -48,6 +52,7 @@ DOCUMENTATION_PATHS = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redo
 ROUTERS = (
     auth_router,
     home_router,
+    account_router,
     notifications_router,
     hall_pass_router,
     guests_router,
@@ -159,3 +164,53 @@ def custom_openapi() -> dict:
 
 
 app.openapi = custom_openapi
+
+
+class CommitBeforeResponse:
+    """Commit the request transaction before http.response.start."""
+
+    def __init__(self, asgi_app: object) -> None:
+        self.asgi_app = asgi_app
+
+    async def __call__(self, scope: dict, receive: object, send: object) -> None:
+        if scope["type"] != "http":
+            await self.asgi_app(scope, receive, send)  # type: ignore[misc]
+            return
+        started = False
+        failed = False
+
+        async def send_after_commit(message: dict) -> None:
+            nonlocal failed, started
+            if failed:
+                return
+            if message["type"] == "http.response.start" and not started:
+                try:
+                    commit_request(scope)
+                except Exception:
+                    failed = True
+                    started = True
+                    body = b"Internal Server Error"
+                    await send(  # type: ignore[misc]
+                        {
+                            "type": "http.response.start",
+                            "status": 500,
+                            "headers": [
+                                (b"content-type", b"text/plain; charset=utf-8"),
+                                (b"content-length", str(len(body)).encode()),
+                            ],
+                        }
+                    )
+                    await send({"type": "http.response.body", "body": body})  # type: ignore[misc]
+                    return
+                started = True
+            await send(message)  # type: ignore[misc]
+
+        await self.asgi_app(scope, receive, send_after_commit)  # type: ignore[misc]
+
+
+# Inner middleware commits. Outer middleware rewrites the client from a trusted proxy.
+app.add_middleware(CommitBeforeResponse)
+app.add_middleware(
+    ProxyHeadersMiddleware,
+    trusted_hosts=os.environ.get("FORWARDED_ALLOW_IPS", "127.0.0.1,::1"),
+)

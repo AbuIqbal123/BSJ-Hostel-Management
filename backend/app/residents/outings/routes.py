@@ -27,6 +27,7 @@ from app.residents.outings.records import (
     load_outing,
     list_upcoming_page,
     ordinary_window_is_open,
+    qr_window,
     record_outing,
 )
 
@@ -247,6 +248,22 @@ def update_outing(
         except_outing_id=outing_id,
     ):
         raise ApiError(409, "return_already_planned", "You already have an outing ending at that time.")
+    opening, _, _ = qr_window(
+        outing_type="ordinary",
+        status="planned",
+        starts_at=body.starts_at,
+        expected_return_at=body.expected_return_at,
+        exited_at=None,
+        now=now,
+    )
+    if opening and ordinary_window_is_open(
+        connection, account.id, now, except_outing_id=outing_id
+    ):
+        raise ApiError(
+            409,
+            "outing_window_open",
+            "You cannot start another outing while one is inside its window.",
+        )
     grace_ends_at = clock.format_instant(moment + timedelta(minutes=int(settings["grace_minutes"])))
     day = clock.hall_local_date(moment)
     changed = connection.execute(

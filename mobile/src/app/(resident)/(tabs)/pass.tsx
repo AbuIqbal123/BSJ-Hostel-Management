@@ -87,25 +87,24 @@ function PassCode({ value, size }: { value: string; size: number }) {
     }).start();
   }, [opacity, value]);
 
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.timing(travel, {
-        toValue: 1,
-        duration: BORDER_MS,
-        easing: Easing.linear,
-        useNativeDriver: false,
-      }),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [travel]);
-
-  useEffect(() => {
-    void activateKeepAwakeAsync(AWAKE);
-    return () => {
-      void deactivateKeepAwake(AWAKE);
-    };
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      void activateKeepAwakeAsync(AWAKE);
+      const loop = Animated.loop(
+        Animated.timing(travel, {
+          toValue: 1,
+          duration: BORDER_MS,
+          easing: Easing.linear,
+          useNativeDriver: false,
+        }),
+      );
+      loop.start();
+      return () => {
+        loop.stop();
+        void deactivateKeepAwake(AWAKE);
+      };
+    }, [travel]),
+  );
 
   const offset = travel.interpolate({
     inputRange: [0, 1],

@@ -324,6 +324,29 @@ function GuestForm({ existing }: { existing?: GuestStay }) {
           <Text style={[text.error, { color: colors.danger }]}>Leaves has to be on or after Arrives</Text>
         ) : null}
       </Pressable>
+      {existing ? (
+        <Pressable accessibilityRole="button" onPress={() => {
+          Alert.alert("Cancel guest stay", undefined, [
+            { text: "Back", style: "cancel" },
+            {
+              text: "Cancel guest stay",
+              style: "destructive",
+              onPress: () => {
+                void (async () => {
+                  const failure = await cancelGuestStay(existing.id);
+                  if (!failure) {
+                    back();
+                    return;
+                  }
+                  setError(failure.message);
+                })();
+              },
+            },
+          ]);
+        }} style={styles.cancel}>
+          <Text style={[text.button, { color: colors.danger }]}>Cancel guest stay</Text>
+        </Pressable>
+      ) : null}
       <View style={styles.submit}>
         <HallButton
           label={existing ? "Save" : "Submit"}

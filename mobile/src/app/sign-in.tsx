@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Redirect, router } from "expo-router";
+import { router } from "expo-router";
 import {
   Keyboard,
   LayoutAnimation,
@@ -34,6 +34,7 @@ export default function SignInScreen() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const passwordRef = useRef<TextInput>(null);
   const pendingRef = useRef(false);
   const canvasRef = useRef<View>(null);
@@ -322,15 +323,17 @@ export default function SignInScreen() {
       return;
     }
     pendingRef.current = true;
+    setBusy(true);
     const message = await signIn(username, password);
     pendingRef.current = false;
+    setBusy(false);
     if (message) {
       setError(message);
     }
   }, [password, signIn, username]);
 
   if (user) {
-    return <Redirect href={user.role === "resident" ? "/home" : "/signed-in"} />;
+    return <View style={[styles.screen, { backgroundColor: colors.paper }]} />;
   }
 
   return (
@@ -394,7 +397,7 @@ export default function SignInScreen() {
               showOutline={outlineReady}
             />
             <View style={styles.submit}>
-              <HallButton label="Sign in" onPress={submit} />
+              <HallButton label={busy ? "Signing in" : "Sign in"} disabled={busy} onPress={submit} />
               <Pressable
                 accessibilityRole="link"
                 accessibilityLabel="Don't have an account? Sign up"
