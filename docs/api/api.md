@@ -131,8 +131,8 @@ number, and a symbol. Passwords are stored as Argon2id. Residents may
 self-onboard at `POST /api/v1/auth/onboard` (public on dev). On that form the
 resident phone and the guardian phone are Indian mobiles: `+91` followed by
 exactly 10 digits. The form selects the block and room and creates an active
-resident who can sign in immediately. A future Hall Office activation workflow
-is deferred. The provost may still create residents and must create staff.
+resident who can sign in immediately. The provost may still create residents
+and must create staff.
 A resident username is the enrolment number.
 
 Stored state and lifecycles live in `docs/database/database.md`. This file does not
@@ -520,8 +520,7 @@ an **active** resident from the phone. Required fields: `full_name`,
 She chooses the block and room on this form from the seeded resident
 inventory returned by `GET /api/v1/auth/onboard/options`. The account can
 sign in immediately at `POST /api/v1/auth/login`; this call does not
-return access or refresh tokens. A Hall Office activation workflow is
-deferred.
+return access or refresh tokens.
 
 Enrolment is unique hall-wide (ignoring capitals) and becomes the
 username. Staff cannot use this path. Rate-limited like sign-in. A taken

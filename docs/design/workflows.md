@@ -31,9 +31,9 @@ Keep this document Fowler-simple: one workflow per section, steps a person can n
 |---|---|---|
 | Who may self-onboard | Residents only. Gate, warden, and provost stay office-created (`POST /api/v1/admin/staff`). | Staff roles grant gate and hall records. Self-service staff accounts would bypass office control. |
 | Enrolment uniqueness | Hall-wide, ignoring capitals. Same rule as username. | One person per enrolment in this hall. Matches existing unique enrolment / username. |
-| Room / block at onboard | The form offers only `GET /api/v1/auth/onboard/options`: stored blocks A–D (`id`+`name`), including one with no free room, and nested active unassigned rooms (`id`+`label`). Utility is omitted. She sends the chosen `block_id` and `room_id`. She does not call the provost lists, and signup does not create a room. | The picker is the onboard form only. The Hall Office activation workflow is deferred. |
+| Room / block at onboard | The form offers only `GET /api/v1/auth/onboard/options`: stored blocks A–D (`id`+`name`), including one with no free room, and nested active unassigned rooms (`id`+`label`). Utility is omitted. She sends the chosen `block_id` and `room_id`. She does not call the provost lists, and signup does not create a room. | The picker is the onboard form only. |
 | Guardian and phones | `guardian_name`, `guardian_phone`, and resident `phone` are required on both self-onboard and office create. | Hall already requires a guardian phone for late and return SMS. Both resident-entry paths collect the resident's own phone so it is on file from creation. |
-| Activation | Self-onboard creates an active resident with a room and hall pass; login is allowed immediately. | Dev/testing needs a complete path. A separate Hall Office activation workflow is deferred. |
+| Activation | Self-onboard creates an active resident with a room and hall pass; login is allowed immediately. | Dev/testing needs a complete path. |
 | First password | She chooses `password` on self-onboard (at least 10 characters). No must-change flag. Office path still uses `temporary_password`. After she can sign in, change-password from settings is optional. | Full onboarding means she owns the first password. Matches current "no must-change" for office accounts. |
 | Staff creation | Office only. No public staff onboard. | Same as today. |
 
@@ -182,11 +182,9 @@ Provost may also export CSV via `GET /api/v1/admin/register/export`.
 
 **Screens:** settings (hours, grace, seasons, guest rules, SMS templates; show 12-hour + day-month as contract) → blocks/rooms → destinations → residents (create/edit; suspend; reissue pass) → staff → password reset → SMS log → audit → CSV export.
 
-**Activation:** the current self-onboard path creates an active resident with the selected room. A separate Hall Office activation workflow is deferred.
+**Critical states:** destructive confirms (reissue pass invalidates old QR; reset revokes sessions); inactive destinations hidden from resident catalog but visible in admin.
 
-**Critical states:** destructive confirms (reissue pass invalidates old QR; reset revokes sessions); inactive destinations hidden from resident catalog but visible in admin; pending without a room cannot be activated.
-
-**Success:** provost can run the hall without database tools, including finishing self-onboarded residents.
+**Success:** provost can run the hall without database tools.
 
 ---
 
