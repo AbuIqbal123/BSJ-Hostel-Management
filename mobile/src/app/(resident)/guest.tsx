@@ -16,7 +16,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
-import { formatHallDate } from "@/format-when";
+import { HALL_ZONE, formatHallDate } from "@/format-when";
+import { hallDay } from "@/outing-when";
 import { guestLine } from "@/requests";
 import { useSession, type GuestStay } from "@/session";
 import { useHallColors } from "@/theme/colors";
@@ -24,7 +25,6 @@ import { text } from "@/theme/text";
 
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 
-const HALL_ZONE = "Asia/Kolkata";
 const OTHER_RELATION = "Other";
 const RELATIONS = [
   "Mother",
@@ -43,18 +43,6 @@ const RELATIONS = [
 function paramText(value: string | string[] | undefined): string {
   const raw = Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
   return raw.trim();
-}
-
-function hallDate(date: Date): string {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: HALL_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-  const part = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((item) => item.type === type)?.value ?? "";
-  return `${part("year")}-${part("month")}-${part("day")}`;
 }
 
 function HallDate({
@@ -93,7 +81,7 @@ function HallDate({
       {Platform.OS === "android" ? (
         <Pressable accessibilityRole="button" onPress={open} style={styles.datePress}>
           <Text style={[text.field, { color: value ? colors.ink : colors.inkFaint }]}>
-            {value ? formatHallDate(hallDate(value)) : "Choose a date"}
+            {value ? formatHallDate(hallDay(value)) : "Choose a date"}
           </Text>
         </Pressable>
       ) : (
@@ -109,7 +97,7 @@ function HallDate({
             themeVariant="light"
             timeZoneName={HALL_ZONE}
             onValueChange={(_event, date) => {
-              if (!date || (value !== null && hallDate(date) === hallDate(value))) {
+              if (!date || (value !== null && hallDay(date) === hallDay(value))) {
                 return;
               }
               onChange(date);
@@ -171,8 +159,8 @@ function GuestForm({ existing }: { existing?: GuestStay }) {
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
   const pending = useRef(false);
-  const startDate = start ? hallDate(start) : "";
-  const endDate = end ? hallDate(end) : "";
+  const startDate = start ? hallDay(start) : "";
+  const endDate = end ? hallDay(end) : "";
   const relation =
     relationId === OTHER_RELATION ? otherRelation.trim() : (relationId ?? "");
   const ready =
@@ -316,7 +304,7 @@ function GuestForm({ existing }: { existing?: GuestStay }) {
             setStart(date);
             setEnd((current) => {
               const shown = current ?? new Date();
-              if (hallDate(shown) >= hallDate(date)) {
+              if (hallDay(shown) >= hallDay(date)) {
                 return current;
               }
               return date;

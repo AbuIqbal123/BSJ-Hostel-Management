@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
-import { formatClockDay, formatWhenParts, utcInstant } from "@/format-when";
+import { HALL_ZONE, formatClockDay, formatWhenParts, utcInstant } from "@/format-when";
 import { WhenField, hallAt, hallDay, isNextHallMidnight, sameNight } from "@/outing-when";
 import { kindLabel, statusSentence, statusTone } from "@/requests";
 import {
@@ -72,7 +72,7 @@ function DateField({
     DateTimePickerAndroid.open({
       value: shown,
       mode: "date",
-      timeZoneName: "Asia/Kolkata",
+      timeZoneName: HALL_ZONE,
       onChange: (event, date) => {
         if (event.type === "set" && date) {
           onChange(date);
@@ -98,7 +98,7 @@ function DateField({
             display="compact"
             accentColor={colors.forest}
             themeVariant="light"
-            timeZoneName="Asia/Kolkata"
+            timeZoneName={HALL_ZONE}
             onValueChange={(_event, date) => {
               if (!date || (value !== null && hallDay(date) === hallDay(value))) {
                 return;

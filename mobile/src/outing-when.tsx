@@ -4,18 +4,16 @@ import DateTimePicker, {
 import { useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { formatWhenParts, utcInstant } from "@/format-when";
+import { HALL_ZONE, formatWhenParts, utcInstant } from "@/format-when";
 import { useHallColors, type HallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
 // Seeded catalog name. backend/app/shared/migrations/0001_create_hall.sql stores 'Other'.
 export const OTHER_NAME = "Other";
 
-// hall_day() is the calendar date in hall_settings.timezone, seeded Asia/Kolkata.
 // Ordinary hours are the seeded summer and winter outing clocks. The start is
 // not included. The end is included. Any other time stays selectable, and the
 // plan asks her to use the Permissions tab.
-const HALL_ZONE = "Asia/Kolkata";
 const SUMMER_START = "04-01";
 const WINTER_START = "10-01";
 const DAY_START = "06:30";
@@ -101,7 +99,7 @@ function hoursNote(date: Date): string | null {
 
 export function notBefore(floor: Date, current: Date | null): Date | null {
   const base = current ?? proposalWhen();
-  if (hallDayKey(base) >= hallDayKey(floor)) {
+  if (hallDay(base) >= hallDay(floor)) {
     return current;
   }
   return withHallDay(floor, base);
@@ -124,7 +122,7 @@ export function isNextHallMidnight(leave: Date, back: Date): boolean {
   if (clock.hour !== 0 || clock.minute !== 0) {
     return false;
   }
-  return hallDayKey(back) === hallDayKey(shiftHallDay(leave, 1));
+  return hallDay(back) === hallDay(shiftHallDay(leave, 1));
 }
 
 /** Late night stays on the leave day. 12:00 AM the next day is the only later instant. */
@@ -138,19 +136,10 @@ export function sameNight(leave: Date, back: Date | null): Date | null {
     return sameDay;
   }
   const hourLater = new Date(leave.getTime() + 60 * 60 * 1000);
-  if (hallDayKey(hourLater) === hallDayKey(leave)) {
+  if (hallDay(hourLater) === hallDay(leave)) {
     return hourLater;
   }
-  return hallAt(hallDayKey(shiftHallDay(leave, 1)), 0, 0);
-}
-
-function hallDayKey(date: Date): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: HALL_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
+  return hallAt(hallDay(shiftHallDay(leave, 1)), 0, 0);
 }
 
 function commitDay(shown: Date, date: Date | undefined, onChange: (next: Date) => void) {
@@ -316,7 +305,7 @@ function IosWhen({
         timeZoneName={HALL_ZONE}
         onDismiss={onDismiss}
         onValueChange={(_event, date) => {
-          if (!date || hallDayKey(date) === hallDayKey(shown)) {
+          if (!date || hallDay(date) === hallDay(shown)) {
             return;
           }
           ignoreClockUntil.current = Date.now() + 500;
