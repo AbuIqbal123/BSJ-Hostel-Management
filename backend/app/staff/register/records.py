@@ -88,7 +88,7 @@ def register_state(presence: str, grace_ends_at: str | None, now_text: str) -> R
 
 def load_summary(connection: sqlite3.Connection) -> RegisterSummary:
     now_text = _now_text()
-    today = clock.hall_local_date(connection, clock.utc_now())
+    today = clock.hall_local_date(clock.utc_now())
     blocks = connection.execute(
         """
         SELECT id AS block_id, code, name

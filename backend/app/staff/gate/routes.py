@@ -21,10 +21,10 @@ from app.residents.outings.records import (
 from app.shared import clock
 from app.shared.sms import consider_late_notices, send_return_notice_if_due
 from app.shared.auth.routes import Account, AccountDep, ConnectionDep
+from app.shared.db import hall_settings
 from app.shared.errors import ApiError
 from app.staff.gate.records import (
     GateActivityPage,
-    format_clock_12,
     list_gate_activity,
     normalize_qr_payload,
 )
@@ -110,13 +110,6 @@ def gate_account(account: AccountDep) -> Account:
 
 
 GateDep = Annotated[Account, Depends(gate_account)]
-
-
-def _settings(connection: sqlite3.Connection) -> sqlite3.Row:
-    row = connection.execute("SELECT * FROM hall_settings WHERE id = 'hall'").fetchone()
-    if row is None:
-        raise ApiError(422, "validation_error", "The hall settings are missing.")
-    return row
 
 
 def _load_resident_by_qr(
@@ -305,7 +298,7 @@ def _open_permission_exit(
     grace_ends_at = clock.format_instant(
         expected_moment + timedelta(minutes=int(settings["grace_minutes"]))
     )
-    day = clock.hall_local_date(settings["timezone"], expected_moment)
+    day = clock.hall_local_date(expected_moment)
     connection.execute(
         """
         INSERT INTO outings (
@@ -434,7 +427,7 @@ def scan_hall_pass(
             resident,
         )
 
-    settings = _settings(connection)
+    settings = hall_settings(connection)
     now = clock.utc_now()
     now_text = clock.format_instant(now)
     expire_passed_plans(connection, resident_id, now_text)
@@ -445,7 +438,7 @@ def scan_hall_pass(
         last_at, now_text, int(settings["scan_duplicate_window_seconds"])
     ):
         if presence == "outside":
-            exit_clock = format_clock_12(last_at or now_text, settings["timezone"])
+            exit_clock = clock.hall_time_12(last_at or now_text)
             message = (
                 f"This resident is already recorded as outside (exit {exit_clock}). "
                 "Ask the resident to present the same hall pass on return. "
@@ -499,7 +492,7 @@ def scan_hall_pass(
             ),
         )
 
-    today = clock.hall_local_date(settings["timezone"], now)
+    today = clock.hall_local_date(now)
     plan = _earliest_today_plan(connection, resident_id, today, now_text)
     inside_hours = hours_refusal(now, settings) is None
     if plan is not None and inside_hours:

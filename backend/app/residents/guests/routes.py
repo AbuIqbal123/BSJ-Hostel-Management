@@ -14,7 +14,6 @@ from app.residents.guests.records import (
     GuestStayBody,
     GuestStayPageBody,
     earliest_start_date,
-    guest_settings,
     inclusive_days,
     list_guest_stays,
     load_guest_stay,
@@ -23,6 +22,7 @@ from app.residents.guests.records import (
 from app.residents.home.routes import ResidentDep
 from app.shared import clock
 from app.shared.auth.routes import ConnectionDep
+from app.shared.db import hall_settings
 from app.shared.errors import ApiError
 
 router = APIRouter(prefix="/api/v1", tags=["Guest Stays"])
@@ -79,7 +79,7 @@ def _validate_stay_window(
             "validation_error",
             "The end date must be on or after the start date.",
         )
-    settings = guest_settings(connection)
+    settings = hall_settings(connection)
     earliest = earliest_start_date(today, int(settings["guest_min_lead_days"]))
     if start < earliest:
         raise ApiError(
@@ -104,7 +104,7 @@ def list_own_guest_stays(
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> GuestStayPageBody:
-    today = clock.hall_local_date(connection, clock.utc_now())
+    today = clock.hall_local_date(clock.utc_now())
     return list_guest_stays(
         connection,
         host_resident_id=account.id,
@@ -123,7 +123,7 @@ def submit_guest_stay(
     start = _parse_date(body.guest_start_date, field="guest_start_date")
     end = _parse_date(body.guest_end_date, field="guest_end_date")
     now = clock.utc_now()
-    today = clock.hall_local_date(connection, now)
+    today = clock.hall_local_date(now)
     _validate_stay_window(connection, start=start, end=end, today=today)
     stay_id = str(uuid.uuid4())
     now_text = clock.format_instant(now)
@@ -174,7 +174,7 @@ def get_own_guest_stay(
     account: ResidentDep,
     connection: ConnectionDep,
 ) -> GuestStayBody:
-    today = clock.hall_local_date(connection, clock.utc_now())
+    today = clock.hall_local_date(clock.utc_now())
     stay = load_guest_stay(
         connection,
         guest_stay_id,
@@ -193,7 +193,7 @@ def edit_guest_stay(
     account: ResidentDep,
     connection: ConnectionDep,
 ) -> GuestStayBody:
-    today = clock.hall_local_date(connection, clock.utc_now())
+    today = clock.hall_local_date(clock.utc_now())
     row = connection.execute(
         """
         SELECT
@@ -313,7 +313,7 @@ def cancel_guest_stay(
     account: ResidentDep,
     connection: ConnectionDep,
 ) -> GuestStayBody:
-    today = clock.hall_local_date(connection, clock.utc_now())
+    today = clock.hall_local_date(clock.utc_now())
     row = connection.execute(
         """
         SELECT id, host_resident_id, status, guest_name, arrived_at

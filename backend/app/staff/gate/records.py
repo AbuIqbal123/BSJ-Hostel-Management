@@ -4,11 +4,8 @@ from __future__ import annotations
 
 import sqlite3
 from typing import Literal
-from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict
-
-from app.shared import clock
 
 
 class GateActivityItem(BaseModel):
@@ -28,14 +25,6 @@ class GateActivityPage(BaseModel):
     limit: int
     offset: int
     items: list[GateActivityItem]
-
-
-def format_clock_12(instant_utc: str, timezone_name: str) -> str:
-    moment = clock.parse_instant(instant_utc)
-    local = moment.astimezone(ZoneInfo(timezone_name))
-    hour = local.hour % 12 or 12
-    suffix = "AM" if local.hour < 12 else "PM"
-    return f"{hour}:{local.minute:02d} {suffix}"
 
 
 def normalize_qr_payload(qr_payload: str) -> str:

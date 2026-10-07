@@ -39,3 +39,8 @@ def get_connection() -> Iterator[sqlite3.Connection]:
         raise
     finally:
         connection.close()
+
+
+def hall_settings(connection: sqlite3.Connection) -> sqlite3.Row:
+    """The one settings row. Migration 0001 seeds it and a trigger keeps it."""
+    return connection.execute("SELECT * FROM hall_settings WHERE id = 'hall'").fetchone()
