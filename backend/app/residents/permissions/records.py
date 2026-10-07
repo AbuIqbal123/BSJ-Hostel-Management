@@ -280,19 +280,7 @@ def list_own(
         offset=page.offset,
         items=[
             PermissionBody(
-                id=item.id,
-                permission_type=item.permission_type,
-                status=item.status,
-                short_place=item.short_place,
-                destination_detail=item.destination_detail,
-                address=item.address,
-                reason=item.reason,
-                departure_at=item.departure_at,
-                expected_return_at=item.expected_return_at,
-                decision_note=item.decision_note,
-                decided_at=item.decided_at,
-                decided_by=item.decided_by,
-                created_at=item.created_at,
+                **item.model_dump(exclude={"resident_id", "resident_name", "room_label"})
             )
             for item in page.items
         ],
