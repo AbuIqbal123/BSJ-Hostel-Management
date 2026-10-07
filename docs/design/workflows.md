@@ -88,7 +88,7 @@ The resident phone home shows her name and her room, then the plan form when she
 **Edge cases by date / time**
 
 - Use window: departure minus `permission_lead_minutes` through expected return. Gate may open an outing from the permission only inside that window.
-- Approved unused whose expected return has passed becomes **expired** when listed or fetched (no separate expiry list). Gate cannot use it.
+- Approved unused whose expected return has passed becomes **expired**. Gate cannot use it.
 - A return at or before that hall date's ordinary-hours start is 409 `outside_ordinary_hours`: "That return is outside ordinary hours." Do not send her to late-night or home going.
 - A return after the end is 409 `permission_required`: "That return is outside ordinary hours. Please submit a permission request." Summer, 1 April through 30 September, is 6:30 AM to 6:30 PM. Winter, 1 October through 31 March, is 6:30 AM to 5:30 PM. The start is not included. The end is included.
 - She may hold more than one permission. She may not be outside on two outings at once. Two planned or outside outings cannot share an expected return (`return_already_planned`).

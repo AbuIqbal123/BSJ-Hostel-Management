@@ -9,7 +9,7 @@ BACKEND_ROOT = Path(__file__).resolve().parents[2]
 class Settings(BaseSettings):
     """Environment for this process.
 
-    Production on the VPS sets DATABASE_PATH to the persistent volume.
+    In production, set DATABASE_PATH to a file that survives a redeploy.
     A non-production process is refused unless SMS_DRIVER is mock.
     """
 
