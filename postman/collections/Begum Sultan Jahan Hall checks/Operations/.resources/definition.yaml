@@ -1,5 +1,5 @@
 $kind: collection
-name: Health
+name: Operations
 order: 1000
 description: |-
   GET /health says the process is up and does not read the hall. GET /ready opens the database and reports user_version.

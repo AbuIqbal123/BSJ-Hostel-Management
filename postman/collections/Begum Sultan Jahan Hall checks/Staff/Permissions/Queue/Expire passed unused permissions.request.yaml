@@ -3,4 +3,4 @@ method: POST
 url: '{{baseUrl}}/api/v1/permissions/expire-passed'
 order: 4000
 description: |-
-  Caller: warden or provost. Marks every unused approved permission whose expected return has passed as expired. GET queue and GET-by-id do not perform this work. Safe to call before opening the queue. Bearer uses {{token_warden}}.
+  Caller: warden or provost. Marks every unused approved permission whose expected return has passed as expired. GET queue and GET-by-id do not perform this work. Safe to call before opening the queue.

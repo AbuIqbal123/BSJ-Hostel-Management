@@ -10,6 +10,7 @@ queryParams:
   - key: include_terminal
     value: 'false'
     description: When false (default), omit cancelled and rejected. Set true to include them.
+    disabled: true
   - key: limit
     value: '50'
   - key: offset

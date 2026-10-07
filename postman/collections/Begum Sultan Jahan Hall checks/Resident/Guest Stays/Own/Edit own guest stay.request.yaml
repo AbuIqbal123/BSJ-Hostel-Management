@@ -3,7 +3,7 @@ method: PATCH
 url: '{{baseUrl}}/api/v1/me/guest-stays/{{guestStayId}}'
 order: 3500
 description: |-
-  Caller: resident, and only for a stay they host. Allowed only while pending and before arrival: send all of guest_name, relation, guest_start_date, guest_end_date, and reason. An approved stay, and any stay after arrival, returns 409 not_editable. A successful edit leaves the stay pending; payment_status is unchanged. Send sets the start to two hall days ahead and the end three days after that. Bearer uses {{token_resident}}.
+  Caller: resident, and only for a stay they host. Allowed only while pending and before arrival: send all of guest_name, relation, guest_start_date, guest_end_date, and reason. An approved stay, and any stay after arrival, returns 409 not_editable. A successful edit leaves the stay pending; payment_status is unchanged. Send sets the start to two hall days ahead and the end three days after that.
 headers:
   - key: Content-Type
     value: application/json

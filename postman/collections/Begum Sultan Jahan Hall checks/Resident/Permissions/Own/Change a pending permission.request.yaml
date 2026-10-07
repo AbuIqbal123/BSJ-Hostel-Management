@@ -3,7 +3,7 @@ method: PATCH
 url: '{{baseUrl}}/api/v1/me/permissions/{{permissionId}}'
 order: 3500
 description: |-
-  Caller: resident, and only while this permission is still pending. The kind cannot change. Departure must not be in the past, and the expected return must be after the departure. Home going still requires an address. The permission stays pending. Once it is approved, rejected, cancelled, in use, completed, or expired, this call returns 409 not_editable. Bearer uses {{token_resident}}.
+  Caller: resident, and only while this permission is still pending. The kind cannot change. Departure must not be in the past, and the expected return must be after the departure. Home going still requires an address. The permission stays pending. Once it is approved, rejected, cancelled, in use, completed, or expired, this call returns 409 not_editable.
 headers:
   - key: Content-Type
     value: application/json

@@ -3,4 +3,4 @@ method: DELETE
 url: '{{baseUrl}}/api/v1/guest-stays/{{guestStayId}}/payment/evidence'
 order: 14000
 description: |-
-  Caller: warden or provost. Removes stored evidence without changing payment_status. Allowed while payment is still mutable. Marking unpaid also clears evidence. Bearer uses {{token_provost}}.
+  Caller: warden or provost. Removes stored evidence without changing payment_status. Allowed while payment is still mutable. Marking unpaid also clears evidence.

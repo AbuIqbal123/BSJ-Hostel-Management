@@ -3,7 +3,7 @@ method: POST
 url: '{{baseUrl}}/api/v1/guest-stays/{{guestStayId}}/payment/evidence'
 order: 12000
 description: |-
-  Caller: warden or provost. Optional file proof that payment was taken off-system (receipt photo or PDF). Never required to mark a stay paid. Multipart field name is evidence. Allowed types: image/jpeg, image/png, application/pdf. Maximum 5 MiB. Pick the file in Body before Send. Replaces any previous evidence. Allowed while payment is still mutable. Bearer uses {{token_provost}}.
+  Caller: warden or provost. Optional file proof that payment was taken off-system (receipt photo or PDF). Never required to mark a stay paid. Multipart field name is evidence. Allowed types: image/jpeg, image/png, application/pdf. Maximum 5 MiB. Pick the file in Body before Send. Replaces any previous evidence. Allowed while payment is still mutable.
 body:
   type: formdata
   content:
