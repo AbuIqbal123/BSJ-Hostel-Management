@@ -4,13 +4,12 @@ import { router, useFocusEffect, useNavigation } from "expo-router";
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { formatHallDate, formatSpan } from "@/format-when";
+import { HALL_ZONE, formatHallDate, formatSpan } from "@/format-when";
+import { hallDay } from "@/outing-when";
 import { kindLabel } from "@/requests";
 import { useSession, type HistoryItem, type HistoryKind } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
-
-const HALL_ZONE = "Asia/Kolkata";
 
 type KindFilter = HistoryKind | "all";
 
@@ -21,18 +20,6 @@ const KIND_FILTERS: { id: KindFilter; label: string }[] = [
   { id: "guest_stay", label: "Guest stays" },
   { id: "outing", label: "Outing" },
 ];
-
-function hallDate(date: Date): string {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: HALL_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-  const part = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((item) => item.type === type)?.value ?? "";
-  return `${part("year")}-${part("month")}-${part("day")}`;
-}
 
 function dayFromHall(on: string): Date {
   const [year, month, day] = on.split("-").map(Number);
@@ -213,7 +200,7 @@ export default function HistoryScreen() {
   };
 
   const chooseFrom = (date: Date) => {
-    const next = hallDate(date);
+    const next = hallDay(date);
     if (next === fromDay) {
       return;
     }
@@ -225,7 +212,7 @@ export default function HistoryScreen() {
   };
 
   const chooseTo = (date: Date) => {
-    const next = hallDate(date);
+    const next = hallDay(date);
     if (next === toDay) {
       return;
     }

@@ -1,5 +1,8 @@
+// hall_day() is the calendar date in hall_settings.timezone, seeded Asia/Kolkata.
+export const HALL_ZONE = "Asia/Kolkata";
+
 const hallParts = new Intl.DateTimeFormat("en-GB", {
-  timeZone: "Asia/Kolkata",
+  timeZone: HALL_ZONE,
   year: "numeric",
   month: "2-digit",
   day: "2-digit",
