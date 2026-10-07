@@ -7,12 +7,6 @@
       "skillPath": "plugins/expo/skills/eas-app-stores/SKILL.md",
       "computedHash": "687009e0cecbbf58674428d2f38a2a2f54ea10551e043ec104e2002087705627"
     },
-    "eas-hosting": {
-      "source": "expo/skills",
-      "sourceType": "github",
-      "skillPath": "plugins/expo/skills/eas-hosting/SKILL.md",
-      "computedHash": "3e1b508e6f93ac890f89b8672eda0aabda3b010b650f1bf50fdfc0fdaae2497b"
-    },
     "eas-observe": {
       "source": "expo/skills",
       "sourceType": "github",
@@ -85,23 +79,11 @@
       "skillPath": "plugins/expo/skills/expo-overview/SKILL.md",
       "computedHash": "ae10834702315c887df298a220712bf5e89ab6a0d9088eb54c6d7fddddb3e8b3"
     },
-    "expo-project-structure": {
-      "source": "expo/skills",
-      "sourceType": "github",
-      "skillPath": "plugins/expo/skills/expo-project-structure/SKILL.md",
-      "computedHash": "d131a20d31b81e7e04b9ede9f0271bd14e161a8fa525e2e9ba42ba766fe25d2d"
-    },
     "expo-router": {
       "source": "expo/skills",
       "sourceType": "github",
       "skillPath": "plugins/expo/skills/expo-router/SKILL.md",
       "computedHash": "512978d4ea35857932b79ee9b15a47d7ab78382dc1fcd275601b87e4c80c1e59"
-    },
-    "expo-skill-feedback": {
-      "source": "expo/skills",
-      "sourceType": "github",
-      "skillPath": "plugins/expo/skills/expo-skill-feedback/SKILL.md",
-      "computedHash": "7964b0683a81a9e2932151d5f1ddda27f60f22932e38c1687e60f754fdb45277"
     },
     "expo-ui": {
       "source": "expo/skills",
