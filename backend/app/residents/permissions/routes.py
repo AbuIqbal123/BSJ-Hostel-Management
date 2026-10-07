@@ -287,28 +287,11 @@ def cancel_permission(
     expire_passed_permissions(connection, now_text, permission_id=permission_id)
     connection.commit()
     row = connection.execute(
-        """
-        SELECT id, resident_id, status, type, short_place
-        FROM permissions
-        WHERE id = ?
-        """,
+        "SELECT resident_id FROM permissions WHERE id = ?",
         (permission_id,),
     ).fetchone()
     if row is None or row["resident_id"] != account.id:
         raise ApiError(404, "not_found", "That record was not found.")
-    if row["status"] == "in_use":
-        raise ApiError(
-            409,
-            "permission_in_use",
-            "The gate has already recorded an exit on this permission, so it cannot be cancelled.",
-        )
-    if row["status"] not in {"pending", "approved"}:
-        raise ApiError(
-            409,
-            "not_cancellable",
-            "Only a pending or approved permission can be cancelled "
-            f"(current status: {row['status']}).",
-        )
     updated = connection.execute(
         """
         UPDATE permissions

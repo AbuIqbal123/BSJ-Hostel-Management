@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from functools import partial
 
 from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict
@@ -57,13 +58,7 @@ def _pass(
 @router.get("/me/hall-pass", response_model=ResidentHallPass)
 def resident_hall_pass(account: ResidentDep, connection: ConnectionDep) -> ResidentHallPass:
     row = connection.execute(
-        """
-        SELECT residents.qr_token, users.full_name, rooms.label AS room_label
-        FROM residents
-        JOIN users ON users.id = residents.user_id
-        JOIN rooms ON rooms.id = residents.room_id
-        WHERE residents.user_id = ?
-        """,
+        "SELECT qr_token FROM residents WHERE user_id = ?",
         (account.id,),
     ).fetchone()
     if row is None:
@@ -78,9 +73,12 @@ def resident_hall_pass(account: ResidentDep, connection: ConnectionDep) -> Resid
         """,
         (account.id,),
     ).fetchall()
-    token = row["qr_token"]
-    name = row["full_name"]
-    room = row["room_label"]
+    hall_pass = partial(
+        _pass,
+        token=row["qr_token"],
+        full_name=account.full_name,
+        room_label=account.room_label,
+    )
 
     open_ordinary: list[tuple[sqlite3.Row, str | None, str | None]] = []
     for outing in outings:
@@ -105,10 +103,7 @@ def resident_hall_pass(account: ResidentDep, connection: ConnectionDep) -> Resid
             )
         )
         outing, visible_from, visible_until = open_ordinary[0]
-        return _pass(
-            token=token,
-            full_name=name,
-            room_label=room,
+        return hall_pass(
             outing=outing,
             qr_visible=True,
             qr_visible_from=visible_from,
@@ -117,10 +112,7 @@ def resident_hall_pass(account: ResidentDep, connection: ConnectionDep) -> Resid
 
     outside = next((outing for outing in outings if outing["status"] == "outside"), None)
     if outside is not None:
-        return _pass(
-            token=token,
-            full_name=name,
-            room_label=room,
+        return hall_pass(
             outing=outside,
             qr_visible=True,
             qr_visible_from=outside["exited_at"],
@@ -143,20 +135,14 @@ def resident_hall_pass(account: ResidentDep, connection: ConnectionDep) -> Resid
             exited_at=outing["exited_at"],
             now=now,
         )
-        return _pass(
-            token=token,
-            full_name=name,
-            room_label=room,
+        return hall_pass(
             outing=outing,
             qr_visible=False,
             qr_visible_from=visible_from,
             qr_visible_until=visible_until,
         )
 
-    return _pass(
-        token=token,
-        full_name=name,
-        room_label=room,
+    return hall_pass(
         outing=None,
         qr_visible=False,
         qr_visible_from=None,

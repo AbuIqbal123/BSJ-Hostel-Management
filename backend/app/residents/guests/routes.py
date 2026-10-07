@@ -315,28 +315,11 @@ def cancel_guest_stay(
 ) -> GuestStayBody:
     today = clock.hall_local_date(clock.utc_now())
     row = connection.execute(
-        """
-        SELECT id, host_resident_id, status, guest_name, arrived_at
-        FROM guest_stays
-        WHERE id = ?
-        """,
+        "SELECT host_resident_id FROM guest_stays WHERE id = ?",
         (guest_stay_id,),
     ).fetchone()
     if row is None or row["host_resident_id"] != account.id:
         raise ApiError(404, "not_found", "That record was not found.")
-    if row["arrived_at"] is not None:
-        raise ApiError(
-            409,
-            "not_cancellable",
-            "The guest has already arrived, so this stay cannot be cancelled.",
-        )
-    if row["status"] not in {"pending", "approved"}:
-        raise ApiError(
-            409,
-            "not_cancellable",
-            "Only a pending or approved guest stay can be cancelled "
-            f"(current status: {row['status']}).",
-        )
     now_text = clock.format_instant(clock.utc_now())
     # Cancelled rows must have no decision fields (database CHECK).
     updated = connection.execute(
