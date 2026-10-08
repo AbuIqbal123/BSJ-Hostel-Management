@@ -421,5 +421,4 @@ def expire_own_passed(account: ResidentDep, connection: ConnectionDep) -> Expire
     now_text = clock.format_instant(clock.utc_now())
     plans = expire_passed_plans(connection, account.id, now_text)
     permissions = expire_passed_permissions(connection, now_text, resident_id=account.id)
-    connection.commit()
     return ExpirePassedResult(plans_expired=plans, permissions_expired=permissions)

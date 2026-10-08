@@ -132,7 +132,6 @@ def admin_create_resident(
         user_id,
         f"{account.full_name} created resident {full_name}.",
     )
-    connection.commit()
     created = load_resident_account(connection, user_id)
     assert created is not None
     return ResidentCreated(
@@ -292,7 +291,6 @@ def admin_update_resident(
         summary,
         detail,
     )
-    connection.commit()
     updated = load_resident_account(connection, resident_id)
     assert updated is not None
     return updated
@@ -326,7 +324,6 @@ def reissue_hall_pass(
         resident_id,
         f"{account.full_name} reissued the hall pass for {current.full_name}.",
     )
-    connection.commit()
     return HallPass(
         qr_payload=qr_payload,
         full_name=current.full_name,

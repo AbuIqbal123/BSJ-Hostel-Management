@@ -90,7 +90,6 @@ def admin_create_staff(
         user_id,
         f"{account.full_name} created staff account {username}.",
     )
-    connection.commit()
     created = load_staff_account(connection, user_id)
     assert created is not None
     return created
@@ -175,7 +174,6 @@ def admin_update_staff(
         f"{account.full_name} updated staff account {current.username}.",
         detail,
     )
-    connection.commit()
     updated = load_staff_account(connection, user_id)
     assert updated is not None
     return updated

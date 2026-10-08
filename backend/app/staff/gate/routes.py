@@ -278,7 +278,6 @@ def _record_ordinary_exit(
         outing_id,
         f"{account.full_name} recorded an exit for {full_name} to {place}.",
     )
-    connection.commit()
     return load_outing(connection, outing_id)
 
 
@@ -350,7 +349,6 @@ def _open_permission_exit(
         outing_id,
         f"{account.full_name} recorded an exit for {full_name} to {permission['short_place']}.",
     )
-    connection.commit()
     return load_outing(connection, outing_id)
 
 
@@ -405,7 +403,6 @@ def _record_return(
         f"{account.full_name} recorded a return for {full_name} from {place}.",
     )
     send_return_notice_if_due(connection, outing_id=outing_id, now_text=now_text)
-    connection.commit()
     return load_outing(connection, outing_id)
 
 

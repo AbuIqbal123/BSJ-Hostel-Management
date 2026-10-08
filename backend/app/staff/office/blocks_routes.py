@@ -70,7 +70,6 @@ def create_block(
         block_id,
         f"{account.full_name} created block {code}.",
     )
-    connection.commit()
     created = load_block(connection, block_id)
     assert created is not None
     return created
@@ -143,7 +142,6 @@ def update_block(
         f"{account.full_name} updated block {current.code}.",
         detail,
     )
-    connection.commit()
     updated = load_block(connection, block_id)
     assert updated is not None
     return updated
