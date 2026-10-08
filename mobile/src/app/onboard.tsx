@@ -7,7 +7,6 @@ import {
   Animated,
   BackHandler,
   Easing,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -19,8 +18,8 @@ import {
 import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
-import { PASSWORD_RULES } from "@/password-rules";
-import { errorMessage, hallFetch, useSession } from "@/session";
+import { PASSWORD_RULES, passwordRulesMet } from "@/password-rules";
+import { errorMessage, hallFetch, isRecord, useSession } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
@@ -62,24 +61,6 @@ const EMPTY_ROOMS = "No rooms are open";
 const HALL_UNREACHABLE = "The hall could not be reached";
 const PHONE_LINE = "Use an Indian mobile: +91 and exactly 10 digits";
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function hallBlockKey(name: string): string | null {
-  const normalized = name
-    .trim()
-    .toLowerCase()
-    .replace(/[_-]+/g, " ")
-    .replace(/\s+/g, " ");
-  const match = /^(?:block\s+)?([abcd])$/.exec(normalized);
-  return match?.[1] ?? null;
-}
-
-function isHallBlock(name: string): boolean {
-  return hallBlockKey(name) !== null;
-}
-
 function readOptions(value: unknown): BlockOption[] | null {
   if (!Array.isArray(value)) {
     return null;
@@ -108,9 +89,6 @@ function readOptions(value: unknown): BlockOption[] | null {
         return null;
       }
       rooms.push({ id: room.id, label: room.label });
-    }
-    if (!isHallBlock(item.name)) {
-      continue;
     }
     blocks.push({ id: item.id, name: item.name, rooms });
   }
@@ -150,34 +128,6 @@ function failingPasswordRule(value: string): string | null {
     }
   }
   return null;
-}
-
-function passwordRulesMet(value: string): boolean {
-  return value.length > 0 && failingPasswordRule(value) === null && value.length <= 200;
-}
-
-function droppedOneCharacter(previous: string, incoming: string): boolean {
-  if (incoming.length !== previous.length - 1) {
-    return false;
-  }
-  let index = 0;
-  while (index < incoming.length && previous[index] === incoming[index]) {
-    index += 1;
-  }
-  return previous.slice(index + 1) === incoming.slice(index);
-}
-
-function securePasswordEdit(previous: string, incoming: string): string {
-  if (incoming.startsWith(previous)) {
-    return incoming;
-  }
-  if (droppedOneCharacter(previous, incoming)) {
-    return incoming;
-  }
-  if (incoming.length === 0) {
-    return previous;
-  }
-  return previous + incoming;
 }
 
 function digits(value: string): string {
@@ -520,13 +470,11 @@ export default function OnboardScreen() {
 
   const onPassword = useCallback(
     (value: string) => {
-      const previous = passwordRef.current;
-      const next = Platform.OS === "ios" ? securePasswordEdit(previous, value) : value;
-      if (next === previous) {
+      if (value === passwordRef.current) {
         return;
       }
-      passwordRef.current = next;
-      setPassword(next);
+      passwordRef.current = value;
+      setPassword(value);
       passwordField.onEdit();
       setError(null);
     },
@@ -551,7 +499,8 @@ export default function OnboardScreen() {
       personError(fullName, "Enter your full name") !== null ||
       enrolmentError(enrolment) !== null ||
       phoneError(phone) !== null ||
-      !passwordRulesMet(password)
+      !passwordRulesMet(password) ||
+      password.length > 200
     );
   }, [enrolment, fullName, password, phone]);
 

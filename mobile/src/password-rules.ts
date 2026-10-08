@@ -9,3 +9,7 @@ export const PASSWORD_RULES: { label: string; test: (value: string) => boolean }
       /[^A-Za-z0-9]/.test(value),
   },
 ];
+
+export function passwordRulesMet(value: string): boolean {
+  return PASSWORD_RULES.every((rule) => rule.test(value));
+}

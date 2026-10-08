@@ -7,12 +7,8 @@ import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
 import { useSession } from "@/session";
 import { useHallColors } from "@/theme/colors";
-import { PASSWORD_RULES } from "@/password-rules";
+import { PASSWORD_RULES, passwordRulesMet } from "@/password-rules";
 import { text } from "@/theme/text";
-
-function passwordRulesMet(value: string): boolean {
-  return PASSWORD_RULES.every((rule) => rule.test(value));
-}
 
 export default function ChangePasswordScreen() {
   const colors = useHallColors();
