@@ -9,10 +9,11 @@ import Animated, {
   withDelay,
   withTiming,
 } from "react-native-reanimated";
-import { Redirect, router, useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
+import { Redirect, useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
 import { Alert, InteractionManager, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { goBackOr } from "@/back";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
 import { HALL_ZONE, formatClockDay, formatWhenParts, utcInstant } from "@/format-when";
@@ -162,11 +163,7 @@ function usePermissionBack() {
       return;
     }
     leaving.current = true;
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-      return;
-    }
-    router.navigate("/permissions");
+    goBackOr(navigation, "/permissions");
   }, [navigation]);
 }
 

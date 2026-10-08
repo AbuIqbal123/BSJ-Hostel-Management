@@ -1,7 +1,8 @@
-import { router, useNavigation } from "expo-router";
+import { useNavigation } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { goBackOr } from "@/back";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
@@ -9,13 +10,7 @@ export default function PrivacyScreen() {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const back = () => {
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-      return;
-    }
-    router.navigate("/settings");
-  };
+  const back = () => goBackOr(navigation, "/settings");
 
   return (
     <ScrollView

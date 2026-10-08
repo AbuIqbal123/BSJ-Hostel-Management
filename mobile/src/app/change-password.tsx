@@ -3,6 +3,7 @@ import { Redirect, router, useNavigation } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { goBackOr } from "@/back";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
 import { useSession } from "@/session";
@@ -49,13 +50,7 @@ export default function ChangePasswordScreen() {
     router.replace("/sign-in");
   }, [changePassword, currentPassword, newPassword]);
 
-  const back = () => {
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-      return;
-    }
-    router.navigate(user?.role === "resident" ? "/settings" : "/signed-in");
-  };
+  const back = () => goBackOr(navigation, user?.role === "resident" ? "/settings" : "/signed-in");
 
   if (!user) {
     return <Redirect href="/sign-in" />;

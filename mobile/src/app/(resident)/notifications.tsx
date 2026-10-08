@@ -3,6 +3,7 @@ import { router, useFocusEffect, useNavigation } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { goBackOr } from "@/back";
 import { formatSpan } from "@/format-when";
 import { useSession, type HallNotification } from "@/session";
 import { useHallColors } from "@/theme/colors";
@@ -86,13 +87,7 @@ export default function NotificationsScreen() {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Back"
-        onPress={() => {
-          if (navigation.canGoBack()) {
-            navigation.goBack();
-            return;
-          }
-          router.navigate("/home");
-        }}
+        onPress={() => goBackOr(navigation, "/home")}
         style={styles.back}
       >
         <Text style={[text.button, { color: colors.inkSoft }]}>Back</Text>
