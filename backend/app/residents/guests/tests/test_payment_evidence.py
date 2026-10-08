@@ -18,7 +18,6 @@ from app.dev_seed import (
     PROVOST_PHRASE,
     RESIDENT_PHRASE,
     WARDEN_PHRASE,
-    joined,
 )
 
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "guest-payment-evidence.json"

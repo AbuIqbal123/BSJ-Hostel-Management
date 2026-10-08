@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-from app.shared.testing_env import signing_key_for_tests
-
 import json
 import sqlite3
-from collections.abc import Iterator
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -31,20 +28,6 @@ AISHA_QR = "bsj:v1:test-resident-hall-pass"
 class FrozenClock:
     def utc_now(self) -> datetime:
         return NOW
-
-
-@pytest.fixture
-def database_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
-    path = tmp_path / "hostel.db"
-    monkeypatch.setenv("DATABASE_PATH", str(path))
-    monkeypatch.setenv("ENVIRONMENT", "development")
-    monkeypatch.setenv("SMS_DRIVER", "mock")
-    monkeypatch.setenv("APP_SECRET_KEY", signing_key_for_tests())
-    from app.shared.config import get_settings
-
-    get_settings.cache_clear()
-    yield path
-    get_settings.cache_clear()
 
 
 def assert_error(response, status: int, code: str) -> None:
