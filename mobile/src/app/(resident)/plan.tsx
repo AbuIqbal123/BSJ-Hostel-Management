@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Redirect, router, useLocalSearchParams, useNavigation } from "expo-router";
+import { Redirect, useLocalSearchParams, useNavigation } from "expo-router";
 import {
   Alert,
   BackHandler,
@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { goBackOr } from "@/back";
 import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
@@ -125,11 +126,7 @@ export default function PlanScreen() {
       return;
     }
     leaving.current = true;
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-      return;
-    }
-    router.navigate("/home");
+    goBackOr(navigation, "/home");
   }, [navigation]);
 
   // The alert is still closing when a fast cancel returns. Navigating then

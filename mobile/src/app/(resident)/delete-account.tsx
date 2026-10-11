@@ -3,6 +3,7 @@ import { Redirect, router, useNavigation } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { goBackOr } from "@/back";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
 import { useSession } from "@/session";
@@ -19,13 +20,7 @@ export default function DeleteAccountScreen() {
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
 
-  const back = () => {
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-      return;
-    }
-    router.navigate("/settings");
-  };
+  const back = () => goBackOr(navigation, "/settings");
 
   const submit = useCallback(async () => {
     if (pending.current) {

@@ -4,6 +4,7 @@ import { router, useFocusEffect, useNavigation } from "expo-router";
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { goBackOr } from "@/back";
 import { HALL_ZONE, formatHallDate, formatSpan } from "@/format-when";
 import { hallDay } from "@/outing-when";
 import { kindLabel } from "@/requests";
@@ -191,13 +192,7 @@ export default function HistoryScreen() {
 
   useFocusEffect(load);
 
-  const back = () => {
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-      return;
-    }
-    router.navigate("/settings");
-  };
+  const back = () => goBackOr(navigation, "/settings");
 
   const chooseFrom = (date: Date) => {
     const next = hallDay(date);

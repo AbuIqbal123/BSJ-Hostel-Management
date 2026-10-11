@@ -1,7 +1,8 @@
-import { router, useLocalSearchParams, useNavigation } from "expo-router";
+import { useLocalSearchParams, useNavigation } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { goBackOr } from "@/back";
 import { formatClockDay } from "@/format-when";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
@@ -47,13 +48,7 @@ export default function OutingRecordScreen() {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Back"
-        onPress={() => {
-          if (navigation.canGoBack()) {
-            navigation.goBack();
-            return;
-          }
-          router.navigate("/history");
-        }}
+        onPress={() => goBackOr(navigation, "/history")}
         style={styles.back}
       >
         <Text style={[text.button, { color: colors.inkSoft }]}>Back</Text>

@@ -9,10 +9,11 @@ import Animated, {
   withDelay,
   withTiming,
 } from "react-native-reanimated";
-import { router, useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
 import { Alert, InteractionManager, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { goBackOr } from "@/back";
 import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
@@ -118,11 +119,7 @@ function useLeave() {
       return;
     }
     leaving.current = true;
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-      return;
-    }
-    router.navigate("/permissions");
+    goBackOr(navigation, "/permissions");
   }, [navigation]);
 }
 
