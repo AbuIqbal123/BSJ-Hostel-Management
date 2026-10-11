@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { Redirect, router, useNavigation } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
@@ -42,6 +42,26 @@ export default function DeleteAccountScreen() {
     router.replace("/sign-in");
   }, [deleteAccount, password]);
 
+  const ask = useCallback(() => {
+    if (pending.current) {
+      return;
+    }
+    if (password.length < 1) {
+      setError("Enter your password");
+      return;
+    }
+    Alert.alert("Delete account", "Are you sure you want to delete?", [
+      { text: "Back", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          void submit();
+        },
+      },
+    ]);
+  }, [password.length, submit]);
+
   if (!user) {
     return <Redirect href="/sign-in" />;
   }
@@ -76,16 +96,12 @@ export default function DeleteAccountScreen() {
         autoComplete="password"
         textContentType="password"
         returnKeyType="go"
-        onSubmitEditing={() => {
-          void submit();
-        }}
+        onSubmitEditing={ask}
       />
       <HallButton
         label={busy ? "Deleting account" : "Delete account"}
         disabled={busy || password.length < 1}
-        onPress={() => {
-          void submit();
-        }}
+        onPress={ask}
       />
       {error ? (
         <Text selectable style={[text.error, { color: colors.danger }]}>
