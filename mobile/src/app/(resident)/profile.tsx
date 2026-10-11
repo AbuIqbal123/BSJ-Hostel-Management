@@ -29,6 +29,8 @@ function Stat({ value, label }: { value: number; label: string }) {
       </Text>
       <Text
         numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.72}
         style={[text.body, styles.cardLabel, { color: colors.inkSoft }]}
       >
         {label}
@@ -95,12 +97,14 @@ export default function ProfileScreen() {
           {home.course ? <Line label="Course" value={home.course} /> : null}
           <View style={styles.stats}>
             <Text style={[text.button, { color: colors.ink }]}>Stats</Text>
-            <Stat value={home.permissionsRequested} label="Permissions requested" />
-            <Stat value={home.permissionsRejected} label="Permissions rejected" />
-            <Stat value={home.ordinaryReturns} label="Ordinary returns" />
-            <Stat value={home.lateNightReturns} label="Late-night returns" />
-            <Stat value={home.homeGoingReturns} label="Home-going returns" />
-            <Stat value={home.guestStays} label="Guest stays" />
+            <View style={styles.grid}>
+              <Stat value={home.permissionsRequested} label="Permissions requested" />
+              <Stat value={home.permissionsRejected} label="Permissions rejected" />
+              <Stat value={home.ordinaryReturns} label="Ordinary returns" />
+              <Stat value={home.lateNightReturns} label="Late-night returns" />
+              <Stat value={home.homeGoingReturns} label="Home-going returns" />
+              <Stat value={home.guestStays} label="Guest stays" />
+            </View>
           </View>
         </View>
       ) : (
@@ -127,23 +131,25 @@ const styles = StyleSheet.create({
   lines: { gap: 16 },
   line: { gap: 2 },
   stats: { gap: 12 },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
   card: {
+    width: "47%",
+    flexGrow: 1,
     borderWidth: 1,
     borderRadius: 16,
     borderCurve: "continuous",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
+    padding: 16,
+    gap: 6,
   },
   count: {
     fontFamily: "SourceSerif4_600SemiBold",
-    fontSize: 28,
-    lineHeight: 32,
+    fontSize: 32,
     letterSpacing: -0.4,
     fontVariant: ["tabular-nums"],
-    minWidth: 36,
   },
-  cardLabel: { flex: 1 },
+  cardLabel: { fontSize: 15, width: "100%" },
 });
