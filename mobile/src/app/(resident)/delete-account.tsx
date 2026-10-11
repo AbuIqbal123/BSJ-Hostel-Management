@@ -4,6 +4,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
+import { BackMark } from "@/components/back-mark";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
 import { useSession } from "@/session";
@@ -78,7 +79,7 @@ export default function DeleteAccountScreen() {
       showsVerticalScrollIndicator={false}
     >
       <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={back} style={styles.back}>
-        <Text style={[text.button, { color: colors.inkSoft }]}>Back</Text>
+        <BackMark color={colors.inkSoft} />
       </Pressable>
       <Text style={[text.hallName, styles.title, { color: colors.ink }]}>Delete account</Text>
       <Text style={[text.body, { color: colors.inkSoft }]}>
@@ -119,6 +120,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     gap: 28,
   },
-  back: { alignSelf: "flex-start", minHeight: 44, justifyContent: "center" },
+  back: { alignSelf: "flex-start", minHeight: 44, flexDirection: "row", alignItems: "center", gap: 2, marginLeft: -6 },
   title: { textAlign: "left" },
 });

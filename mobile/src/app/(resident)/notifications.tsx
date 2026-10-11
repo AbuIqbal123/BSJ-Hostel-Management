@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
+import { BackMark } from "@/components/back-mark";
 import { formatSpan } from "@/format-when";
 import { useSession, type HallNotification } from "@/session";
 import { useHallColors } from "@/theme/colors";
@@ -90,7 +91,7 @@ export default function NotificationsScreen() {
         onPress={() => goBackOr(navigation, "/home")}
         style={styles.back}
       >
-        <Text style={[text.button, { color: colors.inkSoft }]}>Back</Text>
+        <BackMark color={colors.inkSoft} />
       </Pressable>
       <Text style={[text.hallName, styles.title, { color: colors.ink }]}>Notifications</Text>
       {failed ? (
@@ -120,7 +121,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     gap: 28,
   },
-  back: { alignSelf: "flex-start", minHeight: 44, justifyContent: "center" },
+  back: { alignSelf: "flex-start", minHeight: 44, flexDirection: "row", alignItems: "center", gap: 2, marginLeft: -6 },
   title: { textAlign: "left" },
   hairline: { height: StyleSheet.hairlineWidth },
   cell: { justifyContent: "center", gap: 2, paddingVertical: 10 },

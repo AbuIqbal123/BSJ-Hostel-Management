@@ -14,6 +14,7 @@ import { Alert, InteractionManager, Platform, Pressable, ScrollView, StyleSheet,
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
+import { BackMark } from "@/components/back-mark";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
 import { HALL_ZONE, formatClockDay, formatWhenParts, utcInstant } from "@/format-when";
@@ -176,7 +177,7 @@ function BackButton({ onPress }: { onPress: () => void }) {
       onPress={onPress}
       style={styles.back}
     >
-      <Text style={[text.button, { color: colors.inkSoft }]}>Back</Text>
+      <BackMark color={colors.inkSoft} />
     </Pressable>
   );
 }
@@ -775,7 +776,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   title: { textAlign: "left" },
-  back: { alignSelf: "flex-start", minHeight: 44, justifyContent: "center" },
+  back: { alignSelf: "flex-start", minHeight: 44, flexDirection: "row", alignItems: "center", gap: 2, marginLeft: -6 },
   fields: { gap: 16 },
   submit: { marginTop: 8 },
   sent: {

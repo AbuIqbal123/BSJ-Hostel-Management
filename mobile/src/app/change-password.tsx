@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
+import { BackMark } from "@/components/back-mark";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
 import { useSession } from "@/session";
@@ -69,7 +70,7 @@ export default function ChangePasswordScreen() {
         onPress={back}
         style={styles.back}
       >
-        <Text style={[text.button, { color: colors.inkSoft }]}>Back</Text>
+        <BackMark color={colors.inkSoft} />
       </Pressable>
       <Text style={[text.hallName, styles.title, { color: colors.ink }]}>Change password</Text>
       <View style={styles.fields}>
@@ -149,7 +150,10 @@ const styles = StyleSheet.create({
   back: {
     alignSelf: "flex-start",
     minHeight: 44,
-    justifyContent: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    marginLeft: -6,
   },
   title: { textAlign: "left" },
   fields: { gap: 16 },

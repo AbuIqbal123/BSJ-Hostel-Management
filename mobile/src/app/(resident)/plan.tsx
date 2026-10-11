@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
+import { BackMark } from "@/components/back-mark";
 import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
@@ -263,7 +264,7 @@ export default function PlanScreen() {
         onPress={backHome}
         style={styles.back}
       >
-        <Text style={[text.button, { color: colors.inkSoft }]}>Back</Text>
+        <BackMark color={colors.inkSoft} />
       </Pressable>
       {loadError ? (
         <Text
@@ -380,7 +381,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   dismiss: { flexGrow: 1, gap: 16 },
-  back: { alignSelf: "flex-start", minHeight: 44, justifyContent: "center" },
+  back: { alignSelf: "flex-start", minHeight: 44, flexDirection: "row", alignItems: "center", gap: 2, marginLeft: -6 },
   block: { gap: 28 },
   fields: { gap: 16 },
   action: { gap: 16 },

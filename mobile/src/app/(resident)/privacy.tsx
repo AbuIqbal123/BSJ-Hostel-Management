@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
+import { BackMark } from "@/components/back-mark";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
@@ -26,7 +27,7 @@ export default function PrivacyScreen() {
         onPress={back}
         style={styles.back}
       >
-        <Text style={[text.button, { color: colors.inkSoft }]}>Back</Text>
+        <BackMark color={colors.inkSoft} />
       </Pressable>
       <View style={styles.heading}>
         <Text style={[text.hallName, styles.title, { color: colors.ink }]}>Privacy policy</Text>
@@ -78,7 +79,10 @@ const styles = StyleSheet.create({
   back: {
     alignSelf: "flex-start",
     minHeight: 44,
-    justifyContent: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    marginLeft: -6,
   },
   heading: { gap: 8 },
   title: { textAlign: "left" },

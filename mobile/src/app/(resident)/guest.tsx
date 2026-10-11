@@ -14,6 +14,7 @@ import { Alert, InteractionManager, Platform, Pressable, ScrollView, StyleSheet,
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
+import { BackMark } from "@/components/back-mark";
 import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
@@ -241,7 +242,7 @@ function GuestForm({ existing }: { existing?: GuestStay }) {
       keyboardShouldPersistTaps="handled"
     >
       <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={back} style={styles.back}>
-        <Text style={[text.button, { color: colors.inkSoft }]}>Back</Text>
+        <BackMark color={colors.inkSoft} />
       </Pressable>
       <Text style={[text.hallName, styles.title, { color: colors.ink }]}>Guest stay</Text>
       <Pressable style={styles.block} onPress={dismissOpenChoice}>
@@ -462,7 +463,7 @@ function GuestDetail({ id }: { id: string }) {
       ]}
     >
       <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={back} style={styles.back}>
-        <Text style={[text.button, { color: colors.inkSoft }]}>Back</Text>
+        <BackMark color={colors.inkSoft} />
       </Pressable>
       {stay ? (
         <View style={styles.block}>
@@ -508,7 +509,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     gap: 28,
   },
-  back: { alignSelf: "flex-start", minHeight: 44, justifyContent: "center" },
+  back: { alignSelf: "flex-start", minHeight: 44, flexDirection: "row", alignItems: "center", gap: 2, marginLeft: -6 },
   title: { textAlign: "left" },
   block: { gap: 16 },
   dateField: { gap: 8 },
