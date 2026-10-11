@@ -120,7 +120,6 @@ def _save_hall_patch(
         summary,
         detail,
     )
-    connection.commit()
 
 
 @router.get("/settings", response_model=HallSettings)

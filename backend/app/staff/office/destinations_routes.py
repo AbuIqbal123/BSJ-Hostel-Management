@@ -81,7 +81,6 @@ def create_destination(
         destination_id,
         f"{account.full_name} created destination {name}.",
     )
-    connection.commit()
     created = load_destination(connection, destination_id)
     assert created is not None
     return created
@@ -177,7 +176,6 @@ def update_destination(
         f"{account.full_name} updated destination {changes.get('name', current.name)}.",
         detail,
     )
-    connection.commit()
     updated = load_destination(connection, destination_id)
     assert updated is not None
     return updated

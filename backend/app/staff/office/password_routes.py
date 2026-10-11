@@ -44,5 +44,4 @@ def reset_password(
         (hash_password(body.temporary_password), now_text, user_id),
     )
     revoke_live_sessions(connection, user_id, now_text)
-    connection.commit()
     return Response(status_code=204)

@@ -386,8 +386,6 @@ def clear_guest_payment_evidence(
             guest_stay_id,
             f"{account.full_name} cleared payment evidence for {existing['guest_name']}.",
         )
-    else:
-        connection.commit()
     today = clock.hall_local_date(clock.utc_now())
     stay = load_guest_stay(connection, guest_stay_id, today=today)
     assert stay is not None

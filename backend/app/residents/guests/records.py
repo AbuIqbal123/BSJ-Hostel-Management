@@ -376,7 +376,6 @@ def record_guest_stay(
     record_audit(
         connection, occurred_at, actor_user_id, action, "guest_stay", guest_stay_id, summary
     )
-    connection.commit()
 
 
 def earliest_start_date(today: str, lead_days: int) -> str:

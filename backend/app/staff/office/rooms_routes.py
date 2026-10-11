@@ -83,7 +83,6 @@ def create_room(
         room_id,
         f"{account.full_name} created room {label}.",
     )
-    connection.commit()
     created = load_room(connection, room_id)
     assert created is not None
     return created
@@ -192,7 +191,6 @@ def update_room(
         f"{account.full_name} updated room {changes.get('label', current.label)}.",
         detail,
     )
-    connection.commit()
     updated = load_room(connection, room_id)
     assert updated is not None
     return updated

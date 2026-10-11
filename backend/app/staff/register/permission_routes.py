@@ -39,7 +39,6 @@ def expire_passed_permissions_staff(
 ) -> ExpirePassedPermissionsResult:
     now_text = clock.format_instant(clock.utc_now())
     count = expire_passed_permissions(connection, now_text)
-    connection.commit()
     return ExpirePassedPermissionsResult(permissions_expired=count)
 
 
