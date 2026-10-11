@@ -2,7 +2,7 @@
 
 Hostel movement system for residents, wardens, gate staff, and the provost. The hall API is FastAPI under `/api/v1`. The resident phone app is Expo, in `mobile/`.
 
-Read these three first.
+Start with these.
 
 | Document | What is in it |
 |---|---|
@@ -21,10 +21,10 @@ Swagger serves the same HTTP contract at http://localhost:8000/docs from `backen
 |---|---|
 | `backend/app/main.py` | Starts the process |
 | `backend/app/shared/` | Sign-in, the clock, errors, settings, the database connection, and creating the hall. Sign-in tests are in `backend/app/shared/auth/tests/` |
-| `backend/app/residents/` | Resident phone: `home`, `notifications`, `outings`, `permissions`, `guests`, `hall_pass` |
+| `backend/app/residents/` | Resident phone: `home`, `notifications`, `outings`, `permissions`, `guests`, `hall_pass`, and `account_routes.py` (she deletes her own account) |
 | `backend/app/staff/` | Gate, the register, and the hall office: `gate`, `register`, `office` |
 | `backend/app/dev_seed.py` | Local sign-in accounts. Not created when the service starts |
-| `backend/tests/` | Startup check for the whole hall, and the development-account check |
+| `backend/tests/` | Checks for the whole hall: startup creates it, routes match the contract, the signing key, `/ready`, and the development accounts |
 | `mobile/` | Expo resident phone app. Commands and rules are in `mobile/AGENTS.md` |
 | `postman/` | Postman checks for the hall API. Folders match the OpenAPI tags |
 | `docs/` | Domain folders: design, api, database, architecture, tests, engineering. See `docs/README.md` |
@@ -52,9 +52,9 @@ source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 uvicorn app.main:app --reload
+```
 
 The hosted process is `backend/start.sh`. It trusts `X-Forwarded-For` (`FORWARDED_ALLOW_IPS`, default `*`) and turns uvicorn's own proxy handling off, so each phone has its own sign-in limit behind Render.
-```
 
 Then open:
 
