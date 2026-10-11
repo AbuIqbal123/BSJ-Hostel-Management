@@ -426,7 +426,8 @@ paths:
       operationId: resident_home
       summary: Resident home
       description: |
-        Caller: resident. Her name, block, and room, whether an ordinary
+        Caller: resident. Her name, hall, block, and room, how many ordinary
+        outings she has returned from, whether an ordinary
         outing is inside its show window now (`ordinary_outing_active`),
         presence, the open outing if there is one, her planned future ordinary
         outings (`upcoming_outings`), the permission the resident is waiting
@@ -453,6 +454,8 @@ paths:
                   room_label: B-204
                   block_name: Block-B
                   presence: inside
+                  hall_name: Begum Sultan Jahan Hall
+                  returned_outings: 0
                 ordinary_outing_active: false
                 current_outing: null
                 upcoming_outings:
@@ -3448,7 +3451,7 @@ components:
     HomeResident:
       type: object
       additionalProperties: false
-      required: [full_name, enrolment_number, room_label, block_name, presence]
+      required: [full_name, enrolment_number, room_label, block_name, presence, hall_name, returned_outings]
       properties:
         full_name:
           type: string
@@ -3466,6 +3469,14 @@ components:
           example: Block-B
         presence:
           $ref: "#/components/schemas/Presence"
+        hall_name:
+          type: string
+          description: The hall's name, from hall settings.
+          example: Begum Sultan Jahan Hall
+        returned_outings:
+          type: integer
+          minimum: 0
+          description: Ordinary outings she has returned from.
 
     ResidentHome:
       type: object

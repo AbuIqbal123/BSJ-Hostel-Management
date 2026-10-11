@@ -744,7 +744,8 @@ The resident phone. Ordinary outings, home, destinations, and the hall pass.
 
 **Who.** resident. Bearer access token.
 
-Caller: resident. Her name, block, and room, whether an ordinary
+Caller: resident. Her name, hall, block, and room, how many ordinary
+outings she has returned from, whether an ordinary
 outing is inside its show window now (`ordinary_outing_active`),
 presence, the open outing if there is one, her planned future ordinary
 outings (`upcoming_outings`), the permission the resident is waiting
@@ -785,7 +786,9 @@ Body: [ResidentHome](#schema-residenthome).
     "course": "B.A. LL.B. (Hons.)",
     "room_label": "B-204",
     "block_name": "Block-B",
-    "presence": "inside"
+    "presence": "inside",
+    "hall_name": "Begum Sultan Jahan Hall",
+    "returned_outings": 0
   },
   "ordinary_outing_active": false,
   "current_outing": null,
@@ -5565,6 +5568,8 @@ One of: `inside`, `outside`, `late`.
 | `room_label` | yes | string |  |
 | `block_name` | yes | string |  |
 | `presence` | yes | `inside` or `outside` |  |
+| `hall_name` | yes | string | The hall's name, from hall settings. |
+| `returned_outings` | yes | integer | Ordinary outings she has returned from. minimum 0. |
 
 ### <a id="schema-residenthome"></a>ResidentHome
 

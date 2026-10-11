@@ -6,7 +6,9 @@
       "room_label": "B-204",
       "block_name": "Block-B",
       "presence": "inside",
-      "full_name": "Aisha Khan"
+      "full_name": "Aisha Khan",
+      "hall_name": "Begum Sultan Jahan Hall",
+      "returned_outings": 0
     },
     "current_outing": null,
     "active_permission": null,
@@ -22,7 +24,9 @@
       "room_label": "B-204",
       "block_name": "Block-B",
       "presence": "outside",
-      "full_name": "Aisha Khan"
+      "full_name": "Aisha Khan",
+      "hall_name": "Begum Sultan Jahan Hall",
+      "returned_outings": 5
     },
     "current_outing": {
       "id": "e7700000-0000-4000-8000-000000000011",

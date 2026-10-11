@@ -52,8 +52,13 @@ export type UpcomingOuting = {
 
 export type ResidentHome = {
   fullName: string;
+  enrolment: string | null;
+  course: string | null;
+  hallName: string | null;
+  blockName: string | null;
   roomLabel: string | null;
   out: boolean;
+  returnedOutings: number;
   windowOpen: boolean;
   upcoming: UpcomingOuting[];
   notificationsUnread: boolean;
@@ -425,10 +430,18 @@ function readResidentHome(value: unknown): ResidentHome | null {
     return null;
   }
   const roomLabel = typeof resident.room_label === "string" ? resident.room_label : null;
+  const returned = resident.returned_outings;
+  const returnedOutings =
+    typeof returned === "number" && Number.isInteger(returned) && returned >= 0 ? returned : 0;
   return {
     fullName: resident.full_name,
+    enrolment: textOrNull(resident.enrolment_number),
+    course: textOrNull(resident.course),
+    hallName: textOrNull(resident.hall_name),
+    blockName: textOrNull(resident.block_name),
     roomLabel,
     out: resident.presence === "outside",
+    returnedOutings,
     windowOpen: value.ordinary_outing_active,
     upcoming: readUpcoming(value),
     notificationsUnread: value.notifications_unread,

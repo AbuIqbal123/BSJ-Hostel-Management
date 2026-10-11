@@ -57,6 +57,8 @@ class HomeResident(BaseModel):
     room_label: str
     block_name: str
     presence: Literal["inside", "outside"]
+    hall_name: str
+    returned_outings: int
 
 
 class ResidentHome(BaseModel):
@@ -154,6 +156,16 @@ def _recent_history(connection: sqlite3.Connection, resident_id: str) -> list[Hi
 @router.get("/me/home", response_model=ResidentHome)
 def resident_home(account: ResidentDep, connection: ConnectionDep) -> ResidentHome:
     now = clock.utc_now()
+    hall_name = connection.execute(
+        "SELECT hall_name FROM hall_settings WHERE id = 'hall'"
+    ).fetchone()["hall_name"]
+    returned_outings = connection.execute(
+        """
+        SELECT COUNT(*) FROM outings
+        WHERE resident_id = ? AND type = 'ordinary' AND returned_at IS NOT NULL
+        """,
+        (account.id,),
+    ).fetchone()[0]
     return ResidentHome(
         resident=HomeResident(
             full_name=account.full_name,
@@ -162,6 +174,8 @@ def resident_home(account: ResidentDep, connection: ConnectionDep) -> ResidentHo
             room_label=account.room_label or "",
             block_name=account.block_name or "",
             presence=account.presence or "inside",
+            hall_name=hall_name,
+            returned_outings=int(returned_outings),
         ),
         ordinary_outing_active=ordinary_window_is_open(connection, account.id, now),
         current_outing=load_current_outing(connection, account.id, now),
