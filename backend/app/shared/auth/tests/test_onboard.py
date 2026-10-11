@@ -262,10 +262,13 @@ def test_resident_onboard(database_path: Path, monkeypatch: pytest.MonkeyPatch) 
         )
 
 
-def test_enrolment_is_named_on_the_field(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_taken_enrolment_is_not_a_password_error(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from app.shared import clock
     from app.main import app
 
+    old_message = "Username or password is wrong."
     monkeypatch.setattr(clock, "utc_now", FrozenClock().utc_now)
     with TestClient(app) as client:
         issue_rooms(database_path)
@@ -288,3 +291,16 @@ def test_enrolment_is_named_on_the_field(database_path: Path, monkeypatch: pytes
             "That enrolment number is already an account.",
             "enrolment_number",
         )
+        assert old_message not in json.dumps(taken.json())
+        finished = client.post(
+            "/api/v1/auth/onboard",
+            json=_body(enrolment_number="24-gllb-220", full_name="Someone Else"),
+        )
+        assert_error(
+            finished,
+            422,
+            "validation_error",
+            "That enrolment number is already an account.",
+            "enrolment_number",
+        )
+        assert old_message not in json.dumps(finished.json())
