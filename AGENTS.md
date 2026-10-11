@@ -32,7 +32,7 @@ Behavior is specified before it is implemented.
 - A test's specification lives in `docs/tests/tests.md`.
 - Technical detail lives in the code. There is no separate technical specification.
 
-Do not implement a behavior those documents do not already describe. Update the owning document in the same change as the code. While this work is on dev, leave the API version and the database document version as they are. Do not add a database revision row for a dev change. Those version numbers start when the work moves to production.
+Do not implement a behavior those documents do not already describe. Update the owning document in the same change as the code. While this work is on dev, the API version, the database document version, the test catalog version, and the schema version stay at 1. Do not bump them. Do not add a revision row. Those version numbers change when the work moves to production.
 
 ### OpenAPI tags and Postman folders
 

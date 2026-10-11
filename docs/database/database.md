@@ -1,12 +1,12 @@
 # Begum Sultan Jahan Hall — what the hall keeps
 
-Version: **0.3.4**
+Version: **1**
 
 Status: agreed. The service creates these records when it starts. They match this document.
 
 This document is the source of truth for what is stored and how a record is allowed to change. It is written for the hall. The software follows it. What a person sends and receives is in [`api.md`](../api/api.md). The picture of what is running is [`system-architecture.md`](../architecture/system-architecture.md).
 
-The hosted API on Render keeps these records in a Turso database. That process does not keep a SQLite file. A development machine and the automated checks keep the same records in a local SQLite file. Turso refuses a write to `PRAGMA user_version`, so the hosted database also keeps one `hall_schema` row with that same version number. `GET /ready` reports it.
+The hosted API on Render keeps these records in a Turso database. That process does not keep a SQLite file. A development machine and the automated checks keep the same records in a local SQLite file. The schema version stays 1 until production. `GET /ready` reports that version. The service records which migration file it has applied in `schema_migrations`. That list is not a hall record.
 
 ## Contents
 
@@ -642,18 +642,6 @@ Besides the unique indexes that enforce one username, one open outside outing, a
 | guardian_messages_outing_id | guardian_messages (outing_id) | Register resident record looks up the late notice for the open outing. |
 | resident_notifications_resident_created | resident_notifications (resident_id, created_at) | A resident's permission-decision inbox, newest first, and whether any row is unread. |
 
-## Implementation note (dev)
-
-Self-onboard is specified here and in the HTTP contract. Migration `0012_resident_block_rooms.sql` seeds door numbers 1 through each published count for blocks A, B, C, and D. Utility has no seeded rooms. `0013_outing_starts_at.sql` adds nullable `outings.starts_at`. `0014_outing_updated_audit.sql` records an outing change. `0015_resident_notifications.sql` keeps one row when a permission is approved or rejected. The next free migration number is `0016_…`. Leave this document's version at **0.3.4** until production.
-
 ## Revisions
 
-| Version | Notes |
-|---|---|
-| 0.3.4 | A resident may plan several ordinary outings on one hall day. The gate uses the earliest return still ahead today and does not use a later day. Two open outings cannot end at the same instant. One outside outing at a time. |
-| 0.3.3 | A resident may plan one ordinary outing for each hall day. The hall day is stored on the outing. She cancels the day she chooses. One outside outing at a time. |
-| 0.3.2 | The destination list shows named places A to Z and always shows the free-text choice, Other, last. No stored order was added. |
-| 0.3.1 | The service creates these records when it starts. The fields and rules are unchanged from 0.3.0. |
-| 0.3.0 | Summer starts on 1 April and winter starts on 1 October, from the seasonal split published by AMU University Health Services. The season is worked out from the hall date. The HTTP contract uses the same names as this document. |
-| 0.2.0 | Production contract. An ordinary outing needs a destination and an expected return before the exit scan. Ordinary hours are a summer window and a winter window from SOP 06 and SOP 07. Guardian name and phone are required. Times are shown on a 12-hour clock and dates as day, month name, year. Blocks and room counts match the hall page of 30 September 2026. Destinations are shown alphabetically. Outing type and notice type replace the old kind fields. Exit, return, and decision fields are required once that step has happened. The register counts the whole hall and each block. The audit log is named as such. |
-| 0.1.0 | Initial agreement. The written rules are the contract. Not created as records yet. |
+Version 1 is the dev contract. This list stays empty until the hall moves to production.

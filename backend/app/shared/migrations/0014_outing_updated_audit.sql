@@ -1,5 +1,4 @@
 -- Remember when a resident changes a planned ordinary outing.
--- Applied while user_version is 13. Leaves the version at 14.
 -- Adds outing.updated to the audit action check.
 
 PRAGMA foreign_keys=OFF;
@@ -104,4 +103,3 @@ BEGIN
 END;
 
 PRAGMA foreign_keys=ON;
-PRAGMA user_version = 14;

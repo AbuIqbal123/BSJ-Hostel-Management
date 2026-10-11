@@ -1,4 +1,3 @@
--- Hall records for docs/database/database.md. Applied once, while user_version is 0.
 
 CREATE TABLE hall_settings (
   id TEXT PRIMARY KEY CHECK (id = 'hall'),
@@ -885,5 +884,3 @@ INSERT INTO destinations (id, name, is_other, is_active) VALUES
   ('f2008ef3-a1df-5ff0-b936-3466d0914781', 'Other', 1, 1),
   ('924e5c75-e9b6-57a9-bb04-720028253526', 'Shamshad Market', 0, 1),
   ('df29c4b7-63c5-525d-a9ec-798a980c64c8', 'Women''s College', 0, 1);
-
-PRAGMA user_version = 1;

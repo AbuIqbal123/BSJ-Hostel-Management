@@ -24,7 +24,7 @@ from pydantic import BaseModel
 from app.shared.config import get_settings
 from app.shared.db import commit_request
 from app.shared.errors import ApiError, api_error_handler, validation_error_handler
-from app.shared.migrate import migrate
+from app.shared.migrate import MIGRATIONS, SCHEMA_VERSION, applied_migrations, migrate
 from app.shared.auth.routes import router as auth_router
 from app.residents.home.routes import router as home_router
 from app.residents.account_routes import router as account_router
@@ -135,13 +135,10 @@ def health() -> Health:
 
 
 def _read_user_version(connection: sqlite3.Connection) -> int:
-    if get_settings().environment == "production":
-        row = connection.execute(
-            "SELECT version FROM hall_schema WHERE id = 'hall'"
-        ).fetchone()
-        return 0 if row is None else int(row[0])
-    row = connection.execute("PRAGMA user_version").fetchone()
-    return int(row[0])
+    expected = {path.name for path in MIGRATIONS}
+    if applied_migrations(connection) != expected:
+        raise RuntimeError("The hall schema is not current.")
+    return SCHEMA_VERSION
 
 
 @app.get("/ready", response_model=Ready)

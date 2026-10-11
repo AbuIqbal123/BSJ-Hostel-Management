@@ -8,8 +8,8 @@ Start with these.
 |---|---|
 | [`docs/README.md`](docs/README.md) | Docs map by domain (design, api, database, architecture, tests, engineering) |
 | [`docs/architecture/system-architecture.md`](docs/architecture/system-architecture.md) | The diagram of the system as it stands |
-| [`docs/database/database.md`](docs/database/database.md) | What the hall keeps, and the rules for how it changes. Version 0.3.4. Created when the service starts |
-| [`docs/api/api.md`](docs/api/api.md) | Every endpoint: who calls it, the payload, and the response. API version 0.2.12 |
+| [`docs/database/database.md`](docs/database/database.md) | What the hall keeps, and the rules for how it changes. Version 1. Created when the service starts |
+| [`docs/api/api.md`](docs/api/api.md) | Every endpoint: who calls it, the payload, and the response. API version 1 |
 | [`docs/design/design-system.md`](docs/design/design-system.md) | Visual design lock for the Expo client |
 | [`docs/design/workflows.md`](docs/design/workflows.md) | Product workflows (auth, home, permissions, register, gate, guests) |
 

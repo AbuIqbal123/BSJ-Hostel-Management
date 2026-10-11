@@ -8,9 +8,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-import sqlite3
-
-from app.shared.migrate import MIGRATIONS, SCHEMA_VERSION, apply_script
+from app.shared.migrate import MIGRATIONS, SCHEMA_VERSION
 from app.shared.testing_env import signing_key_for_tests
 
 TURSO_URL = "libsql://bsj-hall.turso.io"
@@ -18,14 +16,15 @@ TURSO_TOKEN = "hosted-token-not-a-secret"
 
 
 class _Cursor:
-    def __init__(self, sql: str) -> None:
-        self.sql = sql
+    def __init__(self, one: tuple[object, ...] | None, many: list[tuple[object, ...]]) -> None:
+        self._one = one
+        self._many = many
 
-    def fetchone(self) -> tuple[int]:
-        return (SCHEMA_VERSION,)
+    def fetchone(self) -> tuple[object, ...] | None:
+        return self._one
 
-    def fetchall(self) -> list[object]:
-        return []
+    def fetchall(self) -> list[tuple[object, ...]]:
+        return self._many
 
 
 class _Connection:
@@ -33,14 +32,29 @@ class _Connection:
         self.row_factory = None
         self.statements: list[str] = []
         self.closed = False
+        self.tables = {"hall_settings"}
+        self.filenames: set[str] = set()
 
     def execute(self, sql: str, parameters: object = ()) -> _Cursor:
         self.statements.append(sql)
-        return _Cursor(sql)
+        folded = " ".join(sql.split())
+        if folded.startswith("SELECT 1 FROM sqlite_master"):
+            name = parameters[0] if isinstance(parameters, tuple) else ""
+            return _Cursor((1,) if name in self.tables else None, [])
+        if folded.startswith("SELECT filename FROM schema_migrations"):
+            return _Cursor(None, [(name,) for name in sorted(self.filenames)])
+        if folded.startswith("INSERT INTO schema_migrations"):
+            name = parameters[0] if isinstance(parameters, tuple) else ""
+            self.filenames.add(str(name))
+            return _Cursor(None, [])
+        if folded.startswith("CREATE TABLE IF NOT EXISTS schema_migrations"):
+            self.tables.add("schema_migrations")
+            return _Cursor(None, [])
+        return _Cursor(None, [])
 
     def executescript(self, sql_script: str) -> _Cursor:
         self.statements.append(sql_script)
-        return _Cursor(sql_script)
+        return _Cursor(None, [])
 
     def commit(self) -> None:
         return None
@@ -149,37 +163,8 @@ def test_ready_uses_turso_and_does_not_create_a_file(
     assert calls["n"] == 2
 
 
-def test_turso_script_shape_matches_sqlite(tmp_path: Path) -> None:
-    direct = tmp_path / "direct.db"
-    split = tmp_path / "split.db"
-    with sqlite3.connect(direct) as connection:
-        for path in MIGRATIONS:
-            connection.executescript(path.read_text(encoding="utf-8"))
-    with sqlite3.connect(split) as connection:
-        for path in MIGRATIONS:
-            apply_script(connection, path.read_text(encoding="utf-8"), remote=True)
-            connection.execute(
-                "PRAGMA user_version = " + str(
-                    connection.execute(
-                        "SELECT version FROM hall_schema WHERE id = 'hall'"
-                    ).fetchone()[0]
-                )
-            )
-
-    def names(path: Path) -> list[str]:
-        with sqlite3.connect(path) as connection:
-            return [
-                row[0]
-                for row in connection.execute(
-                    """
-                    SELECT name FROM sqlite_master
-                    WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
-                    ORDER BY name
-                    """
-                )
-            ]
-
-    assert names(direct) == [name for name in names(split) if name != "hall_schema"]
-    with sqlite3.connect(split) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
-        assert connection.execute("SELECT COUNT(*) FROM rooms").fetchone()[0] > 0
+def test_migration_files_do_not_set_a_pragma_version() -> None:
+    assert SCHEMA_VERSION == 1
+    for path in MIGRATIONS:
+        text = path.read_text(encoding="utf-8").lower()
+        assert "user_version" not in text

@@ -1,5 +1,4 @@
 -- One planned or outside outing per resident per hall day.
--- Applied while user_version is 1. Leaves the version at 2.
 
 ALTER TABLE outings ADD COLUMN hall_date TEXT;
 
@@ -37,5 +36,3 @@ WHEN NEW.hall_date IS NULL
 BEGIN
   SELECT RAISE(ABORT, 'hall_date must be the hall day of the expected return');
 END;
-
-PRAGMA user_version = 2;

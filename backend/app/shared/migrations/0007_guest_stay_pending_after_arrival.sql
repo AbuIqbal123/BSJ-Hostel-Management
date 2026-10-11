@@ -1,6 +1,5 @@
 -- Allow pending guest stays that already have arrival recorded (date edit after
 -- arrival returns the stay to pending for re-approval while the guest remains
--- in the hall). Applied while user_version is 6. Leaves the version at 7.
 
 PRAGMA foreign_keys=OFF;
 
@@ -254,4 +253,3 @@ END;
 CREATE INDEX audit_log_occurred_at ON audit_log (occurred_at);
 
 PRAGMA foreign_keys=ON;
-PRAGMA user_version = 7;

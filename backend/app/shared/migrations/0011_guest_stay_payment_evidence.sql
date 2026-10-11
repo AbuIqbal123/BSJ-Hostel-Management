@@ -1,5 +1,4 @@
 -- Optional guest-stay payment evidence file metadata.
--- Applied while user_version is 10. Leaves the version at 11.
 -- Keeps guest_stay.edited from 0007 and adds the evidence audit actions.
 
 PRAGMA foreign_keys=OFF;
@@ -175,4 +174,3 @@ BEGIN
 END;
 
 PRAGMA foreign_keys=ON;
-PRAGMA user_version = 11;

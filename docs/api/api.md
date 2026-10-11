@@ -1,6 +1,6 @@
 # Begum Sultan Jahan Hall API
 
-API version: **0.2.12**
+API version: **1**
 
 This is the reading copy of [`backend/openapi.yaml`](../../backend/openapi.yaml). Swagger at `/docs` serves that file. Stored data is in [`database.md`](../database/database.md). When an endpoint changes, edit the YAML and regenerate this page from the repository root:
 
@@ -103,8 +103,8 @@ Do not edit this page by hand.
 
 ## How to call the API
 
-HTTP contract for the hostel movement system. Schema version of the database
-is tracked separately in `docs/database/database.md` (0.3.4).
+HTTP contract for the hostel movement system. The database document is
+version 1 in `docs/database/database.md`. Both stay at 1 until production.
 
 This version is the contract. Auth, resident phone (home, history, hall pass,
 destinations, ordinary outings, permissions, guest stays, permission-decision
@@ -192,10 +192,9 @@ Body: [Health](#schema-health).
 
 **Who.** Anyone. No token.
 
-Opens the hall database and reports the schema version. Locally that
-is `PRAGMA user_version`. On Turso it is the `hall_schema` row, because
-Turso refuses a write to that pragma. The hosted call does not open a
-database file. `GET /health` stays shallow.
+Opens the hall database and reports the schema version. The version
+stays 1 while the hall is on dev. The hosted call reads Turso and does
+not open a database file. `GET /health` stays shallow.
 
 **Responses**
 
@@ -208,14 +207,14 @@ Body: [Ready](#schema-ready).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `status` | yes | `ready` |  |
-| `user_version` | yes | integer | SQLite PRAGMA user_version after migrations. minimum 0. |
+| `user_version` | yes | integer | Schema version. It stays 1 while the hall is on dev. minimum 0. |
 
 **Example**
 
 ```json
 {
   "status": "ready",
-  "user_version": 15
+  "user_version": 1
 }
 ```
 
@@ -5394,7 +5393,7 @@ Each JSON object used above. An operation section already shows the fields for i
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `status` | yes | `ready` |  |
-| `user_version` | yes | integer | SQLite PRAGMA user_version after migrations. minimum 0. |
+| `user_version` | yes | integer | Schema version. It stays 1 while the hall is on dev. minimum 0. |
 
 ### <a id="schema-errorresponse"></a>ErrorResponse
 

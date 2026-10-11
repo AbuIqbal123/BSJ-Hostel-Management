@@ -193,5 +193,3 @@ INSERT INTO rooms (id, block_id, number, label, bed_count, is_active) VALUES
   ('ae4f9e24-f8f7-5175-a03f-88992781b764', 'f75a0c4d-cf9e-5b03-9ba5-13f77337453d', '38', 'D-38', 2, 1),
   ('a1bb2bc7-2e59-54e4-a468-7d809ad09659', 'f75a0c4d-cf9e-5b03-9ba5-13f77337453d', '39', 'D-39', 2, 1),
   ('df9f29b7-4c46-5373-9de0-36cfcf8b9338', 'f75a0c4d-cf9e-5b03-9ba5-13f77337453d', '40', 'D-40', 2, 1);
-
-PRAGMA user_version = 12;

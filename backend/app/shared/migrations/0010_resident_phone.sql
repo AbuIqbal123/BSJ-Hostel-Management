@@ -10,5 +10,3 @@ ALTER TABLE residents ADD COLUMN phone TEXT CHECK (
       '0', ''), '1', ''), '2', ''), '3', ''), '4', ''), '5', ''), '6', ''), '7', ''), '8', ''), '9', '') = ''
   )
 );
-
-PRAGMA user_version = 10;

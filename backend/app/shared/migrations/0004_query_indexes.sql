@@ -25,5 +25,3 @@ CREATE INDEX sessions_user_id
 
 CREATE INDEX guardian_messages_outing_id
   ON guardian_messages (outing_id);
-
-PRAGMA user_version = 4;

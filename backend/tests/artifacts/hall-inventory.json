@@ -1,5 +1,5 @@
 {
-  "user_version": 15,
+  "user_version": 1,
   "tables": [
     "audit_log",
     "blocks",
@@ -12,6 +12,7 @@
     "resident_notifications",
     "residents",
     "rooms",
+    "schema_migrations",
     "sessions",
     "staff",
     "users"
@@ -140,6 +141,14 @@
       "created_at",
       "updated_at"
     ],
+    "resident_notifications": [
+      "id",
+      "resident_id",
+      "permission_id",
+      "decision",
+      "created_at",
+      "read_at"
+    ],
     "residents": [
       "user_id",
       "enrolment_number",
@@ -160,6 +169,9 @@
       "label",
       "bed_count",
       "is_active"
+    ],
+    "schema_migrations": [
+      "filename"
     ],
     "sessions": [
       "id",
@@ -183,14 +195,6 @@
       "created_at",
       "updated_at",
       "last_login_at"
-    ],
-    "resident_notifications": [
-      "id",
-      "resident_id",
-      "permission_id",
-      "decision",
-      "created_at",
-      "read_at"
     ]
   },
   "indexes": [

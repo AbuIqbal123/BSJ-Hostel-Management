@@ -20,7 +20,7 @@ Two files own the contract. A third is rendered from the HTTP file so a person c
 When a change affects what a client sends, what the server returns, who may call it, what is stored, or how a record moves between states:
 
 1. Edit the owning file in the same change as the code.
-2. Leave `info.version` and the version at the top of `docs/database/database.md` unchanged while the work is on dev. Do not add a revision row. Change those version numbers only when the change is for production.
+2. While the work is on dev, `info.version`, the database document version, and the schema version stay at 1. Do not bump them. Do not add a revision row. Change those version numbers only when the change is for production.
 3. Update the example and the error code if the caller would see a different payload.
 4. If the YAML changed, regenerate the reading copy from the repository root: `backend/.venv/bin/python backend/scripts/render_api_md.py`.
 5. Do not leave the change only in a commit message or a code comment.

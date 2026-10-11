@@ -8,8 +8,11 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from app.shared.migrate import MIGRATIONS, SCHEMA_VERSION, applied_migrations
+
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "hall-inventory.json"
 SEEDED_TABLES = {"hall_settings", "blocks", "destinations", "rooms"}
+BOOKKEEPING_TABLES = {"schema_migrations"}
 BOOLEAN_COLUMNS = {"is_active", "is_other"}
 
 
@@ -23,7 +26,12 @@ def read_inventory(path: Path) -> dict:
     connection = sqlite3.connect(path)
     connection.row_factory = sqlite3.Row
     try:
-        user_version = connection.execute("PRAGMA user_version").fetchone()[0]
+        applied = applied_migrations(connection)
+        user_version = (
+            SCHEMA_VERSION
+            if applied == {path.name for path in MIGRATIONS}
+            else 0
+        )
         tables = [
             row[0]
             for row in connection.execute(
@@ -64,7 +72,7 @@ def read_inventory(path: Path) -> dict:
         empty = {
             table: connection.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0]
             for table in tables
-            if table not in SEEDED_TABLES
+            if table not in SEEDED_TABLES | BOOKKEEPING_TABLES
         }
         return {
             "user_version": user_version,

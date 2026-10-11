@@ -1,5 +1,4 @@
 -- One inbox row when a permission is approved or rejected.
--- Applied while user_version is 14. Leaves the version at 15.
 
 CREATE TABLE resident_notifications (
   id TEXT PRIMARY KEY CHECK (
@@ -24,5 +23,3 @@ CREATE TABLE resident_notifications (
 
 CREATE INDEX resident_notifications_resident_created
   ON resident_notifications (resident_id, created_at);
-
-PRAGMA user_version = 15;
