@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-from app.shared.testing_env import signing_key_for_tests
-
 import json
 import sqlite3
-from collections.abc import Iterator
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -15,20 +12,6 @@ from fastapi.testclient import TestClient
 
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "dev-accounts.json"
 CREATED = datetime(2026, 9, 30, tzinfo=timezone.utc)
-
-
-@pytest.fixture
-def database_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
-    path = tmp_path / "hostel.db"
-    monkeypatch.setenv("DATABASE_PATH", str(path))
-    monkeypatch.setenv("ENVIRONMENT", "development")
-    monkeypatch.setenv("SMS_DRIVER", "mock")
-    monkeypatch.setenv("APP_SECRET_KEY", signing_key_for_tests())
-    from app.shared.config import get_settings
-
-    get_settings.cache_clear()
-    yield path
-    get_settings.cache_clear()
 
 
 def read_public(path: Path) -> dict:
