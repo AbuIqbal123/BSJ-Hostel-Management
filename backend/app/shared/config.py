@@ -9,8 +9,9 @@ BACKEND_ROOT = Path(__file__).resolve().parents[2]
 class Settings(BaseSettings):
     """Environment for this process.
 
-    In production, set DATABASE_PATH to a file that survives a redeploy.
-    A non-production process is refused unless SMS_DRIVER is mock.
+    Production keeps the hall database on Turso. It does not open a database
+    file. A non-production process uses DATABASE_PATH and is refused unless
+    SMS_DRIVER is mock.
     """
 
     model_config = SettingsConfigDict(
@@ -21,6 +22,8 @@ class Settings(BaseSettings):
 
     environment: str = "development"
     database_path: Path = BACKEND_ROOT / "data" / "hostel.db"
+    turso_database_url: str = ""
+    turso_auth_token: str = ""
     payment_evidence_dir: Path = BACKEND_ROOT / "data" / "payment-evidence"
     sqlite_busy_timeout_ms: int = 5000
     sms_driver: str = "mock"

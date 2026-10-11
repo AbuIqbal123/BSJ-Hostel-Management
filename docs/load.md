@@ -4,7 +4,7 @@ Thin Locust scenarios for a running local hall API. **Not** part of the GitHub C
 
 ## Setup
 
-Use a disposable database file. Login writes sessions, and a gate scan writes a movement. Do not point this run at `backend/data/hostel.db`.
+Use a disposable database file. Login writes sessions, and a gate scan writes a movement. Do not point this run at `backend/data/hostel.db`, and do not point it at the hosted Turso database. A load run stays on the local file. `ENVIRONMENT` stays `development`.
 
 ```bash
 cd backend

@@ -54,7 +54,7 @@ cp .env.example .env
 uvicorn app.main:app --reload
 ```
 
-The hosted process is `backend/start.sh`. It trusts `X-Forwarded-For` (`FORWARDED_ALLOW_IPS`, default `*`) and turns uvicorn's own proxy handling off, so each phone has its own sign-in limit behind Render.
+The hosted process is `backend/start.sh` on Render. Render runs the API only. The hall database is Turso (`libsql://` or `turso://`). Set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` on that service, and do not set `DATABASE_PATH`. The process refuses to start while `DATABASE_PATH` is set, and it does not create a SQLite file. `start.sh` trusts `X-Forwarded-For` (`FORWARDED_ALLOW_IPS`, default `*`) and turns uvicorn's own proxy handling off, so each phone has its own sign-in limit behind Render.
 
 Then open:
 
@@ -68,7 +68,7 @@ Every path in `backend/openapi.yaml` is served. [`docs/api/api.md`](docs/api/api
 
 In development, `/docs` re-reads `openapi.yaml` on each load. A business route must be in that file before it is registered, or the process will not start.
 
-On startup the service creates the hall in `backend/data/hostel.db` when that file is new. It does not create people. `GET /health` does not return hall data. `APP_SECRET_KEY` must be set in `backend/.env` or the process refuses to start. `SMS_DRIVER` must stay `mock` unless `ENVIRONMENT` is `production`. Any other value stops the process, so a laptop cannot send a parent SMS. Late and return guardian messages use the mock SMS path on register read and return scan (no phone network).
+On a development machine, startup creates the hall in `backend/data/hostel.db` when that file is new. On Render, startup creates the hall in the Turso database when that database is new. It does not create people. `GET /health` does not return hall data. `APP_SECRET_KEY` must be set in `backend/.env` or the process refuses to start. `SMS_DRIVER` must stay `mock` unless `ENVIRONMENT` is `production`. Any other value stops the process, so a laptop cannot send a parent SMS. Late and return guardian messages use the mock SMS path on register read and return scan (no phone network).
 
 `APP_SECRET_KEY` must be at least 32 bytes. A shorter value stops the process before it serves.
 

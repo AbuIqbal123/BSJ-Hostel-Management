@@ -1,4 +1,6 @@
 #!/bin/sh
+# Render runs this process only. The hall database is Turso. This script does
+# not create or open a SQLite file.
 # Render's proxy is the only client. Trust its forwarded address so sign-in
 # limits are per phone, and do not let uvicorn apply the header a second time.
 export FORWARDED_ALLOW_IPS="${FORWARDED_ALLOW_IPS:-*}"

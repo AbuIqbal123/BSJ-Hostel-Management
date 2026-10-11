@@ -192,8 +192,10 @@ Body: [Health](#schema-health).
 
 **Who.** Anyone. No token.
 
-Opens the hall database and reports `PRAGMA user_version`. Use this to
-confirm the process can read the hall file. `GET /health` stays shallow.
+Opens the hall database and reports the schema version. Locally that
+is `PRAGMA user_version`. On Turso it is the `hall_schema` row, because
+Turso refuses a write to that pragma. The hosted call does not open a
+database file. `GET /health` stays shallow.
 
 **Responses**
 

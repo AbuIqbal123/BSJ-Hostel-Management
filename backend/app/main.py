@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import os
 import sqlite3
+
+import turso_serverless
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -132,24 +134,47 @@ def health() -> Health:
     return Health(status="ok")
 
 
+def _read_user_version(connection: sqlite3.Connection) -> int:
+    if get_settings().environment == "production":
+        row = connection.execute(
+            "SELECT version FROM hall_schema WHERE id = 'hall'"
+        ).fetchone()
+        return 0 if row is None else int(row[0])
+    row = connection.execute("PRAGMA user_version").fetchone()
+    return int(row[0])
+
+
 @app.get("/ready", response_model=Ready)
 def ready() -> Ready:
-    path = get_settings().database_path
+    settings = get_settings()
+    if settings.environment == "production":
+        try:
+            from app.shared.db import create_connection
+
+            connection = create_connection()
+            try:
+                user_version = _read_user_version(connection)
+            finally:
+                connection.close()
+        except (RuntimeError, OSError, sqlite3.Error, turso_serverless.Error) as exc:
+            raise ApiError(503, "not_ready", "The hall database could not be opened.") from exc
+        return Ready(status="ready", user_version=user_version)
+    path = settings.database_path
     if not path.is_file():
         raise ApiError(503, "not_ready", "The hall database could not be opened.")
     try:
         connection = sqlite3.connect(
             path.resolve().as_uri() + "?mode=ro",
             uri=True,
-            timeout=get_settings().sqlite_busy_timeout_ms / 1000,
+            timeout=settings.sqlite_busy_timeout_ms / 1000,
         )
         try:
-            user_version = connection.execute("PRAGMA user_version").fetchone()[0]
+            user_version = _read_user_version(connection)
         finally:
             connection.close()
     except sqlite3.Error as exc:
         raise ApiError(503, "not_ready", "The hall database could not be opened.") from exc
-    return Ready(status="ready", user_version=int(user_version))
+    return Ready(status="ready", user_version=user_version)
 
 
 def custom_openapi() -> dict:

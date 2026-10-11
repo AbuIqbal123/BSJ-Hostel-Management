@@ -6,6 +6,8 @@ Status: agreed. The service creates these records when it starts. They match thi
 
 This document is the source of truth for what is stored and how a record is allowed to change. It is written for the hall. The software follows it. What a person sends and receives is in [`api.md`](../api/api.md). The picture of what is running is [`system-architecture.md`](../architecture/system-architecture.md).
 
+The hosted API on Render keeps these records in a Turso database. That process does not keep a SQLite file. A development machine and the automated checks keep the same records in a local SQLite file. Turso refuses a write to `PRAGMA user_version`, so the hosted database also keeps one `hall_schema` row with that same version number. `GET /ready` reports it.
+
 ## Contents
 
 - [Where this comes from](#where-this-comes-from)

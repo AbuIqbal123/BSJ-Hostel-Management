@@ -1,8 +1,11 @@
-"""SQLite connection for one environment.
+"""Database connection for one environment.
 
-Each connection uses WAL, a busy timeout, and foreign keys. The hall
-records are created by app.shared.migrate when the service starts. Callers open
-a short transaction and close it.
+Local development and the automated checks open a SQLite file. That file uses
+WAL, a busy timeout, and foreign keys. Production opens the hall database on
+Turso and does not create or open a database file.
+
+The hall records are created by app.shared.migrate when the service starts.
+Callers open a short transaction and close it.
 
 The success response is sent only after this transaction commits. FastAPI runs
 the code after `yield` once the response has already started, so a failed
@@ -11,17 +14,51 @@ commit there cannot change the status line.
 
 from __future__ import annotations
 
+import os
 import sqlite3
 from collections.abc import Iterator
 from typing import Any
 
 from fastapi import Request
 
-from app.shared.config import get_settings
+from app.shared.config import Settings, get_settings
 
 
-def create_connection() -> sqlite3.Connection:
+def _named_row(cursor: object, row: object) -> object:
+    """Turso already built a name-and-index row. Keep it."""
+    return row
+
+
+def _connect_turso(settings: Settings) -> Any:
+    if os.environ.get("DATABASE_PATH", "").strip():
+        raise RuntimeError(
+            "DATABASE_PATH is set, but production keeps the hall database on "
+            "Turso and does not open a database file. Remove DATABASE_PATH."
+        )
+    url = settings.turso_database_url.strip()
+    token = settings.turso_auth_token.strip()
+    if not url or not token:
+        raise RuntimeError(
+            "Production keeps the hall database on Turso. "
+            "Set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN. "
+            "Refusing to open a database file."
+        )
+    if url.lower().startswith(("file:", "sqlite:")) or "://" not in url:
+        raise RuntimeError(
+            "TURSO_DATABASE_URL must be a Turso URL. Refusing to open a database file."
+        )
+    import turso_serverless
+
+    connection = turso_serverless.connect(url, auth_token=token)
+    connection.row_factory = _named_row
+    connection.execute("PRAGMA foreign_keys=ON;")
+    return connection
+
+
+def create_connection() -> Any:
     settings = get_settings()
+    if settings.environment == "production":
+        return _connect_turso(settings)
     settings.database_path.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(
         settings.database_path,
