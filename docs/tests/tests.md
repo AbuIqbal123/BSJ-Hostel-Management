@@ -74,8 +74,8 @@ Copy this block for each test and fill every field.
 | Purpose | The hosted API keeps the hall database on Turso. A production process does not create or open a SQLite file. |
 | Actor | System job. Service startup and `GET /ready`. |
 | Preconditions | `ENVIRONMENT` is `production`. A database path is set for the refusal, then cleared for the Turso open. No Turso credentials are present until a check sets them. The Turso client is replaced so the check does not reach the network. |
-| Action | Open a connection with no Turso credentials. Open one with a `file:` URL. Open one with a Turso URL and token. Start the service with startup skipped, then `GET /health` and `GET /ready` while Turso cannot be opened. Read the migration files. |
-| Expected response | Missing credentials raise and name Turso. A file URL raises and names a database file. A Turso URL opens that URL with the token, turns foreign keys on, and does not set a journal mode. Ready returns 503 `not_ready` and says the hall database could not be opened. In every case the database path is not created. Health still returns 200 `{"status":"ok"}`. The schema version constant is 1. No migration file assigns `PRAGMA user_version`. |
+| Action | On Render, open a connection with no Turso credentials, with a `file:` URL, and with a Turso URL and token. Start the service with startup skipped, then `GET /health` and `GET /ready` while Turso cannot be opened. On a laptop, set Turso credentials and open a connection. Read the migration files. |
+| Expected response | On Render, missing credentials raise and name Turso. A file URL raises and names a database file. A Turso URL opens that URL with the token, turns foreign keys on, and does not set a journal mode. Ready returns 503 `not_ready` and says the hall database could not be opened. The database path is not created. Health still returns 200 `{"status":"ok"}`. A laptop with Turso credentials opens the SQLite file and does not call Turso. No migration file assigns `PRAGMA user_version`. |
 | Failure cases | E2E; failure cases are covered by the expected response. |
 | Artifact | none |
 

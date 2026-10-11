@@ -1,3 +1,4 @@
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -43,6 +44,11 @@ class Settings(BaseSettings):
                 "APP_SECRET_KEY must be at least 32 bytes so JWT HS256 signing "
                 "meets the recommended key length. Refusing to start."
             )
+
+
+def is_hosted() -> bool:
+    """Render sets RENDER=true. Every other process uses the local SQLite file."""
+    return os.environ.get("RENDER", "").strip().lower() == "true"
 
 
 @lru_cache

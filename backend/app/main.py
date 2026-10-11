@@ -21,7 +21,7 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel
 
-from app.shared.config import get_settings
+from app.shared.config import get_settings, is_hosted
 from app.shared.db import commit_request
 from app.shared.errors import ApiError, api_error_handler, validation_error_handler
 from app.shared.migrate import MIGRATIONS, SCHEMA_VERSION, applied_migrations, migrate
@@ -143,7 +143,7 @@ def _schema_version(connection: sqlite3.Connection) -> int:
 @app.get("/ready", response_model=Ready)
 def ready() -> Ready:
     settings = get_settings()
-    if settings.environment == "production":
+    if is_hosted():
         try:
             from app.shared.db import create_connection
 

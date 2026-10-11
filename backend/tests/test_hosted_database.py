@@ -28,6 +28,7 @@ class _Connection:
 def hosted_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     database = tmp_path / "must-not-exist" / "hostel.db"
     monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("RENDER", "true")
     monkeypatch.setenv("SMS_DRIVER", "mock")
     monkeypatch.setenv("APP_SECRET_KEY", signing_key_for_tests())
     monkeypatch.setenv("DATABASE_PATH", str(database))
@@ -115,6 +116,33 @@ def test_ready_uses_turso_and_does_not_create_a_file(
         assert ready.json()["error"]["code"] == "not_ready"
         assert ready.json()["error"]["message"] == "The hall database could not be opened."
     assert not hosted_env.exists()
+
+
+def test_a_laptop_ignores_turso_and_opens_the_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database = tmp_path / "hostel.db"
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("DATABASE_PATH", str(database))
+    monkeypatch.setenv("TURSO_DATABASE_URL", TURSO_URL)
+    monkeypatch.setenv("TURSO_AUTH_TOKEN", TURSO_TOKEN)
+    monkeypatch.setenv("SMS_DRIVER", "mock")
+    monkeypatch.setenv("APP_SECRET_KEY", signing_key_for_tests())
+    monkeypatch.delenv("RENDER", raising=False)
+    called: list[str] = []
+
+    def connect(url: str, *, auth_token: str | None = None, **kwargs: object) -> None:
+        called.append(url)
+
+    monkeypatch.setattr("turso_serverless.connect", connect)
+    from app.shared.config import get_settings
+    from app.shared.db import create_connection
+
+    get_settings.cache_clear()
+    connection = create_connection()
+    connection.close()
+    assert database.is_file()
+    assert called == []
 
 
 def test_migration_files_do_not_set_a_pragma_version() -> None:

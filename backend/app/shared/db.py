@@ -14,7 +14,7 @@ from typing import Any
 
 from fastapi import Request
 
-from app.shared.config import Settings, get_settings
+from app.shared.config import Settings, get_settings, is_hosted
 
 
 def _named_row(cursor: object, row: object) -> object:
@@ -50,7 +50,7 @@ def _connect_turso(settings: Settings) -> Any:
 
 def create_connection() -> Any:
     settings = get_settings()
-    if settings.environment == "production":
+    if is_hosted():
         return _connect_turso(settings)
     settings.database_path.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(
