@@ -849,17 +849,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
-    const current = sessionRef.current;
-    if (!current) {
+    if (!sessionRef.current) {
       return "Sign in again";
     }
     try {
       const response = await authorized("/api/v1/auth/change-password", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${current.accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           current_password: currentPassword,
           new_password: newPassword,
@@ -990,8 +986,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       from?: string | null;
       to?: string | null;
     }): Promise<HistoryResult> => {
-      const current = sessionRef.current;
-      if (!current) {
+      if (!sessionRef.current) {
         return { error: "Sign in again" };
       }
       const query = new URLSearchParams();
@@ -1007,10 +1002,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const suffix = query.toString();
       const path = suffix.length > 0 ? `/api/v1/me/history?${suffix}` : "/api/v1/me/history";
       try {
-        const response = await authorized(path, {
-          method: "GET",
-          headers: { Authorization: `Bearer ${current.accessToken}` },
-        });
+        const response = await authorized(path, { method: "GET" });
         if (!response.ok) {
           return { error: await errorMessage(response) };
         }
@@ -1027,15 +1019,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
 
   const loadNotifications = useCallback(async (): Promise<NotificationListResult> => {
-    const current = sessionRef.current;
-    if (!current) {
+    if (!sessionRef.current) {
       return { error: "Sign in again" };
     }
     try {
-      const response = await authorized("/api/v1/me/notifications", {
-        method: "GET",
-        headers: { Authorization: `Bearer ${current.accessToken}` },
-      });
+      const response = await authorized("/api/v1/me/notifications", { method: "GET" });
       if (!response.ok) {
         return { error: await errorMessage(response) };
       }
@@ -1050,30 +1038,22 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const markNotificationsRead = useCallback(async (): Promise<void> => {
-    const current = sessionRef.current;
-    if (!current) {
+    if (!sessionRef.current) {
       return;
     }
     try {
-      await authorized("/api/v1/me/notifications/read", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${current.accessToken}` },
-      });
+      await authorized("/api/v1/me/notifications/read", { method: "POST" });
     } catch {
       return;
     }
   }, []);
 
   const loadGuestStays = useCallback(async (): Promise<GuestListResult> => {
-    const current = sessionRef.current;
-    if (!current) {
+    if (!sessionRef.current) {
       return { error: "Sign in again" };
     }
     try {
-      const response = await authorized("/api/v1/me/guest-stays?limit=50", {
-        method: "GET",
-        headers: { Authorization: `Bearer ${current.accessToken}` },
-      });
+      const response = await authorized("/api/v1/me/guest-stays?limit=50", { method: "GET" });
       if (!response.ok) {
         return { error: await errorMessage(response) };
       }
@@ -1088,15 +1068,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loadGuestStay = useCallback(async (guestStayId: string): Promise<GuestResult> => {
-    const current = sessionRef.current;
-    if (!current) {
+    if (!sessionRef.current) {
       return { error: "Sign in again" };
     }
     try {
-      const response = await authorized(`/api/v1/me/guest-stays/${encodeURIComponent(guestStayId)}`, {
-        method: "GET",
-        headers: { Authorization: `Bearer ${current.accessToken}` },
-      });
+      const response = await authorized(`/api/v1/me/guest-stays/${encodeURIComponent(guestStayId)}`, { method: "GET" });
       if (!response.ok) {
         return { error: await errorMessage(response) };
       }
@@ -1111,17 +1087,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const submitGuestStay = useCallback(async (body: GuestStayCreate) => {
-    const current = sessionRef.current;
-    if (!current) {
+    if (!sessionRef.current) {
       return "Sign in again";
     }
     try {
       const response = await authorized("/api/v1/me/guest-stays", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${current.accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       if (response.status === 201) {
@@ -1134,17 +1106,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateGuestStay = useCallback(async (guestStayId: string, body: GuestStayCreate) => {
-    const current = sessionRef.current;
-    if (!current) {
+    if (!sessionRef.current) {
       return "Sign in again";
     }
     try {
       const response = await authorized(`/api/v1/me/guest-stays/${encodeURIComponent(guestStayId)}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${current.accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       if (response.status === 200) {
@@ -1157,18 +1125,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const cancelGuestStay = useCallback(async (guestStayId: string) => {
-    const current = sessionRef.current;
-    if (!current) {
+    if (!sessionRef.current) {
       return { code: null, message: "Sign in again" };
     }
     try {
-      const response = await authorized(
-        `/api/v1/me/guest-stays/${encodeURIComponent(guestStayId)}/cancel`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${current.accessToken}` },
-        },
-      );
+      const response = await authorized(`/api/v1/me/guest-stays/${encodeURIComponent(guestStayId)}/cancel`, { method: "POST" });
       if (response.status === 200) {
         return null;
       }
@@ -1179,15 +1140,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loadHallPass = useCallback(async (): Promise<HallPassResult> => {
-    const current = sessionRef.current;
-    if (!current) {
+    if (!sessionRef.current) {
       return { error: "Sign in again" };
     }
     try {
-      const response = await authorized("/api/v1/me/hall-pass", {
-        method: "GET",
-        headers: { Authorization: `Bearer ${current.accessToken}` },
-      });
+      const response = await authorized("/api/v1/me/hall-pass", { method: "GET" });
       if (!response.ok) {
         return { error: await errorMessage(response) };
       }
@@ -1202,15 +1159,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loadDestinations = useCallback(async (): Promise<DestinationResult> => {
-    const current = sessionRef.current;
-    if (!current) {
+    if (!sessionRef.current) {
       return { error: "Sign in again" };
     }
     try {
-      const response = await authorized("/api/v1/destinations", {
-        method: "GET",
-        headers: { Authorization: `Bearer ${current.accessToken}` },
-      });
+      const response = await authorized("/api/v1/destinations", { method: "GET" });
       if (!response.ok) {
         return { error: await errorMessage(response) };
       }
@@ -1225,17 +1178,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const planOuting = useCallback(async (body: PlanOutingBody) => {
-    const current = sessionRef.current;
-    if (!current) {
+    if (!sessionRef.current) {
       return "Sign in again";
     }
     try {
       const response = await authorized("/api/v1/me/outings", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${current.accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(outingPayload(body)),
       });
       if (response.status === 201) {
@@ -1248,17 +1197,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateOuting = useCallback(async (outingId: string, body: PlanOutingBody) => {
-    const current = sessionRef.current;
-    if (!current) {
+    if (!sessionRef.current) {
       return "Sign in again";
     }
     try {
       const response = await authorized(`/api/v1/me/outings/${outingId}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${current.accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(outingPayload(body)),
       });
       if (response.status === 200) {
@@ -1271,15 +1216,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const cancelOuting = useCallback(async (outingId: string) => {
-    const current = sessionRef.current;
-    if (!current) {
+    if (!sessionRef.current) {
       return { code: null, message: "Sign in again" };
     }
     try {
-      const response = await authorized(`/api/v1/me/outings/${outingId}/cancel`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${current.accessToken}` },
-      });
+      const response = await authorized(`/api/v1/me/outings/${outingId}/cancel`, { method: "POST" });
       if (response.status === 200) {
         return null;
       }
@@ -1290,16 +1231,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loadPermissions = useCallback(async (): Promise<PermissionListResult> => {
-    const current = sessionRef.current;
-    if (!current) {
+    if (!sessionRef.current) {
       return { error: "Sign in again" };
     }
     try {
       await authorized("/api/v1/me/expire-passed", { method: "POST" });
-      const response = await authorized("/api/v1/me/permissions?limit=500", {
-        method: "GET",
-        headers: { Authorization: `Bearer ${current.accessToken}` },
-      });
+      const response = await authorized("/api/v1/me/permissions?limit=500", { method: "GET" });
       if (!response.ok) {
         return { error: await errorMessage(response) };
       }
@@ -1314,19 +1251,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loadPermission = useCallback(async (permissionId: string): Promise<PermissionResult> => {
-    const current = sessionRef.current;
-    if (!current) {
+    if (!sessionRef.current) {
       return { error: "Sign in again" };
     }
     try {
       await authorized("/api/v1/me/expire-passed", { method: "POST" });
-      const response = await authorized(
-        `/api/v1/me/permissions/${encodeURIComponent(permissionId)}`,
-        {
-          method: "GET",
-          headers: { Authorization: `Bearer ${current.accessToken}` },
-        },
-      );
+      const response = await authorized(`/api/v1/me/permissions/${encodeURIComponent(permissionId)}`, { method: "GET" });
       if (!response.ok) {
         return { error: await errorMessage(response) };
       }
@@ -1341,17 +1271,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const submitPermission = useCallback(async (body: PermissionCreate) => {
-    const current = sessionRef.current;
-    if (!current) {
+    if (!sessionRef.current) {
       return "Sign in again";
     }
     try {
       const response = await authorized("/api/v1/me/permissions", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${current.accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(permissionPayload(body)),
       });
       if (response.status === 201) {
@@ -1364,8 +1290,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updatePermission = useCallback(async (permissionId: string, body: PermissionCreate) => {
-    const current = sessionRef.current;
-    if (!current) {
+    if (!sessionRef.current) {
       return "Sign in again";
     }
     try {
@@ -1373,10 +1298,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         `/api/v1/me/permissions/${encodeURIComponent(permissionId)}`,
         {
           method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${current.accessToken}`,
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(permissionPayload(body)),
         },
       );
@@ -1390,18 +1312,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const cancelPermission = useCallback(async (permissionId: string) => {
-    const current = sessionRef.current;
-    if (!current) {
+    if (!sessionRef.current) {
       return { code: null, message: "Sign in again" };
     }
     try {
-      const response = await authorized(
-        `/api/v1/me/permissions/${encodeURIComponent(permissionId)}/cancel`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${current.accessToken}` },
-        },
-      );
+      const response = await authorized(`/api/v1/me/permissions/${encodeURIComponent(permissionId)}/cancel`, { method: "POST" });
       if (response.status === 200) {
         return null;
       }
