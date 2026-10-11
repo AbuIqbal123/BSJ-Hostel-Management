@@ -67,7 +67,6 @@ function OptionList({
         accessibilityLabel={`Search ${label}`}
         autoCapitalize="none"
         autoCorrect={false}
-        autoFocus
         placeholder="Search"
         placeholderTextColor={colors.inkFaint}
         value={query}
