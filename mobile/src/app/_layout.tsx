@@ -136,7 +136,14 @@ function LaunchShell({ fontsReady }: { fontsReady: boolean }) {
       >
         <Stack.Screen name="index" options={{ headerShown: false, animation: "none" }} />
         <Stack.Screen name="sign-in" options={{ headerShown: false, animation: "none" }} />
-        <Stack.Screen name="onboard" options={{ headerShown: false, animation: "none" }} />
+        <Stack.Screen
+          name="onboard"
+          options={{
+            headerShown: false,
+            animation: reduced ? "fade" : "slide_from_right",
+            animationDuration: 220,
+          }}
+        />
         <Stack.Screen
           name="change-password"
           options={{
