@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Feather } from "@expo/vector-icons";
 import { router, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -836,11 +837,12 @@ export default function OnboardScreen() {
     >
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Back"
+        accessibilityLabel={step === 0 ? "Back to sign in" : "Back"}
         onPress={leave}
         style={styles.back}
       >
-        <Text style={[text.button, { color: colors.inkSoft }]}>Back</Text>
+        <Feather name="chevron-left" size={22} color={colors.ink} />
+        <Text style={[text.button, { color: colors.ink }]}>{step === 0 ? "Sign in" : "Back"}</Text>
       </Pressable>
       <Pressable style={styles.dismiss} onPress={dismissOpenChoice}>
       <View style={styles.progress}>
@@ -932,7 +934,10 @@ const styles = StyleSheet.create({
   back: {
     alignSelf: "flex-start",
     minHeight: 44,
-    justifyContent: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    marginLeft: -6,
   },
   content: {
     flexGrow: 1,
