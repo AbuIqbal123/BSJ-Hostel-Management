@@ -1,11 +1,4 @@
-"""Database connection for one environment.
-
-Local development and the automated checks open a SQLite file. That file uses
-WAL, a busy timeout, and foreign keys. Production opens the hall database on
-Turso and does not create or open a database file.
-
-The hall records are created by app.shared.migrate when the service starts.
-Callers open a short transaction and close it.
+"""Database connection for one request.
 
 The success response is sent only after this transaction commits. FastAPI runs
 the code after `yield` once the response has already started, so a failed
@@ -67,8 +60,6 @@ def create_connection() -> Any:
     )
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA journal_mode=WAL;")
-    busy_timeout_ms = int(settings.sqlite_busy_timeout_ms)
-    connection.execute("PRAGMA busy_timeout=" + str(busy_timeout_ms) + ";")
     connection.execute("PRAGMA foreign_keys=ON;")
     return connection
 
@@ -90,8 +81,7 @@ def get_connection(request: Request) -> Iterator[sqlite3.Connection]:
         connection.rollback()
         raise
     finally:
-        if getattr(request.state, "hall_connection", None) is connection:
-            del request.state.hall_connection
+        del request.state.hall_connection
         connection.close()
 
 

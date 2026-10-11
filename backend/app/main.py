@@ -116,7 +116,6 @@ def ensure_routes_documented(app: FastAPI, spec: dict) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    get_settings()
     ensure_routes_documented(app, load_spec())
     migrate()
     yield
@@ -134,7 +133,7 @@ def health() -> Health:
     return Health(status="ok")
 
 
-def _read_user_version(connection: sqlite3.Connection) -> int:
+def _schema_version(connection: sqlite3.Connection) -> int:
     expected = {path.name for path in MIGRATIONS}
     if applied_migrations(connection) != expected:
         raise RuntimeError("The hall schema is not current.")
@@ -150,7 +149,7 @@ def ready() -> Ready:
 
             connection = create_connection()
             try:
-                user_version = _read_user_version(connection)
+                user_version = _schema_version(connection)
             finally:
                 connection.close()
         except (RuntimeError, OSError, sqlite3.Error, turso_serverless.Error) as exc:
@@ -166,7 +165,7 @@ def ready() -> Ready:
             timeout=settings.sqlite_busy_timeout_ms / 1000,
         )
         try:
-            user_version = _read_user_version(connection)
+            user_version = _schema_version(connection)
         finally:
             connection.close()
     except sqlite3.Error as exc:

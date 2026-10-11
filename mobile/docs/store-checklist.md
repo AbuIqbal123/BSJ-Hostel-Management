@@ -11,7 +11,7 @@ Begum Sultan Jahan Hall, version 1.0.0. Bundle and package `com.abuiqbal.bsjhall
 - [x] Export compliance: `ITSAppUsesNonExemptEncryption` is false
 - [x] Production API: `eas.json` sets `EXPO_PUBLIC_API_URL` to `https://bsj-hostel-api.onrender.com`
 - [x] A release build without that variable still uses the same Render host. Expo Go still uses the laptop.
-- [x] Render was answering on 4 October 2026: `/health` returned ok, `/ready` returned ready with `user_version` 15
+- [x] Render was answering on 11 October 2026: `/health` returned ok, `/ready` returned ready with `user_version` 1
 - [x] Play feature graphic: `docs/play-store-assets/feature-graphic-1024x500.png` (1024×500)
 - [x] Production profile uses remote version numbers and increments the build number
 

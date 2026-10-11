@@ -103,8 +103,8 @@ Do not edit this page by hand.
 
 ## How to call the API
 
-HTTP contract for the hostel movement system. The database document is
-version 1 in `docs/database/database.md`. Both stay at 1 until production.
+HTTP contract for the hostel movement system. Stored data is in
+`docs/database/database.md`.
 
 This version is the contract. Auth, resident phone (home, history, hall pass,
 destinations, ordinary outings, permissions, guest stays, permission-decision
@@ -192,9 +192,8 @@ Body: [Health](#schema-health).
 
 **Who.** Anyone. No token.
 
-Opens the hall database and reports the schema version. The version
-stays 1 while the hall is on dev. The hosted call reads Turso and does
-not open a database file. `GET /health` stays shallow.
+Opens the hall database and reports the schema version.
+`GET /health` stays shallow.
 
 **Responses**
 
@@ -207,7 +206,7 @@ Body: [Ready](#schema-ready).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `status` | yes | `ready` |  |
-| `user_version` | yes | integer | Schema version. It stays 1 while the hall is on dev. minimum 0. |
+| `user_version` | yes | integer | Schema version after migrations. minimum 0. |
 
 **Example**
 
@@ -5393,7 +5392,7 @@ Each JSON object used above. An operation section already shows the fields for i
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `status` | yes | `ready` |  |
-| `user_version` | yes | integer | Schema version. It stays 1 while the hall is on dev. minimum 0. |
+| `user_version` | yes | integer | Schema version after migrations. minimum 0. |
 
 ### <a id="schema-errorresponse"></a>ErrorResponse
 

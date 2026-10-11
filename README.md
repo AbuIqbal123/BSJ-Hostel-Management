@@ -68,7 +68,7 @@ Every path in `backend/openapi.yaml` is served. [`docs/api/api.md`](docs/api/api
 
 In development, `/docs` re-reads `openapi.yaml` on each load. A business route must be in that file before it is registered, or the process will not start.
 
-On a development machine, startup creates the hall in `backend/data/hostel.db` when that file is new. On Render, startup creates the hall in the Turso database when that database is new. It does not create people. `GET /health` does not return hall data. `APP_SECRET_KEY` must be set in `backend/.env` or the process refuses to start. `SMS_DRIVER` must stay `mock` unless `ENVIRONMENT` is `production`. Any other value stops the process, so a laptop cannot send a parent SMS. Late and return guardian messages use the mock SMS path on register read and return scan (no phone network).
+On a development machine, startup creates the hall in `backend/data/hostel.db` when that file is new. On Render, startup creates the hall in that database when it is new. It does not create people. `GET /health` does not return hall data. `APP_SECRET_KEY` must be set in `backend/.env` or the process refuses to start. `SMS_DRIVER` must stay `mock` unless `ENVIRONMENT` is `production`. Any other value stops the process, so a laptop cannot send a parent SMS. Late and return guardian messages use the mock SMS path on register read and return scan (no phone network).
 
 `APP_SECRET_KEY` must be at least 32 bytes. A shorter value stops the process before it serves.
 

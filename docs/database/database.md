@@ -6,7 +6,7 @@ Status: agreed. The service creates these records when it starts. They match thi
 
 This document is the source of truth for what is stored and how a record is allowed to change. It is written for the hall. The software follows it. What a person sends and receives is in [`api.md`](../api/api.md). The picture of what is running is [`system-architecture.md`](../architecture/system-architecture.md).
 
-The hosted API on Render keeps these records in a Turso database. That process does not keep a SQLite file. A development machine and the automated checks keep the same records in a local SQLite file. The schema version stays 1 until production. `GET /ready` reports that version. The service records which migration file it has applied in `schema_migrations`. That list is not a hall record.
+The service records which migration file it has applied in `schema_migrations`. That list is not a hall record.
 
 ## Contents
 
@@ -43,7 +43,6 @@ The hosted API on Render keeps these records in a Turso database. That process d
 - [History that is not its own list](#history-that-is-not-its-own-list)
 - [What this version does not keep](#what-this-version-does-not-keep)
 - [Indexes](#indexes)
-- [Revisions](#revisions)
 
 ## Where this comes from
 
@@ -641,7 +640,3 @@ Besides the unique indexes that enforce one username, one open outside outing, a
 | sessions_user_id | sessions (user_id) | Sign-out and password change revoke every live session for that person. |
 | guardian_messages_outing_id | guardian_messages (outing_id) | Register resident record looks up the late notice for the open outing. |
 | resident_notifications_resident_created | resident_notifications (resident_id, created_at) | A resident's permission-decision inbox, newest first, and whether any row is unread. |
-
-## Revisions
-
-Version 1 is the dev contract. This list stays empty until the hall moves to production.

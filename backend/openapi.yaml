@@ -3,8 +3,8 @@ info:
   title: Begum Sultan Jahan Hall API
   version: "1"
   description: |
-    HTTP contract for the hostel movement system. The database document is
-    version 1 in `docs/database/database.md`. Both stay at 1 until production.
+    HTTP contract for the hostel movement system. Stored data is in
+    `docs/database/database.md`.
 
     This version is the contract. Auth, resident phone (home, history, hall pass,
     destinations, ordinary outings, permissions, guest stays, permission-decision
@@ -103,9 +103,8 @@ paths:
       operationId: ready
       summary: Process readiness
       description: |
-        Opens the hall database and reports the schema version. The version
-        stays 1 while the hall is on dev. The hosted call reads Turso and does
-        not open a database file. `GET /health` stays shallow.
+        Opens the hall database and reports the schema version.
+        `GET /health` stays shallow.
       security: []
       responses:
         "200":
@@ -3101,7 +3100,7 @@ components:
         user_version:
           type: integer
           minimum: 0
-          description: Schema version. It stays 1 while the hall is on dev.
+          description: Schema version after migrations.
 
 
     ErrorResponse:

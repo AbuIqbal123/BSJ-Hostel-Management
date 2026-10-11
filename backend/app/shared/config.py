@@ -7,13 +7,6 @@ BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
-    """Environment for this process.
-
-    Production keeps the hall database on Turso. It does not open a database
-    file. A non-production process uses DATABASE_PATH and is refused unless
-    SMS_DRIVER is mock.
-    """
-
     model_config = SettingsConfigDict(
         env_file=BACKEND_ROOT / ".env",
         env_file_encoding="utf-8",
