@@ -13,9 +13,21 @@ function Line({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.line}>
       <Text style={[text.body, { color: colors.inkSoft }]}>{label}</Text>
-      <Text selectable style={[text.button, styles.value, { color: colors.ink }]}>
+      <Text selectable style={[text.button, { color: colors.ink }]}>
         {value}
       </Text>
+    </View>
+  );
+}
+
+function Stat({ value, label }: { value: number; label: string }) {
+  const colors = useHallColors();
+  return (
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.line }]}>
+      <Text selectable style={[styles.count, { color: colors.ink }]}>
+        {value}
+      </Text>
+      <Text style={[text.body, styles.cardLabel, { color: colors.inkSoft }]}>{label}</Text>
     </View>
   );
 }
@@ -76,8 +88,14 @@ export default function ProfileScreen() {
           {place.length > 0 ? <Line label="Room" value={place} /> : null}
           {home.enrolment ? <Line label="Enrolment" value={home.enrolment} /> : null}
           {home.course ? <Line label="Course" value={home.course} /> : null}
-          <Line label="Where you are" value={home.out ? "Outside" : "Inside"} />
-          <Line label="Ordinary outings returned" value={String(home.returnedOutings)} />
+          <View style={styles.grid}>
+            <Stat value={home.permissionsRequested} label="Permissions requested" />
+            <Stat value={home.permissionsRejected} label="Permissions rejected" />
+            <Stat value={home.ordinaryReturns} label="Ordinary returns" />
+            <Stat value={home.lateNightReturns} label="Late-night returns" />
+            <Stat value={home.homeGoingReturns} label="Home-going returns" />
+            <Stat value={home.guestStays} label="Guest stays" />
+          </View>
         </View>
       ) : (
         <Text style={[text.body, { color: colors.inkSoft }]}>Loading your profile.</Text>
@@ -102,5 +120,25 @@ const styles = StyleSheet.create({
   title: { textAlign: "left" },
   lines: { gap: 16 },
   line: { gap: 2 },
-  value: { fontVariant: ["tabular-nums"] },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  card: {
+    width: "47%",
+    flexGrow: 1,
+    borderWidth: 1,
+    borderRadius: 16,
+    borderCurve: "continuous",
+    padding: 16,
+    gap: 6,
+  },
+  count: {
+    fontFamily: "SourceSerif4_600SemiBold",
+    fontSize: 32,
+    letterSpacing: -0.4,
+    fontVariant: ["tabular-nums"],
+  },
+  cardLabel: { fontSize: 15 },
 });

@@ -8,7 +8,12 @@
       "presence": "inside",
       "full_name": "Aisha Khan",
       "hall_name": "Begum Sultan Jahan Hall",
-      "returned_outings": 0
+      "permissions_requested": 0,
+      "permissions_rejected": 0,
+      "ordinary_returns": 0,
+      "late_night_returns": 0,
+      "home_going_returns": 0,
+      "guest_stays": 0
     },
     "current_outing": null,
     "active_permission": null,
@@ -26,7 +31,12 @@
       "presence": "outside",
       "full_name": "Aisha Khan",
       "hall_name": "Begum Sultan Jahan Hall",
-      "returned_outings": 5
+      "permissions_requested": 4,
+      "permissions_rejected": 1,
+      "ordinary_returns": 5,
+      "late_night_returns": 0,
+      "home_going_returns": 0,
+      "guest_stays": 0
     },
     "current_outing": {
       "id": "e7700000-0000-4000-8000-000000000011",

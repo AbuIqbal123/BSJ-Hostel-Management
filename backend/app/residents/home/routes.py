@@ -58,7 +58,12 @@ class HomeResident(BaseModel):
     block_name: str
     presence: Literal["inside", "outside"]
     hall_name: str
-    returned_outings: int
+    permissions_requested: int
+    permissions_rejected: int
+    ordinary_returns: int
+    late_night_returns: int
+    home_going_returns: int
+    guest_stays: int
 
 
 class ResidentHome(BaseModel):
@@ -159,13 +164,25 @@ def resident_home(account: ResidentDep, connection: ConnectionDep) -> ResidentHo
     hall_name = connection.execute(
         "SELECT hall_name FROM hall_settings WHERE id = 'hall'"
     ).fetchone()["hall_name"]
-    returned_outings = connection.execute(
+    counts = connection.execute(
         """
-        SELECT COUNT(*) FROM outings
-        WHERE resident_id = ? AND type = 'ordinary' AND returned_at IS NOT NULL
+        SELECT
+          (SELECT COUNT(*) FROM permissions WHERE resident_id = ?) AS permissions_requested,
+          (SELECT COUNT(*) FROM permissions
+            WHERE resident_id = ? AND status = 'rejected') AS permissions_rejected,
+          (SELECT COUNT(*) FROM outings
+            WHERE resident_id = ? AND type = 'ordinary' AND returned_at IS NOT NULL)
+            AS ordinary_returns,
+          (SELECT COUNT(*) FROM outings
+            WHERE resident_id = ? AND type = 'late_night' AND returned_at IS NOT NULL)
+            AS late_night_returns,
+          (SELECT COUNT(*) FROM outings
+            WHERE resident_id = ? AND type = 'home_going' AND returned_at IS NOT NULL)
+            AS home_going_returns,
+          (SELECT COUNT(*) FROM guest_stays WHERE host_resident_id = ?) AS guest_stays
         """,
-        (account.id,),
-    ).fetchone()[0]
+        (account.id, account.id, account.id, account.id, account.id, account.id),
+    ).fetchone()
     return ResidentHome(
         resident=HomeResident(
             full_name=account.full_name,
@@ -175,7 +192,12 @@ def resident_home(account: ResidentDep, connection: ConnectionDep) -> ResidentHo
             block_name=account.block_name or "",
             presence=account.presence or "inside",
             hall_name=hall_name,
-            returned_outings=int(returned_outings),
+            permissions_requested=int(counts["permissions_requested"]),
+            permissions_rejected=int(counts["permissions_rejected"]),
+            ordinary_returns=int(counts["ordinary_returns"]),
+            late_night_returns=int(counts["late_night_returns"]),
+            home_going_returns=int(counts["home_going_returns"]),
+            guest_stays=int(counts["guest_stays"]),
         ),
         ordinary_outing_active=ordinary_window_is_open(connection, account.id, now),
         current_outing=load_current_outing(connection, account.id, now),

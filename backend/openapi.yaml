@@ -427,7 +427,9 @@ paths:
       summary: Resident home
       description: |
         Caller: resident. Her name, hall, block, and room, how many ordinary
-        outings she has returned from, whether an ordinary
+        outings, late-night outings, and home-going outings she has returned
+        from, how many permissions she has sent and how many were rejected,
+        and how many guest stays she has requested, whether an ordinary
         outing is inside its show window now (`ordinary_outing_active`),
         presence, the open outing if there is one, her planned future ordinary
         outings (`upcoming_outings`), the permission the resident is waiting
@@ -455,7 +457,12 @@ paths:
                   block_name: Block-B
                   presence: inside
                   hall_name: Begum Sultan Jahan Hall
-                  returned_outings: 0
+                  permissions_requested: 0
+                  permissions_rejected: 0
+                  ordinary_returns: 0
+                  late_night_returns: 0
+                  home_going_returns: 0
+                  guest_stays: 0
                 ordinary_outing_active: false
                 current_outing: null
                 upcoming_outings:
@@ -3451,7 +3458,7 @@ components:
     HomeResident:
       type: object
       additionalProperties: false
-      required: [full_name, enrolment_number, room_label, block_name, presence, hall_name, returned_outings]
+      required: [full_name, enrolment_number, room_label, block_name, presence, hall_name, permissions_requested, permissions_rejected, ordinary_returns, late_night_returns, home_going_returns, guest_stays]
       properties:
         full_name:
           type: string
@@ -3473,10 +3480,30 @@ components:
           type: string
           description: The hall's name, from hall settings.
           example: Begum Sultan Jahan Hall
-        returned_outings:
+        permissions_requested:
+          type: integer
+          minimum: 0
+          description: Late-night and home-going permissions she has sent.
+        permissions_rejected:
+          type: integer
+          minimum: 0
+          description: Permissions a warden or the provost rejected.
+        ordinary_returns:
           type: integer
           minimum: 0
           description: Ordinary outings she has returned from.
+        late_night_returns:
+          type: integer
+          minimum: 0
+          description: Late-night outings she has returned from.
+        home_going_returns:
+          type: integer
+          minimum: 0
+          description: Home-going outings she has returned from.
+        guest_stays:
+          type: integer
+          minimum: 0
+          description: Guest stays she has requested.
 
     ResidentHome:
       type: object

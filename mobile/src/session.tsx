@@ -58,7 +58,12 @@ export type ResidentHome = {
   blockName: string | null;
   roomLabel: string | null;
   out: boolean;
-  returnedOutings: number;
+  permissionsRequested: number;
+  permissionsRejected: number;
+  ordinaryReturns: number;
+  lateNightReturns: number;
+  homeGoingReturns: number;
+  guestStays: number;
   windowOpen: boolean;
   upcoming: UpcomingOuting[];
   notificationsUnread: boolean;
@@ -430,9 +435,8 @@ function readResidentHome(value: unknown): ResidentHome | null {
     return null;
   }
   const roomLabel = typeof resident.room_label === "string" ? resident.room_label : null;
-  const returned = resident.returned_outings;
-  const returnedOutings =
-    typeof returned === "number" && Number.isInteger(returned) && returned >= 0 ? returned : 0;
+  const count = (value: unknown) =>
+    typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : 0;
   return {
     fullName: resident.full_name,
     enrolment: textOrNull(resident.enrolment_number),
@@ -441,7 +445,12 @@ function readResidentHome(value: unknown): ResidentHome | null {
     blockName: textOrNull(resident.block_name),
     roomLabel,
     out: resident.presence === "outside",
-    returnedOutings,
+    permissionsRequested: count(resident.permissions_requested),
+    permissionsRejected: count(resident.permissions_rejected),
+    ordinaryReturns: count(resident.ordinary_returns),
+    lateNightReturns: count(resident.late_night_returns),
+    homeGoingReturns: count(resident.home_going_returns),
+    guestStays: count(resident.guest_stays),
     windowOpen: value.ordinary_outing_active,
     upcoming: readUpcoming(value),
     notificationsUnread: value.notifications_unread,

@@ -745,7 +745,9 @@ The resident phone. Ordinary outings, home, destinations, and the hall pass.
 **Who.** resident. Bearer access token.
 
 Caller: resident. Her name, hall, block, and room, how many ordinary
-outings she has returned from, whether an ordinary
+outings, late-night outings, and home-going outings she has returned
+from, how many permissions she has sent and how many were rejected,
+and how many guest stays she has requested, whether an ordinary
 outing is inside its show window now (`ordinary_outing_active`),
 presence, the open outing if there is one, her planned future ordinary
 outings (`upcoming_outings`), the permission the resident is waiting
@@ -788,7 +790,12 @@ Body: [ResidentHome](#schema-residenthome).
     "block_name": "Block-B",
     "presence": "inside",
     "hall_name": "Begum Sultan Jahan Hall",
-    "returned_outings": 0
+    "permissions_requested": 0,
+    "permissions_rejected": 0,
+    "ordinary_returns": 0,
+    "late_night_returns": 0,
+    "home_going_returns": 0,
+    "guest_stays": 0
   },
   "ordinary_outing_active": false,
   "current_outing": null,
@@ -5569,7 +5576,12 @@ One of: `inside`, `outside`, `late`.
 | `block_name` | yes | string |  |
 | `presence` | yes | `inside` or `outside` |  |
 | `hall_name` | yes | string | The hall's name, from hall settings. |
-| `returned_outings` | yes | integer | Ordinary outings she has returned from. minimum 0. |
+| `permissions_requested` | yes | integer | Late-night and home-going permissions she has sent. minimum 0. |
+| `permissions_rejected` | yes | integer | Permissions a warden or the provost rejected. minimum 0. |
+| `ordinary_returns` | yes | integer | Ordinary outings she has returned from. minimum 0. |
+| `late_night_returns` | yes | integer | Late-night outings she has returned from. minimum 0. |
+| `home_going_returns` | yes | integer | Home-going outings she has returned from. minimum 0. |
+| `guest_stays` | yes | integer | Guest stays she has requested. minimum 0. |
 
 ### <a id="schema-residenthome"></a>ResidentHome
 
