@@ -27,7 +27,12 @@ function Stat({ value, label }: { value: number; label: string }) {
       <Text selectable style={[styles.count, { color: colors.ink }]}>
         {value}
       </Text>
-      <Text style={[text.body, styles.cardLabel, { color: colors.inkSoft }]}>{label}</Text>
+      <Text
+        numberOfLines={1}
+        style={[text.body, styles.cardLabel, { color: colors.inkSoft }]}
+      >
+        {label}
+      </Text>
     </View>
   );
 }
@@ -88,7 +93,8 @@ export default function ProfileScreen() {
           {place.length > 0 ? <Line label="Room" value={place} /> : null}
           {home.enrolment ? <Line label="Enrolment" value={home.enrolment} /> : null}
           {home.course ? <Line label="Course" value={home.course} /> : null}
-          <View style={styles.grid}>
+          <View style={styles.stats}>
+            <Text style={[text.button, { color: colors.ink }]}>Stats</Text>
             <Stat value={home.permissionsRequested} label="Permissions requested" />
             <Stat value={home.permissionsRejected} label="Permissions rejected" />
             <Stat value={home.ordinaryReturns} label="Ordinary returns" />
@@ -120,25 +126,24 @@ const styles = StyleSheet.create({
   title: { textAlign: "left" },
   lines: { gap: 16 },
   line: { gap: 2 },
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
+  stats: { gap: 12 },
   card: {
-    width: "47%",
-    flexGrow: 1,
     borderWidth: 1,
     borderRadius: 16,
     borderCurve: "continuous",
-    padding: 16,
-    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
   },
   count: {
     fontFamily: "SourceSerif4_600SemiBold",
-    fontSize: 32,
+    fontSize: 28,
+    lineHeight: 32,
     letterSpacing: -0.4,
     fontVariant: ["tabular-nums"],
+    minWidth: 36,
   },
-  cardLabel: { fontSize: 15 },
+  cardLabel: { flex: 1 },
 });
