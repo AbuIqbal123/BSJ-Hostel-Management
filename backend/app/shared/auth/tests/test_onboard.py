@@ -217,14 +217,13 @@ def test_resident_onboard(database_path: Path, monkeypatch: pytest.MonkeyPatch) 
         )
         assert_error(
             taken,
-            401,
-            "unauthenticated",
+            422,
+            "validation_error",
             expected["taken_message"],
+            "enrolment_number",
         )
-        assert taken.status_code != 409
         dumped = json.dumps(taken.json())
         assert "duplicate" not in dumped
-        assert "enrolment" not in dumped.lower()
 
         stored = read_resident(database_path)
         assert stored["qr_token"].startswith("bsj:v1:")
@@ -244,7 +243,13 @@ def test_resident_onboard(database_path: Path, monkeypatch: pytest.MonkeyPatch) 
                 "/api/v1/auth/onboard",
                 json=_body(enrolment_number="24-gllb-220"),
             )
-            assert_error(again, 401, "unauthenticated", expected["taken_message"])
+            assert_error(
+                again,
+                422,
+                "validation_error",
+                expected["taken_message"],
+                "enrolment_number",
+            )
         blocked = client.post(
             "/api/v1/auth/onboard",
             json=_body(enrolment_number="24-gllb-220"),
@@ -254,4 +259,32 @@ def test_resident_onboard(database_path: Path, monkeypatch: pytest.MonkeyPatch) 
             429,
             "rate_limited",
             "Too many attempts. Try again shortly.",
+        )
+
+
+def test_enrolment_is_named_on_the_field(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.shared import clock
+    from app.main import app
+
+    monkeypatch.setattr(clock, "utc_now", FrozenClock().utc_now)
+    with TestClient(app) as client:
+        issue_rooms(database_path)
+        free = client.post(
+            "/api/v1/auth/onboard/enrolment",
+            json={"enrolment_number": "24-GLLB-220"},
+        )
+        assert free.status_code == 204
+        assert free.content == b""
+        created = client.post("/api/v1/auth/onboard", json=_body())
+        assert created.status_code == 201
+        taken = client.post(
+            "/api/v1/auth/onboard/enrolment",
+            json={"enrolment_number": "24-gllb-220"},
+        )
+        assert_error(
+            taken,
+            422,
+            "validation_error",
+            "That enrolment number is already an account.",
+            "enrolment_number",
         )

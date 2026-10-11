@@ -20,7 +20,7 @@
     "updated_at": "2026-09-30T12:00:00Z",
     "last_login_at": "2026-09-30T12:00:00Z"
   },
-  "taken_message": "Username or password is wrong.",
+  "taken_message": "That enrolment number is already an account.",
   "room_message": "That room is not in the selected block.",
   "short_password_message": "Use at least 10 characters.",
   "weak_password_message": "Include an uppercase letter, a lowercase letter, a number, and a symbol.",

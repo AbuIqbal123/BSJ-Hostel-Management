@@ -238,11 +238,12 @@ export default function OnboardScreen() {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const { onboard, signIn, user } = useSession();
+  const { onboard, checkEnrolment, signIn, user } = useSession();
   const [step, setStep] = useState(signupDraft.step);
   const [entered, setEntered] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [enrolmentTaken, setEnrolmentTaken] = useState<string | null>(null);
   const [choiceAttempt, setChoiceAttempt] = useState(false);
   const [fullName, setFullName] = useState(signupDraft.fullName);
   const [enrolment, setEnrolment] = useState(signupDraft.enrolment);
@@ -560,6 +561,12 @@ export default function OnboardScreen() {
           room_id: selectedRoom.id,
         });
         if (message) {
+          if (message === "That enrolment number is already an account.") {
+            setEnrolmentTaken(message);
+            enrolmentField.reveal();
+            showStep(0);
+            return;
+          }
           setError(message);
           return;
         }
@@ -587,6 +594,7 @@ export default function OnboardScreen() {
     fullName,
     guardianName,
     guardianPhone,
+    enrolmentField,
     onboard,
     password,
     signIn,
@@ -607,7 +615,18 @@ export default function OnboardScreen() {
       if (personInvalid()) {
         return;
       }
-      showStep(1);
+      pending.current = true;
+      setBusy(true);
+      void checkEnrolment(enrolment).then((message) => {
+        pending.current = false;
+        setBusy(false);
+        if (message) {
+          setEnrolmentTaken(message);
+          enrolmentField.reveal();
+          return;
+        }
+        showStep(1);
+      });
       return;
     }
     if (step === 1) {
@@ -617,7 +636,17 @@ export default function OnboardScreen() {
       }
       showStep(2);
     }
-  }, [contactInvalid, personInvalid, revealContact, revealPerson, showStep, step]);
+  }, [
+    checkEnrolment,
+    contactInvalid,
+    enrolment,
+    enrolmentField,
+    personInvalid,
+    revealContact,
+    revealPerson,
+    showStep,
+    step,
+  ]);
 
   const onStepSwipe = useCallback(
     (translationX: number, translationY: number) => {
@@ -672,7 +701,8 @@ export default function OnboardScreen() {
   };
 
   const nameNote = shown(fullNameField.visible, personError(fullName, "Enter your full name"));
-  const enrolmentNote = shown(enrolmentField.visible, enrolmentError(enrolment));
+  const enrolmentNote =
+    enrolmentTaken ?? shown(enrolmentField.visible, enrolmentError(enrolment));
   const passwordNote = shown(
     passwordField.visible,
     password.length > 200 ? "Use 200 characters or fewer" : failingPasswordRule(password),
@@ -711,6 +741,7 @@ export default function OnboardScreen() {
           value={enrolment}
           onChangeText={(value) => {
             setEnrolment(value);
+            setEnrolmentTaken(null);
             enrolmentField.onEdit();
             setError(null);
           }}

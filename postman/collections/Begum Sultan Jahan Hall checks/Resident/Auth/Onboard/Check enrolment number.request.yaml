@@ -1,0 +1,15 @@
+$kind: http-request
+method: POST
+url: '{{baseUrl}}/api/v1/auth/onboard/enrolment'
+order: 100
+description: |-
+  Caller: anyone (no token). Checks the enrolment field before the rest of signup. A free number returns 204. A taken number returns 422 on enrolment_number and says that enrolment number is already an account.
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "enrolment_number": "26-BA-002"
+    }

@@ -23,6 +23,7 @@ Do not edit this page by hand.
   - [GET `/api/v1/auth/me` — Current account](#get-api-v1-auth-me)
   - [POST `/api/v1/auth/change-password` — Change own password](#post-api-v1-auth-change-password)
   - [POST `/api/v1/auth/onboard` — Resident self-onboard](#post-api-v1-auth-onboard)
+  - [POST `/api/v1/auth/onboard/enrolment` — Check an enrolment number](#post-api-v1-auth-onboard-enrolment)
   - [GET `/api/v1/auth/onboard/options` — Onboard room picker](#get-api-v1-auth-onboard-options)
 - [Resident](#tag-resident)
   - [GET `/api/v1/me/home` — Resident home](#get-api-v1-me-home)
@@ -247,6 +248,7 @@ Sign-in, resident self-onboard, and the onboard room picker under /api/v1/auth. 
 | GET | `/api/v1/auth/me` | [Current account](#get-api-v1-auth-me) | Signed-in account |
 | POST | `/api/v1/auth/change-password` | [Change own password](#post-api-v1-auth-change-password) | Signed-in account |
 | POST | `/api/v1/auth/onboard` | [Resident self-onboard](#post-api-v1-auth-onboard) | anyone (no token) |
+| POST | `/api/v1/auth/onboard/enrolment` | [Check an enrolment number](#post-api-v1-auth-onboard-enrolment) | anyone (no token) |
 | GET | `/api/v1/auth/onboard/options` | [Onboard room picker](#get-api-v1-auth-onboard-options) | anyone (no token) |
 
 ### <a id="post-api-v1-auth-login"></a>POST `/api/v1/auth/login` — Sign in
@@ -524,8 +526,8 @@ return access or refresh tokens.
 
 Enrolment is unique hall-wide (ignoring capitals) and becomes the
 username. Staff cannot use this path. Rate-limited like sign-in. A taken
-enrolment uses the same generic authentication refusal as other auth
-failures, so the API does not reveal whether an enrolment exists.
+enrolment is refused on `enrolment_number` before the rest of the form
+is needed, and again if signup is sent with that number.
 
 **Request.** Required.
 
@@ -582,11 +584,11 @@ Body: [ResidentOnboardResponse](#schema-residentonboardresponse).
 }
 ```
 
-#### 401
+#### 422
 
-The enrolment is already in use or the signup is otherwise refused.
-The generic authentication error does not reveal whether the
-enrolment exists.
+A field is missing or invalid. A taken enrolment, ignoring
+capitals, names `enrolment_number` and says that number is already
+an account.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
@@ -595,8 +597,11 @@ Body: [ErrorResponse](#schema-errorresponse).
 ```json
 {
   "error": {
-    "code": "unauthenticated",
-    "message": "Username or password is wrong."
+    "code": "validation_error",
+    "message": "That enrolment number is already an account.",
+    "details": {
+      "field": "enrolment_number"
+    }
   }
 }
 ```
@@ -618,11 +623,78 @@ Body: [ErrorResponse](#schema-errorresponse).
 }
 ```
 
+
+### <a id="post-api-v1-auth-onboard-enrolment"></a>POST `/api/v1/auth/onboard/enrolment` — Check an enrolment number
+
+`check_onboard_enrolment`
+
+**Who.** anyone (no token). No token.
+
+Caller: anyone (no token). Used on the enrolment field before the rest
+of signup. A free number returns no body. A number that is already an
+account, ignoring capitals, names `enrolment_number`. Rate-limited like
+sign-in.
+
+**Request.** Required.
+
+Body: object.
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `enrolment_number` | yes | string | 1–40 characters. |
+
+**Example**
+
+```json
+{
+  "enrolment_number": "24-GLLB-220"
+}
+```
+
+**Responses**
+
+#### 204
+
+That enrolment number is free.
+
+No body.
+
 #### 422
 
-The JSON is the wrong shape, or a field fails a constraint that does not depend on existing rows.
+The enrolment number is already an account, or it is missing.
 
 Body: [ErrorResponse](#schema-errorresponse).
+
+**Example**
+
+```json
+{
+  "error": {
+    "code": "validation_error",
+    "message": "That enrolment number is already an account.",
+    "details": {
+      "field": "enrolment_number"
+    }
+  }
+}
+```
+
+#### 429
+
+Too many enrolment checks from this client in a short window.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+**Example**
+
+```json
+{
+  "error": {
+    "code": "rate_limited",
+    "message": "Too many attempts. Try again shortly."
+  }
+}
+```
 
 
 ### <a id="get-api-v1-auth-onboard-options"></a>GET `/api/v1/auth/onboard/options` — Onboard room picker

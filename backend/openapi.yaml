@@ -300,8 +300,8 @@ paths:
 
         Enrolment is unique hall-wide (ignoring capitals) and becomes the
         username. Staff cannot use this path. Rate-limited like sign-in. A taken
-        enrolment uses the same generic authentication refusal as other auth
-        failures, so the API does not reveal whether an enrolment exists.
+        enrolment is refused on `enrolment_number` before the rest of the form
+        is needed, and again if signup is sent with that number.
       security: []
       requestBody:
         required: true
@@ -330,19 +330,21 @@ paths:
                 enrolment_number: 24-GLLB-118
                 status: active
                 message: Your account is ready. Sign in with your enrolment number and password.
-        "401":
+        "422":
           description: |
-            The enrolment is already in use or the signup is otherwise refused.
-            The generic authentication error does not reveal whether the
-            enrolment exists.
+            A field is missing or invalid. A taken enrolment, ignoring
+            capitals, names `enrolment_number` and says that number is already
+            an account.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
               example:
                 error:
-                  code: unauthenticated
-                  message: Username or password is wrong.
+                  code: validation_error
+                  message: That enrolment number is already an account.
+                  details:
+                    field: enrolment_number
         "429":
           description: |
             Too many onboard attempts from this client in a short window.
@@ -354,8 +356,58 @@ paths:
                 error:
                   code: rate_limited
                   message: Too many attempts. Try again shortly.
+
+  /api/v1/auth/onboard/enrolment:
+    post:
+      tags: [Auth]
+      operationId: check_onboard_enrolment
+      summary: Check an enrolment number
+      description: |
+        Caller: anyone (no token). Used on the enrolment field before the rest
+        of signup. A free number returns no body. A number that is already an
+        account, ignoring capitals, names `enrolment_number`. Rate-limited like
+        sign-in.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [enrolment_number]
+              properties:
+                enrolment_number:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+            example:
+              enrolment_number: 24-GLLB-220
+      responses:
+        "204":
+          description: That enrolment number is free.
         "422":
-          $ref: "#/components/responses/Unprocessable"
+          description: The enrolment number is already an account, or it is missing.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: validation_error
+                  message: That enrolment number is already an account.
+                  details:
+                    field: enrolment_number
+        "429":
+          description: Too many enrolment checks from this client in a short window.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: rate_limited
+                  message: Too many attempts. Try again shortly.
 
   /api/v1/auth/onboard/options:
     get:

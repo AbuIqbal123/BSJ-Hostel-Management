@@ -3,7 +3,7 @@ method: POST
 url: '{{baseUrl}}/api/v1/auth/onboard'
 order: 200
 description: |-
-  Caller: anyone (no token). Public resident self-sign-up on dev. Creates an active resident. Choose block_id and room_id from GET /api/v1/auth/onboard/options (a taken room is refused). Sample body omits password; Send injects one that meets the strength rule. Does not return tokens — sign in afterwards. A taken enrolment returns the same generic authentication refusal as a wrong password.
+  Caller: anyone (no token). Public resident self-sign-up on dev. Creates an active resident. Choose block_id and room_id from GET /api/v1/auth/onboard/options (a taken room is refused). Sample body omits password; Send injects one that meets the strength rule. Does not return tokens — sign in afterwards. A taken enrolment returns 422 on enrolment_number and says that enrolment number is already an account.
 headers:
   - key: Content-Type
     value: application/json

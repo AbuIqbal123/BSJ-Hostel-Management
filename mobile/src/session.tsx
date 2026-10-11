@@ -259,6 +259,7 @@ type SessionValue = {
   signOut: () => Promise<void>;
   deleteAccount: (password: string) => Promise<string | null>;
   onboard: (body: OnboardBody) => Promise<string | null>;
+  checkEnrolment: (enrolmentNumber: string) => Promise<string | null>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<string | null>;
   loadResidentHome: () => Promise<ResidentHomeResult>;
   loadDestinations: () => Promise<DestinationResult>;
@@ -870,6 +871,22 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const checkEnrolment = useCallback(async (enrolmentNumber: string) => {
+    try {
+      const response = await hallFetch("/api/v1/auth/onboard/enrolment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enrolment_number: enrolmentNumber.trim() }),
+      });
+      if (response.status === 204) {
+        return null;
+      }
+      return await errorMessage(response);
+    } catch {
+      return "The hall could not be reached";
+    }
+  }, []);
+
   const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
     if (!sessionRef.current) {
       return "Sign in again";
@@ -1381,6 +1398,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       signOut,
       deleteAccount,
       onboard,
+      checkEnrolment,
       changePassword,
       loadResidentHome,
       loadDestinations,
@@ -1409,6 +1427,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       signOut,
       deleteAccount,
       onboard,
+      checkEnrolment,
       changePassword,
       loadResidentHome,
       loadDestinations,

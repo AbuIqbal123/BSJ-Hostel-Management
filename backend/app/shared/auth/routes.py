@@ -329,6 +329,7 @@ _ONBOARD_READY = "Your account is ready. Sign in with your enrolment number and 
 _ROOM_BLOCK = "That room is not in the selected block."
 _ROOM_INACTIVE = "That room is not in use."
 _ROOM_FULL = "This room already has as many residents as it has beds."
+_ENROLMENT_TAKEN = "That enrolment number is already an account."
 
 
 class ResidentOnboardRequest(BaseModel):
@@ -416,7 +417,12 @@ def onboard_resident(
     except sqlite3.IntegrityError as exc:
         message = str(exc).lower()
         if "unique" in message:
-            raise ApiError(401, "unauthenticated", _BAD_CREDENTIALS) from exc
+            raise ApiError(
+                422,
+                "validation_error",
+                _ENROLMENT_TAKEN,
+                field="enrolment_number",
+            ) from exc
         if "beds" in message:
             raise ApiError(422, "validation_error", _ROOM_FULL, field="room_id") from exc
         raise
@@ -438,6 +444,30 @@ class OnboardBlockOption(BaseModel):
     id: str
     name: str
     rooms: list[OnboardRoomOption]
+
+
+class EnrolmentCheck(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enrolment_number: str = Field(min_length=1, max_length=40)
+
+
+@router.post("/onboard/enrolment", status_code=204)
+def check_enrolment(
+    body: EnrolmentCheck,
+    request: Request,
+    connection: ConnectionDep,
+) -> Response:
+    login_limiter.check(client_key(request.client.host if request.client else None))
+    enrolment = body.enrolment_number.strip()
+    if not enrolment:
+        raise ApiError(422, "validation_error", "Enter your enrolment number.", field="enrolment_number")
+    taken = connection.execute(
+        "SELECT 1 FROM users WHERE username = ? COLLATE NOCASE",
+        (enrolment,),
+    ).fetchone()
+    if taken is not None:
+        raise ApiError(422, "validation_error", _ENROLMENT_TAKEN, field="enrolment_number")
+    return Response(status_code=204)
 
 
 @router.get("/onboard/options")
