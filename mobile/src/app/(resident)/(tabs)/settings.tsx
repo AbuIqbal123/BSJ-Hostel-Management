@@ -80,16 +80,16 @@ export default function SettingsScreen() {
       ) : null}
       <View style={styles.rows}>
         <Row
-          label="Profile"
-          color={colors.ink}
-          chevron
-          onPress={() => router.push("/profile")}
-        />
-        <Row
           label="Appearance"
           color={colors.ink}
           value={dark ? "Dark" : "Light"}
           onPress={() => setDark(!dark)}
+        />
+        <Row
+          label="Profile"
+          color={colors.ink}
+          chevron
+          onPress={() => router.push("/profile")}
         />
         <Row
           label="History"
