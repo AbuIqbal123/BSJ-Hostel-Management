@@ -254,6 +254,10 @@ function permissionPayload(body: PermissionCreate): Record<string, string> {
   return payload;
 }
 
+export type StaffReply =
+  | { ok: true; data: unknown }
+  | { ok: false; message: string; details: Record<string, unknown> | null };
+
 type SessionValue = {
   ready: boolean;
   user: HallUser | null;
@@ -286,6 +290,8 @@ type SessionValue = {
   submitGuestStay: (body: GuestStayCreate) => Promise<string | null>;
   updateGuestStay: (guestStayId: string, body: GuestStayCreate) => Promise<string | null>;
   cancelGuestStay: (guestStayId: string) => Promise<HallFailure | null>;
+  /** Staff reads and writes under /api/v1. A body makes it a POST. */
+  staffRequest: (path: string, body?: unknown) => Promise<StaffReply>;
 };
 
 const SessionContext = createContext<SessionValue | null>(null);
@@ -1392,6 +1398,36 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [authorized],
   );
 
+  const staffRequest = useCallback(async (path: string, body?: unknown): Promise<StaffReply> => {
+    const unreachable = { ok: false as const, message: "The hall could not be reached", details: null };
+    if (!sessionRef.current) {
+      return { ...unreachable, message: "Sign in again" };
+    }
+    try {
+      const response = await authorized(
+        `/api/v1${path}`,
+        body === undefined
+          ? { method: "GET" }
+          : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+      );
+      const json: unknown = await response.json().catch(() => null);
+      if (response.ok) {
+        return { ok: true, data: json };
+      }
+      const error = (json as { error?: { message?: unknown; details?: unknown } } | null)?.error;
+      return {
+        ok: false,
+        message: typeof error?.message === "string" && error.message ? error.message : unreachable.message,
+        details:
+          error?.details && typeof error.details === "object"
+            ? (error.details as Record<string, unknown>)
+            : null,
+      };
+    } catch {
+      return unreachable;
+    }
+  }, []);
+
   const value = useMemo<SessionValue>(
     () => ({
       ready,
@@ -1421,6 +1457,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       submitGuestStay,
       updateGuestStay,
       cancelGuestStay,
+      staffRequest,
     }),
     [
       ready,
@@ -1450,6 +1487,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       submitGuestStay,
       updateGuestStay,
       cancelGuestStay,
+      staffRequest,
     ],
   );
 

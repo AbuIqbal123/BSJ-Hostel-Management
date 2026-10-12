@@ -47,7 +47,7 @@ export default function ChangePasswordScreen() {
     router.replace("/sign-in");
   }, [changePassword, currentPassword, newPassword]);
 
-  const back = () => goBackOr(navigation, user?.role === "resident" ? "/settings" : "/signed-in");
+  const back = () => goBackOr(navigation, user?.role === "resident" ? "/settings" : "/staff/settings");
 
   if (!user) {
     return <Redirect href="/sign-in" />;

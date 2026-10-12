@@ -39,6 +39,14 @@
       "expo-font",
       "expo-secure-store",
       [
+        "expo-camera",
+        {
+          "cameraPermission": "The gate camera reads the code on a resident's hall pass",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#F2F4F0",

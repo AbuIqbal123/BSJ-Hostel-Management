@@ -19,7 +19,8 @@ import { SourceSerif4_600SemiBold } from "@expo-google-fonts/source-serif-4";
 import { IBMPlexMono_500Medium } from "@expo-google-fonts/ibm-plex-mono";
 
 import { HallMark } from "@/components/hall-mark";
-import { SessionProvider, useSession } from "@/session";
+import { SessionProvider, useSession, type HallRole } from "@/session";
+import { homePath } from "@/staff";
 import { AppearanceProvider, useDark } from "@/theme/appearance";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
@@ -37,7 +38,7 @@ export const unstable_settings = {
 
 function routeSettled(
   ready: boolean,
-  user: { role: string } | null,
+  user: { role: HallRole } | null,
   here: string | undefined,
   onSignUp: boolean,
 ): boolean {
@@ -45,7 +46,7 @@ function routeSettled(
     return false;
   }
   if (user) {
-    return user.role === "resident" ? here === "(resident)" : here === "signed-in";
+    return here === (user.role === "resident" ? "(resident)" : "staff");
   }
   return here === "sign-in" || onSignUp;
 }
@@ -75,7 +76,7 @@ function LaunchShell({ fontsReady }: { fontsReady: boolean }) {
     }
     if (user) {
       if (here === "index" || here === "onboard" || here === "sign-in") {
-        router.replace(user.role === "resident" ? "/home" : "/signed-in");
+        router.replace(homePath(user.role));
       }
       return;
     }
@@ -152,7 +153,7 @@ function LaunchShell({ fontsReady }: { fontsReady: boolean }) {
           }}
         />
         <Stack.Screen name="(resident)" options={{ headerShown: false, animation: "none" }} />
-        <Stack.Screen name="signed-in" options={{ title: "Signed in", headerBackVisible: false }} />
+        <Stack.Screen name="staff" options={{ headerShown: false, animation: "none" }} />
       </Stack>
       {splash ? (
         <Animated.View
