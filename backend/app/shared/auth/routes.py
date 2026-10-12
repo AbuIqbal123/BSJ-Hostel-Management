@@ -16,7 +16,12 @@ from app.shared import clock
 from app.shared.audit import record_audit
 from app.shared.db import get_connection
 from app.shared.errors import ApiError
-from app.shared.auth.rate_limit import client_key, login_limiter, refresh_limiter
+from app.shared.auth.rate_limit import (
+    client_key,
+    login_limiter,
+    options_limiter,
+    refresh_limiter,
+)
 from app.staff.office.records import new_hall_pass_token, revoke_live_sessions, room_has_capacity
 from app.shared.auth.password_rules import IndianMobile, StrongPassword
 from app.shared.auth.security import (
@@ -481,7 +486,7 @@ def check_enrolment(
 
 @router.get("/onboard/options")
 def onboard_options(request: Request, connection: ConnectionDep) -> list[OnboardBlockOption]:
-    login_limiter.check(client_key(request.client.host if request.client else None))
+    options_limiter.check(client_key(request.client.host if request.client else None))
     placeholders = ", ".join("?" for _ in RESIDENT_BLOCK_CODES)
     block_rows = connection.execute(
         f"""

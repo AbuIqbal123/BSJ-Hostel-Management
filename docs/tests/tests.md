@@ -192,7 +192,7 @@ Copy this block for each test and fill every field.
 | Actor | Anyone (no token). |
 | Preconditions | The hall from `hall-created` exists, including seeded rooms A-1…A-50, B-1…B-58, C-1…C-42, and D-1…D-40. Utility has no rooms. |
 | Action | `GET /api/v1/auth/onboard/options` with no token on the fresh inventory. Deactivate A-1, assign B-1, and assign every room in Block-C. Call options again. Repeat until the sign-in attempt limit is exceeded. |
-| Expected response | 200 list matching the artifact. The four blocks A–D are always present in code order; Utility is absent. Fresh inventory lists every seeded room as `id` and `label` only, ordered by door number. After the mutations, A-1 and B-1 are omitted, Block-C has an empty `rooms` array, and Block-D is unchanged. No office fields. The call past the attempt limit returns 429 `rate_limited`. |
+| Expected response | 200 list matching the artifact. The four blocks A–D are always present in code order; Utility is absent. Fresh inventory lists every seeded room as `id` and `label` only, ordered by door number. After the mutations, A-1 and B-1 are omitted, Block-C has an empty `rooms` array, and Block-D is unchanged. No office fields. The call past its own attempt limit returns 429 `rate_limited`, and the sign-in budget is untouched: an enrolment check right after still returns 204. |
 | Failure cases | E2E; failure cases are covered by the expected response. |
 | Artifact | `backend/app/shared/auth/tests/artifacts/auth-onboard-options.json` |
 
