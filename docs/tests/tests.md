@@ -148,7 +148,7 @@ Copy this block for each test and fill every field.
 
 | Field | Content |
 |---|---|
-| Test | `backend/app/shared/auth/tests/test_delete_account.py` |
+| Test | `backend/app/residents/tests/test_delete_account.py` |
 | Purpose | A resident who created an account can delete it from the phone. The hall frees her room and she cannot sign in again. |
 | Actor | A resident. A gate account is refused. |
 | Preconditions | The hall from `hall-created` exists. Aisha Khan is an active resident on B-204. Fatima Khan is active gate staff. |
