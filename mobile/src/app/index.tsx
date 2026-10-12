@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HallMark } from "@/components/hall-mark";
 import { useSession } from "@/session";
-import { homePath } from "@/staff-home";
+import { homePath } from "@/staff";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 

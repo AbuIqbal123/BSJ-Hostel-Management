@@ -20,7 +20,7 @@ import { IBMPlexMono_500Medium } from "@expo-google-fonts/ibm-plex-mono";
 
 import { HallMark } from "@/components/hall-mark";
 import { SessionProvider, useSession, type HallRole } from "@/session";
-import { homePath } from "@/staff-home";
+import { homePath } from "@/staff";
 import { AppearanceProvider, useDark } from "@/theme/appearance";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
@@ -46,7 +46,7 @@ function routeSettled(
     return false;
   }
   if (user) {
-    return here === (user.role === "resident" ? "(resident)" : user.role);
+    return here === (user.role === "resident" ? "(resident)" : "staff");
   }
   return here === "sign-in" || onSignUp;
 }
@@ -153,9 +153,7 @@ function LaunchShell({ fontsReady }: { fontsReady: boolean }) {
           }}
         />
         <Stack.Screen name="(resident)" options={{ headerShown: false, animation: "none" }} />
-        <Stack.Screen name="gate" options={{ headerShown: false, animation: "none" }} />
-        <Stack.Screen name="warden" options={{ headerShown: false, animation: "none" }} />
-        <Stack.Screen name="provost" options={{ headerShown: false, animation: "none" }} />
+        <Stack.Screen name="staff" options={{ headerShown: false, animation: "none" }} />
       </Stack>
       {splash ? (
         <Animated.View

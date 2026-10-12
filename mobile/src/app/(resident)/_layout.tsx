@@ -4,7 +4,7 @@ import { Stack } from "expo-router/stack";
 import { AccessibilityInfo, StyleSheet, View } from "react-native";
 
 import { useSession } from "@/session";
-import { homePath } from "@/staff-home";
+import { homePath } from "@/staff";
 import { useHallColors } from "@/theme/colors";
 
 export const unstable_settings = {
