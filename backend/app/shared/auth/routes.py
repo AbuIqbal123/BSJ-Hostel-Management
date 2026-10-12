@@ -491,9 +491,9 @@ def onboard_options(request: Request, connection: ConnectionDep) -> list[Onboard
             FROM rooms
             WHERE rooms.block_id = ?
               AND rooms.is_active = 1
-              AND NOT EXISTS (
-                SELECT 1 FROM residents WHERE residents.room_id = rooms.id
-              )
+              AND (
+                SELECT COUNT(*) FROM residents WHERE residents.room_id = rooms.id
+              ) < rooms.bed_count
             ORDER BY CAST(rooms.number AS INTEGER), rooms.number
             """,
             (block["id"],),

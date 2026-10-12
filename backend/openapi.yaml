@@ -3363,7 +3363,7 @@ components:
         rooms:
           type: array
           description: >
-            Active unassigned rooms in this block. May be empty when every room
+            Active rooms with a free bed in this block. May be empty when every room
             is taken or inactive.
           items:
             $ref: "#/components/schemas/OnboardRoomOption"

@@ -5552,7 +5552,7 @@ Each JSON object used above. An operation section already shows the fields for i
 |---|---|---|---|
 | `id` | yes | uuid |  |
 | `name` | yes | string |  |
-| `rooms` | yes | list of [OnboardRoomOption](#schema-onboardroomoption) | Active unassigned rooms in this block. May be empty when every room is taken or inactive. |
+| `rooms` | yes | list of [OnboardRoomOption](#schema-onboardroomoption) | Active rooms with a free bed in this block. May be empty when every room is taken or inactive. |
 
 ### <a id="schema-onboardroomoption"></a>OnboardRoomOption
 

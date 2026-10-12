@@ -109,7 +109,8 @@ def assign_every_room_in_block(path: Path, block_id: str) -> None:
             (block_id,),
         ).fetchall()
         phrase = hash_password(joined("resident", "full", "10"))
-        for index, (room_id, label) in enumerate(rooms):
+        beds = [(room_id, label) for room_id, label in rooms for _ in range(2)]
+        for index, (room_id, label) in enumerate(beds):
             user_id = f"b22de000-0000-4000-8000-{index + 1:012d}"
             username = f"24-FULL-{index + 1:03d}"
             connection.execute(
@@ -183,8 +184,8 @@ def test_onboard_options(database_path: Path, monkeypatch: pytest.MonkeyPatch) -
         by_name = {block["name"]: block for block in filtered_body}
         assert "A-1" not in {room["label"] for room in by_name["Block-A"]["rooms"]}
         assert len(by_name["Block-A"]["rooms"]) == counts["Block-A"] - 1
-        assert "B-1" not in {room["label"] for room in by_name["Block-B"]["rooms"]}
-        assert len(by_name["Block-B"]["rooms"]) == counts["Block-B"] - 1
+        assert "B-1" in {room["label"] for room in by_name["Block-B"]["rooms"]}
+        assert len(by_name["Block-B"]["rooms"]) == counts["Block-B"]
         assert by_name["Block-C"]["rooms"] == []
         assert len(by_name["Block-D"]["rooms"]) == counts["Block-D"]
         assert filtered_body == expected["filtered"]
