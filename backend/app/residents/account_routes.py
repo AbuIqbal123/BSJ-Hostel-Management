@@ -154,7 +154,7 @@ def delete_own_account(
         connection,
         now_text,
         account.id,
-        "auth.logout",
+        "resident.deleted",
         "person",
         account.id,
         "The resident deleted her account.",
