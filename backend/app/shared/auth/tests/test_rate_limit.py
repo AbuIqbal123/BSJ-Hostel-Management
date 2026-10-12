@@ -75,13 +75,15 @@ def test_forwarded_clients_do_not_share_a_limit(
     database_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(login_limiter, "limit", 2)
+    monkeypatch.setenv("TRUST_FORWARDED_FOR", "1")
     from app.main import app
 
     with TestClient(app) as client:
         assert client.get("/health").json() == {"status": "ok"}
         issue_gate(database_path)
     proxy = TestClient(app, client=("127.0.0.1", 443))
-    first = {"X-Forwarded-For": "203.0.113.10"}
+    first = {"X-Forwarded-For": "198.51.100.1, 203.0.113.10"}
+    faked = {"X-Forwarded-For": "198.51.100.99, 203.0.113.10"}
     second = {"X-Forwarded-For": "203.0.113.20"}
     for _ in range(2):
         refused = proxy.post(
@@ -93,7 +95,7 @@ def test_forwarded_clients_do_not_share_a_limit(
     blocked = proxy.post(
         "/api/v1/auth/login",
         json=_login_body("gate.fatima", WRONG_PHRASE),
-        headers=first,
+        headers=faked,
     )
     assert_error(blocked, 429, "rate_limited", "Too many attempts. Try again shortly.")
     other = proxy.post(

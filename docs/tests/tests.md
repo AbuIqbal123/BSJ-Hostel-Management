@@ -162,11 +162,11 @@ Copy this block for each test and fill every field.
 | Field | Content |
 |---|---|
 | Test | `backend/app/shared/auth/tests/test_rate_limit.py` |
-| Purpose | Repeated sign-in or refresh attempts from one client are refused with 429 so password guessing stays slow. Behind a trusted proxy, two forwarded clients do not share that bucket. |
+| Purpose | Repeated sign-in or refresh attempts from one client are refused with 429 so password guessing stays slow. Behind the proxy, only the last `X-Forwarded-For` hop counts, so two real clients do not share a bucket and a faked earlier entry does not open a new one. |
 | Actor | Anyone calling login or refresh. |
 | Preconditions | The hall from `hall-created` exists. One active gate account exists. The in-process limit is set low for the check. |
-| Action | Call `POST /api/v1/auth/login` with a wrong password until the limit is exceeded, then once more. Separately, after a successful sign-in, call `POST /api/v1/auth/refresh` with a bad token until the limit is exceeded, then once more. From `127.0.0.1`, two `X-Forwarded-For` addresses each sign in with a wrong password up to a limit of 2. |
-| Expected response | Calls within the limit return 401 `unauthenticated`. The next call returns 429 `rate_limited` and says too many attempts. The second forwarded address is still 401 after the first address is limited. |
+| Action | Call `POST /api/v1/auth/login` with a wrong password until the limit is exceeded, then once more. Separately, after a successful sign-in, call `POST /api/v1/auth/refresh` with a bad token until the limit is exceeded, then once more. With `TRUST_FORWARDED_FOR=1`, from `127.0.0.1`, one client (`198.51.100.1, 203.0.113.10`) signs in with a wrong password up to a limit of 2, then retries with a faked first entry (`198.51.100.99, 203.0.113.10`). A second client (`203.0.113.20`) then tries once. |
+| Expected response | Calls within the limit return 401 `unauthenticated`. The next call returns 429 `rate_limited` and says too many attempts. The faked first entry is still 429. The second client is still 401. |
 | Failure cases | E2E; failure cases are covered by the expected response. |
 | Artifact | none |
 
