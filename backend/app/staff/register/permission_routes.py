@@ -51,7 +51,8 @@ def list_permissions(
     block_id: Annotated[str | None, Query()] = None,
     created_from: Annotated[str | None, Query()] = None,
     created_to: Annotated[str | None, Query()] = None,
-    order: Annotated[Literal["newest", "oldest"], Query()] = "newest",
+    order: Annotated[Literal["newest", "oldest", "departure"], Query()] = "newest",
+    q: Annotated[str | None, Query(max_length=80)] = None,
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> PermissionReviewPageBody:
@@ -67,6 +68,7 @@ def list_permissions(
         created_from=created_from,
         created_to=created_to,
         order=order,
+        q=q,
     )
 
 

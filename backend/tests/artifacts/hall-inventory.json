@@ -183,7 +183,8 @@
     ],
     "staff": [
       "user_id",
-      "job_title"
+      "job_title",
+      "notifications_read_at"
     ],
     "users": [
       "id",

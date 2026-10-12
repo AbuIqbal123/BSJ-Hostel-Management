@@ -189,6 +189,8 @@ def _list_filter_sql(
     bucket: GuestBucket | None,
     include_terminal: bool,
     today: str,
+    q: str | None = None,
+    block_id: str | None = None,
 ) -> tuple[str, list[object]]:
     clauses: list[str] = []
     params: list[object] = []
@@ -202,6 +204,16 @@ def _list_filter_sql(
     elif not include_terminal:
         # Explicit bucket=cancelled|rejected opts in; default staff queue hides them.
         clauses.append("guest_stays.status NOT IN ('cancelled', 'rejected')")
+    if q:
+        clauses.append(
+            "(lower(guest_stays.guest_name) LIKE ? OR lower(host.full_name) LIKE ?"
+            " OR lower(rooms.label) LIKE ?)"
+        )
+        pattern = f"%{q.strip().lower()}%"
+        params.extend([pattern, pattern, pattern])
+    if block_id is not None:
+        clauses.append("rooms.block_id = ?")
+        params.append(block_id)
     where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
     return where, params
 
@@ -335,12 +347,16 @@ def list_guest_stays(
     today: str,
     bucket: GuestBucket | None = None,
     include_terminal: bool = True,
+    q: str | None = None,
+    block_id: str | None = None,
 ) -> GuestStayPageBody:
     where, params = _list_filter_sql(
         host_resident_id=host_resident_id,
         bucket=bucket,
         include_terminal=include_terminal,
         today=today,
+        q=q,
+        block_id=block_id,
     )
     total = connection.execute(
         f"SELECT COUNT(*) AS n {_STAY_FROM} {where}",

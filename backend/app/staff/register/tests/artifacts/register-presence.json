@@ -68,7 +68,8 @@
         "guests_should_have_left_count": 0,
         "pending_guest_stay_count": 0
       }
-    ]
+    ],
+    "notifications_unread": false
   },
   "summary": {
     "inside_count": 1,
@@ -139,7 +140,8 @@
         "guests_should_have_left_count": 0,
         "pending_guest_stay_count": 0
       }
-    ]
+    ],
+    "notifications_unread": true
   },
   "residents": {
     "total": 3,
@@ -150,6 +152,8 @@
         "id": "b22de000-0000-4000-8000-000000000002",
         "full_name": "Aisha Khan",
         "room_label": "B-204",
+        "block_name": "Block-B",
+        "outing_type": null,
         "presence": "inside",
         "state": "inside",
         "outside_destination": null,
@@ -159,6 +163,8 @@
         "id": "c44ef000-0000-4000-8000-000000000009",
         "full_name": "Maryam Siddiqui",
         "room_label": "B-205",
+        "block_name": "Block-B",
+        "outing_type": "ordinary",
         "presence": "outside",
         "state": "outside",
         "outside_destination": "Maulana Azad Library",
@@ -168,6 +174,8 @@
         "id": "d55fa000-0000-4000-8000-00000000000a",
         "full_name": "Zara Ahmed",
         "room_label": "A-101",
+        "block_name": "Block-A",
+        "outing_type": "ordinary",
         "presence": "outside",
         "state": "late",
         "outside_destination": "Shamshad Market",
@@ -184,6 +192,8 @@
         "id": "b22de000-0000-4000-8000-000000000002",
         "full_name": "Aisha Khan",
         "room_label": "B-204",
+        "block_name": "Block-B",
+        "outing_type": null,
         "presence": "inside",
         "state": "inside",
         "outside_destination": null,
@@ -200,6 +210,8 @@
         "id": "d55fa000-0000-4000-8000-00000000000a",
         "full_name": "Zara Ahmed",
         "room_label": "A-101",
+        "block_name": "Block-A",
+        "outing_type": "ordinary",
         "presence": "outside",
         "state": "late",
         "outside_destination": "Shamshad Market",
@@ -216,6 +228,8 @@
         "id": "d55fa000-0000-4000-8000-00000000000a",
         "full_name": "Zara Ahmed",
         "room_label": "A-101",
+        "block_name": "Block-A",
+        "outing_type": "ordinary",
         "presence": "outside",
         "state": "late",
         "outside_destination": "Shamshad Market",
@@ -232,6 +246,8 @@
         "id": "d55fa000-0000-4000-8000-00000000000a",
         "full_name": "Zara Ahmed",
         "room_label": "A-101",
+        "block_name": "Block-A",
+        "outing_type": "ordinary",
         "presence": "outside",
         "state": "late",
         "outside_destination": "Shamshad Market",

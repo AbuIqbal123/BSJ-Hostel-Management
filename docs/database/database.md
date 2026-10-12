@@ -277,6 +277,9 @@ A staff profile exists only for gate, warden, or provost. The role on the person
 |---|---|---|---|---|
 | user_id | Identifier | Yes | The person's id | One profile for that person. |
 | job_title | Text | Yes | Provost | The name of the post. |
+| notifications_read_at | Instant | No | System | When she last marked her staff inbox read. Empty until then. |
+
+A warden's or the provost's inbox is not stored as rows. It is read from the records that already exist: a permission or guest stay being requested (its created_at) and an outing passing grace while she was still out (its grace_ends_at). An event after notifications_read_at is unread for that staff member. Marking the inbox read sets notifications_read_at to now and changes nothing else.
 
 ### Signed-in session
 

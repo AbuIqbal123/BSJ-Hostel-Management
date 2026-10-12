@@ -1,0 +1,128 @@
+{
+  "all": {
+    "total": 2,
+    "limit": 50,
+    "offset": 0,
+    "items": [
+      {
+        "id": "0a700000-0000-4000-8000-000000000061",
+        "resident_id": "b22de000-0000-4000-8000-000000000002",
+        "resident_name": "Aisha Khan",
+        "room_label": "B-204",
+        "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+        "block_name": "Block-B",
+        "source": "ordinary",
+        "due_at": "2026-09-30T12:00:00Z",
+        "returned_at": null,
+        "minutes_late": 60
+      },
+      {
+        "id": "0a700000-0000-4000-8000-000000000062",
+        "resident_id": "d55fa000-0000-4000-8000-00000000000a",
+        "resident_name": "Zara Ahmed",
+        "room_label": "A-101",
+        "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+        "block_name": "Block-A",
+        "source": "late_night",
+        "due_at": "2026-09-29T16:00:00Z",
+        "returned_at": "2026-09-29T16:45:00Z",
+        "minutes_late": 45
+      }
+    ]
+  },
+  "now": {
+    "total": 1,
+    "limit": 50,
+    "offset": 0,
+    "items": [
+      {
+        "id": "0a700000-0000-4000-8000-000000000061",
+        "resident_id": "b22de000-0000-4000-8000-000000000002",
+        "resident_name": "Aisha Khan",
+        "room_label": "B-204",
+        "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+        "block_name": "Block-B",
+        "source": "ordinary",
+        "due_at": "2026-09-30T12:00:00Z",
+        "returned_at": null,
+        "minutes_late": 60
+      }
+    ]
+  },
+  "past": {
+    "total": 1,
+    "limit": 50,
+    "offset": 0,
+    "items": [
+      {
+        "id": "0a700000-0000-4000-8000-000000000062",
+        "resident_id": "d55fa000-0000-4000-8000-00000000000a",
+        "resident_name": "Zara Ahmed",
+        "room_label": "A-101",
+        "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+        "block_name": "Block-A",
+        "source": "late_night",
+        "due_at": "2026-09-29T16:00:00Z",
+        "returned_at": "2026-09-29T16:45:00Z",
+        "minutes_late": 45
+      }
+    ]
+  },
+  "late_night": {
+    "total": 1,
+    "limit": 50,
+    "offset": 0,
+    "items": [
+      {
+        "id": "0a700000-0000-4000-8000-000000000062",
+        "resident_id": "d55fa000-0000-4000-8000-00000000000a",
+        "resident_name": "Zara Ahmed",
+        "room_label": "A-101",
+        "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+        "block_name": "Block-A",
+        "source": "late_night",
+        "due_at": "2026-09-29T16:00:00Z",
+        "returned_at": "2026-09-29T16:45:00Z",
+        "minutes_late": 45
+      }
+    ]
+  },
+  "on_30th": {
+    "total": 1,
+    "limit": 50,
+    "offset": 0,
+    "items": [
+      {
+        "id": "0a700000-0000-4000-8000-000000000061",
+        "resident_id": "b22de000-0000-4000-8000-000000000002",
+        "resident_name": "Aisha Khan",
+        "room_label": "B-204",
+        "block_id": "d032aad6-a203-5ea0-ba9a-3a9257edbfc8",
+        "block_name": "Block-B",
+        "source": "ordinary",
+        "due_at": "2026-09-30T12:00:00Z",
+        "returned_at": null,
+        "minutes_late": 60
+      }
+    ]
+  },
+  "second_page": {
+    "total": 2,
+    "limit": 1,
+    "offset": 1,
+    "items": [
+      {
+        "id": "0a700000-0000-4000-8000-000000000062",
+        "resident_id": "d55fa000-0000-4000-8000-00000000000a",
+        "resident_name": "Zara Ahmed",
+        "room_label": "A-101",
+        "block_id": "01b885ad-e40d-56a4-81ab-2371f654f558",
+        "block_name": "Block-A",
+        "source": "late_night",
+        "due_at": "2026-09-29T16:00:00Z",
+        "returned_at": "2026-09-29T16:45:00Z",
+        "minutes_late": 45
+      }
+    ]
+  }
+}

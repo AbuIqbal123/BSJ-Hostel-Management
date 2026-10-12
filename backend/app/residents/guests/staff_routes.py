@@ -73,6 +73,8 @@ def list_guest_stays_staff(
     connection: ConnectionDep,
     bucket: Annotated[GuestBucket | None, Query()] = None,
     include_terminal: Annotated[bool, Query()] = False,
+    q: Annotated[str | None, Query(max_length=80)] = None,
+    block_id: Annotated[str | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> GuestStayPageBody:
@@ -85,6 +87,8 @@ def list_guest_stays_staff(
         today=today,
         bucket=bucket,
         include_terminal=include_terminal,
+        q=q,
+        block_id=block_id,
     )
 
 
