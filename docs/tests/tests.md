@@ -648,4 +648,15 @@ Copy this block for each test and fill every field.
 | Failure cases | E2E; failure cases are covered by the expected response. |
 | Artifact | `backend/app/staff/office/tests/artifacts/admin-register-export.csv` |
 
+### `connection-teardown` Request connection closes without its state entry
 
+| Field | Content |
+|---|---|
+| Test | `backend/tests/test_connection_teardown.py` |
+| Purpose | The request's database connection is closed even when `request.state.hall_connection` was already removed, instead of teardown raising `AttributeError`. |
+| Actor | System. |
+| Preconditions | A local hall database. |
+| Action | Open the request connection through `get_connection`, delete the state entry, then end the request. |
+| Expected response | Teardown does not raise. The state entry is `None` and the connection is closed. |
+| Failure cases | Isolated: the end-to-end path cannot remove the state entry mid-request. A missing entry used to raise `AttributeError` from teardown. |
+| Artifact | None. The test states each check. |

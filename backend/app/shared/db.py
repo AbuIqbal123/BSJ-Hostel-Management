@@ -81,7 +81,7 @@ def get_connection(request: Request) -> Iterator[sqlite3.Connection]:
         connection.rollback()
         raise
     finally:
-        del request.state.hall_connection
+        request.state.hall_connection = None
         connection.close()
 
 
