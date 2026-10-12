@@ -1785,6 +1785,7 @@ paths:
                     guests_in_hall_count: 2
                     guests_should_have_left_count: 0
                     pending_guest_stay_count: 1
+                notifications_unread: true
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -1798,7 +1799,9 @@ paths:
       description: |
         Caller: warden or provost. Search matches full name or room label.
         `block_id` limits the list to one block. `state=late` is outside and
-        past grace. Results are ordered by name.
+        past grace; `state=out` is outside and late together. Results are
+        ordered by name, or with `order=back_by` by the open outing's expected
+        return, soonest first, residents inside last.
       parameters:
         - name: q
           in: query
@@ -1811,7 +1814,15 @@ paths:
           in: query
           required: false
           schema:
-            $ref: "#/components/schemas/RegisterState"
+            type: string
+            enum: [inside, outside, late, out]
+        - name: order
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [name, back_by]
+            default: name
         - name: block_id
           in: query
           required: false
@@ -1882,6 +1893,131 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /api/v1/register/late-returns:
+    get:
+      tags: [Register]
+      operationId: late_returns
+      summary: Late returns, current and past
+      description: |
+        Caller: warden or provost. One row per outing that went past grace:
+        still outside (`state=now`) or returned after grace (`state=past`).
+        Omit `state` for both. `source` limits to ordinary, late-night, or
+        home-going outings. `from` and `to` are inclusive hall dates
+        (Asia/Kolkata) of the due time. Ordered by due time, newest first.
+        Room and block are her current ones.
+      parameters:
+        - name: source
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/OutingSource"
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [now, past]
+        - name: from
+          in: query
+          required: false
+          description: First hall date, inclusive.
+          schema:
+            type: string
+            format: date
+            example: "2026-09-01"
+        - name: to
+          in: query
+          required: false
+          description: Last hall date, inclusive. Not before `from`.
+          schema:
+            type: string
+            format: date
+            example: "2026-09-30"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Late-returns page.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LateReturnPage"
+              example:
+                total: 1
+                limit: 50
+                offset: 0
+                items:
+                  - id: 00000000-0000-4000-8000-0000000000c1
+                    resident_id: 00000000-0000-4000-8000-0000000000a1
+                    resident_name: Aisha Khan
+                    room_label: B-204
+                    block_id: 00000000-0000-4000-8000-0000000000b1
+                    block_name: Block-B
+                    source: ordinary
+                    due_at: "2026-09-30T12:00:00Z"
+                    returned_at: null
+                    minutes_late: 60
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+
+  /api/v1/register/notifications:
+    get:
+      tags: [Register]
+      operationId: list_staff_notifications
+      summary: Staff inbox, newest first
+      description: |
+        Caller: warden or provost. The newest 50 hall events: a permission
+        requested, a guest stay requested, or an outing passing grace while
+        she was out. Events are read from those records; nothing else writes
+        them. `unread` is true for an event after the caller last called
+        POST /api/v1/register/notifications/read. Does not mark them read.
+      responses:
+        "200":
+          description: Events, newest first, at most 50.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffNotificationList"
+              example:
+                items:
+                  - kind: resident_late
+                    record_id: 00000000-0000-4000-8000-0000000000c1
+                    resident_name: Aisha Khan
+                    room_label: B-204
+                    occurred_at: "2026-09-30T12:15:00Z"
+                    unread: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/register/notifications/read:
+    post:
+      tags: [Register]
+      operationId: mark_staff_notifications_read
+      summary: Mark the caller's inbox read
+      description: |
+        Caller: warden or provost. Marks every event up to now read for the
+        caller only, including any older than the 50 listed. Returns how many
+        were unread. A second call marks nothing.
+      responses:
+        "200":
+          description: How many events were unread.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffNotificationsMarked"
+              example:
+                marked: 3
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /api/v1/permissions:
     get:
       tags: [Permissions]
@@ -1893,7 +2029,8 @@ paths:
         oldest first. Optional filters narrow the page: `block_id` is the block
         of the resident's current room; `type` is late-night or home going;
         `created_from` and `created_to` are inclusive UTC bounds on
-        `created_at`. Each item is a PermissionReview (includes resident
+        `created_at`; `q` matches the resident's name or room label.
+        `order=departure` sorts by departure, soonest first. Each item is a PermissionReview (includes resident
         identity). Does not expire passed permissions; call
         POST /api/v1/permissions/expire-passed first when the queue needs a
         fresh status.
@@ -1934,13 +2071,20 @@ paths:
             type: string
             format: date-time
             example: "2026-09-30T23:59:59Z"
+        - name: q
+          in: query
+          required: false
+          description: Resident name or room.
+          schema:
+            type: string
+            maxLength: 80
         - name: order
           in: query
           required: false
-          description: Sort by created_at. Default newest.
+          description: Sort by created_at (newest, oldest) or departure_at (departure). Default newest.
           schema:
             type: string
-            enum: [newest, oldest]
+            enum: [newest, oldest, departure]
             default: newest
         - $ref: "#/components/parameters/Limit"
         - $ref: "#/components/parameters/Offset"
@@ -2058,8 +2202,10 @@ paths:
         buckets `cancelled` and `rejected` so the warden queue stays clean.
         Pass `include_terminal=true` to include those rows. An explicit
         `bucket=cancelled` or `bucket=rejected` still returns that subset
-        without needing `include_terminal`. Each item is a GuestStaySummary
-        card; open GET by id for the full GuestStay.
+        without needing `include_terminal`. `q` matches the guest's name, the
+        host's name, or the host's room label. `block_id` is the block of the
+        host's current room. Each item is a GuestStaySummary card; open GET by
+        id for the full GuestStay.
       parameters:
         - name: bucket
           in: query
@@ -2076,6 +2222,20 @@ paths:
           schema:
             type: boolean
             default: false
+        - name: q
+          in: query
+          required: false
+          description: Guest name, host name, or host room.
+          schema:
+            type: string
+            maxLength: 80
+        - name: block_id
+          in: query
+          required: false
+          description: Limit to hosts whose current room is in this block.
+          schema:
+            type: string
+            format: uuid
         - $ref: "#/components/parameters/Limit"
         - $ref: "#/components/parameters/Offset"
       responses:
@@ -3507,6 +3667,119 @@ components:
       type: string
       enum: [inside, outside, late]
 
+    OutingSource:
+      type: string
+      enum: [ordinary, late_night, home_going]
+      description: An ordinary outing, or one made under a late-night or home-going permission.
+
+    LateReturn:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - resident_id
+        - resident_name
+        - room_label
+        - block_id
+        - block_name
+        - source
+        - due_at
+        - returned_at
+        - minutes_late
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The outing.
+        resident_id:
+          type: string
+          format: uuid
+        resident_name:
+          type: string
+        room_label:
+          type: string
+          description: Her current room.
+        block_id:
+          type: string
+          format: uuid
+        block_name:
+          type: string
+        source:
+          $ref: "#/components/schemas/OutingSource"
+        due_at:
+          type: string
+          format: date-time
+          description: The outing's expected return.
+        returned_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: "null"
+          description: Gate return. Null while she is still out.
+        minutes_late:
+          type: integer
+          minimum: 0
+          description: Whole minutes from due_at to returned_at, or to now while she is still out.
+
+    LateReturnPage:
+      allOf:
+        - $ref: "#/components/schemas/ListMeta"
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/LateReturn"
+
+    StaffNotification:
+      type: object
+      additionalProperties: false
+      required: [kind, record_id, resident_name, room_label, occurred_at, unread]
+      properties:
+        kind:
+          type: string
+          enum: [permission_requested, guest_stay_requested, resident_late]
+        record_id:
+          type: string
+          format: uuid
+          description: |
+            The permission, the guest stay, or the outing. Open it with
+            GET /api/v1/permissions/{id}, GET /api/v1/guest-stays/{id}, or
+            GET /api/v1/register/residents/{resident_id}.
+        resident_name:
+          type: string
+          description: The resident who asked, hosts the guest, or is late.
+        room_label:
+          type: string
+        occurred_at:
+          type: string
+          format: date-time
+          description: When the request was made, or when grace ended on the outing.
+        unread:
+          type: boolean
+
+    StaffNotificationList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/StaffNotification"
+
+    StaffNotificationsMarked:
+      type: object
+      additionalProperties: false
+      required: [marked]
+      properties:
+        marked:
+          type: integer
+          minimum: 0
+          description: How many events were unread for her before this call.
+
     HomeResident:
       type: object
       additionalProperties: false
@@ -4901,6 +5174,7 @@ components:
         - guests_should_have_left_count
         - pending_guest_stay_count
         - blocks
+        - notifications_unread
       properties:
         inside_count:
           type: integer
@@ -4921,6 +5195,12 @@ components:
           description: The same counts for each block. Hall totals are the sum of these rows.
           items:
             $ref: "#/components/schemas/BlockRegisterCounts"
+        notifications_unread:
+          type: boolean
+          description: |
+            True when the caller has an event in GET
+            /api/v1/register/notifications after she last called
+            POST /api/v1/register/notifications/read.
 
     BlockRegisterCounts:
       type: object
@@ -4962,7 +5242,7 @@ components:
     RegisterRow:
       type: object
       additionalProperties: false
-      required: [id, full_name, room_label, presence, state]
+      required: [id, full_name, room_label, block_name, presence, state]
       properties:
         id:
           type: string
@@ -4971,10 +5251,18 @@ components:
           type: string
         room_label:
           type: string
+        block_name:
+          type: string
+          description: Block of her current room.
         presence:
           $ref: "#/components/schemas/Presence"
         state:
           $ref: "#/components/schemas/RegisterState"
+        outing_type:
+          oneOf:
+            - $ref: "#/components/schemas/OutingSource"
+            - type: "null"
+          description: Source of the open outing. Null when she is inside.
         outside_destination:
           oneOf:
             - type: string

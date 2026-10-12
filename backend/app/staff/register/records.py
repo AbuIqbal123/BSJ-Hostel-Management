@@ -12,6 +12,8 @@ from app.shared import clock
 
 
 RegisterState = Literal["inside", "outside", "late"]
+RegisterFilter = Literal["inside", "outside", "late", "out"]
+RegisterOrder = Literal["name", "back_by"]
 GuardianNotice = Literal["not_due", "sent", "failed"]
 
 
@@ -39,6 +41,7 @@ class RegisterSummary(BaseModel):
     guests_should_have_left_count: int
     pending_guest_stay_count: int
     blocks: list[BlockRegisterCounts]
+    notifications_unread: bool = False
 
 
 class RegisterRow(BaseModel):
@@ -48,6 +51,8 @@ class RegisterRow(BaseModel):
     room_label: str
     presence: Literal["inside", "outside"]
     state: RegisterState
+    block_name: str
+    outing_type: Literal["ordinary", "late_night", "home_going"] | None = None
     outside_destination: str | None = None
     expected_return_at: str | None = None
 
@@ -213,6 +218,8 @@ def _row_from_resident(row: sqlite3.Row, now_text: str) -> RegisterRow:
         room_label=row["room_label"],
         presence=row["presence"],
         state=state,
+        block_name=row["block_name"],
+        outing_type=None if inside else row["outing_type"],
         outside_destination=None if inside else row["place"],
         expected_return_at=None if inside else row["expected_return_at"],
     )
@@ -223,13 +230,16 @@ SELECT
   users.id,
   users.full_name,
   rooms.label AS room_label,
+  blocks.name AS block_name,
   residents.presence,
+  open_outing.type AS outing_type,
   open_outing.place,
   open_outing.expected_return_at,
   open_outing.grace_ends_at
 FROM residents
 JOIN users ON users.id = residents.user_id
 JOIN rooms ON rooms.id = residents.room_id
+JOIN blocks ON blocks.id = rooms.block_id
 LEFT JOIN outings AS open_outing
   ON open_outing.resident_id = residents.user_id
  AND open_outing.status = 'outside'
@@ -241,10 +251,11 @@ def list_register(
     connection: sqlite3.Connection,
     *,
     q: str | None,
-    state: RegisterState | None,
+    state: RegisterFilter | None,
     block_id: str | None,
     limit: int,
     offset: int,
+    order: RegisterOrder = "name",
 ) -> RegisterPage:
     now_text = _now_text()
     params: list[object] = []
@@ -262,6 +273,8 @@ def list_register(
         filters.append("residents.presence = 'outside'")
         filters.append("(open_outing.grace_ends_at IS NULL OR open_outing.grace_ends_at >= ?)")
         params.append(now_text)
+    elif state == "out":
+        filters.append("residents.presence = 'outside'")
     elif state == "late":
         filters.append("residents.presence = 'outside'")
         filters.append("open_outing.grace_ends_at IS NOT NULL")
@@ -279,10 +292,15 @@ def list_register(
         WHERE users.status = 'active'{where_extra}
     """
     total = connection.execute(count_sql, params).fetchone()["n"]
+    back_by = (
+        "open_outing.expected_return_at IS NULL, open_outing.expected_return_at, "
+        if order == "back_by"
+        else ""
+    )
     page_sql = (
         _RESIDENT_SELECT
         + where_extra
-        + " ORDER BY users.full_name COLLATE NOCASE, users.id LIMIT ? OFFSET ?"
+        + f" ORDER BY {back_by}users.full_name COLLATE NOCASE, users.id LIMIT ? OFFSET ?"
     )
     rows = connection.execute(page_sql, [*params, limit, offset]).fetchall()
     items = [_row_from_resident(row, now_text) for row in rows]
@@ -367,3 +385,155 @@ def load_resident_record(connection: sqlite3.Connection, resident_id: str) -> Re
         guardian_name=row["guardian_name"],
         guardian_notice=guardian_notice_for(connection, outing=outing, state=state),
     )
+
+
+LateSource = Literal["ordinary", "late_night", "home_going"]
+LateState = Literal["now", "past"]
+
+
+class LateReturnRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str
+    resident_id: str
+    resident_name: str
+    room_label: str
+    block_id: str
+    block_name: str
+    source: LateSource
+    due_at: str
+    returned_at: str | None
+    minutes_late: int
+
+
+class LateReturnPage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    total: int
+    limit: int
+    offset: int
+    items: list[LateReturnRow]
+
+
+def _minutes_between(earlier: str, later: str) -> int:
+    seconds = (clock.parse_instant(later) - clock.parse_instant(earlier)).total_seconds()
+    return int(seconds // 60)
+
+
+def list_late_returns(
+    connection: sqlite3.Connection,
+    *,
+    source: LateSource | None,
+    state: LateState | None,
+    first_day: str | None,
+    last_day: str | None,
+    limit: int,
+    offset: int,
+) -> LateReturnPage:
+    """Outings past grace: still outside (now) or returned after grace (past)."""
+    now_text = _now_text()
+    now_clause = "(outings.status = 'outside' AND outings.grace_ends_at < ?)"
+    past_clause = "(outings.status = 'returned' AND outings.returned_at > outings.grace_ends_at)"
+    params: list[object] = []
+    if state == "now":
+        filters = [now_clause]
+        params.append(now_text)
+    elif state == "past":
+        filters = [past_clause]
+    else:
+        filters = [f"({now_clause} OR {past_clause})"]
+        params.append(now_text)
+    if source is not None:
+        filters.append("outings.type = ?")
+        params.append(source)
+    if first_day is not None:
+        filters.append("outings.hall_date >= ?")
+        params.append(first_day)
+    if last_day is not None:
+        filters.append("outings.hall_date <= ?")
+        params.append(last_day)
+    from_where = f"""
+        FROM outings
+        JOIN users ON users.id = outings.resident_id
+        JOIN residents ON residents.user_id = outings.resident_id
+        JOIN rooms ON rooms.id = residents.room_id
+        JOIN blocks ON blocks.id = rooms.block_id
+        WHERE {' AND '.join(filters)}
+    """
+    total = connection.execute(f"SELECT COUNT(*) AS n {from_where}", params).fetchone()["n"]
+    rows = connection.execute(
+        f"""
+        SELECT
+          outings.id,
+          outings.resident_id,
+          users.full_name AS resident_name,
+          rooms.label AS room_label,
+          blocks.id AS block_id,
+          blocks.name AS block_name,
+          outings.type AS source,
+          outings.expected_return_at AS due_at,
+          outings.returned_at
+        {from_where}
+        ORDER BY outings.expected_return_at DESC, outings.id DESC
+        LIMIT ? OFFSET ?
+        """,
+        [*params, limit, offset],
+    ).fetchall()
+    items = [
+        LateReturnRow(
+            id=row["id"],
+            resident_id=row["resident_id"],
+            resident_name=row["resident_name"],
+            room_label=row["room_label"],
+            block_id=row["block_id"],
+            block_name=row["block_name"],
+            source=row["source"],
+            due_at=row["due_at"],
+            returned_at=row["returned_at"],
+            minutes_late=_minutes_between(row["due_at"], row["returned_at"] or now_text),
+        )
+        for row in rows
+    ]
+    return LateReturnPage(total=total, limit=limit, offset=offset, items=items)
+
+
+# Staff inbox events. Nothing writes a notification row: an event is a
+# permission or guest stay being requested (created_at) or an outing passing
+# grace (grace_ends_at). staff.notifications_read_at is the only stored state;
+# an event after it is unread.
+EVENTS_SQL = """
+SELECT events.kind, events.record_id, events.occurred_at,
+       users.full_name AS resident_name, rooms.label AS room_label
+FROM (
+  SELECT 'permission_requested' AS kind, id AS record_id,
+         resident_id, created_at AS occurred_at
+  FROM permissions
+  UNION ALL
+  SELECT 'guest_stay_requested', id, host_resident_id, created_at
+  FROM guest_stays
+  UNION ALL
+  SELECT 'resident_late', id, resident_id, grace_ends_at
+  FROM outings
+  WHERE grace_ends_at < :now
+    AND (status = 'outside' OR (status = 'returned' AND returned_at > grace_ends_at))
+) AS events
+JOIN users ON users.id = events.resident_id
+JOIN residents ON residents.user_id = events.resident_id
+JOIN rooms ON rooms.id = residents.room_id
+"""
+
+
+def notifications_read_at(connection: sqlite3.Connection, user_id: str) -> str:
+    row = connection.execute(
+        "SELECT notifications_read_at FROM staff WHERE user_id = ?", (user_id,)
+    ).fetchone()
+    return "" if row is None or row[0] is None else row[0]
+
+
+def unread_count(connection: sqlite3.Connection, user_id: str, now_text: str) -> int:
+    return connection.execute(
+        f"SELECT COUNT(*) FROM ({EVENTS_SQL}) WHERE occurred_at > :read_at",
+        {"now": now_text, "read_at": notifications_read_at(connection, user_id)},
+    ).fetchone()[0]
+
+
+def has_unread(connection: sqlite3.Connection, user_id: str) -> bool:
+    return unread_count(connection, user_id, clock.format_instant(clock.utc_now())) > 0

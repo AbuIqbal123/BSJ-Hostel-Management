@@ -34,6 +34,7 @@ from app.residents.guests.staff_routes import router as guest_staff_router
 from app.residents.outings.routes import router as outings_router
 from app.residents.permissions.routes import router as permissions_router
 from app.staff.register.routes import router as register_router
+from app.staff.register.notification_routes import router as staff_notifications_router
 from app.staff.register.permission_routes import router as permission_queue_router
 from app.staff.gate.routes import router as gate_router
 from app.staff.gate.guest_routes import router as gate_guests_router
@@ -61,6 +62,7 @@ ROUTERS = (
     outings_router,
     permissions_router,
     register_router,
+    staff_notifications_router,
     permission_queue_router,
     gate_router,
     gate_guests_router,

@@ -74,6 +74,9 @@ Do not edit this page by hand.
   - [GET `/api/v1/register/residents` — Resident register](#get-api-v1-register-residents)
   - [GET `/api/v1/register/residents/{resident_id}` — Resident record](#get-api-v1-register-residents-resident_id)
   - [GET `/api/v1/register/late` — Late list](#get-api-v1-register-late)
+  - [GET `/api/v1/register/late-returns` — Late returns, current and past](#get-api-v1-register-late-returns)
+  - [GET `/api/v1/register/notifications` — Staff inbox, newest first](#get-api-v1-register-notifications)
+  - [POST `/api/v1/register/notifications/read` — Mark the caller's inbox read](#post-api-v1-register-notifications-read)
 - [Hall office](#tag-hall-office)
   - [GET `/api/v1/admin/residents` — List resident accounts](#get-api-v1-admin-residents)
   - [POST `/api/v1/admin/residents` — Create a resident](#post-api-v1-admin-residents)
@@ -2145,7 +2148,8 @@ Caller: warden or provost. Defaults to `pending`. Ordered by
 oldest first. Optional filters narrow the page: `block_id` is the block
 of the resident's current room; `type` is late-night or home going;
 `created_from` and `created_to` are inclusive UTC bounds on
-`created_at`. Each item is a PermissionReview (includes resident
+`created_at`; `q` matches the resident's name or room label.
+`order=departure` sorts by departure, soonest first. Each item is a PermissionReview (includes resident
 identity). Does not expire passed permissions; call
 POST /api/v1/permissions/expire-passed first when the queue needs a
 fresh status.
@@ -2159,7 +2163,8 @@ fresh status.
 | `block_id` | query | no | uuid | Limit to residents whose current room is in this block. |
 | `created_from` | query | no | date-time | Inclusive lower bound on created_at (UTC instant). |
 | `created_to` | query | no | date-time | Inclusive upper bound on created_at (UTC instant). |
-| `order` | query | no | `newest` or `oldest` | Sort by created_at. Default newest. default `newest`. |
+| `q` | query | no | string | Resident name or room. at most 80 characters. |
+| `order` | query | no | `newest` or `oldest` or `departure` | Sort by created_at (newest, oldest) or departure_at (departure). Default newest. default `newest`. |
 | `limit` | query | no | integer | 1–500. default `50`. |
 | `offset` | query | no | integer | minimum 0. default `0`. |
 
@@ -2809,8 +2814,10 @@ the dining set and includes guests who should have left. Use
 buckets `cancelled` and `rejected` so the warden queue stays clean.
 Pass `include_terminal=true` to include those rows. An explicit
 `bucket=cancelled` or `bucket=rejected` still returns that subset
-without needing `include_terminal`. Each item is a GuestStaySummary
-card; open GET by id for the full GuestStay.
+without needing `include_terminal`. `q` matches the guest's name, the
+host's name, or the host's room label. `block_id` is the block of the
+host's current room. Each item is a GuestStaySummary card; open GET by
+id for the full GuestStay.
 
 **Parameters**
 
@@ -2818,6 +2825,8 @@ card; open GET by id for the full GuestStay.
 |---|---|---|---|---|
 | `bucket` | query | no | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `include_terminal` | query | no | boolean | When false (default), omit buckets `cancelled` and `rejected` unless `bucket` is set to one of those values. When true, include terminal rows (still subject to `bucket` when set). default `False`. |
+| `q` | query | no | string | Guest name, host name, or host room. at most 80 characters. |
+| `block_id` | query | no | uuid | Limit to hosts whose current room is in this block. |
 | `limit` | query | no | integer | 1–500. default `50`. |
 | `offset` | query | no | integer | minimum 0. default `0`. |
 
@@ -3852,6 +3861,9 @@ Warden and provost presence board under /api/v1/register. Inside, outside, and l
 | GET | `/api/v1/register/residents` | [Resident register](#get-api-v1-register-residents) | warden or provost |
 | GET | `/api/v1/register/residents/{resident_id}` | [Resident record](#get-api-v1-register-residents-resident_id) | warden or provost |
 | GET | `/api/v1/register/late` | [Late list](#get-api-v1-register-late) | warden or provost |
+| GET | `/api/v1/register/late-returns` | [Late returns, current and past](#get-api-v1-register-late-returns) | warden or provost |
+| GET | `/api/v1/register/notifications` | [Staff inbox, newest first](#get-api-v1-register-notifications) | warden or provost |
+| POST | `/api/v1/register/notifications/read` | [Mark the caller's inbox read](#post-api-v1-register-notifications-read) | warden or provost |
 
 ### <a id="get-api-v1-register-summary"></a>GET `/api/v1/register/summary` — Hall register counts
 
@@ -3882,6 +3894,7 @@ Body: [RegisterSummary](#schema-registersummary).
 | `guests_should_have_left_count` | yes | integer |  |
 | `pending_guest_stay_count` | yes | integer |  |
 | `blocks` | yes | list of [BlockRegisterCounts](#schema-blockregistercounts) | The same counts for each block. Hall totals are the sum of these rows. |
+| `notifications_unread` | yes | boolean | True when the caller has an event in GET /api/v1/register/notifications after she last called POST /api/v1/register/notifications/read. |
 
 **Example**
 
@@ -3907,7 +3920,8 @@ Body: [RegisterSummary](#schema-registersummary).
       "guests_should_have_left_count": 0,
       "pending_guest_stay_count": 1
     }
-  ]
+  ],
+  "notifications_unread": true
 }
 ```
 
@@ -3932,14 +3946,17 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 Caller: warden or provost. Search matches full name or room label.
 `block_id` limits the list to one block. `state=late` is outside and
-past grace. Results are ordered by name.
+past grace; `state=out` is outside and late together. Results are
+ordered by name, or with `order=back_by` by the open outing's expected
+return, soonest first, residents inside last.
 
 **Parameters**
 
 | Name | In | Required | Type | Notes |
 |---|---|---|---|---|
 | `q` | query | no | string | Name or room. at most 80 characters. |
-| `state` | query | no | `inside` or `outside` or `late` |  |
+| `state` | query | no | `inside` or `outside` or `late` or `out` |  |
+| `order` | query | no | `name` or `back_by` | default `name`. |
 | `block_id` | query | no | uuid | Limit the list to residents whose current room is in this block. |
 | `limit` | query | no | integer | 1–500. default `50`. |
 | `offset` | query | no | integer | minimum 0. default `0`. |
@@ -4059,6 +4076,185 @@ Body: [RegisterPage](#schema-registerpage).
 | `limit` | yes | integer |  |
 | `offset` | yes | integer |  |
 | `items` | yes | list of [RegisterRow](#schema-registerrow) |  |
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
+### <a id="get-api-v1-register-late-returns"></a>GET `/api/v1/register/late-returns` — Late returns, current and past
+
+`late_returns`
+
+**Who.** warden or provost. Bearer access token.
+
+Caller: warden or provost. One row per outing that went past grace:
+still outside (`state=now`) or returned after grace (`state=past`).
+Omit `state` for both. `source` limits to ordinary, late-night, or
+home-going outings. `from` and `to` are inclusive hall dates
+(Asia/Kolkata) of the due time. Ordered by due time, newest first.
+Room and block are her current ones.
+
+**Parameters**
+
+| Name | In | Required | Type | Notes |
+|---|---|---|---|---|
+| `source` | query | no | `ordinary` or `late_night` or `home_going` |  |
+| `state` | query | no | `now` or `past` |  |
+| `from` | query | no | date | First hall date, inclusive. |
+| `to` | query | no | date | Last hall date, inclusive. Not before `from`. |
+| `limit` | query | no | integer | 1–500. default `50`. |
+| `offset` | query | no | integer | minimum 0. default `0`. |
+
+**Responses**
+
+#### 200
+
+Late-returns page.
+
+Body: [LateReturnPage](#schema-latereturnpage).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `total` | yes | integer | minimum 0. |
+| `limit` | yes | integer |  |
+| `offset` | yes | integer |  |
+| `items` | yes | list of [LateReturn](#schema-latereturn) |  |
+
+**Example**
+
+```json
+{
+  "total": 1,
+  "limit": 50,
+  "offset": 0,
+  "items": [
+    {
+      "id": "00000000-0000-4000-8000-0000000000c1",
+      "resident_id": "00000000-0000-4000-8000-0000000000a1",
+      "resident_name": "Aisha Khan",
+      "room_label": "B-204",
+      "block_id": "00000000-0000-4000-8000-0000000000b1",
+      "block_name": "Block-B",
+      "source": "ordinary",
+      "due_at": "2026-09-30T12:00:00Z",
+      "returned_at": null,
+      "minutes_late": 60
+    }
+  ]
+}
+```
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 422
+
+The JSON is the wrong shape, or a field fails a constraint that does not depend on existing rows.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
+### <a id="get-api-v1-register-notifications"></a>GET `/api/v1/register/notifications` — Staff inbox, newest first
+
+`list_staff_notifications`
+
+**Who.** warden or provost. Bearer access token.
+
+Caller: warden or provost. The newest 50 hall events: a permission
+requested, a guest stay requested, or an outing passing grace while
+she was out. Events are read from those records; nothing else writes
+them. `unread` is true for an event after the caller last called
+POST /api/v1/register/notifications/read. Does not mark them read.
+
+**Responses**
+
+#### 200
+
+Events, newest first, at most 50.
+
+Body: [StaffNotificationList](#schema-staffnotificationlist).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `items` | yes | list of [StaffNotification](#schema-staffnotification) |  |
+
+**Example**
+
+```json
+{
+  "items": [
+    {
+      "kind": "resident_late",
+      "record_id": "00000000-0000-4000-8000-0000000000c1",
+      "resident_name": "Aisha Khan",
+      "room_label": "B-204",
+      "occurred_at": "2026-09-30T12:15:00Z",
+      "unread": true
+    }
+  ]
+}
+```
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
+### <a id="post-api-v1-register-notifications-read"></a>POST `/api/v1/register/notifications/read` — Mark the caller's inbox read
+
+`mark_staff_notifications_read`
+
+**Who.** warden or provost. Bearer access token.
+
+Caller: warden or provost. Marks every event up to now read for the
+caller only, including any older than the 50 listed. Returns how many
+were unread. A second call marks nothing.
+
+**Responses**
+
+#### 200
+
+How many events were unread.
+
+Body: [StaffNotificationsMarked](#schema-staffnotificationsmarked).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `marked` | yes | integer | How many events were unread for her before this call. minimum 0. |
+
+**Example**
+
+```json
+{
+  "marked": 3
+}
+```
 
 #### 401
 
@@ -5637,6 +5833,59 @@ One of: `inside`, `outside`.
 
 One of: `inside`, `outside`, `late`.
 
+### <a id="schema-outingsource"></a>OutingSource
+
+An ordinary outing, or one made under a late-night or home-going permission.
+
+One of: `ordinary`, `late_night`, `home_going`.
+
+### <a id="schema-latereturn"></a>LateReturn
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `id` | yes | uuid | The outing. |
+| `resident_id` | yes | uuid |  |
+| `resident_name` | yes | string |  |
+| `room_label` | yes | string | Her current room. |
+| `block_id` | yes | uuid |  |
+| `block_name` | yes | string |  |
+| `source` | yes | `ordinary` or `late_night` or `home_going` |  |
+| `due_at` | yes | date-time | The outing's expected return. |
+| `returned_at` | yes | date-time or null | Gate return. Null while she is still out. |
+| `minutes_late` | yes | integer | Whole minutes from due_at to returned_at, or to now while she is still out. minimum 0. |
+
+### <a id="schema-latereturnpage"></a>LateReturnPage
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `total` | yes | integer | minimum 0. |
+| `limit` | yes | integer |  |
+| `offset` | yes | integer |  |
+| `items` | yes | list of [LateReturn](#schema-latereturn) |  |
+
+### <a id="schema-staffnotification"></a>StaffNotification
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `kind` | yes | `permission_requested` or `guest_stay_requested` or `resident_late` |  |
+| `record_id` | yes | uuid | The permission, the guest stay, or the outing. Open it with GET /api/v1/permissions/{id}, GET /api/v1/guest-stays/{id}, or GET /api/v1/register/residents/{resident_id}. |
+| `resident_name` | yes | string | The resident who asked, hosts the guest, or is late. |
+| `room_label` | yes | string |  |
+| `occurred_at` | yes | date-time | When the request was made, or when grace ended on the outing. |
+| `unread` | yes | boolean |  |
+
+### <a id="schema-staffnotificationlist"></a>StaffNotificationList
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `items` | yes | list of [StaffNotification](#schema-staffnotification) |  |
+
+### <a id="schema-staffnotificationsmarked"></a>StaffNotificationsMarked
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `marked` | yes | integer | How many events were unread for her before this call. minimum 0. |
+
 ### <a id="schema-homeresident"></a>HomeResident
 
 | Field | Required | Type | Notes |
@@ -6241,6 +6490,7 @@ the audit/write timestamp. No client-supplied time in this release.
 | `guests_should_have_left_count` | yes | integer |  |
 | `pending_guest_stay_count` | yes | integer |  |
 | `blocks` | yes | list of [BlockRegisterCounts](#schema-blockregistercounts) | The same counts for each block. Hall totals are the sum of these rows. |
+| `notifications_unread` | yes | boolean | True when the caller has an event in GET /api/v1/register/notifications after she last called POST /api/v1/register/notifications/read. |
 
 ### <a id="schema-blockregistercounts"></a>BlockRegisterCounts
 
@@ -6264,8 +6514,10 @@ the audit/write timestamp. No client-supplied time in this release.
 | `id` | yes | uuid |  |
 | `full_name` | yes | string |  |
 | `room_label` | yes | string |  |
+| `block_name` | yes | string | Block of her current room. |
 | `presence` | yes | `inside` or `outside` |  |
 | `state` | yes | `inside` or `outside` or `late` |  |
+| `outing_type` | no | `ordinary` or `late_night` or `home_going` or null | Source of the open outing. Null when she is inside. |
 | `outside_destination` | no | string or null | Place on the open outing. Empty when the resident is inside. |
 | `expected_return_at` | no | date-time or null |  |
 

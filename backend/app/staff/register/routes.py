@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
@@ -11,8 +12,14 @@ from app.shared.auth.routes import Account, AccountDep, ConnectionDep
 from app.shared.errors import ApiError
 from app.shared.sms import consider_late_notices
 from app.staff.register.records import (
+    LateReturnPage,
+    LateSource,
+    LateState,
+    has_unread,
+    list_late_returns,
     RegisterPage,
-    RegisterState,
+    RegisterFilter,
+    RegisterOrder,
     RegisterSummary,
     ResidentRecord,
     list_register,
@@ -39,9 +46,11 @@ def _run_late_notices(connection: ConnectionDep) -> None:
 
 
 @router.get("/summary", response_model=RegisterSummary)
-def register_summary(_account: RegisterDep, connection: ConnectionDep) -> RegisterSummary:
+def register_summary(account: RegisterDep, connection: ConnectionDep) -> RegisterSummary:
     _run_late_notices(connection)
-    return load_summary(connection)
+    summary = load_summary(connection)
+    summary.notifications_unread = has_unread(connection, account.id)
+    return summary
 
 
 @router.get("/residents", response_model=RegisterPage)
@@ -49,8 +58,9 @@ def list_register_residents(
     _account: RegisterDep,
     connection: ConnectionDep,
     q: Annotated[str | None, Query(max_length=80)] = None,
-    state: Annotated[RegisterState | None, Query()] = None,
+    state: Annotated[RegisterFilter | None, Query()] = None,
     block_id: Annotated[str | None, Query()] = None,
+    order: Annotated[RegisterOrder, Query()] = "name",
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> RegisterPage:
@@ -62,6 +72,7 @@ def list_register_residents(
         block_id=block_id,
         limit=limit,
         offset=offset,
+        order=order,
     )
 
 
@@ -88,4 +99,28 @@ def register_late(
     _run_late_notices(connection)
     return list_register(
         connection, q=None, state="late", block_id=None, limit=limit, offset=offset
+    )
+
+
+@router.get("/late-returns", response_model=LateReturnPage)
+def register_late_returns(
+    _account: RegisterDep,
+    connection: ConnectionDep,
+    source: Annotated[LateSource | None, Query()] = None,
+    state: Annotated[LateState | None, Query()] = None,
+    first_day: Annotated[date | None, Query(alias="from")] = None,
+    last_day: Annotated[date | None, Query(alias="to")] = None,
+    limit: Annotated[int, Query(ge=1, le=500)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> LateReturnPage:
+    if first_day is not None and last_day is not None and last_day < first_day:
+        raise ApiError(422, "validation_error", "The end date is before the start date.", field="to")
+    return list_late_returns(
+        connection,
+        source=source,
+        state=state,
+        first_day=None if first_day is None else first_day.isoformat(),
+        last_day=None if last_day is None else last_day.isoformat(),
+        limit=limit,
+        offset=offset,
     )
