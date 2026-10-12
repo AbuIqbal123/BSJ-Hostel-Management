@@ -8,26 +8,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HallButton } from "@/components/hall-button";
 import { useSession } from "@/session";
-import { readScan, trimStop, type ScanResult } from "@/staff";
+import { readScan, scanRefusal, type ScanResult } from "@/staff";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
 const SAME_CODE_MS = 2000;
 const DIM = "rgba(20, 38, 31, 0.62)";
 const LIGHT = "#F2F4F0";
-
-function refusal(message: string, details: Record<string, unknown> | null): ScanResult {
-  const name = typeof details?.full_name === "string" ? details.full_name : "";
-  const room = typeof details?.room_label === "string" ? details.room_label : "";
-  return {
-    kind: "refused",
-    name,
-    room,
-    line: trimStop(message),
-    time: "",
-    late: false,
-  };
-}
 
 function buzz(ok: boolean) {
   const type = ok ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error;
@@ -73,6 +60,18 @@ function Viewfinder({ size, color, children }: { size: number; color: string; ch
   );
 }
 
+function Fact({ label, value, danger }: { label: string; value: string; danger?: boolean }) {
+  const colors = useHallColors();
+  return (
+    <View style={styles.fact}>
+      <Text style={[styles.factLabel, { color: colors.inkFaint }]}>{label}</Text>
+      <Text numberOfLines={1} style={[styles.factValue, { color: danger ? colors.danger : colors.ink }]}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
 function ResultCard({ result, onNext }: { result: ScanResult | null; onNext: () => void }) {
   const colors = useHallColors();
   const rise = useRef(new Animated.Value(0)).current;
@@ -83,11 +82,21 @@ function ResultCard({ result, onNext }: { result: ScanResult | null; onNext: () 
   const refused = result?.kind === "refused";
   const word = !result ? "Recording" : refused ? "Not recorded" : result.kind === "leave" ? "Leave" : "Return";
   const tone = !result ? colors.inkFaint : refused ? colors.danger : colors.forest;
+  const secondary = result ? [result.room, result.outing, result.place].filter(Boolean).join(" · ") : "";
+  const facts = result?.facts ?? [];
+  const spoken = [
+    word,
+    result?.name,
+    secondary,
+    result?.reason,
+    ...facts.map((f) => `${f.label} ${f.value}`),
+    result?.timeliness,
+  ];
   return (
     <Animated.View style={[styles.result, { opacity: rise, transform: [{ translateY: lift }] }]}>
       <View
         accessibilityLiveRegion="polite"
-        accessibilityLabel={refused ? `${word}. ${result.line}` : word}
+        accessibilityLabel={spoken.filter(Boolean).join(". ")}
         style={[styles.card, { backgroundColor: refused ? colors.dangerBg : colors.paper }]}
       >
         <View style={styles.wordRow}>
@@ -98,7 +107,29 @@ function ResultCard({ result, onNext }: { result: ScanResult | null; onNext: () 
           />
           <Text style={[styles.word, { color: tone }]}>{word}</Text>
         </View>
-        {refused ? <Text style={[styles.reason, { color: colors.danger }]}>{result.line}</Text> : null}
+        {result?.name || secondary ? (
+          <View style={styles.who}>
+            {result?.name ? (
+              <Text numberOfLines={1} style={[styles.name, { color: colors.ink }]}>
+                {result.name}
+              </Text>
+            ) : null}
+            {secondary ? (
+              <Text numberOfLines={2} style={[styles.secondary, { color: colors.inkSoft }]}>
+                {secondary}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+        {result?.reason ? <Text style={[styles.reason, { color: colors.danger }]}>{result.reason}</Text> : null}
+        {facts.length || result?.timeliness ? (
+          <View style={[styles.facts, { borderTopColor: refused ? colors.danger : colors.line }]}>
+            {facts.map((f) => (
+              <Fact key={f.label} label={f.label} value={f.value} />
+            ))}
+            {result?.timeliness ? <Fact label="Status" value={result.timeliness} danger={result.late} /> : null}
+          </View>
+        ) : null}
         <HallButton label="Scan next" disabled={!result} onPress={onNext} />
       </View>
     </Animated.View>
@@ -204,8 +235,8 @@ export default function ScanScreen() {
       setCard({ id, result: null });
       const reply = await staffRequest("/gate/scans", { qr_payload: data });
       const result = reply.ok
-        ? (readScan(reply.data) ?? refusal("The hall could not read that scan", null))
-        : refusal(reply.message, reply.details);
+        ? (readScan(reply.data) ?? scanRefusal("The hall could not read that scan", null))
+        : scanRefusal(reply.message, reply.details);
       buzz(result.kind !== "refused");
       setCard((shown) => (shown?.id === id ? { id, result } : shown));
     },
@@ -252,16 +283,24 @@ export default function ScanScreen() {
       />
       <View style={[StyleSheet.absoluteFill, { paddingTop: insets.top }]} pointerEvents="box-none">
         <Viewfinder size={size} color={card ? colors.forest : LIGHT}>
-          <Text style={styles.hint}>Point at the hall pass</Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={torch ? "Turn torch off" : "Turn torch on"}
-            accessibilityState={{ selected: torch }}
-            onPress={() => setTorch((on) => !on)}
-            style={[styles.torch, torch ? { backgroundColor: LIGHT } : null]}
-          >
-            <Ionicons name={torch ? "flashlight" : "flashlight-outline"} size={20} color={torch ? colors.ink : LIGHT} />
-          </Pressable>
+          {card ? null : (
+            <>
+              <Text style={styles.hint}>Point at the hall pass</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={torch ? "Turn torch off" : "Turn torch on"}
+                accessibilityState={{ selected: torch }}
+                onPress={() => setTorch((on) => !on)}
+                style={[styles.torch, torch ? { backgroundColor: LIGHT } : null]}
+              >
+                <Ionicons
+                  name={torch ? "flashlight" : "flashlight-outline"}
+                  size={20}
+                  color={torch ? colors.ink : LIGHT}
+                />
+              </Pressable>
+            </>
+          )}
         </Viewfinder>
       </View>
       {card ? <ResultCard key={card.id} result={card.result} onNext={next} /> : null}
@@ -308,6 +347,13 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 6,
   },
+  who: { gap: 2 },
+  name: { fontFamily: "SourceSans3_600SemiBold", fontSize: 17, lineHeight: 22 },
+  secondary: { fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20 },
+  facts: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 10, gap: 6 },
+  fact: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 12 },
+  factLabel: { fontFamily: "SourceSans3_600SemiBold", fontSize: 13, lineHeight: 18 },
+  factValue: { fontFamily: "IBMPlexMono_500Medium", fontSize: 13, lineHeight: 18, flexShrink: 1, textAlign: "right" },
   wordRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   word: {
     fontFamily: "SourceSerif4_600SemiBold",

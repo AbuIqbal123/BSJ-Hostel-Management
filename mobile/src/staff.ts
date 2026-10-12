@@ -285,9 +285,18 @@ export type ScanResult = {
   kind: "leave" | "return" | "refused";
   name: string;
   room: string;
-  line: string;
-  time: string;
+  outing: string;
+  place: string;
+  facts: { label: string; value: string }[];
+  timeliness: string;
   late: boolean;
+  reason: string;
+};
+
+const OUTING_WORDS: Record<string, string> = {
+  ordinary: "Ordinary",
+  late_night: "Late-night",
+  home_going: "Home going",
 };
 
 const TIMELINESS: Record<string, string> = {
@@ -296,35 +305,54 @@ const TIMELINESS: Record<string, string> = {
   late: "Late",
 };
 
+function clockFact(label: string, iso: string | null): { label: string; value: string }[] {
+  const parts = iso ? formatWhenParts(iso) : null;
+  return parts ? [{ label, value: `${parts.clock}, ${shortDay(parts.day)}` }] : [];
+}
+
+function scanBase(body: Record<string, unknown>) {
+  return {
+    name: str(body.full_name) ?? "",
+    room: str(body.room_label) ?? "",
+    outing: "",
+    place: "",
+    facts: [],
+    timeliness: "",
+    late: false,
+    reason: "",
+  };
+}
+
+export function scanRefusal(message: string, details: Record<string, unknown> | null): ScanResult {
+  return { ...scanBase(details ?? {}), kind: "refused", reason: trimStop(message) };
+}
+
 export function readScan(value: unknown): ScanResult | null {
   const body = record(value);
   if (!body) {
     return null;
   }
-  const name = str(body.full_name) ?? "";
-  const room = str(body.room_label) ?? "";
   if (body.outcome === "exit_recorded") {
     const outing = record(body.outing);
-    const back = formatWhenParts(str(outing?.expected_return_at) ?? "");
     return {
+      ...scanBase(body),
       kind: "leave",
-      name,
-      room,
-      line: str(outing?.place) ?? "",
-      time: back ? `Back by ${back.clock}, ${shortDay(back.day)}` : "",
-      late: false,
+      outing: OUTING_WORDS[str(outing?.outing_type) ?? ""] ?? "",
+      place: str(outing?.place) ?? "",
+      facts: [
+        ...clockFact("Out", str(outing?.exited_at) ?? str(outing?.recorded_at)),
+        ...clockFact("Back by", str(outing?.expected_return_at)),
+      ],
     };
   }
   if (body.outcome === "return_recorded") {
     const returned = record(body.return_record);
-    const at = formatWhenParts(str(returned?.returned_at) ?? "");
     const timeliness = str(returned?.return_timeliness) ?? "";
     return {
+      ...scanBase(body),
       kind: "return",
-      name,
-      room,
-      line: TIMELINESS[timeliness] ?? "",
-      time: at ? `Back at ${at.clock}` : "",
+      facts: clockFact("Back", str(returned?.returned_at)),
+      timeliness: TIMELINESS[timeliness] ?? "",
       late: timeliness === "late",
     };
   }
