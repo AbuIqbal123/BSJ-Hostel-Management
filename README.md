@@ -54,7 +54,7 @@ cp .env.example .env
 uvicorn app.main:app --reload
 ```
 
-The hosted process is `backend/start.sh` on Render. Render runs the API only. The hall database is Turso (`libsql://` or `turso://`). Set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` on that service, and do not set `DATABASE_PATH`. The process refuses to start while `DATABASE_PATH` is set, and it does not create a SQLite file. `start.sh` trusts `X-Forwarded-For` (`FORWARDED_ALLOW_IPS`, default `*`) and turns uvicorn's own proxy handling off, so each phone has its own sign-in limit behind Render.
+The hosted process is `backend/start.sh` on Render. Render runs the API only. The hall database is Turso (`libsql://` or `turso://`). Set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` on that service, and do not set `DATABASE_PATH`. The process refuses to start while `DATABASE_PATH` is set, and it does not create a SQLite file. `start.sh` sets `TRUST_FORWARDED_FOR=1`, so the API takes the client from the last `X-Forwarded-For` hop (the one Render's proxy appends) and ignores earlier entries a caller could fake. Uvicorn's own proxy handling is off. Each phone has its own sign-in limit behind Render.
 
 Then open:
 
