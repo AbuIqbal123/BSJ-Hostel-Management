@@ -287,6 +287,13 @@ export type ScanResult = {
   room: string;
   line: string;
   time: string;
+  late: boolean;
+};
+
+const TIMELINESS: Record<string, string> = {
+  on_time: "On time",
+  within_grace: "Within grace",
+  late: "Late",
 };
 
 export function readScan(value: unknown): ScanResult | null {
@@ -305,16 +312,20 @@ export function readScan(value: unknown): ScanResult | null {
       room,
       line: str(outing?.place) ?? "",
       time: back ? `Back by ${back.clock}, ${shortDay(back.day)}` : "",
+      late: false,
     };
   }
   if (body.outcome === "return_recorded") {
-    const at = formatWhenParts(str(record(body.return_record)?.returned_at) ?? "");
+    const returned = record(body.return_record);
+    const at = formatWhenParts(str(returned?.returned_at) ?? "");
+    const timeliness = str(returned?.return_timeliness) ?? "";
     return {
       kind: "return",
       name,
       room,
-      line: trimStop(str(body.message) ?? ""),
+      line: TIMELINESS[timeliness] ?? "",
       time: at ? `Back at ${at.clock}` : "",
+      late: timeliness === "late",
     };
   }
   return null;
