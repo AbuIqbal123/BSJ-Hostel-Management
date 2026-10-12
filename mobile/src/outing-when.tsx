@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { HALL_ZONE, formatWhenParts, utcInstant } from "@/format-when";
+import { useDark } from "@/theme/appearance";
 import { useHallColors, type HallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
@@ -277,6 +278,7 @@ function IosWhen({
   onChange: (date: Date) => void;
   onDismiss?: () => void;
 }) {
+  const dark = useDark();
   const [datePickerKey, setDatePickerKey] = useState(0);
   const ignoreClockUntil = useRef(0);
   const when = formatWhenParts(shown.toISOString());
@@ -289,8 +291,8 @@ function IosWhen({
       }).format(shown)
     : "";
   const dateChip = (
-    <View style={styles.chip}>
-      <Text style={styles.chipText}>{dayLabel}</Text>
+    <View style={[styles.chip, { backgroundColor: colors.chip }]}>
+      <Text style={[styles.chipText, { color: colors.ink }]}>{dayLabel}</Text>
       <DateTimePicker
         key={datePickerKey}
         style={styles.chipHit}
@@ -298,7 +300,7 @@ function IosWhen({
         mode="date"
         display="compact"
         accentColor={colors.forest}
-        themeVariant="light"
+        themeVariant={dark ? "dark" : "light"}
         timeZoneName={HALL_ZONE}
         onDismiss={onDismiss}
         onValueChange={(_event, date) => {
@@ -313,15 +315,15 @@ function IosWhen({
     </View>
   );
   const timeChip = (
-    <View style={styles.chip}>
-      <Text style={styles.chipText}>{when?.clock ?? ""}</Text>
+    <View style={[styles.chip, { backgroundColor: colors.chip }]}>
+      <Text style={[styles.chipText, { color: colors.ink }]}>{when?.clock ?? ""}</Text>
       <DateTimePicker
         style={styles.chipHit}
         value={shown}
         mode="time"
         display="compact"
         accentColor={colors.forest}
-        themeVariant="light"
+        themeVariant={dark ? "dark" : "light"}
         timeZoneName={HALL_ZONE}
         onDismiss={onDismiss}
         onValueChange={(_event, date) => {
@@ -398,7 +400,6 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   chip: {
-    backgroundColor: "#C7C7CC",
     borderRadius: 8,
     minHeight: 34,
     paddingHorizontal: 11,
@@ -409,7 +410,6 @@ const styles = StyleSheet.create({
     fontFamily: "SourceSans3_400Regular",
     fontSize: 17,
     lineHeight: 22,
-    color: "#14261F",
   },
   chipHit: {
     position: "absolute",
