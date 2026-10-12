@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.shared.auth.rate_limit import login_limiter, refresh_limiter
+from app.shared.auth.rate_limit import login_limiter, options_limiter, refresh_limiter
 from app.shared.auth.security import hash_password
 from app.shared.auth.tests.test_session import assert_error
 from app.shared.testing_env import signing_key_for_tests
@@ -37,9 +37,11 @@ def database_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[P
 
     get_settings.cache_clear()
     login_limiter.reset()
+    options_limiter.reset()
     refresh_limiter.reset()
     yield path
     login_limiter.reset()
+    options_limiter.reset()
     refresh_limiter.reset()
     get_settings.cache_clear()
 
@@ -190,7 +192,9 @@ def test_onboard_options(database_path: Path, monkeypatch: pytest.MonkeyPatch) -
         assert filtered_body == expected["filtered"]
 
         login_limiter.reset()
-        monkeypatch.setattr(login_limiter, "limit", 2)
+        options_limiter.reset()
+        monkeypatch.setattr(login_limiter, "limit", 1)
+        monkeypatch.setattr(options_limiter, "limit", 2)
         for _ in range(2):
             again = client.get("/api/v1/auth/onboard/options")
             assert again.status_code == 200
@@ -201,3 +205,8 @@ def test_onboard_options(database_path: Path, monkeypatch: pytest.MonkeyPatch) -
             "rate_limited",
             "Too many attempts. Try again shortly.",
         )
+        sign_in_budget = client.post(
+            "/api/v1/auth/onboard/enrolment",
+            json={"enrolment_number": "24-NEW-001"},
+        )
+        assert sign_in_budget.status_code == 204

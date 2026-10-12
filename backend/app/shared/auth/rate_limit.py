@@ -9,6 +9,7 @@ from app.shared.errors import ApiError
 
 LOGIN_LIMIT = 30
 REFRESH_LIMIT = 60
+OPTIONS_LIMIT = 60
 WINDOW_SECONDS = 60
 
 
@@ -41,6 +42,8 @@ class AttemptLimiter:
 
 login_limiter = AttemptLimiter(limit=LOGIN_LIMIT, window_seconds=WINDOW_SECONDS)
 refresh_limiter = AttemptLimiter(limit=REFRESH_LIMIT, window_seconds=WINDOW_SECONDS)
+# Opening signup reads the room list. It must not spend the sign-in budget.
+options_limiter = AttemptLimiter(limit=OPTIONS_LIMIT, window_seconds=WINDOW_SECONDS)
 
 
 def client_key(request_client_host: str | None) -> str:
