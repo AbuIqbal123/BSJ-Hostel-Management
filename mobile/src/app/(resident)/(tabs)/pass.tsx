@@ -7,8 +7,7 @@ import Svg, { Rect } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { formatWhen, formatWhenParts } from "@/format-when";
-import { OTHER_NAME } from "@/outing-when";
-import { useSession, type HallPass } from "@/session";
+import { useSession, type DestinationItem, type HallPass } from "@/session";
 import { useDark } from "@/theme/appearance";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
@@ -53,15 +52,16 @@ function borderLength(frame: number): number {
 
 function shownPlace(
   place: string | null,
-  names: string[] | null,
+  places: DestinationItem[] | null,
 ): { title: string; where: string | null } | null {
   if (!place) {
     return null;
   }
-  if (!names || (names.includes(place) && place !== OTHER_NAME)) {
+  const other = places?.find((item) => item.other);
+  if (!other || places?.some((item) => !item.other && item.name === place)) {
     return { title: place, where: null };
   }
-  return { title: OTHER_NAME, where: place === OTHER_NAME ? null : place };
+  return { title: other.name, where: place === other.name ? null : place };
 }
 
 function PassCode({ value, size }: { value: string; size: number }) {
@@ -167,7 +167,7 @@ export default function HallPassScreen() {
   const { width } = useWindowDimensions();
   const { loadHallPass, loadDestinations } = useSession();
   const [pass, setPass] = useState<HallPass | null>(null);
-  const [names, setNames] = useState<string[] | null>(null);
+  const [places, setPlaces] = useState<DestinationItem[] | null>(null);
   const [failed, setFailed] = useState(false);
   const loadHallPassRef = useRef(loadHallPass);
   loadHallPassRef.current = loadHallPass;
@@ -190,7 +190,7 @@ export default function HallPassScreen() {
       if (!active || result.error !== null) {
         return;
       }
-      setNames(result.items.map((item) => item.name));
+      setPlaces(result.items);
     });
     return () => {
       active = false;
@@ -221,7 +221,7 @@ export default function HallPassScreen() {
   const code = pass?.qrVisible && pass.qrPayload ? pass.qrPayload : null;
   const before = pass && !pass.qrVisible && pass.qrVisibleFrom ? pass.qrVisibleFrom : null;
   const empty = pass !== null && code === null && before === null;
-  const place = shownPlace(pass?.place ?? null, names);
+  const place = shownPlace(pass?.place ?? null, places);
   const quiet = 16;
   const codeSize = Math.max(0, width - 28 * 2 - quiet * 2 - BORDER * 2);
   const codeFrame = codeSize + BORDER * 2;

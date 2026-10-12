@@ -8,9 +8,6 @@ import { HALL_ZONE, formatWhenParts, utcInstant } from "@/format-when";
 import { useHallColors, type HallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
-// Seeded catalog name. backend/app/shared/migrations/0001_create_hall.sql stores 'Other'.
-export const OTHER_NAME = "Other";
-
 // Ordinary hours are the seeded summer and winter outing clocks. The start is
 // not included. The end is included. Any other time stays selectable, and the
 // plan asks her to use the Permissions tab.
