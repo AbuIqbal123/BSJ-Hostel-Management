@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { Tabs } from "expo-router/js-tabs";
-import { Platform, Pressable, StyleSheet, Text, View, type ColorValue } from "react-native";
+import { Pressable, StyleSheet, Text, View, type ColorValue } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useHallColors } from "@/theme/colors";
@@ -35,8 +35,7 @@ function QrMark({ color }: { color: ColorValue }) {
 export default function ResidentTabs() {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
-  const systemBottom = Math.max(insets.bottom, Platform.OS === "android" ? 48 : 0);
-  const tabBottom = systemBottom + 10;
+  const tabBottom = insets.bottom + 10;
 
   return (
     <Tabs
