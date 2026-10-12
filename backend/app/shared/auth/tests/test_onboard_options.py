@@ -59,6 +59,23 @@ def room_id_for(path: Path, label: str) -> str:
         connection.close()
 
 
+def active_room_counts(path: Path) -> dict[str, int]:
+    connection = sqlite3.connect(path)
+    try:
+        return dict(
+            connection.execute(
+                """
+                SELECT blocks.name, COUNT(*)
+                FROM rooms JOIN blocks ON blocks.id = rooms.block_id
+                WHERE rooms.is_active = 1
+                GROUP BY blocks.name
+                """
+            ).fetchall()
+        )
+    finally:
+        connection.close()
+
+
 def assign_resident(path: Path, room_label: str, username: str) -> None:
     connection = sqlite3.connect(path)
     try:
@@ -156,7 +173,7 @@ def test_onboard_options(database_path: Path, monkeypatch: pytest.MonkeyPatch) -
         assert all(name != "Utility" for name in (block["name"] for block in body))
         assert BLOCK_UTILITY not in {block["id"] for block in body}
 
-        counts = {block["name"]: len(block["rooms"]) for block in body}
+        counts = active_room_counts(database_path)
         for block in body:
             assert set(block) == {"id", "name", "rooms"}
             assert len(block["rooms"]) == counts[block["name"]]
