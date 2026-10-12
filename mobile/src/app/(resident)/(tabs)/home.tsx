@@ -8,10 +8,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { TextField } from "@/components/text-field";
 import { formatWhenParts, utcInstant } from "@/format-when";
-import { outingLocked, takeOutingLeft, useSession, type UpcomingOuting } from "@/session";
+import { outingLocked, takeOutingLeft, useSession, type DestinationItem, type UpcomingOuting } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
-import { OTHER_NAME, WhenField, hallDay, leaveNote, notBefore, returnNote } from "@/outing-when";
+import { WhenField, hallDay, leaveNote, notBefore, returnNote } from "@/outing-when";
 
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 const ROW_ENTER = FadeIn.duration(180).easing(EASE_OUT).reduceMotion(ReduceMotion.System);
@@ -106,7 +106,7 @@ export default function HomeScreen() {
   const [upcoming, setUpcoming] = useState<UpcomingOuting[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [notificationsUnread, setNotificationsUnread] = useState(false);
-  const [places, setPlaces] = useState<{ id: string; name: string }[] | null>(null);
+  const [places, setPlaces] = useState<DestinationItem[] | null>(null);
   const [destinationId, setDestinationId] = useState<string | null>(null);
   const [leaveAt, setLeaveAt] = useState<Date | null>(null);
   const [backBy, setBackBy] = useState<Date | null>(null);
@@ -177,7 +177,7 @@ export default function HomeScreen() {
 
   const mayPlan = loaded && !out && !windowOpen;
   const chosen = places?.find((item) => item.id === destinationId) ?? null;
-  const other = chosen?.name === OTHER_NAME;
+  const other = chosen?.other ?? false;
 
   useEffect(() => {
     if (!mayPlan || places) {
@@ -261,7 +261,7 @@ export default function HomeScreen() {
         selectedId={destinationId}
         onPick={(id) => {
           setDestinationId(id);
-          if (places.find((item) => item.id === id)?.name !== OTHER_NAME) {
+          if (!places.find((item) => item.id === id)?.other) {
             setWhere("");
           }
           setError(null);

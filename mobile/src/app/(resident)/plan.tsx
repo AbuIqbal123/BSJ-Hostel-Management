@@ -18,7 +18,7 @@ import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
 import { utcInstant } from "@/format-when";
-import { OTHER_NAME, WhenField, leaveNote, notBefore, returnNote } from "@/outing-when";
+import { WhenField, leaveNote, notBefore, returnNote } from "@/outing-when";
 import { lockOuting, noteOutingLeft, useSession, type DestinationItem } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
@@ -100,8 +100,8 @@ export default function PlanScreen() {
     }
     seeded.current = outingId;
     const place = paramText(params.place);
-    const named = places.find((item) => item.name === place && item.name !== OTHER_NAME) ?? null;
-    const otherPlace = places.find((item) => item.name === OTHER_NAME) ?? null;
+    const named = places.find((item) => item.name === place && !item.other) ?? null;
+    const otherPlace = places.find((item) => item.other) ?? null;
     if (named) {
       setDestinationId(named.id);
       setWhere("");
@@ -118,7 +118,7 @@ export default function PlanScreen() {
   }, [editing, outingId, params.expectedReturnAt, params.place, params.startsAt, places]);
 
   const chosen = places?.find((item) => item.id === destinationId) ?? null;
-  const other = chosen?.name === OTHER_NAME;
+  const other = chosen?.other ?? false;
   const leaveProblem = leaveNote(leaveAt);
   const returnProblem = returnNote(leaveAt, backBy);
 
@@ -288,7 +288,7 @@ export default function PlanScreen() {
               selectedId={destinationId}
               onPick={(id) => {
                 setDestinationId(id);
-                if (places.find((item) => item.id === id)?.name !== OTHER_NAME) {
+                if (!places.find((item) => item.id === id)?.other) {
                   setWhere("");
                 }
                 setError(null);

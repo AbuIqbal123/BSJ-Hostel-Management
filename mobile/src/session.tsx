@@ -157,6 +157,8 @@ export type GuestResult =
 export type DestinationItem = {
   id: string;
   name: string;
+  /** The free-text choice (`source: custom`), whatever its display name. */
+  other: boolean;
 };
 
 export type DestinationResult =
@@ -668,7 +670,7 @@ function readDestinations(value: unknown): DestinationItem[] | null {
     ) {
       return null;
     }
-    items.push({ id: item.id, name: item.name });
+    items.push({ id: item.id, name: item.name, other: item.source === "custom" });
   }
   return items;
 }
