@@ -87,7 +87,7 @@ export function ReviewSheet({ title, subtitle, facts, error, busy, onDecide, onC
             <Text style={[styles.pillText, { color: colors.pending }]}>Pending</Text>
           </View>
         </View>
-        <Text numberOfLines={1} style={[text.body, { color: colors.inkSoft }]}>
+        <Text numberOfLines={1} style={[styles.subtitle, { color: colors.inkSoft }]}>
           {subtitle}
         </Text>
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.line }]}>
@@ -119,6 +119,7 @@ const styles = StyleSheet.create({
   },
   grab: { alignSelf: "center", width: 36, height: 5, borderRadius: 3, marginBottom: 6 },
   top: { flexDirection: "row", alignItems: "center", gap: 12 },
+  subtitle: { fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20, marginTop: -8 },
   title: { flex: 1, textAlign: "left" },
   pill: { borderWidth: 1, borderRadius: 8, borderCurve: "continuous", paddingHorizontal: 8, paddingVertical: 2 },
   pillText: { fontFamily: "SourceSans3_600SemiBold", fontSize: 13, lineHeight: 18 },

@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { DenseRow } from "@/components/dense-row";
 import { HallButton } from "@/components/hall-button";
+import { SectionHead } from "@/components/section-head";
 import { roleLabel, useSession } from "@/session";
 import { readActivity, readSummary, readsRegister, trimStop, type GateEvent, type RegisterSummary } from "@/staff";
 import { useHallColors } from "@/theme/colors";
@@ -23,13 +24,13 @@ function StatCard({ count, label, note, onPress }: { count: number; label: strin
         pressed && styles.pressed,
       ]}
     >
-      <Text numberOfLines={1} style={[text.hallName, styles.count, { color: colors.ink }]}>
+      <Text numberOfLines={1} style={[styles.count, { color: colors.ink }]}>
         {count}
       </Text>
-      <Text numberOfLines={1} style={[text.body, { color: colors.inkSoft }]}>
+      <Text numberOfLines={1} style={[styles.label, { color: colors.ink }]}>
         {label}
       </Text>
-      <Text numberOfLines={1} style={[text.error, { color: colors.inkFaint }]}>
+      <Text numberOfLines={1} style={[styles.note, { color: colors.inkFaint }]}>
         {note}
       </Text>
     </Pressable>
@@ -101,7 +102,7 @@ export default function StaffHomeScreen() {
           <StatCard
             count={requests}
             label="Requests"
-            note={`${summary?.pendingPermissions ?? 0} permissions, ${summary?.pendingGuests ?? 0} guests`}
+            note={`${summary?.pendingPermissions ?? 0} + ${summary?.pendingGuests ?? 0} guests`}
             onPress={() => router.push("/staff/requests")}
           />
         </View>
@@ -109,7 +110,7 @@ export default function StaffHomeScreen() {
         <HallButton label="Scan a hall pass" onPress={() => router.push("/staff/scan")} />
       )}
       <View style={[styles.section, { borderTopColor: colors.line }]}>
-        <Text style={[text.button, { color: colors.ink }]}>Recent at the gate</Text>
+        <SectionHead title="Recent at the gate" />
         {error ? <Text style={[text.error, { color: colors.danger }]}>{error}</Text> : null}
         {activity && activity.length === 0 ? (
           <Text style={[text.body, { color: colors.inkSoft }]}>No one has passed the gate yet</Text>
@@ -118,7 +119,8 @@ export default function StaffHomeScreen() {
           {(activity ?? []).map((item, index, all) => (
             <DenseRow
               key={item.key}
-              title={item.line}
+              title={item.title}
+              detail={item.detail}
               time={item.at}
               first={index === 0}
               last={index === all.length - 1}
@@ -143,10 +145,12 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderCurve: "continuous",
     paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 2,
+    paddingTop: 12,
+    paddingBottom: 14,
   },
-  count: { textAlign: "left" },
-  section: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 22, gap: 14 },
+  count: { fontFamily: "SourceSerif4_600SemiBold", fontSize: 34, lineHeight: 42, letterSpacing: -0.6 },
+  label: { fontFamily: "SourceSans3_600SemiBold", fontSize: 15, lineHeight: 20, marginTop: 2 },
+  note: { fontFamily: "SourceSans3_400Regular", fontSize: 13, lineHeight: 18 },
+  section: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 2 },
   pressed: { opacity: 0.6 },
 });

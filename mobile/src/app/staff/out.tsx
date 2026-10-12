@@ -8,6 +8,7 @@ import { goBackOr } from "@/back";
 import { BackMark } from "@/components/back-mark";
 import { DenseRow } from "@/components/dense-row";
 import { FilterChip } from "@/components/filter-chip";
+import { SectionHead } from "@/components/section-head";
 import { useSession } from "@/session";
 import {
   blockCode,
@@ -255,25 +256,16 @@ export default function OutNowScreen() {
       windowSize={9}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
-      renderSectionHeader={({ section }) => (
-        <View style={[styles.sectionHead, { backgroundColor: colors.paper }]}>
-          <Text numberOfLines={1} style={[text.label, styles.sectionTitle, { color: colors.inkFaint }]}>
-            {section.title}
-          </Text>
-          <Text numberOfLines={1} style={[text.label, { color: colors.inkFaint }]}>
-            {section.note}
-          </Text>
-        </View>
-      )}
+      renderSectionHeader={({ section }) => <SectionHead title={section.title} count={section.note} />}
       renderItem={({ item, index, section }) => {
         const outing = item.late ? lateKinds[item.id] : undefined;
         return (
           <DenseRow
-            title={`${item.name} · ${item.room}`}
+            title={item.name}
             detail={
               outing
-                ? `${outing.kind === "ordinary" ? "Ordinary" : kindLabel(outing.kind)} · ${dueLabel(outing.dueAt)}`
-                : item.place
+                ? `${item.room} · ${outing.kind === "ordinary" ? "Ordinary" : kindLabel(outing.kind)} · ${dueLabel(outing.dueAt)}`
+                : [item.room, item.place].filter(Boolean).join(" · ")
             }
             time={outing ? lateBy(outing.dueAt) : item.backBy}
             late={item.late}
@@ -328,14 +320,6 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, height: "100%", paddingVertical: 0 },
   chips: { gap: 8 },
-  sectionHead: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 12,
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
-  sectionTitle: { flex: 1 },
   empty: { alignItems: "center", gap: 8, paddingTop: 96 },
   place: { fontFamily: "SourceSerif4_600SemiBold", fontSize: 20, letterSpacing: -0.2 },
   center: { textAlign: "center" },

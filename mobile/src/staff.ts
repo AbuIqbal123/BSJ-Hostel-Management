@@ -68,27 +68,33 @@ export function readSummary(value: unknown): RegisterSummary | null {
   };
 }
 
-export type GateEvent = { key: string; line: string; at: string };
+export type GateEvent = { key: string; title: string; detail: string; at: string };
 
-function eventLine(item: Json): string {
-  const resident = str(item.resident_name) ?? "";
-  const guest = `Guest ${str(item.guest_name) ?? ""}`;
-  switch (item.event) {
-    case "exit":
-      return `${resident} went out`;
-    case "return":
-      return `${resident} came back`;
-    case "guest_arrival":
-      return `${guest} arrived`;
-    default:
-      return `${guest} left`;
+const EVENT_WORDS: Record<string, string> = {
+  exit: "Went out",
+  return: "Came back",
+  guest_arrival: "Guest arrived",
+  guest_departure: "Guest left",
+};
+
+function eventParts(item: Json): { title: string; detail: string } {
+  const word = EVENT_WORDS[String(item.event)] ?? "";
+  if (item.event === "exit" || item.event === "return") {
+    return {
+      title: str(item.resident_name) ?? "",
+      detail: [str(item.room_label), word].filter(Boolean).join(" · "),
+    };
   }
+  return {
+    title: str(item.guest_name) ?? "",
+    detail: [str(item.host_room_label), word, `host ${str(item.host_name) ?? ""}`.trim()].filter(Boolean).join(" · "),
+  };
 }
 
 export function readActivity(value: unknown): GateEvent[] {
   return items(value).map((item, index) => {
     const at = str(item.occurred_at) ?? "";
-    return { key: `${at}-${index}`, line: eventLine(item), at: formatWhenParts(at)?.clock ?? "" };
+    return { key: `${at}-${index}`, ...eventParts(item), at: formatWhenParts(at)?.clock ?? "" };
   });
 }
 

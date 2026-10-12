@@ -14,7 +14,10 @@ type DenseRowProps = {
   onPress?: () => void;
 };
 
-/** One row of a grouped card: title and detail on the left, a time that never wraps on the right. */
+/**
+ * One row of a grouped card. Primary: name, semibold ink 17. Secondary: room and place, inkSoft 15.
+ * Meta: time or how late, mono inkFaint 13, right-aligned and never wrapped. Late meta uses danger.
+ */
 export const DenseRow = memo(function DenseRow({
   title,
   detail,
@@ -28,16 +31,16 @@ export const DenseRow = memo(function DenseRow({
   const body = (
     <View style={[styles.inner, !first && { borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth }]}>
       <View style={styles.lines}>
-        <Text numberOfLines={1} ellipsizeMode="tail" style={[text.body, styles.title, { color: colors.ink }]}>
+        <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.title, { color: colors.ink }]}>
           {title}
         </Text>
         {detail ? (
-          <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.detail, { color: colors.inkFaint }]}>
+          <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.detail, { color: colors.inkSoft }]}>
             {detail}
           </Text>
         ) : null}
       </View>
-      <Text numberOfLines={1} style={[styles.time, { color: late ? colors.danger : colors.inkSoft }]}>
+      <Text numberOfLines={1} style={[styles.time, { color: late ? colors.danger : colors.inkFaint }]}>
         {time}
       </Text>
     </View>
@@ -80,15 +83,15 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 12,
   },
   inner: {
-    minHeight: 48,
-    paddingVertical: 6,
+    minHeight: 56,
+    paddingVertical: 8,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
   },
-  lines: { flex: 1, minWidth: 0, gap: 1 },
-  title: { fontSize: 16, lineHeight: 21 },
-  detail: { fontFamily: "SourceSans3_400Regular", fontSize: 13, lineHeight: 17 },
-  time: { fontFamily: "IBMPlexMono_500Medium", fontSize: 13, textAlign: "right", flexShrink: 0 },
+  lines: { flex: 1, minWidth: 0, gap: 2 },
+  title: { fontFamily: "SourceSans3_600SemiBold", fontSize: 17, lineHeight: 22 },
+  detail: { fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20 },
+  time: { fontFamily: "IBMPlexMono_500Medium", fontSize: 13, lineHeight: 18, textAlign: "right", flexShrink: 0 },
   pressed: { opacity: 0.6 },
 });

@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { DenseRow } from "@/components/dense-row";
 import { FilterChip } from "@/components/filter-chip";
+import { SectionHead } from "@/components/section-head";
 import { ReviewSheet, type Fact } from "@/components/review-sheet";
 import { formatHallDate, formatSpan, formatWhen } from "@/format-when";
 import { kindLabel } from "@/requests";
@@ -261,20 +262,14 @@ export default function RequestsScreen() {
             void loadPage(items.length);
           }
         }}
-        renderSectionHeader={({ section }) => (
-          <View style={[styles.sectionHead, { backgroundColor: colors.paper }]}>
-            <Text numberOfLines={1} style={[text.label, { color: colors.inkFaint }]}>
-              {section.title}
-            </Text>
-          </View>
-        )}
+        renderSectionHeader={({ section }) => <SectionHead title={section.title} count={String(section.data.length)} />}
         renderItem={({ item, index, section }) => (
           <DenseRow
-            title={item.tab === "permissions" ? `${item.row.name} · ${item.row.room}` : item.row.guestName}
+            title={item.tab === "permissions" ? item.row.name : item.row.guestName}
             detail={
               item.tab === "permissions"
-                ? `${kindLabel(item.row.kind)} · ${item.row.place}`
-                : `Guest of ${item.row.hostName} · ${item.row.hostRoom}`
+                ? `${item.row.room} · ${kindLabel(item.row.kind)} · ${item.row.place}`
+                : `${item.row.hostRoom} · Guest of ${item.row.hostName}`
             }
             time={item.tab === "permissions" ? permissionTime(item.row) : guestTime(item.row)}
             first={index === 0}
@@ -324,6 +319,5 @@ const styles = StyleSheet.create({
   },
   chips: { gap: 8, alignItems: "center" },
   divider: { width: 1, height: 20, marginHorizontal: 4 },
-  sectionHead: { paddingTop: 16, paddingBottom: 8 },
   empty: { textAlign: "center", paddingTop: 96 },
 });

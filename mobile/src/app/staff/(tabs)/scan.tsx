@@ -46,11 +46,11 @@ function ResultCard({ result, onDismiss }: { result: ScanResult; onDismiss: () =
           {result.line}
         </Text>
       ) : null}
-      <Text numberOfLines={1} style={[text.body, { color: colors.inkSoft }]}>
+      <Text numberOfLines={1} style={[styles.secondary, { color: colors.inkSoft }]}>
         {refused ? who : [result.room, result.line].filter(Boolean).join(" · ")}
       </Text>
       {result.time ? (
-        <Text numberOfLines={1} style={[text.mono, { color: colors.ink }]}>
+        <Text numberOfLines={1} style={[styles.meta, { color: colors.inkFaint }]}>
           {result.time}
         </Text>
       ) : null}
@@ -98,6 +98,7 @@ export default function ScanScreen() {
     },
     [result, staffRequest],
   );
+
 
   if (!permission) {
     return <View style={[styles.screen, { backgroundColor: colors.paper }]} />;
@@ -160,6 +161,8 @@ const styles = StyleSheet.create({
   },
   cardTop: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 4 },
   cardTitle: { flex: 1, textAlign: "left" },
+  secondary: { fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20 },
+  meta: { fontFamily: "IBMPlexMono_500Medium", fontSize: 13, lineHeight: 18 },
   pill: { borderWidth: 1, borderRadius: 8, borderCurve: "continuous", paddingHorizontal: 8, paddingVertical: 2 },
   pillText: { fontFamily: "SourceSans3_600SemiBold", fontSize: 13, lineHeight: 18 },
 });
