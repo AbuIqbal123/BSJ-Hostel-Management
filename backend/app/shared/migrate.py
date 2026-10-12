@@ -1,9 +1,12 @@
 """Create the hall records when the service starts.
 
 The published schema version stays 1 until the hall moves to production.
-Migration files are applied in name order. Each applied file is recorded in
-schema_migrations. A database that already has the hall and no record yet is
-marked applied, because those files already ran during dev.
+Migration files are applied in name order. Each file and its row in
+schema_migrations commit together, so a crash cannot leave a file applied but
+unrecorded. A database from before schema_migrations has the hall and no
+record: the first PRAGMA user_version files are marked applied, because the
+old scheme set user_version to the count it had run. With no record and no
+user_version, startup refuses rather than guess.
 """
 
 from __future__ import annotations
@@ -48,6 +51,15 @@ def _mark_applied(connection: object, filename: str) -> None:
     )
 
 
+def _apply(connection: object, path: Path) -> None:
+    connection.executescript(
+        "BEGIN;\n"
+        f"{path.read_text(encoding='utf-8')}\n"
+        f"INSERT INTO schema_migrations (filename) VALUES ('{path.name}');\n"
+        "COMMIT;"
+    )
+
+
 def migrate() -> None:
     expected = {path.name for path in MIGRATIONS}
     connection = create_connection()
@@ -55,15 +67,23 @@ def migrate() -> None:
         connection.execute(_BOOKKEEPING)
         applied = applied_migrations(connection)
         if _table_exists(connection, "hall_settings") and not applied:
-            for path in MIGRATIONS:
+            ran = connection.execute("PRAGMA user_version").fetchone()[0]
+            if not ran:
+                raise RuntimeError(
+                    "The hall database has tables but no record of its migrations. "
+                    "Refusing to guess which ran."
+                )
+            for path in MIGRATIONS[:ran]:
                 _mark_applied(connection, path.name)
-        else:
-            for path in MIGRATIONS:
-                if path.name in applied:
-                    continue
-                connection.executescript(path.read_text(encoding="utf-8"))
-                _mark_applied(connection, path.name)
-        connection.commit()
+            connection.commit()
+            applied = applied_migrations(connection)
+        # Table rebuilds need foreign keys off, and that pragma is ignored
+        # inside the transaction each file runs in.
+        connection.execute("PRAGMA foreign_keys=OFF")
+        for path in MIGRATIONS:
+            if path.name not in applied:
+                _apply(connection, path)
+        connection.execute("PRAGMA foreign_keys=ON")
         if applied_migrations(connection) != expected:
             raise RuntimeError(
                 "Hall migration did not record every migration file. "

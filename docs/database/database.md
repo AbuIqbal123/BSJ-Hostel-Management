@@ -6,7 +6,7 @@ Status: agreed. The service creates these records when it starts. They match thi
 
 This document is the source of truth for what is stored and how a record is allowed to change. It is written for the hall. The software follows it. What a person sends and receives is in [`api.md`](../api/api.md). The picture of what is running is [`system-architecture.md`](../architecture/system-architecture.md).
 
-The service records which migration file it has applied in `schema_migrations`. That list is not a hall record.
+The service records which migration file it has applied in `schema_migrations`, in the same transaction as the file. That list is not a hall record.
 
 ## Contents
 

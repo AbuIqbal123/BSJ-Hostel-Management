@@ -660,3 +660,16 @@ Copy this block for each test and fill every field.
 | Expected response | Teardown does not raise. The state entry is `None` and the connection is closed. |
 | Failure cases | Isolated: the end-to-end path cannot remove the state entry mid-request. A missing entry used to raise `AttributeError` from teardown. |
 | Artifact | None. The test states each check. |
+
+### `migrate-atomic` Migration files and their records commit together
+
+| Field | Content |
+|---|---|
+| Test | `backend/tests/test_migrate.py` |
+| Purpose | A crash cannot leave a migration file applied but unrecorded, so a restart never runs it twice. A hall from before `schema_migrations` is not guessed to be current. |
+| Actor | System job (startup). |
+| Preconditions | A local hall database created by startup. |
+| Action | Run `migrate()` with an extra file that creates a table and then fails. Separately, clear `schema_migrations` with `PRAGMA user_version` set to the file count, then to 0, and run `migrate()`. |
+| Expected response | The failing file raises, its table is absent, and it is not recorded. With `user_version` equal to the file count every file is recorded. With `user_version` 0 startup refuses with a `RuntimeError`. |
+| Failure cases | Isolated: the end-to-end startup path cannot inject a failing file or an old database. A partial file and a guessed baseline are the two failures. |
+| Artifact | None. The test states each check. |
