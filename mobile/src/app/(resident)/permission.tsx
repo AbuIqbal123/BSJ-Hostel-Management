@@ -26,6 +26,7 @@ import {
   type PermissionKind,
   type PermissionStatus,
 } from "@/session";
+import { useDark } from "@/theme/appearance";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
@@ -66,6 +67,7 @@ function DateField({
   value: Date | null;
   onChange: (date: Date) => void;
 }) {
+  const dark = useDark();
   const colors = useHallColors();
   const [pickerKey, setPickerKey] = useState(0);
   const shown = value ?? new Date();
@@ -90,8 +92,8 @@ function DateField({
           <Text style={[text.field, { color: value ? colors.ink : colors.inkFaint }]}>{dayLabel}</Text>
         </Pressable>
       ) : (
-        <View style={styles.chip}>
-          <Text style={styles.chipText}>{dayLabel}</Text>
+        <View style={[styles.chip, { backgroundColor: colors.chip }]}>
+          <Text style={[styles.chipText, { color: colors.ink }]}>{dayLabel}</Text>
           <DateTimePicker
             key={pickerKey}
             style={styles.chipHit}
@@ -99,7 +101,7 @@ function DateField({
             mode="date"
             display="compact"
             accentColor={colors.forest}
-            themeVariant="light"
+            themeVariant={dark ? "dark" : "light"}
             timeZoneName={HALL_ZONE}
             onValueChange={(_event, date) => {
               if (!date || (value !== null && hallDay(date) === hallDay(value))) {
@@ -824,7 +826,6 @@ const styles = StyleSheet.create({
   datePress: { minHeight: 44, justifyContent: "center" },
   chip: {
     alignSelf: "flex-start",
-    backgroundColor: "#C7C7CC",
     borderRadius: 8,
     minHeight: 34,
     paddingHorizontal: 11,
@@ -835,7 +836,6 @@ const styles = StyleSheet.create({
     fontFamily: "SourceSans3_400Regular",
     fontSize: 17,
     lineHeight: 22,
-    color: "#14261F",
   },
   chipHit: {
     position: "absolute",

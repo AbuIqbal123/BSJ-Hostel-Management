@@ -10,6 +10,7 @@ import { HALL_ZONE, formatHallDate, formatSpan } from "@/format-when";
 import { hallDay } from "@/outing-when";
 import { kindLabel } from "@/requests";
 import { useSession, type HistoryItem, type HistoryKind } from "@/session";
+import { useDark } from "@/theme/appearance";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
@@ -60,6 +61,7 @@ function DayChip({
   onClear: () => void;
   onAndroid: () => void;
 }) {
+  const dark = useDark();
   const colors = useHallColors();
   const shown = value ? formatHallDate(value) : empty;
   const chip =
@@ -68,8 +70,8 @@ function DayChip({
         <Text style={[text.field, { color: value ? colors.ink : colors.inkFaint }]}>{shown}</Text>
       </Pressable>
     ) : (
-      <View style={styles.chip}>
-        <Text style={styles.chipText}>{shown}</Text>
+      <View style={[styles.chip, { backgroundColor: colors.chip }]}>
+        <Text style={[styles.chipText, { color: colors.ink }]}>{shown}</Text>
         <DateTimePicker
           key={pickerKey}
           style={styles.chipHit}
@@ -77,7 +79,7 @@ function DayChip({
           mode="date"
           display="compact"
           accentColor={colors.forest}
-          themeVariant="light"
+          themeVariant={dark ? "dark" : "light"}
           timeZoneName={HALL_ZONE}
           onValueChange={(_event, date) => {
             if (date) {
@@ -348,7 +350,6 @@ const styles = StyleSheet.create({
   clearMark: { fontSize: 18, lineHeight: 22 },
   chip: {
     alignSelf: "flex-start",
-    backgroundColor: "#C7C7CC",
     borderRadius: 8,
     minHeight: 34,
     paddingHorizontal: 11,
@@ -359,7 +360,6 @@ const styles = StyleSheet.create({
     fontFamily: "SourceSans3_400Regular",
     fontSize: 17,
     lineHeight: 22,
-    color: "#14261F",
   },
   chipHit: {
     position: "absolute",

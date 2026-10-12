@@ -15,6 +15,8 @@ const light = {
   pendingBg: "#F3EDD8",
   approvedBg: "#E5F0EA",
   onForest: "#FFFFFF",
+  // iOS systemGray4, behind the compact date and time chips.
+  chip: "#C7C7CC",
 };
 
 const dark = {
@@ -32,6 +34,7 @@ const dark = {
   pendingBg: "#2A281C",
   approvedBg: "#1C2E26",
   onForest: "#FFFFFF",
+  chip: "#3A3A3C",
 };
 
 export type HallColors = typeof light;
