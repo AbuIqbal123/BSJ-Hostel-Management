@@ -4,6 +4,7 @@ import { Stack } from "expo-router/stack";
 import { AccessibilityInfo, StyleSheet, View } from "react-native";
 
 import { useSession } from "@/session";
+import { homePath } from "@/staff-home";
 import { useHallColors } from "@/theme/colors";
 
 export const unstable_settings = {
@@ -28,7 +29,7 @@ export default function ResidentLayout() {
     return <Redirect href="/sign-in" />;
   }
   if (user.role !== "resident") {
-    return <Redirect href="/signed-in" />;
+    return <Redirect href={homePath(user.role)} />;
   }
 
   return (

@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HallMark } from "@/components/hall-mark";
 import { useSession } from "@/session";
+import { homePath } from "@/staff-home";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
@@ -13,7 +14,7 @@ export default function OpeningScreen() {
   const { ready, user } = useSession();
 
   if (ready && user) {
-    return <Redirect href={user.role === "resident" ? "/home" : "/signed-in"} />;
+    return <Redirect href={homePath(user.role)} />;
   }
   if (ready) {
     return <Redirect href="/sign-in" />;

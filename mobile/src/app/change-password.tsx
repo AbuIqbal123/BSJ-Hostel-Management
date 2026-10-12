@@ -8,6 +8,7 @@ import { BackMark } from "@/components/back-mark";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
 import { useSession } from "@/session";
+import { homePath } from "@/staff-home";
 import { useHallColors } from "@/theme/colors";
 import { PASSWORD_RULES, passwordRulesMet } from "@/password-rules";
 import { text } from "@/theme/text";
@@ -47,7 +48,7 @@ export default function ChangePasswordScreen() {
     router.replace("/sign-in");
   }, [changePassword, currentPassword, newPassword]);
 
-  const back = () => goBackOr(navigation, user?.role === "resident" ? "/settings" : "/signed-in");
+  const back = () => goBackOr(navigation, user && user.role !== "resident" ? homePath(user.role) : "/settings");
 
   if (!user) {
     return <Redirect href="/sign-in" />;
