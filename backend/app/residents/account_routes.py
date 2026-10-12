@@ -15,12 +15,11 @@ from app.shared.audit import record_audit
 from app.shared.auth.routes import ConnectionDep
 from app.shared.auth.security import hash_password, password_matches
 from app.shared.errors import ApiError
-from app.staff.office.records import revoke_live_sessions
+from app.staff.office.records import FORMER_ROOM_ID, revoke_live_sessions
 
 router = APIRouter(prefix="/api/v1", tags=["Resident"])
 
 _UTILITY_BLOCK_ID = "916c689d-598e-55b4-b3dc-fcf7120ca3b1"
-_FORMER_ROOM_ID = "f0f0e200-0000-4000-8000-000000000001"
 _OUTSIDE = "Return to the hall before deleting your account."
 _GUEST = "A guest is still in the hall, so this account cannot be deleted yet."
 _WRONG_PASSWORD = "The current password is wrong."
@@ -34,7 +33,7 @@ class DeleteAccountRequest(BaseModel):
 def _former_room(connection: sqlite3.Connection) -> None:
     row = connection.execute(
         "SELECT id FROM rooms WHERE id = ?",
-        (_FORMER_ROOM_ID,),
+        (FORMER_ROOM_ID,),
     ).fetchone()
     if row is not None:
         return
@@ -43,7 +42,7 @@ def _former_room(connection: sqlite3.Connection) -> None:
         INSERT INTO rooms (id, block_id, number, label, bed_count, is_active)
         VALUES (?, ?, 'former', 'Utility-former', 100000, 0)
         """,
-        (_FORMER_ROOM_ID, _UTILITY_BLOCK_ID),
+        (FORMER_ROOM_ID, _UTILITY_BLOCK_ID),
     )
 
 
@@ -144,7 +143,7 @@ def delete_own_account(
         """,
         (
             retired,
-            _FORMER_ROOM_ID,
+            FORMER_ROOM_ID,
             f"bsj:v1:{secrets.token_urlsafe(32)}",
             now_text,
             account.id,

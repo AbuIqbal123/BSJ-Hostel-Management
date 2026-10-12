@@ -49,6 +49,9 @@ RETURN_PLACEHOLDERS = (
 HHMM = r"^([01][0-9]|2[0-3]):[0-5][0-9]$"
 MMDD = r"^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
 
+# A resident who deletes her account is moved to this inactive room.
+FORMER_ROOM_ID = "f0f0e200-0000-4000-8000-000000000001"
+
 
 class HallSettings(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -500,8 +503,8 @@ def list_resident_accounts(
     limit: int,
     offset: int,
 ) -> ResidentAccountPage:
-    filters = ["users.role = 'resident'", "users.username NOT LIKE 'deleted-%'"]
-    params: list[object] = []
+    filters = ["users.role = 'resident'", "residents.room_id != ?"]
+    params: list[object] = [FORMER_ROOM_ID]
     if q is not None and q.strip():
         needle = f"%{q.strip().lower()}%"
         filters.append(

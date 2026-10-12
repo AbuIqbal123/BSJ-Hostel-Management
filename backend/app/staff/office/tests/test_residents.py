@@ -391,3 +391,38 @@ def test_null_resident_fields_and_retired_room(
         assert stayed.json()["room_id"] == ROOM_B204
         assert stayed.json()["room_label"] == "B-204"
         assert stayed.json()["full_name"] == "Aisha Khan"
+
+
+def test_list_hides_deleted_accounts_not_usernames(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.main import app
+    from app.shared import clock
+
+    monkeypatch.setattr(clock, "utc_now", FrozenClock().utc_now)
+    with TestClient(app) as client:
+        issue_people(database_path)
+        connection = sqlite3.connect(database_path)
+        try:
+            connection.execute(
+                "UPDATE users SET username = 'deleted-118' WHERE id = ?",
+                (AISHA_ID,),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+        provost = sign_in(client, "provost.halima", PROVOST_PHRASE)
+        headers = {"Authorization": f"Bearer {provost['access_token']}"}
+
+        listed = client.get("/api/v1/admin/residents", headers=headers)
+        assert [item["id"] for item in listed.json()["items"]] == [AISHA_ID]
+
+        aisha = sign_in(client, "deleted-118", RESIDENT_PHRASE)
+        deleted = client.post(
+            "/api/v1/me/account/delete",
+            headers={"Authorization": f"Bearer {aisha['access_token']}"},
+            json={"password": RESIDENT_PHRASE},
+        )
+        assert deleted.status_code == 204
+        after = client.get("/api/v1/admin/residents", headers=headers)
+        assert after.json()["total"] == 0
