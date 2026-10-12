@@ -3,16 +3,7 @@ import { CameraView, useCameraPermissions, type BarcodeScanningResult } from "ex
 import * as Haptics from "expo-haptics";
 import { useFocusEffect } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import {
-  Animated,
-  Linking,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { Animated, Linking, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HallButton } from "@/components/hall-button";
@@ -21,7 +12,6 @@ import { readScan, trimStop, type ScanResult } from "@/staff";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
-const RESULT_MS = 4000;
 const SAME_CODE_MS = 2000;
 const DIM = "rgba(20, 38, 31, 0.62)";
 const LIGHT = "#F2F4F0";
@@ -29,7 +19,14 @@ const LIGHT = "#F2F4F0";
 function refusal(message: string, details: Record<string, unknown> | null): ScanResult {
   const name = typeof details?.full_name === "string" ? details.full_name : "";
   const room = typeof details?.room_label === "string" ? details.room_label : "";
-  return { kind: "refused", name, room, line: trimStop(message), time: "", late: false };
+  return {
+    kind: "refused",
+    name,
+    room,
+    line: trimStop(message),
+    time: "",
+    late: false,
+  };
 }
 
 function buzz(ok: boolean) {
@@ -76,7 +73,7 @@ function Viewfinder({ size, color, children }: { size: number; color: string; ch
   );
 }
 
-function ResultCard({ result, onDismiss }: { result: ScanResult | null; onDismiss: () => void }) {
+function ResultCard({ result, onNext }: { result: ScanResult | null; onNext: () => void }) {
   const colors = useHallColors();
   const rise = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -86,39 +83,24 @@ function ResultCard({ result, onDismiss }: { result: ScanResult | null; onDismis
   const refused = result?.kind === "refused";
   const word = !result ? "Recording" : refused ? "Not recorded" : result.kind === "leave" ? "Leave" : "Return";
   const tone = !result ? colors.inkFaint : refused ? colors.danger : colors.forest;
-  const place = result?.kind === "leave" ? result.line : "";
-  const secondary = [result?.room, place].filter(Boolean).join(" · ");
-  const meta = result
-    ? [result.time, result.kind === "return" ? result.line : ""].filter(Boolean).join(" · ")
-    : "";
   return (
     <Animated.View style={[styles.result, { opacity: rise, transform: [{ translateY: lift }] }]}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={[word, result?.name, secondary, refused ? result?.line : meta].filter(Boolean).join(". ")}
-        onPress={result ? onDismiss : undefined}
+      <View
+        accessibilityLiveRegion="polite"
+        accessibilityLabel={refused ? `${word}. ${result.line}` : word}
         style={[styles.card, { backgroundColor: refused ? colors.dangerBg : colors.paper }]}
       >
-        <Text style={[styles.word, { color: tone }]}>{word}</Text>
-        {!result || result.name ? (
-          <Text numberOfLines={1} style={[styles.name, { color: colors.ink }]}>
-            {result?.name || " "}
-          </Text>
-        ) : null}
-        {!result || secondary ? (
-          <Text numberOfLines={1} style={[styles.secondary, { color: colors.inkSoft }]}>
-            {secondary || " "}
-          </Text>
-        ) : null}
-        {refused ? (
-          <Text style={[styles.reason, { color: colors.danger }]}>{result.line}</Text>
-        ) : (
-          <Text numberOfLines={1} style={[styles.meta, { color: result?.late ? colors.danger : colors.inkFaint }]}>
-            {meta || " "}
-          </Text>
-        )}
-        <Text style={[styles.next, { color: tone, opacity: result ? 1 : 0 }]}>Scan next</Text>
-      </Pressable>
+        <View style={styles.wordRow}>
+          <Ionicons
+            name={!result ? "ellipsis-horizontal-circle" : refused ? "close-circle" : "checkmark-circle"}
+            size={32}
+            color={tone}
+          />
+          <Text style={[styles.word, { color: tone }]}>{word}</Text>
+        </View>
+        {refused ? <Text style={[styles.reason, { color: colors.danger }]}>{result.line}</Text> : null}
+        <HallButton label="Scan next" disabled={!result} onPress={onNext} />
+      </View>
     </Animated.View>
   );
 }
@@ -138,7 +120,14 @@ function ManualEntry({ onSubmit, busy }: { onSubmit: (code: string) => void; bus
         autoCorrect={false}
         returnKeyType="go"
         onSubmitEditing={() => ready && onSubmit(code.trim())}
-        style={[styles.input, { color: colors.ink, borderColor: colors.line, backgroundColor: colors.surface }]}
+        style={[
+          styles.input,
+          {
+            color: colors.ink,
+            borderColor: colors.line,
+            backgroundColor: colors.surface,
+          },
+        ]}
       />
       <HallButton label="Record" disabled={!ready} onPress={() => onSubmit(code.trim())} />
     </View>
@@ -176,7 +165,7 @@ function NoCamera(props: {
   );
 }
 
-type Card = { result: ScanResult | null } | null;
+type Card = { id: number; result: ScanResult | null } | null;
 
 export default function ScanScreen() {
   const colors = useHallColors();
@@ -189,7 +178,8 @@ export default function ScanScreen() {
   const [broken, setBroken] = useState(false);
   const [card, setCard] = useState<Card>(null);
   const last = useRef({ code: "", at: 0 });
-  const busy = useRef(false);
+  const seq = useRef(0);
+  const shown = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -201,63 +191,54 @@ export default function ScanScreen() {
     }, []),
   );
 
-  useEffect(() => {
-    if (!card?.result) {
-      return;
-    }
-    const timer = setTimeout(() => setCard(null), RESULT_MS);
-    return () => clearTimeout(timer);
-  }, [card]);
-
   const submit = useCallback(
     async (data: string) => {
       const now = Date.now();
-      if (busy.current || (data === last.current.code && now - last.current.at < SAME_CODE_MS)) {
+      if (shown.current || (data === last.current.code && now - last.current.at < SAME_CODE_MS)) {
         return;
       }
-      busy.current = true;
       last.current = { code: data, at: now };
+      const id = ++seq.current;
+      shown.current = true;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
-      setCard({ result: null });
+      setCard({ id, result: null });
       const reply = await staffRequest("/gate/scans", { qr_payload: data });
       const result = reply.ok
         ? (readScan(reply.data) ?? refusal("The hall could not read that scan", null))
         : refusal(reply.message, reply.details);
       buzz(result.kind !== "refused");
-      setCard({ result });
+      setCard((shown) => (shown?.id === id ? { id, result } : shown));
     },
     [staffRequest],
   );
 
-  const dismiss = useCallback(() => {
-    setCard(null);
-    busy.current = false;
+  const next = useCallback(() => {
+    shown.current = false;
     last.current.at = Date.now();
+    setCard(null);
   }, []);
 
-  useEffect(() => {
-    if (!card) {
-      busy.current = false;
-    }
-  }, [card]);
+  const reading = card !== null && card.result === null;
 
   if (!permission) {
     return <View style={[styles.screen, styles.dark]} />;
   }
   if (!permission.granted || broken) {
     return (
-      <NoCamera
-        denied={!permission.granted}
-        canAsk={permission.canAskAgain}
-        onAsk={() => void requestPermission()}
-        onSubmit={(code) => void submit(code)}
-        busy={card !== null}
-      />
+      <View style={styles.screen}>
+        <NoCamera
+          denied={!permission.granted}
+          canAsk={permission.canAskAgain}
+          onAsk={() => void requestPermission()}
+          onSubmit={(code) => void submit(code)}
+          busy={reading}
+        />
+        {card ? <ResultCard key={card.id} result={card.result} onNext={next} /> : null}
+      </View>
     );
   }
 
   const size = Math.min(width - 96, 280);
-  const listening = focused && card === null;
   return (
     <View style={[styles.screen, styles.dark]}>
       <CameraView
@@ -267,27 +248,23 @@ export default function ScanScreen() {
         enableTorch={torch && focused}
         barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
         onMountError={() => setBroken(true)}
-        onBarcodeScanned={listening ? (scan: BarcodeScanningResult) => void submit(scan.data) : undefined}
+        onBarcodeScanned={focused && !card ? (scan: BarcodeScanningResult) => void submit(scan.data) : undefined}
       />
       <View style={[StyleSheet.absoluteFill, { paddingTop: insets.top }]} pointerEvents="box-none">
         <Viewfinder size={size} color={card ? colors.forest : LIGHT}>
-          {card ? null : (
-            <>
-              <Text style={styles.hint}>Point at the hall pass</Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={torch ? "Turn torch off" : "Turn torch on"}
-                accessibilityState={{ selected: torch }}
-                onPress={() => setTorch((on) => !on)}
-                style={[styles.torch, torch ? { backgroundColor: LIGHT } : null]}
-              >
-                <Ionicons name={torch ? "flashlight" : "flashlight-outline"} size={20} color={torch ? colors.ink : LIGHT} />
-              </Pressable>
-            </>
-          )}
+          <Text style={styles.hint}>Point at the hall pass</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={torch ? "Turn torch off" : "Turn torch on"}
+            accessibilityState={{ selected: torch }}
+            onPress={() => setTorch((on) => !on)}
+            style={[styles.torch, torch ? { backgroundColor: LIGHT } : null]}
+          >
+            <Ionicons name={torch ? "flashlight" : "flashlight-outline"} size={20} color={torch ? colors.ink : LIGHT} />
+          </Pressable>
         </Viewfinder>
       </View>
-      {card ? <ResultCard result={card.result} onDismiss={dismiss} /> : null}
+      {card ? <ResultCard key={card.id} result={card.result} onNext={next} /> : null}
     </View>
   );
 }
@@ -302,7 +279,13 @@ const styles = StyleSheet.create({
   frame: { borderRadius: 26 },
   corner: { position: "absolute", width: 44, height: 44 },
   below: { flex: 1.3, alignItems: "center", paddingTop: 20, gap: 20 },
-  hint: { fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20, color: LIGHT, opacity: 0.85 },
+  hint: {
+    fontFamily: "SourceSans3_400Regular",
+    fontSize: 15,
+    lineHeight: 20,
+    color: LIGHT,
+    opacity: 0.85,
+  },
   torch: {
     width: 44,
     height: 44,
@@ -317,27 +300,25 @@ const styles = StyleSheet.create({
     borderCurve: "continuous",
     paddingHorizontal: 20,
     paddingTop: 18,
-    paddingBottom: 16,
-    gap: 4,
+    paddingBottom: 18,
+    gap: 14,
     shadowColor: "#14261F",
     shadowOpacity: 0.18,
     shadowOffset: { width: 0, height: 8 },
     shadowRadius: 20,
     elevation: 6,
   },
-  word: { fontFamily: "SourceSerif4_600SemiBold", fontSize: 30, lineHeight: 36, marginBottom: 4 },
-  name: { fontFamily: "SourceSans3_600SemiBold", fontSize: 17, lineHeight: 22 },
-  secondary: { fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20 },
-  meta: { fontFamily: "IBMPlexMono_500Medium", fontSize: 13, lineHeight: 18, marginTop: 2 },
-  reason: { fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20, marginTop: 2 },
-  next: {
-    alignSelf: "flex-end",
-    fontFamily: "SourceSans3_600SemiBold",
+  wordRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  word: {
+    fontFamily: "SourceSerif4_600SemiBold",
+    fontSize: 30,
+    lineHeight: 36,
+  },
+  reason: {
+    fontFamily: "SourceSans3_400Regular",
     fontSize: 15,
     lineHeight: 20,
-    paddingVertical: 12,
-    paddingLeft: 16,
-    marginBottom: -8,
+    marginTop: 2,
   },
   manual: { alignSelf: "stretch", gap: 12, marginTop: 8 },
   input: {
