@@ -126,8 +126,16 @@ def test_resident_deletes_her_account(database_path: Path) -> None:
                 """,
                 (RESIDENT_ID,),
             ).fetchone()["n"]
+            actions = {
+                row["action"]
+                for row in connection.execute(
+                    "SELECT action FROM audit_log WHERE entity_id = ?",
+                    (RESIDENT_ID,),
+                )
+            }
         finally:
             connection.close()
+        assert actions == {"auth.login", "resident.deleted"}
         assert user["full_name"] == "Deleted account"
         assert user["status"] == "suspended"
         assert user["username"].startswith("deleted-")

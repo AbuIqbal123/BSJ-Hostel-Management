@@ -589,6 +589,9 @@ def test_pending_permission_can_be_changed(
         assert saved.json()["short_place"] == "Library"
         assert saved.json()["reason"] == "The seminar moved."
         assert saved.json()["departure_at"] == "2026-09-30T15:00:00Z"
+        assert {
+            (row["action"], row["entity_id"]) for row in permission_audits(database_path)
+        } == {("permission.submitted", permission_id), ("permission.updated", permission_id)}
         assert_error(
             client.patch(
                 f"/api/v1/me/permissions/{permission_id}",

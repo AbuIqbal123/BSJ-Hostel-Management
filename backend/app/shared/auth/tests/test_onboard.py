@@ -234,6 +234,20 @@ def test_resident_onboard(database_path: Path, monkeypatch: pytest.MonkeyPatch) 
         }
         assert public == expected["stored"]
         assert "qr_token" not in expected["stored"]
+        connection = sqlite3.connect(database_path)
+        try:
+            onboarded = connection.execute(
+                """
+                SELECT users.username, audit_log.entity_type
+                FROM audit_log
+                JOIN users ON users.id = audit_log.entity_id
+                  AND users.id = audit_log.actor_user_id
+                WHERE audit_log.action = 'auth.onboard'
+                """
+            ).fetchall()
+        finally:
+            connection.close()
+        assert onboarded == [(stored["username"], "person")]
         assert "password_hash" not in json.dumps(expected)
 
         login_limiter.reset()

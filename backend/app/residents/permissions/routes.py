@@ -259,6 +259,14 @@ def update_permission(
     ).fetchone()
     if updated is None:
         raise ApiError(409, "not_editable", "Only a pending permission can be changed.")
+    record_permission(
+        connection,
+        now_text,
+        account.id,
+        "permission.updated",
+        permission_id,
+        f"{account.full_name} changed a {fields.label} permission for {fields.short_place}.",
+    )
     return load_permission(connection, permission_id)
 
 

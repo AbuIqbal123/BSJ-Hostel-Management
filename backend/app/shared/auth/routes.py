@@ -426,6 +426,15 @@ def onboard_resident(
         if "beds" in message:
             raise ApiError(422, "validation_error", _ROOM_FULL, field="room_id") from exc
         raise
+    record_audit(
+        connection,
+        now_text,
+        user_id,
+        "auth.onboard",
+        "person",
+        user_id,
+        f"{full_name} created her account.",
+    )
     return ResidentOnboardResponse(
         enrolment_number=enrolment,
         status="active",

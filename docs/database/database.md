@@ -535,6 +535,7 @@ This is the audit log: the record of who did what. Each entry is one action that
 | Signed in | auth.login |
 | Signed out | auth.logout |
 | Resident self-onboarded | auth.onboard |
+| Resident deleted her account | resident.deleted |
 | Resident created | resident.created |
 | Resident updated | resident.updated |
 | Resident suspended | resident.suspended |
@@ -555,6 +556,7 @@ This is the audit log: the record of who did what. Each entry is one action that
 | Exit recorded | outing.exit |
 | Return recorded | outing.return |
 | Permission submitted | permission.submitted |
+| Permission changed | permission.updated |
 | Permission cancelled | permission.cancelled |
 | Permission approved | permission.approved |
 | Permission rejected | permission.rejected |
