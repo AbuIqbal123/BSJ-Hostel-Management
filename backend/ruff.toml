@@ -1,0 +1,7 @@
+# Mechanical guard rails. Keep this list to rules the code already passes.
+[lint]
+select = [
+  "F",     # unused imports/variables, undefined names: dead code and typos
+  "E9",    # syntax errors
+  "B006",  # mutable default arguments shared across calls
+]
