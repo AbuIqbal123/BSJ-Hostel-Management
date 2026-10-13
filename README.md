@@ -1,6 +1,6 @@
 # Begum Sultan Jahan Hall
 
-Hostel movement system for residents, wardens, gate staff, and the provost. The hall API is FastAPI under `/api/v1`. The resident phone app is Expo, in `mobile/`.
+Hostel movement system for residents, wardens, gate staff, and the provost. The hall API is FastAPI under `/api/v1`. The phone app, for residents and staff, is Expo, in `mobile/`.
 
 Start with these.
 
@@ -25,7 +25,7 @@ Swagger serves the same HTTP contract at http://localhost:8000/docs from `backen
 | `backend/app/staff/` | Gate, the register, and the hall office: `gate`, `register`, `office` |
 | `backend/app/dev_seed.py` | Local sign-in accounts. Not created when the service starts |
 | `backend/tests/` | Checks for the whole hall: startup creates it, routes match the contract, the signing key, `/ready`, and the development accounts |
-| `mobile/` | Expo resident phone app. Commands and rules are in `mobile/AGENTS.md` |
+| `mobile/` | Expo phone app for residents and staff. Commands and rules are in `mobile/AGENTS.md` |
 | `postman/` | Postman checks for the hall API. Folders match the OpenAPI tags |
 | `docs/` | Domain folders: design, api, database, architecture, tests, engineering. See `docs/README.md` |
 | `reference/` | The original proposal, demo, and prototype. Not the application |

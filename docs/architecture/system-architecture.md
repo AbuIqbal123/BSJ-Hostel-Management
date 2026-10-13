@@ -1,12 +1,12 @@
 # System architecture
 
-Picture date: **2026-10-11**
+Picture date: **2026-10-13**
 
 This is the system that exists in the repository today. A solid arrow is in use. A dashed arrow is written down and is not on the running path. When a part is added, removed, or connected, this picture is updated in the same change.
 
 ```mermaid
 flowchart LR
-  phone["Phone"] -->|"sign-in, home, outings, permissions, guest stays, hall pass, history, inbox, onboard"| api["Hall API"]
+  phone["Phone"] -->|"sign-in, home, outings, permissions, guest stays, hall pass, history, inbox, onboard, staff scan, register, requests"| api["Hall API"]
   browser["Browser"] -->|"health, sign-in, register, permissions, guest stays, gate, hall office, and Swagger"| api
   api -->|"serves"| contract["API contract"]
   model["Data model"] --> turso[("Turso")]
@@ -19,7 +19,7 @@ flowchart LR
 
 | Arrow | Meaning |
 |---|---|
-| Phone → Hall API | In use. The Expo app in `mobile/` signs in, self-onboards, and serves the resident shell: home (including unread permission decisions), ordinary outings, late-night and home-going permissions, guest stays (edit only while pending and before arrival), hall pass, history, destinations, and the permission-decision inbox. Sign-out clears the session on the phone and revokes the refresh token. She can delete her account from Settings. |
+| Phone → Hall API | In use. The Expo app in `mobile/` signs in, self-onboards, and serves the resident shell: home (including unread permission decisions), ordinary outings, late-night and home-going permissions, guest stays (edit only while pending and before arrival), hall pass, history, destinations, and the permission-decision inbox. Sign-out clears the session on the phone and revokes the refresh token. She can delete her account from Settings. Gate, warden, and provost accounts open the staff shell instead: Home shows recent gate activity, and for a warden or the provost the register summary with Out now. Scan records a leave or return from a hall pass, by camera or typed code. Requests lets a warden or the provost decide pending permissions and guest stays. |
 | Browser → Hall API | In use. The process is FastAPI: `http://localhost:8000` in local development, and `https://bsj-hostel-api.onrender.com` for release phone builds (`mobile/eas.json`). Render runs that process only. `GET /health` answers. `GET /ready` opens the hall database and reports `user_version`. A database that cannot be opened answers 503. In local development a missing or unreadable file is not created. Sign-in answers. A warden or the provost can read the register presence board, the permission queue, and guest stays, and can decide pending permissions and guest stays, mark payment, and upload optional payment evidence. Gate staff can scan a hall pass, list recent gate activity, read guest dining occupancy, and record guest arrival and departure. The provost can manage settings, blocks, rooms, destinations, residents, staff, password reset, the audit log, the SMS log, and register CSV export. Swagger is at `/docs`. |
 | Hall API → API contract | In use. `/docs` reads `backend/openapi.yaml`. [`api.md`](../api/api.md) is the same contract for reading. The Auth (including resident self-onboard), Resident, Register, Permissions, Guest Stays, Gate, and Hall office paths in that file are implemented and registered. `GET /api/v1/auth/onboard/options` is served for the onboard room picker: active blocks and active rooms with no resident assigned. |
 | Data model → Turso | In use on the hosted API. [`database.md`](../database/database.md) is applied to the Turso database `bsj-hall` when the Render process starts. |

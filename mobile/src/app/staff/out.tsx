@@ -31,7 +31,6 @@ import { text } from "@/theme/text";
 type OutSection = { key: string; title: string; note: string; data: OutRow[] };
 type View3 = "ordinary" | "permission" | "late";
 type OutData = { late: OutRow[]; ordinary: OutRow[]; permission: OutRow[] };
-type LateRow = OutRow & { kind: OutingKind | null };
 
 const SOURCES: { value: OutingKind | null; label: string }[] = [
   { value: null, label: "All" },
