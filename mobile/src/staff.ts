@@ -98,6 +98,8 @@ export function readActivity(value: unknown): GateEvent[] {
   });
 }
 
+export type OutingKind = "ordinary" | "late_night" | "home_going";
+
 export type OutRow = {
   id: string;
   name: string;
@@ -106,7 +108,13 @@ export type OutRow = {
   backBy: string;
   late: boolean;
   sortKey: string;
+  kind: OutingKind | null;
+  dueAt: string | null;
 };
+
+function outingKind(value: unknown): OutingKind | null {
+  return value === "ordinary" || value === "late_night" || value === "home_going" ? value : null;
+}
 
 /** Today's back-by shows the clock; a later day shows the date. Late always shows the clock. */
 function backByLabel(iso: string | null, late: boolean): string {
@@ -145,6 +153,8 @@ export function readOutRows(value: unknown, late: boolean): OutRow[] {
         backBy: backByLabel(back, late),
         late,
         sortKey: back ?? "",
+        kind: outingKind(item.outing_type),
+        dueAt: back,
       },
     ];
   });
@@ -165,6 +175,24 @@ export function permissionOutRow(item: PermissionReview): OutRow {
     backBy: backByLabel(item.expectedReturnAt, false),
     late: false,
     sortKey: item.expectedReturnAt,
+    kind: item.kind,
+    dueAt: item.expectedReturnAt,
+  };
+}
+
+/** Late residents stay on the late list only, including when the outing is a permission. */
+export function splitOutLists(outside: OutRow[], late: OutRow[], permission: OutRow[]): {
+  late: OutRow[];
+  ordinary: OutRow[];
+  permission: OutRow[];
+} {
+  const lateIds = new Set(late.map((row) => row.id));
+  const stillOnTime = permission.filter((row) => !lateIds.has(row.id));
+  const onTimeIds = new Set(stillOnTime.map((row) => row.id));
+  return {
+    late,
+    ordinary: outside.filter((row) => !onTimeIds.has(row.id)),
+    permission: stillOnTime,
   };
 }
 
@@ -357,19 +385,6 @@ export function readScan(value: unknown): ScanResult | null {
     };
   }
   return null;
-}
-
-export type OutingKind = "ordinary" | "late_night" | "home_going";
-
-/** The open outing on `/register/residents/{id}`: its kind and when she was due. */
-export function readOpenOuting(value: unknown): { kind: OutingKind; dueAt: string } | null {
-  const outing = record(record(value)?.outing);
-  const kind = outing?.outing_type;
-  const dueAt = str(outing?.expected_return_at);
-  if (!dueAt || (kind !== "ordinary" && kind !== "late_night" && kind !== "home_going")) {
-    return null;
-  }
-  return { kind, dueAt };
 }
 
 /** How long past the due time: minutes, hours, or days. */

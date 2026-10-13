@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Feather } from "@expo/vector-icons";
 import { useNavigation } from "expo-router";
 import { Pressable, ScrollView, SectionList, StyleSheet, Text, TextInput, View } from "react-native";
@@ -15,10 +15,10 @@ import {
   dueLabel,
   lateBy,
   permissionOutRow,
-  readOpenOuting,
   readOutRows,
   readPermissionReviews,
   readSummary,
+  splitOutLists,
   trimStop,
   type HallBlock,
   type OutingKind,
@@ -86,8 +86,8 @@ export default function OutNowScreen() {
   const [query, setQuery] = useState("");
   const [view, setView] = useState<View3>("ordinary");
   const [rows, setRows] = useState<OutData | null>(null);
-  const [lateKinds, setLateKinds] = useState<Record<string, { kind: OutingKind; dueAt: string }>>({});
   const [source, setSource] = useState<OutingKind | null>(null);
+  const searchGen = useRef(0);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -114,11 +114,16 @@ export default function OutNowScreen() {
       if (block) {
         permits.set("block_id", block);
       }
+      const generation = searchGen.current + 1;
+      searchGen.current = generation;
       const [late, outside, inUse] = await Promise.all([
         staffRequest(params("late")),
         staffRequest(params("outside")),
         staffRequest(`/permissions?${permits.toString()}`),
       ]);
+      if (generation !== searchGen.current) {
+        return;
+      }
       if (!late.ok) {
         setError(trimStop(late.message));
         return;
@@ -132,31 +137,8 @@ export default function OutNowScreen() {
         return;
       }
       setError(null);
-      // The register row has no outing type. A resident out on an in-use permission is not ordinary.
       const permission = readPermissionReviews(inUse.data).map(permissionOutRow).filter((row) => matches(row, q));
-      const onPermission = new Set(permission.map((row) => row.id));
-      const outsideRows = readOutRows(outside.data, false);
-      const lateRows = readOutRows(late.data, true);
-      // The register row has no outing kind; each late resident's record carries her open outing.
-      void Promise.all(
-        lateRows.map(async (row) => {
-          const reply = await staffRequest(`/register/residents/${encodeURIComponent(row.id)}`);
-          return [row.id, reply.ok ? readOpenOuting(reply.data) : null] as const;
-        }),
-      ).then((pairs) => {
-        const kinds: Record<string, { kind: OutingKind; dueAt: string }> = {};
-        for (const [id, outing] of pairs) {
-          if (outing) {
-            kinds[id] = outing;
-          }
-        }
-        setLateKinds(kinds);
-      });
-      setRows({
-        late: lateRows,
-        ordinary: outsideRows.filter((row) => !onPermission.has(row.id)),
-        permission,
-      });
+      setRows(splitOutLists(readOutRows(outside.data, false), readOutRows(late.data, true), permission));
     },
     [staffRequest],
   );
@@ -171,10 +153,10 @@ export default function OutNowScreen() {
       if (!rows) {
         return [];
       }
-      const late = rows.late.filter((row) => source === null || lateKinds[row.id]?.kind === source);
+      const late = rows.late.filter((row) => source === null || row.kind === source);
       return outSections(view, { ...rows, late }, blocks);
     },
-    [blocks, lateKinds, rows, source, view],
+    [blocks, rows, source, view],
   );
   const blockName = blocks.find((block) => block.id === blockId)?.name;
 
@@ -257,16 +239,16 @@ export default function OutNowScreen() {
       keyboardDismissMode="on-drag"
       renderSectionHeader={({ section }) => <SectionHead title={section.title} count={section.note} />}
       renderItem={({ item, index, section }) => {
-        const outing = item.late ? lateKinds[item.id] : undefined;
+        const dueAt = item.late ? item.dueAt : null;
         return (
           <DenseRow
             title={item.name}
             detail={
-              outing
-                ? `${item.room} · ${outing.kind === "ordinary" ? "Ordinary" : kindLabel(outing.kind)} · ${dueLabel(outing.dueAt)}`
+              item.late && item.kind && dueAt
+                ? `${item.room} · ${item.kind === "ordinary" ? "Ordinary" : kindLabel(item.kind)} · ${dueLabel(dueAt)}`
                 : [item.room, item.place].filter(Boolean).join(" · ")
             }
-            time={outing ? lateBy(outing.dueAt) : item.backBy}
+            time={dueAt ? lateBy(dueAt) : item.backBy}
             late={item.late}
             first={index === 0}
             last={index === section.data.length - 1}

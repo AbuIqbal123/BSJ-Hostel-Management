@@ -68,5 +68,6 @@ The in-app policy is on the Privacy policy screen, dated 3 October 2026. App Sto
 - Guest stays
 - History, and notices when a request is approved or rejected
 - Light and dark appearance
+- Gate scan, and for a warden or the provost the register (who is out, and pending requests)
 
-Gate, the register, and the hall office are not in this app. There is no payment in the app, and no parent login.
+The hall office is not in this app. There is no payment in the app, and no parent login.
