@@ -2,7 +2,6 @@ import { memo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useHallColors } from "@/theme/colors";
-import { text } from "@/theme/text";
 
 type DenseRowProps = {
   title: string;

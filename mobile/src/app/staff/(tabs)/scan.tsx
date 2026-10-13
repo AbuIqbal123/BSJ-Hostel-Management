@@ -313,7 +313,6 @@ const styles = StyleSheet.create({
   dark: { backgroundColor: "#000000" },
   ask: { justifyContent: "center", paddingHorizontal: 28, gap: 16 },
   center: { textAlign: "center" },
-  finder: { flex: 1 },
   dim: { backgroundColor: DIM },
   frame: { borderRadius: 26 },
   corner: { position: "absolute", width: 44, height: 44 },
