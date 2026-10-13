@@ -1,6 +1,6 @@
 # Agent notes
 
-Begum Sultan Jahan Hall hostel management. Residents, wardens, gate staff, and the provost. The hall API is the FastAPI service in `backend/`: `http://localhost:8000` in local development, and `https://bsj-hostel-api.onrender.com` for release phone builds (`mobile/eas.json`). The resident phone app is Expo, in `mobile/`, with its own notes in `mobile/AGENTS.md`.
+Begum Sultan Jahan Hall hostel management. Residents, wardens, gate staff, and the provost. The hall API is the FastAPI service in `backend/`: `http://localhost:8000` in local development, and `https://bsj-hostel-api.onrender.com` for release phone builds (`mobile/eas.json`). The phone app, for residents and staff, is Expo, in `mobile/`, with its own notes in `mobile/AGENTS.md`.
 
 Before changing API behavior, the database, or the shape of the system, follow `.grok/skills/contract-maintenance/SKILL.md` and the rules below.
 
