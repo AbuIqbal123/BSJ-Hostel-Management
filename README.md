@@ -74,7 +74,7 @@ On a development machine, startup creates the hall in `backend/data/hostel.db` w
 
 From `backend/`, add the local sign-in accounts with `.venv/bin/python -m app.dev_seed`. This runs only when `ENVIRONMENT` is `development`. A second run leaves an account that is already there, including a password that was changed. The command prints the password of each account it adds. Room B-204 is created for the sample resident because the published hall page does not list door numbers.
 
-From `backend/`, run the checks with `.venv/bin/pytest`. A push to `dev`, and a pull request, runs the same checks on GitHub. Every recorded check is listed in [`docs/tests/tests.md`](docs/tests/tests.md); each entry names its test file under `backend/app/.../tests/` or `backend/tests/`.
+From `backend/`, run the checks with `.venv/bin/pytest` and the lint with `.venv/bin/ruff check .` (`backend/ruff.toml`). A push to `dev`, and a pull request, runs both on GitHub. Every recorded check is listed in [`docs/tests/tests.md`](docs/tests/tests.md); each entry names its test file under `backend/app/.../tests/` or `backend/tests/`.
 
 ## What is deliberately not here
 

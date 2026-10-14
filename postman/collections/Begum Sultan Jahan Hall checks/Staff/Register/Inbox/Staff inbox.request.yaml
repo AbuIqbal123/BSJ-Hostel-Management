@@ -1,0 +1,9 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/api/v1/register/notifications'
+order: 5000
+description: |-
+  Caller: warden or provost. The newest 50 hall events: a permission requested,
+  a guest stay requested, or an outing passing grace while she was out.
+  `unread` is true for an event after the caller last called
+  POST /api/v1/register/notifications/read. Does not mark them read.

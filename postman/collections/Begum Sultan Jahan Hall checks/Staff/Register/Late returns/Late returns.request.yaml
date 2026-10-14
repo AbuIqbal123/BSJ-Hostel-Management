@@ -1,0 +1,29 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/api/v1/register/late-returns?limit=50&offset=0'
+order: 4000
+queryParams:
+  - key: source
+    value: ''
+    description: Optional. ordinary, late_night, or home_going.
+    disabled: true
+  - key: state
+    value: ''
+    description: Optional. now (still outside) or past (returned after grace).
+    disabled: true
+  - key: from
+    value: ''
+    description: Optional inclusive hall date of the due time.
+    disabled: true
+  - key: to
+    value: ''
+    description: Optional inclusive hall date of the due time. Not before from.
+    disabled: true
+  - key: limit
+    value: '50'
+  - key: offset
+    value: '0'
+description: |-
+  Caller: warden or provost. One row per outing that went past grace: still
+  outside (`state=now`) or returned after grace (`state=past`). Omit `state`
+  for both. Ordered by due time, newest first.

@@ -11,9 +11,17 @@ queryParams:
     value: 'false'
     description: When false (default), omit cancelled and rejected. Set true to include them.
     disabled: true
+  - key: q
+    value: ''
+    description: Optional. Guest name, host name, or host room label.
+    disabled: true
+  - key: block_id
+    value: ''
+    description: Optional. Block of the host's current room.
+    disabled: true
   - key: limit
     value: '50'
   - key: offset
     value: '0'
 description: |-
-  Caller: warden or provost. Filter by derived bucket. `in_hall` here is the dining set and includes guests who should have left. Use `should_have_left` for that subset. By default omits terminal buckets `cancelled` and `rejected`; pass `include_terminal=true` to include them. Explicit `bucket=cancelled` or `bucket=rejected` still returns that subset.
+  Caller: warden or provost. Filter by derived bucket. `in_hall` here is the dining set and includes guests who should have left. Use `should_have_left` for that subset. By default omits terminal buckets `cancelled` and `rejected`; pass `include_terminal=true` to include them. Explicit `bucket=cancelled` or `bucket=rejected` still returns that subset. `q` matches guest name, host name, or host room; `block_id` limits to the host's block.

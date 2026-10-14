@@ -21,12 +21,19 @@ queryParams:
     value: ''
     description: Optional inclusive UTC upper bound on created_at.
     disabled: true
+  - key: q
+    value: ''
+    description: Optional. Resident name or room label.
+    disabled: true
   - key: order
     value: newest
-    description: newest (default) or oldest by created_at.
+    description: newest (default), oldest by created_at, or departure by departure_at.
   - key: limit
     value: '50'
   - key: offset
     value: '0'
 description: |-
-  Caller: warden or provost. Defaults to `pending`. Ordered by `created_at` (`order=newest` or `oldest`). Optional filters: `permission_type`, `block_id`, `created_from`, `created_to`. This list does not expire passed permissions; call expire-passed.
+  Caller: warden or provost. Defaults to `pending`. Ordered by `created_at`
+  (`order=newest` or `oldest`) or by departure (`order=departure`). Optional
+  filters: `permission_type`, `block_id`, `created_from`, `created_to`, `q`.
+  This list does not expire passed permissions; call expire-passed.

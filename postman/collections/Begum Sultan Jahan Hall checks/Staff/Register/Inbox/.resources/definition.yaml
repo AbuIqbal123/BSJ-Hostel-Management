@@ -1,0 +1,5 @@
+$kind: collection
+name: Inbox
+order: 5000
+description: |-
+  Staff inbox under /api/v1/register/notifications.

@@ -3,6 +3,21 @@ method: GET
 url: '{{baseUrl}}/api/v1/register/residents?limit=50&offset=0'
 order: 2000
 queryParams:
+  - key: q
+    value: ''
+    description: Optional. Resident full name or room label.
+    disabled: true
+  - key: state
+    value: ''
+    description: Optional. inside, outside, or late.
+    disabled: true
+  - key: block_id
+    value: ''
+    description: Optional. Limit to residents whose current room is in this block.
+    disabled: true
+  - key: order
+    value: name
+    description: name (default) or back_by.
   - key: limit
     value: '50'
   - key: offset
@@ -11,4 +26,4 @@ description: |-
   Caller: warden or provost. Search matches full name or room label. `block_id`
   limits the list to residents whose current room is in that block. `state=late`
   is presence outside after grace; the other states are inside and outside
-  before grace. Results are ordered by name.
+  before grace. Results default to ordered by name.

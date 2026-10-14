@@ -1,0 +1,8 @@
+$kind: http-request
+method: POST
+url: '{{baseUrl}}/api/v1/register/notifications/read'
+order: 6000
+description: |-
+  Caller: warden or provost. Marks every event up to now read for the caller
+  only, including any older than the 50 listed. Returns how many were unread.
+  A second call marks nothing.
