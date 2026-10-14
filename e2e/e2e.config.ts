@@ -1,7 +1,7 @@
 import type { E2EConfig } from 'e2e';
 import { mobile } from '@e2e-dev/mobile';
 
-import { changedPassword, seededPassword } from './support/accounts.ts';
+import { changedPassword, seededAccount } from './support/accounts.ts';
 import { agentModel } from './support/model.ts';
 
 const apiPort = process.env.BSJ_E2E_API_PORT ?? '8010';
@@ -27,9 +27,9 @@ export default {
   ],
   workers: 1,
   credentials: {
-    resident: { username: '24-GLLB-118', password: seededPassword('24-GLLB-118') },
-    gate: { username: 'gate.fatima', password: seededPassword('gate.fatima') },
-    warden: { username: 'warden.sara', password: seededPassword('warden.sara') },
+    resident: seededAccount('24-GLLB-118'),
+    gate: seededAccount('gate.fatima'),
+    warden: seededAccount('warden.sara'),
   },
   secrets: {
     'resident-new-password': changedPassword('24-GLLB-118'),

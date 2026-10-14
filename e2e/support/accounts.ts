@@ -22,6 +22,11 @@ export function seededPassword(username: string): () => string {
   };
 }
 
+/** A seeded dev account for `credentials`: the username plus a fill-time lookup of its password. */
+export function seededAccount(username: string) {
+  return { username, password: seededPassword(username) };
+}
+
 /** A new password that meets the app's rules, derived from the seeded one. */
 export function changedPassword(username: string): () => string {
   const seeded = seededPassword(username);
