@@ -72,7 +72,9 @@ On a development machine, startup creates the hall in `backend/data/hostel.db` w
 
 `APP_SECRET_KEY` must be at least 32 bytes. A shorter value stops the process before it serves.
 
-From `backend/`, add the local sign-in accounts with `.venv/bin/python -m app.dev_seed`. This runs only when `ENVIRONMENT` is `development`. A second run leaves an account that is already there, including a password that was changed. The command prints the password of each account it adds. Room B-204 is created for the sample resident because the published hall page does not list door numbers.
+From `backend/`, add the local sign-in accounts with `.venv/bin/python -m app.dev_seed`. This runs only when `ENVIRONMENT` is `development`, and it refuses to run on Render. A second run leaves an account that is already there, including a password that was changed. Room B-204 is created for the sample resident because the published hall page does not list door numbers.
+
+Set passwords with `BSJ_SEED_PASSWORD` (all roles) or per-role `BSJ_SEED_PASSWORD_GATE`, `BSJ_SEED_PASSWORD_RESIDENT`, `BSJ_SEED_PASSWORD_SUSPENDED`, `BSJ_SEED_PASSWORD_WARDEN`, and `BSJ_SEED_PASSWORD_PROVOST`. When a role has no env value, the command generates a strong random password and prints it once for the accounts it adds. Put those values in the untracked `backend/.env` if you want the same passwords next time. Older development passwords that once appeared in this repository (including git history) are burned — do not reuse them.
 
 From `backend/`, run the checks with `.venv/bin/pytest` and the lint with `.venv/bin/ruff check .` (`backend/ruff.toml`). A push to `dev`, and a pull request, runs both on GitHub. Every recorded check is listed in [`docs/tests/tests.md`](docs/tests/tests.md); each entry names its test file under `backend/app/.../tests/` or `backend/tests/`.
 

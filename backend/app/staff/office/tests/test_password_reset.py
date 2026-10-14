@@ -10,7 +10,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import PROVOST_PHRASE, RESIDENT_PHRASE, WARDEN_PHRASE, joined
+from app.dev_seed import PROVOST_PHRASE, RESIDENT_PHRASE, WARDEN_PHRASE
+from app.shared.testing_env import fixture_password
 
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "admin-password-reset.json"
 PROVOST_ID = "f66ab000-0000-4000-8000-000000000006"
@@ -105,7 +106,7 @@ def attempt_login(client: TestClient, username: str, secret: str):
 
 def test_admin_password_reset(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     expected = json.loads(ARTIFACT.read_text(encoding="utf-8"))
-    new_password = joined(*expected["new_password_parts"])
+    new_password = fixture_password("reset")
     from app.main import app
     from app.shared import clock
 
@@ -195,7 +196,7 @@ def test_admin_password_reset(database_path: Path, monkeypatch: pytest.MonkeyPat
         fresh = sign_in(client, "24-GLLB-118", new_password)
         assert fresh["access_token"]
 
-        staff_password = joined("Warden", "pass", "99")
+        staff_password = fixture_password("warden-reset")
         staff_reset = client.post(
             f"/api/v1/admin/users/{WARDEN_ID}/password",
             headers=headers,

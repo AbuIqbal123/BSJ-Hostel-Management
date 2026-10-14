@@ -10,7 +10,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import PROVOST_PHRASE, RESIDENT_PHRASE, WARDEN_PHRASE, joined
+from app.dev_seed import PROVOST_PHRASE, RESIDENT_PHRASE, WARDEN_PHRASE
+from app.shared.testing_env import fixture_password
 
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "admin-residents.json"
 BLOCK_B = "d032aad6-a203-5ea0-ba9a-3a9257edbfc8"
@@ -21,7 +22,7 @@ ROOM_B204 = "d4400000-0000-4000-8000-000000000004"
 ROOM_B205 = "d4400000-0000-4000-8000-000000000005"
 CREATED = "2026-09-30T00:00:00Z"
 NOW = datetime(2026, 9, 30, 12, 0, tzinfo=timezone.utc)
-TEMP_PASSWORD = joined("resident", "20")
+TEMP_PASSWORD = fixture_password("resident-temp")
 AISHA_QR = "bsj:v1:test-resident-hall-pass"
 
 

@@ -4,33 +4,73 @@ Startup creates the hall and does not create people. This command adds
 the accounts used on a development machine. Room B-204 is a dev-only room
 for that resident. A second run leaves an existing account, including a
 password that was changed.
+
+Passwords come from environment variables, or a strong random value is
+generated and printed once when an account is created. Nothing in this
+file embeds a development password. Old values that once lived in git
+history must be treated as burned.
 """
 
 from __future__ import annotations
 
+import os
+import secrets
+import string
 from dataclasses import dataclass
 
 from app.shared import clock
 from app.shared.auth.security import hash_password
-from app.shared.config import get_settings
+from app.shared.config import get_settings, is_hosted
 from app.shared.db import create_connection
 from app.shared.migrate import migrate
+
+# Re-export for tests that still import the join helper from this module.
+from app.shared.testing_env import joined as joined  # noqa: F401
 
 BLOCK_B = "d032aad6-a203-5ea0-ba9a-3a9257edbfc8"
 ROOM_ID = "d4400000-0000-4000-8000-000000000004"
 RESIDENT_QR = "bsj:v1:test-resident-hall-pass"
 
-
-def joined(*parts: str) -> str:
-    # The whole development sign-in phrase is never written in the repository.
-    return "-".join(parts)
+_PASSWORD_ALPHABET = string.ascii_letters + string.digits + "!@#$%&*"
+_resolved: dict[str, str] = {}
 
 
-GATE_PHRASE = joined("Gate", "pass", "10")
-RESIDENT_PHRASE = joined("Resident", "10")
-SUSPENDED_PHRASE = joined("Suspended", "10")
-WARDEN_PHRASE = joined("Warden", "pass", "10")
-PROVOST_PHRASE = joined("Provost", "pass", "10")
+def _generate_password() -> str:
+    """Strong random password that meets the hall's character-class rules."""
+    while True:
+        value = "".join(secrets.choice(_PASSWORD_ALPHABET) for _ in range(20))
+        if (
+            any(c.isupper() for c in value)
+            and any(c.islower() for c in value)
+            and any(c.isdigit() for c in value)
+            and any(c in "!@#$%&*" for c in value)
+        ):
+            return value
+
+
+def _resolve_password(role_key: str) -> str:
+    """Prefer BSJ_SEED_PASSWORD_<ROLE>, then BSJ_SEED_PASSWORD, else generate once."""
+    cached = _resolved.get(role_key)
+    if cached is not None:
+        return cached
+    specific = os.environ.get(f"BSJ_SEED_PASSWORD_{role_key}", "").strip()
+    if specific:
+        _resolved[role_key] = specific
+        return specific
+    shared = os.environ.get("BSJ_SEED_PASSWORD", "").strip()
+    if shared:
+        _resolved[role_key] = shared
+        return shared
+    generated = _generate_password()
+    _resolved[role_key] = generated
+    return generated
+
+
+GATE_PHRASE = _resolve_password("GATE")
+RESIDENT_PHRASE = _resolve_password("RESIDENT")
+SUSPENDED_PHRASE = _resolve_password("SUSPENDED")
+WARDEN_PHRASE = _resolve_password("WARDEN")
+PROVOST_PHRASE = _resolve_password("PROVOST")
 
 
 @dataclass(frozen=True)
@@ -102,6 +142,11 @@ ACCOUNTS = (
 
 def seed() -> list[str]:
     """Add any missing development accounts. Returns the usernames just added."""
+    if is_hosted():
+        raise RuntimeError(
+            "Development accounts are not added on Render. "
+            "Refuse to seed a hosted database."
+        )
     if get_settings().environment != "development":
         raise RuntimeError(
             "Development accounts are added only when ENVIRONMENT is development."

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.shared.testing_env import signing_key_for_tests
+from app.shared.testing_env import fixture_password, signing_key_for_tests
 
 import json
 import sqlite3
@@ -30,7 +30,7 @@ RESIDENT_ID = "b22de000-0000-4000-8000-000000000002"
 SUSPENDED_ID = "c33ef000-0000-4000-8000-000000000003"
 ROOM_ID = "d4400000-0000-4000-8000-000000000004"
 CREATED = "2026-09-30T00:00:00Z"
-GATE_NEW_PHRASE = joined("Gate", "pass", "20")
+GATE_NEW_PHRASE = fixture_password("gate-new")
 WRONG_PHRASE = joined("not", "the", "one")
 SECRETS = (
     GATE_PHRASE,

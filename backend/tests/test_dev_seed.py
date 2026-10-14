@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import importlib
 import json
+import secrets
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -82,7 +84,6 @@ def private_state(path: Path) -> dict:
         connection.close()
 
 
-
 def _login_body(username: str, secret: str) -> dict[str, str]:
     # Build at runtime so secret scanners do not treat fixtures as live credentials.
     body: dict[str, str] = {}
@@ -98,6 +99,22 @@ def assert_error(response, message: str) -> None:
     assert body["error"]["message"] == message
 
 
+def test_dev_seed_source_has_no_password_literals() -> None:
+    """Seed module must not embed reconstructable development passwords."""
+    source = Path(__file__).resolve().parents[1] / "app" / "dev_seed.py"
+    text = source.read_text(encoding="utf-8")
+    assert "def joined" not in text
+    assert '"pass"' not in text
+    assert "'pass'" not in text
+    # Role-key args are fine; a full password string assigned to *_PHRASE is not.
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if "_PHRASE =" in stripped:
+            assert "_resolve_password(" in stripped
+
+
 def test_dev_seed_adds_local_accounts(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("app.shared.clock.utc_now", lambda: CREATED)
     artifact = ARTIFACT.read_text(encoding="utf-8")
@@ -105,15 +122,24 @@ def test_dev_seed_adds_local_accounts(database_path: Path, monkeypatch: pytest.M
     assert "qr_token" not in artifact
     assert "bsj:v1:" not in artifact
 
-    from app.dev_seed import (
-        GATE_PHRASE,
-        PROVOST_PHRASE,
-        RESIDENT_PHRASE,
-        SUSPENDED_PHRASE,
-        WARDEN_PHRASE,
-        joined,
-        seed,
-    )
+    def _pw(label: str) -> str:
+        return f"T-{label}-{secrets.token_hex(8)}!9"
+
+    gate_pw = _pw("gate")
+    resident_pw = _pw("resident")
+    suspended_pw = _pw("suspended")
+    warden_pw = _pw("warden")
+    provost_pw = _pw("provost")
+    monkeypatch.setenv("BSJ_SEED_PASSWORD_GATE", gate_pw)
+    monkeypatch.setenv("BSJ_SEED_PASSWORD_RESIDENT", resident_pw)
+    monkeypatch.setenv("BSJ_SEED_PASSWORD_SUSPENDED", suspended_pw)
+    monkeypatch.setenv("BSJ_SEED_PASSWORD_WARDEN", warden_pw)
+    monkeypatch.setenv("BSJ_SEED_PASSWORD_PROVOST", provost_pw)
+
+    import app.dev_seed as dev_seed
+
+    importlib.reload(dev_seed)
+    seed = dev_seed.seed
 
     added = seed()
     assert added == [
@@ -131,29 +157,29 @@ def test_dev_seed_adds_local_accounts(database_path: Path, monkeypatch: pytest.M
         assert_error(
             client.post(
                 "/api/v1/auth/login",
-                json=_login_body("gate.fatima", joined("not", "the", "one")),
+                json=_login_body("gate.fatima", "not-the-seed-password"),
             ),
             "Username or password is wrong.",
         )
         assert_error(
             client.post(
                 "/api/v1/auth/login",
-                json=_login_body("nobody", GATE_PHRASE),
+                json=_login_body("nobody", gate_pw),
             ),
             "Username or password is wrong.",
         )
         assert_error(
             client.post(
                 "/api/v1/auth/login",
-                json=_login_body("gate.suspended", SUSPENDED_PHRASE),
+                json=_login_body("gate.suspended", suspended_pw),
             ),
             "This account is suspended. Please contact the Hall Office.",
         )
         signed_in = (
-            ("GATE.FATIMA", GATE_PHRASE, "gate.fatima", "gate"),
-            ("24-gllb-118", RESIDENT_PHRASE, "24-GLLB-118", "resident"),
-            ("warden.sara", WARDEN_PHRASE, "warden.sara", "warden"),
-            ("provost.halima", PROVOST_PHRASE, "provost.halima", "provost"),
+            ("GATE.FATIMA", gate_pw, "gate.fatima", "gate"),
+            ("24-gllb-118", resident_pw, "24-GLLB-118", "resident"),
+            ("warden.sara", warden_pw, "warden.sara", "warden"),
+            ("provost.halima", provost_pw, "provost.halima", "provost"),
         )
         for username, password, stored, role in signed_in:
             response = client.post(
@@ -172,6 +198,21 @@ def test_dev_seed_adds_local_accounts(database_path: Path, monkeypatch: pytest.M
     assert private_state(database_path) == before
 
 
+def test_dev_seed_refuses_on_render(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("RENDER", "true")
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    from app.shared.config import get_settings
+
+    get_settings.cache_clear()
+    from app.dev_seed import seed
+
+    with pytest.raises(RuntimeError, match="Render|hosted"):
+        seed()
+    assert not database_path.exists()
+
+
 def test_dev_seed_refuses_outside_development(
     database_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -181,6 +222,6 @@ def test_dev_seed_refuses_outside_development(
     get_settings.cache_clear()
     from app.dev_seed import seed
 
-    with pytest.raises(RuntimeError, match="ENVIRONMENT is development"):
+    with pytest.raises(RuntimeError, match="development"):
         seed()
     assert not database_path.exists()

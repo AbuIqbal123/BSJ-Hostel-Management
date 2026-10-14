@@ -24,7 +24,7 @@ ROOM_B = "d4400000-0000-4000-8000-000000000204"
 ROOM_A = "d4400000-0000-4000-8000-000000000104"
 NOW = datetime(2026, 9, 30, 12, 0, tzinfo=timezone.utc)
 PHRASE = joined("Resident", "onboard", "10")
-SHORT_PHRASE = joined("short", "pw")
+SHORT_PHRASE = "short"  # intentionally under 10 characters
 
 
 class FrozenClock:
