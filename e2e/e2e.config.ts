@@ -27,9 +27,9 @@ export default {
   ],
   workers: 1,
   credentials: {
-    resident: seededAccount('24-GLLB-118'),
-    gate: seededAccount('gate.fatima'),
-    warden: seededAccount('warden.sara'),
+    resident: seededAccount('24-GLLB-118', 'E2E_RESIDENT_PASSWORD'),
+    gate: seededAccount('gate.fatima', 'E2E_GATE_PASSWORD'),
+    warden: seededAccount('warden.sara', 'E2E_WARDEN_PASSWORD'),
   },
   secrets: {
     'resident-new-password': changedPassword('24-GLLB-118'),

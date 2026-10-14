@@ -20,6 +20,18 @@ Drives the real app on an iOS simulator with [TesterArmy e2e](https://e2e.tester
 2. Install the tools: `brew install node@22 cocoapods python@3.14`. You need Node 22.22.3 or newer (or 24.8+) and Python 3.14, as in CI.
 3. Pick a simulator: run `xcrun simctl list devices available | grep iPhone`. The suite uses `iPhone 17`; for another one, `export BSJ_E2E_SIMULATOR="<name>"`.
 
+## Passwords
+
+Nothing is committed. Each password comes from an env var when it's set, otherwise from the scratch hall's seed output (`$TMPDIR/bsj-e2e/seed-accounts.txt`, mode 600):
+
+| Account | Env var |
+| - | - |
+| resident `24-GLLB-118` | `E2E_RESIDENT_PASSWORD` |
+| gate `gate.fatima` | `E2E_GATE_PASSWORD` |
+| warden `warden.sara` | `E2E_WARDEN_PASSWORD` |
+
+These are dev-seed accounts that exist only in the scratch SQLite database. Never point the suite at Render or Turso, and never put real accounts' passwords here.
+
 ## Each run
 
 ```sh
