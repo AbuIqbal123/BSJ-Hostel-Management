@@ -2,4 +2,5 @@ $kind: collection
 name: Register
 order: 2000
 description: |-
-  Presence board under /api/v1/register. Bearer uses {{token_provost}} (Sign in as Provost).
+  Presence board under /api/v1/register: summary, residents, late list, late
+  returns, and the staff inbox. Bearer uses {{token_provost}} (Sign in as Provost).

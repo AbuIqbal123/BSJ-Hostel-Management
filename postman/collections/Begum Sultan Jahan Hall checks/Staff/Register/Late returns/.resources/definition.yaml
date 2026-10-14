@@ -1,0 +1,5 @@
+$kind: collection
+name: Late returns
+order: 4000
+description: |-
+  Current and past late returns under /api/v1/register/late-returns.
