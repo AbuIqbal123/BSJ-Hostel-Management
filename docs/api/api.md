@@ -27,8 +27,9 @@ Do not edit this page by hand.
   - [GET `/api/v1/auth/onboard/options` — Onboard room picker](#get-api-v1-auth-onboard-options)
 - [Resident](#tag-resident)
   - [GET `/api/v1/me/home` — Resident home](#get-api-v1-me-home)
-  - [GET `/api/v1/me/notifications` — Own permission decisions, newest first](#get-api-v1-me-notifications)
-  - [POST `/api/v1/me/notifications/read` — Mark her unread permission decisions read](#post-api-v1-me-notifications-read)
+  - [GET `/api/v1/me/notifications` — Her inbox, newest first, one page](#get-api-v1-me-notifications)
+  - [POST `/api/v1/me/notifications/read` — Mark her inbox read, up to an instant](#post-api-v1-me-notifications-read)
+  - [POST `/api/v1/me/notifications/{notification_id}/read` — Mark one row of her inbox read](#post-api-v1-me-notifications-notification_id-read)
   - [GET `/api/v1/me/hall-pass` — Hall pass for the outing in its window](#get-api-v1-me-hall-pass)
   - [POST `/api/v1/me/account/delete` — Delete own account](#post-api-v1-me-account-delete)
   - [GET `/api/v1/me/history` — Own history](#get-api-v1-me-history)
@@ -75,8 +76,12 @@ Do not edit this page by hand.
   - [GET `/api/v1/register/residents/{resident_id}` — Resident record](#get-api-v1-register-residents-resident_id)
   - [GET `/api/v1/register/late` — Late list](#get-api-v1-register-late)
   - [GET `/api/v1/register/late-returns` — Late returns, current and past](#get-api-v1-register-late-returns)
-  - [GET `/api/v1/register/notifications` — Staff inbox, newest first](#get-api-v1-register-notifications)
-  - [POST `/api/v1/register/notifications/read` — Mark the caller's inbox read](#post-api-v1-register-notifications-read)
+  - [GET `/api/v1/register/notifications` — Staff inbox, newest first, one page](#get-api-v1-register-notifications)
+  - [POST `/api/v1/register/notifications/read` — Mark the caller's inbox read, up to an instant](#post-api-v1-register-notifications-read)
+  - [POST `/api/v1/register/notifications/{notification_id}/read` — Mark one event read for the caller](#post-api-v1-register-notifications-notification_id-read)
+- [Devices](#tag-devices)
+  - [POST `/api/v1/devices/push-token` — Register this phone for push](#post-api-v1-devices-push-token)
+  - [DELETE `/api/v1/devices/push-token` — Stop push to this phone](#delete-api-v1-devices-push-token)
 - [Hall office](#tag-hall-office)
   - [GET `/api/v1/admin/residents` — List resident accounts](#get-api-v1-admin-residents)
   - [POST `/api/v1/admin/residents` — Create a resident](#post-api-v1-admin-residents)
@@ -800,8 +805,9 @@ The resident phone. Ordinary outings, home, destinations, and the hall pass.
 | Method | Path | Purpose | Who |
 |---|---|---|---|
 | GET | `/api/v1/me/home` | [Resident home](#get-api-v1-me-home) | resident |
-| GET | `/api/v1/me/notifications` | [Own permission decisions, newest first](#get-api-v1-me-notifications) | resident |
-| POST | `/api/v1/me/notifications/read` | [Mark her unread permission decisions read](#post-api-v1-me-notifications-read) | resident |
+| GET | `/api/v1/me/notifications` | [Her inbox, newest first, one page](#get-api-v1-me-notifications) | resident |
+| POST | `/api/v1/me/notifications/read` | [Mark her inbox read, up to an instant](#post-api-v1-me-notifications-read) | resident |
+| POST | `/api/v1/me/notifications/{notification_id}/read` | [Mark one row of her inbox read](#post-api-v1-me-notifications-notification_id-read) | resident |
 | GET | `/api/v1/me/hall-pass` | [Hall pass for the outing in its window](#get-api-v1-me-hall-pass) | resident |
 | POST | `/api/v1/me/account/delete` | [Delete own account](#post-api-v1-me-account-delete) | resident |
 | GET | `/api/v1/me/history` | [Own history](#get-api-v1-me-history) | resident |
@@ -827,7 +833,10 @@ outing is inside its show window now (`ordinary_outing_active`),
 presence, the open outing if there is one, her planned future ordinary
 outings (`upcoming_outings`), the permission the resident is waiting
 on or cleared to use, the last ten exit and return lines, and
-`notifications_unread` (true when a permission decision is still unread).
+`notifications_unread` and `notifications_unread_count` for her inbox.
+`current_outing` carries `expected_return_at` and `grace_ends_at`; the
+phone schedules its own local reminder before them (the server has
+no scheduler and sends no "window ending" push).
 `upcoming_outings` is soonest start first. It leaves off returned,
 cancelled, outside, and plans whose expected return has already
 passed. A plan inside its show window stays on the list with
@@ -851,7 +860,8 @@ Body: [ResidentHome](#schema-residenthome).
 | `upcoming_outings` | yes | list of [UpcomingOuting](#schema-upcomingouting) | Planned ordinary outings whose expected return is still in the future. Soonest start first. Not returned, cancelled, outside, or already past. |
 | `active_permission` | yes | [Permission](#schema-permission) or null | The newest permission in `pending`, `approved`, or `in_use`, if any. |
 | `recent_history` | yes | list of [HistoryEvent](#schema-historyevent) |  |
-| `notifications_unread` | yes | boolean | True when she has at least one permission decision she has not marked read. False when the inbox is empty or every row is read. |
+| `notifications_unread` | yes | boolean | True when `notifications_unread_count` is above zero. |
+| `notifications_unread_count` | yes | integer | Unread rows in her inbox, any age. Use it for the bell and the app badge. minimum 0. |
 
 **Example**
 
@@ -885,6 +895,7 @@ Body: [ResidentHome](#schema-residenthome).
   ],
   "active_permission": null,
   "notifications_unread": false,
+  "notifications_unread_count": 0,
   "recent_history": [
     {
       "event": "returned",
@@ -911,27 +922,40 @@ The signed-in role cannot call this operation.
 Body: [ErrorResponse](#schema-errorresponse).
 
 
-### <a id="get-api-v1-me-notifications"></a>GET `/api/v1/me/notifications` — Own permission decisions, newest first
+### <a id="get-api-v1-me-notifications"></a>GET `/api/v1/me/notifications` — Her inbox, newest first, one page
 
 `list_resident_notifications`
 
 **Who.** resident. Bearer access token.
 
-Caller: resident. The newest 50 rows written when a warden or the
-provost approved or rejected her permission. Does not mark them read.
-Call POST /api/v1/me/notifications/read for that.
+Caller: resident. Rows written for her when a warden or the provost
+approved or declined her permission or guest stay, and when an
+outing of hers passed grace while she was out (`resident_late`, once
+per outing). Only the last 90 days are listed; the records
+themselves are permanent and stay in GET /api/v1/me/history.
+Ordered by (`occurred_at`, `id`) descending. Reading does not mark
+anything read.
+
+**Parameters**
+
+| Name | In | Required | Type | Notes |
+|---|---|---|---|---|
+| `cursor` | query | no | string | Opaque `next_cursor` from the previous page. Omit for the first page. A cursor that does not decode is 422 `validation_error`. at most 200 characters. |
+| `limit` | query | no | integer | 1–100. default `30`. |
+| `filter` | query | no | `all` or `unread` or `needs_action` | `all` (default), `unread`, or `needs_action`. `needs_action` keeps a request still pending or a resident still out late. default `all`. |
 
 **Responses**
 
 #### 200
 
-Her notification rows, newest first, at most 50.
+One page of her inbox.
 
-Body: [ResidentNotificationList](#schema-residentnotificationlist).
+Body: [ResidentNotificationPage](#schema-residentnotificationpage).
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `items` | yes | list of [ResidentNotification](#schema-residentnotification) |  |
+| `next_cursor` | yes | string or null |  |
 
 **Example**
 
@@ -940,17 +964,27 @@ Body: [ResidentNotificationList](#schema-residentnotificationlist).
   "items": [
     {
       "id": "00000000-0000-4000-8000-0000000000a1",
+      "kind": "permission_decided",
+      "record_id": "00000000-0000-4000-8000-0000000000b1",
+      "occurred_at": "2026-09-30T13:00:00Z",
+      "read_at": null,
+      "unread": true,
+      "needs_action": false,
+      "outcome": "approved",
+      "decided_at": "2026-09-30T13:00:00Z",
+      "decided_by_name": "Sara Malik",
+      "place": "Women's College",
+      "guest_name": null,
       "permission_id": "00000000-0000-4000-8000-0000000000b1",
       "permission_type": "late_night",
       "decision": "approved",
-      "place": "Women's College",
       "departure_at": "2026-09-30T14:00:00Z",
       "expected_return_at": "2026-09-30T18:00:00Z",
       "decided_by": "Sara Malik",
-      "created_at": "2026-09-30T13:00:00Z",
-      "unread": true
+      "created_at": "2026-09-30T13:00:00Z"
     }
-  ]
+  ],
+  "next_cursor": null
 }
 ```
 
@@ -966,34 +1000,60 @@ The signed-in role cannot call this operation.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
+#### 422
 
-### <a id="post-api-v1-me-notifications-read"></a>POST `/api/v1/me/notifications/read` — Mark her unread permission decisions read
+The JSON is the wrong shape, or a field fails a constraint that does not depend on existing rows.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
+### <a id="post-api-v1-me-notifications-read"></a>POST `/api/v1/me/notifications/read` — Mark her inbox read, up to an instant
 
 `mark_resident_notifications_read`
 
 **Who.** resident. Bearer access token.
 
-Caller: resident. Sets read on every unread row of hers, including
-any older than the 50 returned by the list. Returns how many rows
-changed. A second call marks nothing.
+Caller: resident. Marks every unread row of hers read, including
+rows older than the listed 90 days. With `up_to` (a UTC instant or
+a `next_cursor`), only rows with `occurred_at` at or before that
+instant change, so a row that arrived after the phone loaded the
+list stays unread. Returns how many changed and what is still unread.
 
-**Responses**
+**Request.** Optional.
 
-#### 200
-
-How many rows were marked read.
-
-Body: [ResidentNotificationsMarked](#schema-residentnotificationsmarked).
+Body: [NotificationsReadRequest](#schema-notificationsreadrequest).
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `marked` | yes | integer | How many of her rows changed from unread to read. minimum 0. |
+| `up_to` | no | string or null | A UTC instant (`YYYY-MM-DDTHH:MM:SSZ`) or a `next_cursor`. Omit for now. at most 200 characters. |
 
 **Example**
 
 ```json
 {
-  "marked": 1
+  "up_to": "2026-09-30T13:00:00Z"
+}
+```
+
+**Responses**
+
+#### 200
+
+How many rows changed, and the unread count after.
+
+Body: [NotificationsMarked](#schema-notificationsmarked).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `marked` | yes | integer | minimum 0. |
+| `unread_count` | yes | integer | minimum 0. |
+
+**Example**
+
+```json
+{
+  "marked": 1,
+  "unread_count": 0
 }
 ```
 
@@ -1006,6 +1066,65 @@ Body: [ErrorResponse](#schema-errorresponse).
 #### 403
 
 The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 422
+
+The JSON is the wrong shape, or a field fails a constraint that does not depend on existing rows.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
+### <a id="post-api-v1-me-notifications-notification_id-read"></a>POST `/api/v1/me/notifications/{notification_id}/read` — Mark one row of her inbox read
+
+`mark_resident_notification_read`
+
+**Who.** resident. Bearer access token.
+
+Caller: resident. Idempotent. A row that is not hers is 404.
+
+**Parameters**
+
+| Name | In | Required | Type | Notes |
+|---|---|---|---|---|
+| `notification_id` | path | yes | uuid |  |
+
+**Responses**
+
+#### 200
+
+Her unread count after the change.
+
+Body: [UnreadCount](#schema-unreadcount).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `unread_count` | yes | integer | minimum 0. |
+
+**Example**
+
+```json
+{
+  "unread_count": 2
+}
+```
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 404
+
+No record with that id is visible to the caller.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
@@ -1146,7 +1265,10 @@ Body: [ErrorResponse](#schema-errorresponse).
 **Who.** resident. Bearer access token.
 
 Caller: resident. One row per record that has left live use, newest
-`ended_at` first. No page control.
+`ended_at` first, ordered by (`ended_at`, `id`) descending, one page
+at a time (`limit`, `cursor`, `next_cursor`). Nothing is ever dropped
+from her history; the phone loads a recent page and asks for older
+pages or a date range (`from`, `to`, `on`) on demand.
 
 An ordinary outing is a row in three cases. Unused (`unused` true): no
 gate exit, and the planned return has passed, or she cancelled the
@@ -1189,18 +1311,21 @@ field.
 | `on` | query | no | date | One calendar date in Asia/Kolkata, `YYYY-MM-DD`. Omit when she has not chosen a day. A row matches when that hall date is the calendar day of `started_at`, of `ended_at`, or a day between them (inclusive). |
 | `from` | query | no | date | First calendar date in Asia/Kolkata, `YYYY-MM-DD`. A row matches when its hall days overlap the range from this date through `to`. Omit for no lower bound. |
 | `to` | query | no | date | Last calendar date in Asia/Kolkata, `YYYY-MM-DD`. A row matches when its hall days overlap the range through this date. Omit for no upper bound. |
+| `cursor` | query | no | string | Opaque `next_cursor` from the previous page. Omit for the first page. at most 200 characters. |
+| `limit` | query | no | integer | 1–200. default `50`. |
 
 **Responses**
 
 #### 200
 
-History rows, newest ended_at first.
+One page of history rows, newest ended_at first.
 
 Body: [HistoryList](#schema-historylist).
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `items` | yes | list of [HistoryItem](#schema-historyitem) |  |
+| `next_cursor` | yes | string or null | Pass as `cursor` for the next page. Null on the last page. |
 
 **Example**
 
@@ -1229,7 +1354,8 @@ Body: [HistoryList](#schema-historylist).
       "return_recorded_by": null,
       "unused": true
     }
-  ]
+  ],
+  "next_cursor": null
 }
 ```
 
@@ -1242,6 +1368,12 @@ Body: [ErrorResponse](#schema-errorresponse).
 #### 403
 
 The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 422
+
+The JSON is the wrong shape, or a field fails a constraint that does not depend on existing rows.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
@@ -3862,8 +3994,9 @@ Warden and provost presence board under /api/v1/register. Inside, outside, and l
 | GET | `/api/v1/register/residents/{resident_id}` | [Resident record](#get-api-v1-register-residents-resident_id) | warden or provost |
 | GET | `/api/v1/register/late` | [Late list](#get-api-v1-register-late) | warden or provost |
 | GET | `/api/v1/register/late-returns` | [Late returns, current and past](#get-api-v1-register-late-returns) | warden or provost |
-| GET | `/api/v1/register/notifications` | [Staff inbox, newest first](#get-api-v1-register-notifications) | warden or provost |
-| POST | `/api/v1/register/notifications/read` | [Mark the caller's inbox read](#post-api-v1-register-notifications-read) | warden or provost |
+| GET | `/api/v1/register/notifications` | [Staff inbox, newest first, one page](#get-api-v1-register-notifications) | warden or provost |
+| POST | `/api/v1/register/notifications/read` | [Mark the caller's inbox read, up to an instant](#post-api-v1-register-notifications-read) | warden or provost |
+| POST | `/api/v1/register/notifications/{notification_id}/read` | [Mark one event read for the caller](#post-api-v1-register-notifications-notification_id-read) | warden or provost |
 
 ### <a id="get-api-v1-register-summary"></a>GET `/api/v1/register/summary` — Hall register counts
 
@@ -3894,7 +4027,8 @@ Body: [RegisterSummary](#schema-registersummary).
 | `guests_should_have_left_count` | yes | integer |  |
 | `pending_guest_stay_count` | yes | integer |  |
 | `blocks` | yes | list of [BlockRegisterCounts](#schema-blockregistercounts) | The same counts for each block. Hall totals are the sum of these rows. |
-| `notifications_unread` | yes | boolean | True when the caller has an event in GET /api/v1/register/notifications after she last called POST /api/v1/register/notifications/read. |
+| `notifications_unread` | yes | boolean | True when `notifications_unread_count` is above zero. |
+| `notifications_unread_count` | yes | integer | Events unread by the caller, any age. Use it for the bell and the app badge. minimum 0. |
 
 **Example**
 
@@ -3921,7 +4055,8 @@ Body: [RegisterSummary](#schema-registersummary).
       "pending_guest_stay_count": 1
     }
   ],
-  "notifications_unread": true
+  "notifications_unread": true,
+  "notifications_unread_count": 4
 }
 ```
 
@@ -4172,29 +4307,50 @@ The JSON is the wrong shape, or a field fails a constraint that does not depend 
 Body: [ErrorResponse](#schema-errorresponse).
 
 
-### <a id="get-api-v1-register-notifications"></a>GET `/api/v1/register/notifications` — Staff inbox, newest first
+### <a id="get-api-v1-register-notifications"></a>GET `/api/v1/register/notifications` — Staff inbox, newest first, one page
 
 `list_staff_notifications`
 
 **Who.** warden or provost. Bearer access token.
 
-Caller: warden or provost. The newest 50 hall events: a permission
-requested, a guest stay requested, or an outing passing grace while
-she was out. Events are read from those records; nothing else writes
-them. `unread` is true for an event after the caller last called
-POST /api/v1/register/notifications/read. Does not mark them read.
+Caller: warden or provost. Hall events from the last 90 days: a
+permission requested, a guest stay requested, or an outing passing
+grace while she was out. Events are read from those records, so a
+decided request stays listed with its `outcome`, and a late entry
+shows `returned` once the gate records her return. The records are
+the permanent history; older ones are reached through the
+permission and guest-stay queues, late returns, and the register
+export. Ordered by (`occurred_at`, `id`) descending. Reading does
+not mark anything read. Gate staff get 403: the inbox is for the
+people who decide requests.
+
+Unread for the caller means after her mark-all instant (which starts
+at her account creation) and not marked one by one.
+
+**Parameters**
+
+| Name | In | Required | Type | Notes |
+|---|---|---|---|---|
+| `cursor` | query | no | string | Opaque `next_cursor` from the previous page. Omit for the first page. A cursor that does not decode is 422 `validation_error`. at most 200 characters. |
+| `limit` | query | no | integer | 1–100. default `30`. |
+| `filter` | query | no | `all` or `unread` or `needs_action` | `all` (default), `unread`, or `needs_action`. `needs_action` keeps a request still pending or a resident still out late. default `all`. |
+| `q` | query | no | string | Part of the resident's name or room label, any case. at most 80 characters. |
+| `from` | query | no | date | First Asia/Kolkata date of `occurred_at`, inclusive. |
+| `to` | query | no | date | Last Asia/Kolkata date of `occurred_at`, inclusive. |
+| `block_id` | query | no | string | Block of the resident's current room. |
 
 **Responses**
 
 #### 200
 
-Events, newest first, at most 50.
+One page of events.
 
-Body: [StaffNotificationList](#schema-staffnotificationlist).
+Body: [StaffNotificationPage](#schema-staffnotificationpage).
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `items` | yes | list of [StaffNotification](#schema-staffnotification) |  |
+| `next_cursor` | yes | string or null | Pass as `cursor` for the next page. Null on the last page. |
 
 **Example**
 
@@ -4202,14 +4358,23 @@ Body: [StaffNotificationList](#schema-staffnotificationlist).
 {
   "items": [
     {
+      "id": "resident_late:00000000-0000-4000-8000-0000000000c1",
       "kind": "resident_late",
       "record_id": "00000000-0000-4000-8000-0000000000c1",
+      "resident_id": "b22de000-0000-4000-8000-000000000002",
       "resident_name": "Aisha Khan",
       "room_label": "B-204",
+      "block_name": "Block-B",
       "occurred_at": "2026-09-30T12:15:00Z",
-      "unread": true
+      "read_at": null,
+      "unread": true,
+      "needs_action": false,
+      "outcome": "returned",
+      "decided_at": "2026-09-30T12:40:00Z",
+      "decided_by_name": "Fatima Khan"
     }
-  ]
+  ],
+  "next_cursor": "MjAyNi0wOS0zMFQxMjoxNTowMFp8cmVzaWRlbnRfbGF0ZTowMDAw"
 }
 ```
 
@@ -4225,34 +4390,59 @@ The signed-in role cannot call this operation.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
+#### 422
 
-### <a id="post-api-v1-register-notifications-read"></a>POST `/api/v1/register/notifications/read` — Mark the caller's inbox read
+The JSON is the wrong shape, or a field fails a constraint that does not depend on existing rows.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
+### <a id="post-api-v1-register-notifications-read"></a>POST `/api/v1/register/notifications/read` — Mark the caller's inbox read, up to an instant
 
 `mark_staff_notifications_read`
 
 **Who.** warden or provost. Bearer access token.
 
-Caller: warden or provost. Marks every event up to now read for the
-caller only, including any older than the 50 listed. Returns how many
-were unread. A second call marks nothing.
+Caller: warden or provost. Moves the caller's mark-all instant to
+now, or to `up_to` (a UTC instant or a `next_cursor`) when given, so
+events after the page she saw stay unread. The instant never moves
+back. Counts every event, not only the last 90 days.
 
-**Responses**
+**Request.** Optional.
 
-#### 200
-
-How many events were unread.
-
-Body: [StaffNotificationsMarked](#schema-staffnotificationsmarked).
+Body: [NotificationsReadRequest](#schema-notificationsreadrequest).
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `marked` | yes | integer | How many events were unread for her before this call. minimum 0. |
+| `up_to` | no | string or null | A UTC instant (`YYYY-MM-DDTHH:MM:SSZ`) or a `next_cursor`. Omit for now. at most 200 characters. |
 
 **Example**
 
 ```json
 {
-  "marked": 3
+  "up_to": "2026-09-30T13:00:00Z"
+}
+```
+
+**Responses**
+
+#### 200
+
+How many events were unread up to that instant, and what is still unread.
+
+Body: [NotificationsMarked](#schema-notificationsmarked).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `marked` | yes | integer | minimum 0. |
+| `unread_count` | yes | integer | minimum 0. |
+
+**Example**
+
+```json
+{
+  "marked": 3,
+  "unread_count": 0
 }
 ```
 
@@ -4265,6 +4455,174 @@ Body: [ErrorResponse](#schema-errorresponse).
 #### 403
 
 The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 422
+
+The JSON is the wrong shape, or a field fails a constraint that does not depend on existing rows.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
+### <a id="post-api-v1-register-notifications-notification_id-read"></a>POST `/api/v1/register/notifications/{notification_id}/read` — Mark one event read for the caller
+
+`mark_staff_notification_read`
+
+**Who.** warden or provost. Bearer access token.
+
+Caller: warden or provost. `notification_id` is the item `id`
+(`<kind>:<record_id>`). Idempotent. An id that names no event is 404.
+
+**Parameters**
+
+| Name | In | Required | Type | Notes |
+|---|---|---|---|---|
+| `notification_id` | path | yes | string | at most 80 characters. |
+
+**Responses**
+
+#### 200
+
+The caller's unread count after the change.
+
+Body: [UnreadCount](#schema-unreadcount).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `unread_count` | yes | integer | minimum 0. |
+
+**Example**
+
+```json
+{
+  "unread_count": 4
+}
+```
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 404
+
+No record with that id is visible to the caller.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
+## <a id="tag-devices"></a>Devices
+
+Expo push tokens under /api/v1/devices for any signed-in account. Push is best effort and never blocks the request that caused it.
+
+| Method | Path | Purpose | Who |
+|---|---|---|---|
+| POST | `/api/v1/devices/push-token` | [Register this phone for push](#post-api-v1-devices-push-token) | Signed-in account |
+| DELETE | `/api/v1/devices/push-token` | [Stop push to this phone](#delete-api-v1-devices-push-token) | Signed-in account |
+
+### <a id="post-api-v1-devices-push-token"></a>POST `/api/v1/devices/push-token` — Register this phone for push
+
+`register_push_token`
+
+**Who.** Signed-in account. Bearer access token.
+
+Any signed-in account (resident, gate, warden, provost). Stores the
+Expo push token for the caller. Idempotent: the same token again is
+204. A token held by another account moves to the caller, because
+the phone changed hands. Push goes to residents (decisions on her
+requests, and when she is late) and to wardens and the provost (new
+permission or guest-stay requests, and a resident becoming late).
+Gate accounts may register and receive nothing today.
+
+**Request.** Required.
+
+Body: [PushTokenRegister](#schema-pushtokenregister).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `token` | yes | string | From expo-notifications getExpoPushTokenAsync({ projectId }). at most 200 characters. pattern `^Expo(nent)?PushToken\[[A-Za-z0-9_-]+\]$`. |
+| `platform` | yes | `ios` or `android` |  |
+
+**Example**
+
+```json
+{
+  "token": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]",
+  "platform": "android"
+}
+```
+
+**Responses**
+
+#### 204
+
+Stored for the caller.
+
+No body.
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 422
+
+The JSON is the wrong shape, or a field fails a constraint that does not depend on existing rows.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
+### <a id="delete-api-v1-devices-push-token"></a>DELETE `/api/v1/devices/push-token` — Stop push to this phone
+
+`delete_push_token`
+
+**Who.** Signed-in account. Bearer access token.
+
+Any signed-in account. Call before sign-out. Deletes the token only
+if the caller holds it. Idempotent: 204 either way.
+
+**Request.** Required.
+
+Body: [PushTokenDelete](#schema-pushtokendelete).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `token` | yes | string | How many events were unread for her before this call. at most 200 characters. |
+
+**Example**
+
+```json
+{
+  "token": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]"
+}
+```
+
+**Responses**
+
+#### 204
+
+The caller no longer holds that token.
+
+No body.
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 422
+
+The JSON is the wrong shape, or a field fails a constraint that does not depend on existing rows.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
@@ -5867,24 +6225,59 @@ One of: `ordinary`, `late_night`, `home_going`.
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
+| `id` | yes | string | Stable `<kind>:<record_id>`. Use it to mark one event read. |
 | `kind` | yes | `permission_requested` or `guest_stay_requested` or `resident_late` |  |
 | `record_id` | yes | uuid | The permission, the guest stay, or the outing. Open it with GET /api/v1/permissions/{id}, GET /api/v1/guest-stays/{id}, or GET /api/v1/register/residents/{resident_id}. |
+| `resident_id` | yes | uuid |  |
 | `resident_name` | yes | string | The resident who asked, hosts the guest, or is late. |
 | `room_label` | yes | string |  |
+| `block_name` | yes | string |  |
 | `occurred_at` | yes | date-time | When the request was made, or when grace ended on the outing. |
-| `unread` | yes | boolean |  |
+| `read_at` | yes | string or null | When the caller read it, one by one or by mark-all. Null while unread. |
+| `unread` | yes | boolean | Same as `read_at` being null. Kept for older clients. |
+| `needs_action` | yes | boolean | A request still pending, or a resident still out late. |
+| `outcome` | yes | `approved` or `declined` or `cancelled` or `returned` or `None` | Null while pending or while she is still out. `approved` covers a permission later used or expired and a guest stay that departed. `returned` is for `resident_late` once the gate recorded her return. |
+| `decided_at` | yes | string or null | When it was approved, declined, or cancelled, or when she returned. |
+| `decided_by_name` | yes | string or null | The warden or provost who decided, the resident who cancelled, or the gate staff who recorded her return. |
 
-### <a id="schema-staffnotificationlist"></a>StaffNotificationList
+### <a id="schema-staffnotificationpage"></a>StaffNotificationPage
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `items` | yes | list of [StaffNotification](#schema-staffnotification) |  |
+| `next_cursor` | yes | string or null | Pass as `cursor` for the next page. Null on the last page. |
 
-### <a id="schema-staffnotificationsmarked"></a>StaffNotificationsMarked
+### <a id="schema-notificationsreadrequest"></a>NotificationsReadRequest
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `marked` | yes | integer | How many events were unread for her before this call. minimum 0. |
+| `up_to` | no | string or null | A UTC instant (`YYYY-MM-DDTHH:MM:SSZ`) or a `next_cursor`. Omit for now. at most 200 characters. |
+
+### <a id="schema-notificationsmarked"></a>NotificationsMarked
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `marked` | yes | integer | minimum 0. |
+| `unread_count` | yes | integer | minimum 0. |
+
+### <a id="schema-unreadcount"></a>UnreadCount
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `unread_count` | yes | integer | minimum 0. |
+
+### <a id="schema-pushtokenregister"></a>PushTokenRegister
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `token` | yes | string | From expo-notifications getExpoPushTokenAsync({ projectId }). at most 200 characters. pattern `^Expo(nent)?PushToken\[[A-Za-z0-9_-]+\]$`. |
+| `platform` | yes | `ios` or `android` |  |
+
+### <a id="schema-pushtokendelete"></a>PushTokenDelete
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `token` | yes | string | How many events were unread for her before this call. at most 200 characters. |
 
 ### <a id="schema-homeresident"></a>HomeResident
 
@@ -5914,34 +6307,39 @@ One of: `ordinary`, `late_night`, `home_going`.
 | `upcoming_outings` | yes | list of [UpcomingOuting](#schema-upcomingouting) | Planned ordinary outings whose expected return is still in the future. Soonest start first. Not returned, cancelled, outside, or already past. |
 | `active_permission` | yes | [Permission](#schema-permission) or null | The newest permission in `pending`, `approved`, or `in_use`, if any. |
 | `recent_history` | yes | list of [HistoryEvent](#schema-historyevent) |  |
-| `notifications_unread` | yes | boolean | True when she has at least one permission decision she has not marked read. False when the inbox is empty or every row is read. |
+| `notifications_unread` | yes | boolean | True when `notifications_unread_count` is above zero. |
+| `notifications_unread_count` | yes | integer | Unread rows in her inbox, any age. Use it for the bell and the app badge. minimum 0. |
 
 ### <a id="schema-residentnotification"></a>ResidentNotification
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `id` | yes | uuid |  |
-| `permission_id` | yes | uuid | The permission this decision is about. |
-| `permission_type` | yes | `late_night` or `home_going` |  |
-| `decision` | yes | `approved` or `rejected` |  |
-| `place` | yes | string | The permission's short place, such as Women's College or Lucknow. |
-| `departure_at` | yes | string | When she planned to leave. The same instant as on the permission. |
-| `expected_return_at` | yes | string | When she planned to be back. The same instant as on the permission. |
-| `decided_by` | yes | string | Display name of the warden or provost who decided. Not a user id. |
-| `created_at` | yes | string | UTC instant when the decision was recorded. |
-| `unread` | yes | boolean |  |
+| `kind` | yes | `permission_decided` or `guest_stay_decided` or `resident_late` |  |
+| `record_id` | yes | uuid | The permission, guest stay, or outing. |
+| `occurred_at` | yes | string | When the row was written. |
+| `read_at` | yes | string or null |  |
+| `unread` | yes | boolean | Same as `read_at` being null. Kept for older clients. |
+| `needs_action` | yes | boolean | True for `resident_late` while she is still out. |
+| `outcome` | yes | `approved` or `declined` or `returned` or `None` | The decision, or `returned` on a late row once she is back. Null while she is still out. |
+| `decided_at` | yes | string or null |  |
+| `decided_by_name` | yes | string or null | The warden or provost who decided, or the gate staff who recorded her return. |
+| `place` | yes | string or null | Permission short place or outing place. Null for a guest stay. |
+| `guest_name` | yes | string or null | Set only for `guest_stay_decided`. |
+| `permission_id` | yes | string or null | Set only for `permission_decided`. Kept for older clients. |
+| `permission_type` | yes | `late_night` or `home_going` or `None` |  |
+| `decision` | yes | `approved` or `rejected` or `None` | Stored decision word. Kept for older clients; prefer `outcome`. |
+| `departure_at` | yes | string or null |  |
+| `expected_return_at` | yes | string or null | Permission or outing expected return. |
+| `decided_by` | yes | string or null | Same as `decided_by_name`. Kept for older clients. |
+| `created_at` | yes | string | Same as `occurred_at`. Kept for older clients. |
 
-### <a id="schema-residentnotificationlist"></a>ResidentNotificationList
+### <a id="schema-residentnotificationpage"></a>ResidentNotificationPage
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `items` | yes | list of [ResidentNotification](#schema-residentnotification) |  |
-
-### <a id="schema-residentnotificationsmarked"></a>ResidentNotificationsMarked
-
-| Field | Required | Type | Notes |
-|---|---|---|---|
-| `marked` | yes | integer | How many of her rows changed from unread to read. minimum 0. |
+| `next_cursor` | yes | string or null |  |
 
 ### <a id="schema-hallpass"></a>HallPass
 
@@ -5996,6 +6394,7 @@ One of: `ordinary`, `late_night`, `home_going`.
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `items` | yes | list of [HistoryItem](#schema-historyitem) |  |
+| `next_cursor` | yes | string or null | Pass as `cursor` for the next page. Null on the last page. |
 
 ### <a id="schema-destination"></a>Destination
 
@@ -6490,7 +6889,8 @@ the audit/write timestamp. No client-supplied time in this release.
 | `guests_should_have_left_count` | yes | integer |  |
 | `pending_guest_stay_count` | yes | integer |  |
 | `blocks` | yes | list of [BlockRegisterCounts](#schema-blockregistercounts) | The same counts for each block. Hall totals are the sum of these rows. |
-| `notifications_unread` | yes | boolean | True when the caller has an event in GET /api/v1/register/notifications after she last called POST /api/v1/register/notifications/read. |
+| `notifications_unread` | yes | boolean | True when `notifications_unread_count` is above zero. |
+| `notifications_unread_count` | yes | integer | Events unread by the caller, any age. Use it for the bell and the app badge. minimum 0. |
 
 ### <a id="schema-blockregistercounts"></a>BlockRegisterCounts
 

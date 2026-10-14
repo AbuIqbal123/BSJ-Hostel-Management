@@ -25,6 +25,7 @@ from app.shared.db import commit_request
 from app.shared.errors import ApiError, api_error_handler, validation_error_handler
 from app.shared.migrate import MIGRATIONS, SCHEMA_VERSION, applied_migrations, migrate
 from app.shared.auth.routes import router as auth_router
+from app.shared.devices.routes import router as devices_router
 from app.residents.home.routes import router as home_router
 from app.residents.account_routes import router as account_router
 from app.residents.notifications.routes import router as notifications_router
@@ -53,6 +54,7 @@ SPEC_PATH = Path(__file__).resolve().parent.parent / "openapi.yaml"
 DOCUMENTATION_PATHS = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
 ROUTERS = (
     auth_router,
+    devices_router,
     home_router,
     account_router,
     notifications_router,

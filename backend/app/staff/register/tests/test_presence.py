@@ -20,6 +20,7 @@ from app.dev_seed import (
 )
 
 
+UNREAD_FOR_WARDEN = 4
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "register-presence.json"
 BLOCK_A = "01b885ad-e40d-56a4-81ab-2371f654f558"
 BLOCK_B = "d032aad6-a203-5ea0-ba9a-3a9257edbfc8"
@@ -532,6 +533,7 @@ def expected_artifact() -> dict:
         "pending_guest_stay_count": sum(block["pending_guest_stay_count"] for block in blocks),
         "blocks": blocks,
         "notifications_unread": True,
+        "notifications_unread_count": UNREAD_FOR_WARDEN,
     }
     aisha_row = {
         "id": AISHA_ID,
@@ -577,6 +579,7 @@ def expected_artifact() -> dict:
             "pending_guest_stay_count": 0,
             "blocks": zero_blocks(),
             "notifications_unread": False,
+            "notifications_unread_count": 0,
         },
         "summary": summary,
         "residents": {

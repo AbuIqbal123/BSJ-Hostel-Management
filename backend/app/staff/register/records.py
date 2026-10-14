@@ -42,6 +42,7 @@ class RegisterSummary(BaseModel):
     pending_guest_stay_count: int
     blocks: list[BlockRegisterCounts]
     notifications_unread: bool = False
+    notifications_unread_count: int = 0
 
 
 class RegisterRow(BaseModel):
@@ -497,20 +498,40 @@ def list_late_returns(
 
 # Staff inbox events. Nothing writes a notification row: an event is a
 # permission or guest stay being requested (created_at) or an outing passing
-# grace (grace_ends_at). staff.notifications_read_at is the only stored state;
-# an event after it is unread.
+# grace (grace_ends_at), read from those records with its outcome so far.
+# Per caller, an event is read when it is at or before her mark-all instant
+# (staff.notifications_read_at, or her account creation before the first
+# mark-all) or has a row in staff_notification_reads.
 EVENTS_SQL = """
-SELECT events.kind, events.record_id, events.occurred_at,
-       users.full_name AS resident_name, rooms.label AS room_label
+SELECT events.id, events.kind, events.record_id, events.resident_id, events.occurred_at,
+       events.needs_action, events.outcome, events.decided_at,
+       users.full_name AS resident_name, rooms.label AS room_label,
+       blocks.id AS block_id, blocks.name AS block_name,
+       decider.full_name AS decided_by_name
 FROM (
-  SELECT 'permission_requested' AS kind, id AS record_id,
-         resident_id, created_at AS occurred_at
+  SELECT 'permission_requested:' || id AS id, 'permission_requested' AS kind,
+         id AS record_id, resident_id, created_at AS occurred_at,
+         status = 'pending' AS needs_action,
+         CASE status WHEN 'pending' THEN NULL WHEN 'rejected' THEN 'declined'
+           WHEN 'cancelled' THEN 'cancelled' ELSE 'approved' END AS outcome,
+         CASE status WHEN 'pending' THEN NULL WHEN 'cancelled' THEN updated_at
+           ELSE decided_at END AS decided_at,
+         CASE status WHEN 'cancelled' THEN resident_id ELSE decided_by END AS decider_id
   FROM permissions
   UNION ALL
-  SELECT 'guest_stay_requested', id, host_resident_id, created_at
+  SELECT 'guest_stay_requested:' || id, 'guest_stay_requested', id, host_resident_id,
+         created_at, status = 'pending',
+         CASE status WHEN 'pending' THEN NULL WHEN 'rejected' THEN 'declined'
+           WHEN 'cancelled' THEN 'cancelled' ELSE 'approved' END,
+         CASE status WHEN 'pending' THEN NULL WHEN 'cancelled' THEN updated_at
+           ELSE decided_at END,
+         CASE status WHEN 'cancelled' THEN host_resident_id ELSE decided_by END
   FROM guest_stays
   UNION ALL
-  SELECT 'resident_late', id, resident_id, grace_ends_at
+  SELECT 'resident_late:' || id, 'resident_late', id, resident_id, grace_ends_at,
+         status = 'outside',
+         CASE status WHEN 'returned' THEN 'returned' END,
+         returned_at, return_recorded_by
   FROM outings
   WHERE grace_ends_at < :now
     AND (status = 'outside' OR (status = 'returned' AND returned_at > grace_ends_at))
@@ -518,22 +539,91 @@ FROM (
 JOIN users ON users.id = events.resident_id
 JOIN residents ON residents.user_id = events.resident_id
 JOIN rooms ON rooms.id = residents.room_id
+JOIN blocks ON blocks.id = rooms.block_id
+LEFT JOIN users AS decider ON decider.id = events.decider_id
+"""
+
+# The caller's view of EVENTS_SQL: adds read_at. Needs :now, :user_id, :mark.
+READ_EVENTS_SQL = f"""
+SELECT read_events.*,
+       CASE
+         WHEN reads.read_at IS NOT NULL THEN reads.read_at
+         WHEN read_events.occurred_at <= :mark THEN :mark
+       END AS read_at
+FROM ({EVENTS_SQL}) AS read_events
+LEFT JOIN staff_notification_reads AS reads
+  ON reads.user_id = :user_id AND reads.notification_id = read_events.id
 """
 
 
 def notifications_read_at(connection: sqlite3.Connection, user_id: str) -> str:
+    """Her mark-all instant. Before her first mark-all, her account creation."""
     row = connection.execute(
-        "SELECT notifications_read_at FROM staff WHERE user_id = ?", (user_id,)
+        """
+        SELECT COALESCE(staff.notifications_read_at, users.created_at)
+        FROM users LEFT JOIN staff ON staff.user_id = users.id
+        WHERE users.id = ?
+        """,
+        (user_id,),
     ).fetchone()
     return "" if row is None or row[0] is None else row[0]
 
 
-def unread_count(connection: sqlite3.Connection, user_id: str, now_text: str) -> int:
+def _read_params(connection: sqlite3.Connection, user_id: str, now_text: str) -> dict:
+    return {"now": now_text, "user_id": user_id, "mark": notifications_read_at(connection, user_id)}
+
+
+def unread_count(
+    connection: sqlite3.Connection, user_id: str, now_text: str | None = None, *, up_to: str | None = None
+) -> int:
+    params = _read_params(connection, user_id, now_text or _now_text())
+    params["up_to"] = up_to or params["now"]
     return connection.execute(
-        f"SELECT COUNT(*) FROM ({EVENTS_SQL}) WHERE occurred_at > :read_at",
-        {"now": now_text, "read_at": notifications_read_at(connection, user_id)},
+        f"""
+        SELECT COUNT(*) FROM ({READ_EVENTS_SQL})
+        WHERE read_at IS NULL AND occurred_at <= :up_to
+        """,
+        params,
     ).fetchone()[0]
 
 
-def has_unread(connection: sqlite3.Connection, user_id: str) -> bool:
-    return unread_count(connection, user_id, clock.format_instant(clock.utc_now())) > 0
+def list_events(
+    connection: sqlite3.Connection,
+    user_id: str,
+    *,
+    now_text: str,
+    since: str,
+    filters: list[str],
+    extra: dict,
+    limit: int,
+) -> list[sqlite3.Row]:
+    params = {**_read_params(connection, user_id, now_text), **extra, "since": since, "limit": limit}
+    where = " AND ".join(["occurred_at >= :since", *filters])
+    return connection.execute(
+        f"""
+        SELECT * FROM ({READ_EVENTS_SQL})
+        WHERE {where}
+        ORDER BY occurred_at DESC, id DESC
+        LIMIT :limit
+        """,
+        params,
+    ).fetchall()
+
+
+_EVENT_TABLES = {
+    "permission_requested": "SELECT 1 FROM permissions WHERE id = ?",
+    "guest_stay_requested": "SELECT 1 FROM guest_stays WHERE id = ?",
+    "resident_late": """
+        SELECT 1 FROM outings WHERE id = ? AND grace_ends_at < ?
+          AND (status = 'outside' OR (status = 'returned' AND returned_at > grace_ends_at))
+    """,
+}
+
+
+def event_exists(connection: sqlite3.Connection, notification_id: str, now_text: str) -> bool:
+    kind, _, record_id = notification_id.partition(":")
+    sql = _EVENT_TABLES.get(kind)
+    if sql is None or not record_id:
+        return False
+    params = (record_id, now_text) if kind == "resident_late" else (record_id,)
+    return connection.execute(sql, params).fetchone() is not None
