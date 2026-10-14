@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigation } from "expo-router";
+import { useLocalSearchParams, useNavigation } from "expo-router";
 import { Pressable, ScrollView, SectionList, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -86,11 +86,12 @@ export default function OutNowScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { staffRequest } = useSession();
+  const params = useLocalSearchParams<{ tab?: string }>();
   const [blocks, setBlocks] = useState<HallBlock[]>([]);
   const [lateCount, setLateCount] = useState<number | null>(null);
   const [blockId, setBlockId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [tab, setTab] = useState<Tab>("ordinary");
+  const [tab, setTab] = useState<Tab>(params.tab === "late" ? "late" : "ordinary");
   const [outRows, setOutRows] = useState<OutRow[] | null>(null);
   const [lateState, setLateState] = useState<LateState>("now");
   const [source, setSource] = useState<OutingKind | null>(null);
@@ -99,6 +100,12 @@ export default function OutNowScreen() {
   const [lateTotal, setLateTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const outGen = useRef(0);
+
+  useEffect(() => {
+    if (params.tab === "late") {
+      setTab("late");
+    }
+  }, [params.tab]);
   const lateGen = useRef(0);
   const lateLoading = useRef(false);
 

@@ -102,6 +102,7 @@ export default function HistoryScreen() {
   const [range, setRange] = useState<DayRangeValue>({ from: null, to: null });
   const [items, setItems] = useState<HistoryItem[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const [next, setNext] = useState<string | null>(null);
   const requestId = useRef(0);
 
   const load = useCallback(() => {
@@ -117,8 +118,24 @@ export default function HistoryScreen() {
       }
       setFailed(false);
       setItems(result.items);
+      setNext(result.next);
     });
   }, [kind, loadHistory, range]);
+
+  // Older pages load only when she asks, so the phone never holds years of rows.
+  const older = useCallback(() => {
+    if (!next) {
+      return;
+    }
+    const id = requestId.current;
+    void loadHistory({ kind, from: range.from, to: range.to, cursor: next }).then((result) => {
+      if (id !== requestId.current || result.error !== null) {
+        return;
+      }
+      setItems((current) => [...(current ?? []), ...result.items]);
+      setNext(result.next);
+    });
+  }, [kind, loadHistory, next, range]);
 
   useFocusEffect(load);
 
@@ -179,6 +196,11 @@ export default function HistoryScreen() {
           ))}
         </View>
       ) : null}
+      {next ? (
+        <Pressable accessibilityRole="button" onPress={older} hitSlop={12} style={styles.older}>
+          <Text style={[text.button, { color: colors.forest }]}>Show older</Text>
+        </Pressable>
+      ) : null}
     </ScrollView>
   );
 }
@@ -217,5 +239,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   cellWhen: { flex: 1 },
+  older: { alignSelf: "center", minHeight: 44, justifyContent: "center" },
   pressed: { opacity: 0.6 },
 });

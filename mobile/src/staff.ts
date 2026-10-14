@@ -46,7 +46,7 @@ export type RegisterSummary = {
   pendingPermissions: number;
   pendingGuests: number;
   blocks: HallBlock[];
-  unread: boolean;
+  unread: number;
 };
 
 export function readSummary(value: unknown): RegisterSummary | null {
@@ -66,7 +66,7 @@ export function readSummary(value: unknown): RegisterSummary | null {
       const name = str(block?.name);
       return id && code && name ? [{ id, code, name }] : [];
     }),
-    unread: body.notifications_unread === true,
+    unread: num(body.notifications_unread_count),
   };
 }
 
@@ -417,38 +417,4 @@ export function dueLabel(dueAt: string): string {
 export function lateDetail(row: LateReturn): string {
   const back = row.returnedAt ? `back ${clockDay(row.returnedAt)}` : "";
   return [row.room, OUTING_WORDS[row.kind], dueLabel(row.dueAt), back].filter(Boolean).join(" · ");
-}
-
-export type StaffNotice = {
-  key: string;
-  sentence: string;
-  room: string;
-  at: string;
-  unread: boolean;
-};
-
-const NOTICE_WORDS: Record<string, (name: string) => string> = {
-  permission_requested: (name) => `${name} asked for a permission`,
-  guest_stay_requested: (name) => `${name} asked for a guest stay`,
-  resident_late: (name) => `${name} is late back`,
-};
-
-export function readStaffNotices(value: unknown): StaffNotice[] {
-  return items(value).flatMap((item) => {
-    const words = NOTICE_WORDS[String(item.kind)];
-    const id = str(item.record_id);
-    const at = str(item.occurred_at) ?? "";
-    if (!words || !id) {
-      return [];
-    }
-    return [
-      {
-        key: `${String(item.kind)}-${id}`,
-        sentence: words(str(item.resident_name) ?? ""),
-        room: str(item.room_label) ?? "",
-        at,
-        unread: item.unread === true,
-      },
-    ];
-  });
 }
