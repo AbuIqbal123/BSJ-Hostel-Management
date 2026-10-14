@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import GATE_PHRASE, PROVOST_PHRASE, WARDEN_PHRASE
+from app.dev_seed import GATE_PHRASE, PROVOST_PHRASE, WARDEN_PHRASE, joined
 from app.staff.register.tests.staff_desk_records import (
     OUT_LATE_NOW,
     OUT_LATE_PAST,
@@ -202,6 +202,7 @@ def test_new_staff_inbox_starts_read(database_path: Path, monkeypatch: pytest.Mo
         store_outings(database_path)
         store_guest_stays(database_path)
         provost = sign_in(client, "provost.halima", PROVOST_PHRASE)
+        first_phrase = joined("Nadia", "desk", "41")
         created = client.post(
             "/api/v1/admin/staff",
             headers=auth(provost),
@@ -210,11 +211,11 @@ def test_new_staff_inbox_starts_read(database_path: Path, monkeypatch: pytest.Mo
                 "username": "warden.nadia",
                 "role": "warden",
                 "job_title": "Warden",
-                "temporary_password": "nadia-first-phrase-01",
+                "temporary_password": first_phrase,
             },
         )
         assert created.status_code == 201
-        nadia = sign_in(client, "warden.nadia", "nadia-first-phrase-01")
+        nadia = sign_in(client, "warden.nadia", first_phrase)
         summary = client.get("/api/v1/register/summary", headers=auth(nadia)).json()
         assert summary["notifications_unread"] is False
         listed = client.get("/api/v1/register/notifications", headers=auth(nadia)).json()
