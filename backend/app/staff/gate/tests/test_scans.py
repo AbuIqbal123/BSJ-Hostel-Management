@@ -229,11 +229,19 @@ def test_gate_scans_and_activity(
         assert rr["recorded_at"] == "2026-09-30T12:01:00Z"
         assert "is_late" not in rr
         assert "status" not in rr
+        assert rr["outing_type"] == "ordinary"
+        assert rr["place"] == "Maulana Azad Library"
+        assert rr["minutes_late"] == 0
+        assert rr["expected_return_at"] == "2026-09-30T12:30:00Z"
         assert set(rr) == {
             "recorded_at",
             "return_timeliness",
             "returned_at",
             "return_recorded_by_name",
+            "outing_type",
+            "place",
+            "minutes_late",
+            "expected_return_at",
         }
 
         activity = client.get("/api/v1/gate/activity", headers=headers)
@@ -336,6 +344,34 @@ def seed_clashing_return(path: Path) -> None:
         connection.commit()
     finally:
         connection.close()
+
+
+def test_late_return_reports_minutes_past_expected_return(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.main import app
+    from app.shared import clock
+
+    movable = MovableClock(NOW)
+    monkeypatch.setattr(clock, "utc_now", movable.utc_now)
+    with TestClient(app) as client:
+        issue_people(database_path)
+        plan_library(database_path)
+        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
+        headers = {"Authorization": f"Bearer {gate}"}
+        assert client.post("/api/v1/gate/scans", headers=headers, json={"qr_payload": QR}).status_code == 200
+        # returned 13:45Z, past grace → late, 75 minutes after expected return
+        movable.moment = datetime(2026, 9, 30, 13, 45, 30, tzinfo=timezone.utc)
+        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
+        headers = {"Authorization": f"Bearer {gate}"}
+        returned = client.post("/api/v1/gate/scans", headers=headers, json={"qr_payload": QR})
+        assert returned.status_code == 200
+        rr = returned.json()["return_record"]
+        assert rr["return_timeliness"] == "late"
+        assert rr["outing_type"] == "ordinary"
+        assert rr["place"] == "Maulana Azad Library"
+        assert rr["minutes_late"] == 75
+        assert rr["expected_return_at"] == "2026-09-30T12:30:00Z"
 
 
 def test_permission_exit_refuses_when_return_already_planned(
