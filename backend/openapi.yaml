@@ -2027,7 +2027,7 @@ paths:
         Caller: warden or provost. Defaults to `pending`. Ordered by
         `created_at`, newest first (`order=newest`). Pass `order=oldest` for
         oldest first. Optional filters narrow the page: `block_id` is the block
-        of the resident's current room; `type` is late-night or home going;
+        of the resident's current room; `permission_type` is late-night or home going;
         `created_from` and `created_to` are inclusive UTC bounds on
         `created_at`; `q` matches the resident's name or room label.
         `order=departure` sorts by departure, soonest first. Each item is a PermissionReview (includes resident
