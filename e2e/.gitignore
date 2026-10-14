@@ -1,0 +1,4 @@
+node_modules/
+# run output (reports, traces, videos); the replay cache under .e2e/cache is committed
+.e2e/*
+!.e2e/cache/
