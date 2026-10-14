@@ -24,6 +24,8 @@ jobs:
           cache-dependency-path: backend/requirements.txt
       - name: Install
         run: pip install -r requirements.txt
+      - name: Lint
+        run: ruff check .
       - name: Run checks
         run: |
           export APP_SECRET_KEY="$(python -c 'print("".join(("hall", "-test-", "signing-", "key-", "0123456789abcdef")))')"
