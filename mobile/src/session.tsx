@@ -80,6 +80,7 @@ export type HallPass = {
   fullName: string;
   roomLabel: string;
   place: string | null;
+  outingType: "ordinary" | "late_night" | "home_going" | null;
   expectedReturnAt: string | null;
   qrVisible: boolean;
   qrPayload: string | null;
@@ -490,6 +491,10 @@ function readHallPass(value: unknown): HallPass | null {
     fullName: value.full_name,
     roomLabel: value.room_label,
     place: textOrNull(value.place),
+    outingType:
+      value.outing_type === "ordinary" || value.outing_type === "late_night" || value.outing_type === "home_going"
+        ? value.outing_type
+        : null,
     expectedReturnAt: textOrNull(value.expected_return_at),
     qrVisible: value.qr_visible,
     qrPayload: value.qr_visible ? payload : null,
