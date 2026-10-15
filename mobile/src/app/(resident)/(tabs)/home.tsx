@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import { BackHandler, InteractionManager, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated, { Easing, FadeIn, FadeOut, LinearTransition, ReduceMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { Bell } from "@/components/bell";
 import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { TextField } from "@/components/text-field";
 import { formatWhenParts, utcInstant } from "@/format-when";
+import { scheduleOutingEnding, setBadge } from "@/push";
 import { outingLocked, takeOutingLeft, useSession, type DestinationItem, type UpcomingOuting } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
@@ -105,7 +106,7 @@ export default function HomeScreen() {
   const [windowOpen, setWindowOpen] = useState(false);
   const [upcoming, setUpcoming] = useState<UpcomingOuting[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [notificationsUnread, setNotificationsUnread] = useState(false);
+  const [notificationsUnread, setNotificationsUnread] = useState(0);
   const [places, setPlaces] = useState<DestinationItem[] | null>(null);
   const [destinationId, setDestinationId] = useState<string | null>(null);
   const [leaveAt, setLeaveAt] = useState<Date | null>(null);
@@ -136,6 +137,8 @@ export default function HomeScreen() {
       setWindowOpen(result.home.windowOpen);
       setUpcoming(result.home.upcoming);
       setNotificationsUnread(result.home.notificationsUnread);
+      setBadge(result.home.notificationsUnread);
+      void scheduleOutingEnding(result.home.currentOuting);
       setLoaded(true);
     });
     return () => {
@@ -352,20 +355,7 @@ export default function HomeScreen() {
               <Text selectable style={[text.hallName, styles.title, { color: colors.ink }]}>
                 {`Welcome, ${fullName ?? user.full_name}`}
               </Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Notifications"
-                hitSlop={12}
-                onPress={() => {
-                  router.push("/notifications");
-                }}
-                style={[styles.bell, { backgroundColor: colors.ink }]}
-              >
-                <Feather name="bell" size={16} color={colors.paper} />
-                {notificationsUnread ? (
-                  <View style={[styles.dot, { backgroundColor: colors.forest, borderColor: colors.paper }]} />
-                ) : null}
-              </Pressable>
+              <Bell count={notificationsUnread} href="/notifications" />
             </View>
             {room ? (
               <Text selectable style={[text.body, { color: colors.inkSoft }]}>
@@ -436,22 +426,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 16,
-  },
-  bell: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dot: {
-    position: "absolute",
-    top: 1,
-    right: 1,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    borderWidth: 1.5,
   },
   title: { flex: 1, textAlign: "left" },
   fields: { gap: 16 },

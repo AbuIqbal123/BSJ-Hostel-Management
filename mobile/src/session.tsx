@@ -12,6 +12,8 @@ import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
+import { pushToken } from "@/push";
+
 const SESSION_KEY = "bsj.session";
 
 export type HallRole = "resident" | "gate" | "warden" | "provost";
@@ -66,7 +68,8 @@ export type ResidentHome = {
   guestStays: number;
   windowOpen: boolean;
   upcoming: UpcomingOuting[];
-  notificationsUnread: boolean;
+  notificationsUnread: number;
+  currentOuting: { id: string; expectedReturnAt: string } | null;
 };
 
 export type ResidentHomeResult =
@@ -104,22 +107,7 @@ export type HistoryItem = {
 
 export type HistoryResult =
   | { error: string; items?: undefined }
-  | { error: null; items: HistoryItem[] };
-
-export type HallNotification = {
-  id: string;
-  permissionId: string;
-  permissionType: "late_night" | "home_going";
-  decision: "approved" | "rejected";
-  place: string;
-  departureAt: string;
-  expectedReturnAt: string;
-  decidedBy: string;
-};
-
-export type NotificationListResult =
-  | { error: string; items?: undefined }
-  | { error: null; items: HallNotification[] };
+  | { error: null; items: HistoryItem[]; next: string | null };
 
 export type GuestStayCard = {
   id: string;
@@ -282,15 +270,14 @@ type SessionValue = {
     kind?: HistoryKind | "all";
     from?: string | null;
     to?: string | null;
+    cursor?: string | null;
   }) => Promise<HistoryResult>;
-  loadNotifications: () => Promise<NotificationListResult>;
-  markNotificationsRead: () => Promise<void>;
   loadGuestStays: () => Promise<GuestListResult>;
   loadGuestStay: (guestStayId: string) => Promise<GuestResult>;
   submitGuestStay: (body: GuestStayCreate) => Promise<string | null>;
   updateGuestStay: (guestStayId: string, body: GuestStayCreate) => Promise<string | null>;
   cancelGuestStay: (guestStayId: string) => Promise<HallFailure | null>;
-  /** Staff reads and writes under /api/v1. A body makes it a POST. */
+  /** Reads and writes under /api/v1 for any signed-in role. A body makes it a POST. */
   staffRequest: (path: string, body?: unknown) => Promise<StaffReply>;
 };
 
@@ -427,12 +414,21 @@ function readUpcoming(value: Record<string, unknown>): UpcomingOuting[] {
   return items;
 }
 
+function readCurrentOuting(value: unknown): ResidentHome["currentOuting"] {
+  if (!isRecord(value) || typeof value.id !== "string" || typeof value.expected_return_at !== "string") {
+    return null;
+  }
+  if (value.status !== "planned" && value.status !== "outside") {
+    return null;
+  }
+  return { id: value.id, expectedReturnAt: value.expected_return_at };
+}
+
 function readResidentHome(value: unknown): ResidentHome | null {
   if (
     !isRecord(value) ||
     !isRecord(value.resident) ||
-    typeof value.ordinary_outing_active !== "boolean" ||
-    typeof value.notifications_unread !== "boolean"
+    typeof value.ordinary_outing_active !== "boolean"
   ) {
     return null;
   }
@@ -462,7 +458,8 @@ function readResidentHome(value: unknown): ResidentHome | null {
     guestStays: count(resident.guest_stays),
     windowOpen: value.ordinary_outing_active,
     upcoming: readUpcoming(value),
-    notificationsUnread: value.notifications_unread,
+    notificationsUnread: count(value.notifications_unread_count),
+    currentOuting: readCurrentOuting(value.current_outing),
   };
 }
 
@@ -561,45 +558,6 @@ const GUEST_STATUS = ["pending", "approved", "rejected", "cancelled", "departed"
 
 function guestStatus(value: unknown): GuestStayCard["status"] | null {
   return GUEST_STATUS.find((status) => status === value) ?? null;
-}
-
-function readNotifications(value: unknown): HallNotification[] | null {
-  if (!isRecord(value) || !Array.isArray(value.items)) {
-    return null;
-  }
-  const items: HallNotification[] = [];
-  for (const item of value.items) {
-    if (!isRecord(item)) {
-      return null;
-    }
-    if (item.permission_type !== "late_night" && item.permission_type !== "home_going") {
-      return null;
-    }
-    if (item.decision !== "approved" && item.decision !== "rejected") {
-      return null;
-    }
-    if (
-      typeof item.id !== "string" ||
-      typeof item.permission_id !== "string" ||
-      typeof item.place !== "string" ||
-      typeof item.departure_at !== "string" ||
-      typeof item.expected_return_at !== "string" ||
-      typeof item.decided_by !== "string"
-    ) {
-      return null;
-    }
-    items.push({
-      id: item.id,
-      permissionId: item.permission_id,
-      permissionType: item.permission_type,
-      decision: item.decision,
-      place: item.place,
-      departureAt: item.departure_at,
-      expectedReturnAt: item.expected_return_at,
-      decidedBy: item.decided_by,
-    });
-  }
-  return items;
 }
 
 function readGuestCard(item: Record<string, unknown>): GuestStayCard | null {
@@ -820,6 +778,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     sessionRef.current = session;
   }, [session]);
 
+  const pushTokenRef = useRef<string | null>(null);
+
   const signIn = useCallback(async (username: string, password: string) => {
     try {
       const response = await hallFetch("/api/v1/auth/login", {
@@ -994,6 +954,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     if (sessionRef.current) {
       try {
+        if (pushTokenRef.current) {
+          await authorized("/api/v1/devices/push-token", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: pushTokenRef.current }),
+          });
+          pushTokenRef.current = null;
+        }
         await authorized("/api/v1/auth/logout", { method: "POST" });
       } catch {
         // The phone still signs out when the hall cannot be reached.
@@ -1003,6 +971,34 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setSession(null);
     await SecureStore.deleteItemAsync(SESSION_KEY);
   }, [authorized]);
+
+  const signedInAs = session?.user.id ?? null;
+
+  // Ask for push after sign-in, never before. The OS shows its prompt once; later launches only refresh the token.
+  useEffect(() => {
+    if (!signedInAs || Platform.OS === "web") {
+      return;
+    }
+    let active = true;
+    void pushToken()
+      .then(async (token) => {
+        if (!active || !token) {
+          return;
+        }
+        const response = await authorized("/api/v1/devices/push-token", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token, platform: Platform.OS === "ios" ? "ios" : "android" }),
+        });
+        if (response.ok) {
+          pushTokenRef.current = token;
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [authorized, signedInAs]);
 
   const loadResidentHome = useCallback(async (): Promise<ResidentHomeResult> => {
     if (!sessionRef.current) {
@@ -1032,6 +1028,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       kind?: HistoryKind | "all";
       from?: string | null;
       to?: string | null;
+      cursor?: string | null;
     }): Promise<HistoryResult> => {
       if (!sessionRef.current) {
         return { error: "Sign in again" };
@@ -1046,6 +1043,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (filters?.to && filters.to.length > 0) {
         query.set("to", filters.to);
       }
+      if (filters?.cursor) {
+        query.set("cursor", filters.cursor);
+      }
       const suffix = query.toString();
       const path = suffix.length > 0 ? `/api/v1/me/history?${suffix}` : "/api/v1/me/history";
       try {
@@ -1053,47 +1053,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (!response.ok) {
           return { error: await errorMessage(response) };
         }
-        const items = readHistory(await response.json());
+        const body: unknown = await response.json();
+        const items = readHistory(body);
         if (!items) {
           return { error: "The hall could not be reached" };
         }
-        return { error: null, items };
+        const next = isRecord(body) && typeof body.next_cursor === "string" ? body.next_cursor : null;
+        return { error: null, items, next };
       } catch {
         return { error: "The hall could not be reached" };
       }
     },
     [],
   );
-
-  const loadNotifications = useCallback(async (): Promise<NotificationListResult> => {
-    if (!sessionRef.current) {
-      return { error: "Sign in again" };
-    }
-    try {
-      const response = await authorized("/api/v1/me/notifications", { method: "GET" });
-      if (!response.ok) {
-        return { error: await errorMessage(response) };
-      }
-      const items = readNotifications(await response.json());
-      if (!items) {
-        return { error: "The hall could not be reached" };
-      }
-      return { error: null, items };
-    } catch {
-      return { error: "The hall could not be reached" };
-    }
-  }, []);
-
-  const markNotificationsRead = useCallback(async (): Promise<void> => {
-    if (!sessionRef.current) {
-      return;
-    }
-    try {
-      await authorized("/api/v1/me/notifications/read", { method: "POST" });
-    } catch {
-      return;
-    }
-  }, []);
 
   const loadGuestStays = useCallback(async (): Promise<GuestListResult> => {
     if (!sessionRef.current) {
@@ -1450,8 +1422,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       cancelPermission,
       loadHallPass,
       loadHistory,
-      loadNotifications,
-      markNotificationsRead,
       loadGuestStays,
       loadGuestStay,
       submitGuestStay,
@@ -1480,8 +1450,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       cancelPermission,
       loadHallPass,
       loadHistory,
-      loadNotifications,
-      markNotificationsRead,
       loadGuestStays,
       loadGuestStay,
       submitGuestStay,

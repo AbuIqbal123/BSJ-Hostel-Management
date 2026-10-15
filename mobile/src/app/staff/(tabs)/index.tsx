@@ -1,12 +1,13 @@
 import { useCallback, useState } from "react";
-import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { Bell } from "@/components/bell";
 import { DenseRow } from "@/components/dense-row";
 import { HallButton } from "@/components/hall-button";
 import { SectionHead } from "@/components/section-head";
+import { setBadge } from "@/push";
 import { roleLabel, useSession } from "@/session";
 import { readActivity, readSummary, readsRegister, trimStop, type GateEvent, type RegisterSummary } from "@/staff";
 import { useHallColors } from "@/theme/colors";
@@ -63,7 +64,11 @@ export default function StaffHomeScreen() {
       if (register) {
         void staffRequest("/register/summary").then((reply) => {
           if (active && reply.ok) {
-            setSummary(readSummary(reply.data));
+            const next = readSummary(reply.data);
+            setSummary(next);
+            if (next) {
+              setBadge(next.unread);
+            }
           }
         });
       }
@@ -89,20 +94,7 @@ export default function StaffHomeScreen() {
           <Text numberOfLines={1} style={[text.hallName, styles.title, { color: colors.ink }]}>
             {`Welcome, ${user.full_name}`}
           </Text>
-          {register ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Notifications"
-              hitSlop={12}
-              onPress={() => router.push("/staff/notifications")}
-              style={[styles.bell, { backgroundColor: colors.ink }]}
-            >
-              <Feather name="bell" size={16} color={colors.paper} />
-              {summary?.unread ? (
-                <View style={[styles.dot, { backgroundColor: colors.forest, borderColor: colors.paper }]} />
-              ) : null}
-            </Pressable>
-          ) : null}
+          {register ? <Bell count={summary?.unread ?? 0} href="/staff/notifications" /> : null}
         </View>
         <Text numberOfLines={1} style={[text.body, { color: colors.inkSoft }]}>
           {roleLabel(user.role)}
@@ -155,16 +147,6 @@ const styles = StyleSheet.create({
   identity: { gap: 16 },
   welcomeRow: { flexDirection: "row", alignItems: "center", gap: 16 },
   title: { flex: 1, textAlign: "left" },
-  bell: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
-  dot: {
-    position: "absolute",
-    top: 1,
-    right: 1,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    borderWidth: 1.5,
-  },
   stats: { flexDirection: "row", gap: 12 },
   stat: {
     flex: 1,
