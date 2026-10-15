@@ -10,7 +10,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import RESIDENT_PHRASE, WARDEN_PHRASE, joined
+from app.shared.testing_env import joined
+from app.shared.testing_env import role_credential
 
 
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "resident-notifications.json"
@@ -90,7 +91,7 @@ def issue_people(path: Path) -> None:
               id, role, username, full_name, password_hash, status, created_at, updated_at
             ) VALUES (?, 'warden', 'warden.sara', 'Sara Malik', ?, 'active', ?, ?)
             """,
-            (WARDEN_ID, hash_password(WARDEN_PHRASE), CREATED, CREATED),
+            (WARDEN_ID, hash_password(role_credential("warden")), CREATED, CREATED),
         )
         connection.execute(
             "INSERT INTO staff (user_id, job_title) VALUES (?, 'Warden')",
@@ -101,7 +102,7 @@ def issue_people(path: Path) -> None:
                 AISHA_ID,
                 "24-GLLB-118",
                 "Aisha Khan",
-                RESIDENT_PHRASE,
+                role_credential("resident"),
                 ROOM_B204,
                 "B.A. LL.B. (Hons.)",
                 "Rashid Khan",
@@ -187,9 +188,9 @@ def test_resident_notification_inbox(database_path: Path, monkeypatch: pytest.Mo
             "unauthenticated",
             "Sign in again.",
         )
-        aisha = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        aisha = sign_in(client, "24-GLLB-118", role_credential("resident"))
         zara = sign_in(client, "24-BA-003", joined("resident", "30"))
-        warden = sign_in(client, "warden.sara", WARDEN_PHRASE)
+        warden = sign_in(client, "warden.sara", role_credential("warden"))
         assert_error(
             client.get("/api/v1/me/notifications", headers=auth(warden)),
             403,
