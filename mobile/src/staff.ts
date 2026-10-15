@@ -46,6 +46,7 @@ export type RegisterSummary = {
   pendingPermissions: number;
   pendingGuests: number;
   blocks: HallBlock[];
+  unread: boolean;
 };
 
 export function readSummary(value: unknown): RegisterSummary | null {
@@ -65,6 +66,7 @@ export function readSummary(value: unknown): RegisterSummary | null {
       const name = str(block?.name);
       return id && code && name ? [{ id, code, name }] : [];
     }),
+    unread: body.notifications_unread === true,
   };
 }
 
@@ -109,7 +111,7 @@ export type OutRow = {
   late: boolean;
   sortKey: string;
   kind: OutingKind | null;
-  dueAt: string | null;
+  block: string;
 };
 
 function outingKind(value: unknown): OutingKind | null {
@@ -135,7 +137,8 @@ export function shortDay(day: string): string {
   return `${date} ${month?.slice(0, 3) ?? ""}`.trim();
 }
 
-export function readOutRows(value: unknown, late: boolean): OutRow[] {
+/** One `state=out` page: late comes from the row, the block from `block_name`. */
+export function readOutRows(value: unknown): OutRow[] {
   return items(value).flatMap((item) => {
     const id = str(item.id);
     const name = str(item.full_name);
@@ -144,6 +147,7 @@ export function readOutRows(value: unknown, late: boolean): OutRow[] {
       return [];
     }
     const back = str(item.expected_return_at);
+    const late = item.state === "late";
     return [
       {
         id,
@@ -154,46 +158,10 @@ export function readOutRows(value: unknown, late: boolean): OutRow[] {
         late,
         sortKey: back ?? "",
         kind: outingKind(item.outing_type),
-        dueAt: back,
+        block: str(item.block_name) ?? "",
       },
     ];
   });
-}
-
-/** Room labels are written as `{block code}-{number}` by the hall office. */
-export function blockCode(room: string): string {
-  return room.split("-")[0] ?? "";
-}
-
-/** A resident out on an approved late-night or home-going permission. */
-export function permissionOutRow(item: PermissionReview): OutRow {
-  return {
-    id: item.residentId,
-    name: item.name,
-    room: item.room,
-    place: item.place,
-    backBy: backByLabel(item.expectedReturnAt, false),
-    late: false,
-    sortKey: item.expectedReturnAt,
-    kind: item.kind,
-    dueAt: item.expectedReturnAt,
-  };
-}
-
-/** Late residents stay on the late list only, including when the outing is a permission. */
-export function splitOutLists(outside: OutRow[], late: OutRow[], permission: OutRow[]): {
-  late: OutRow[];
-  ordinary: OutRow[];
-  permission: OutRow[];
-} {
-  const lateIds = new Set(late.map((row) => row.id));
-  const stillOnTime = permission.filter((row) => !lateIds.has(row.id));
-  const onTimeIds = new Set(stillOnTime.map((row) => row.id));
-  return {
-    late,
-    ordinary: outside.filter((row) => !onTimeIds.has(row.id)),
-    permission: stillOnTime,
-  };
 }
 
 export type PermissionReview = {
@@ -395,7 +363,55 @@ export function readScan(value: unknown): ScanResult | null {
   return null;
 }
 
-/** `45 min`, `2 h 10 min`, or `3 days`. */
+export type LateReturn = {
+  id: string;
+  name: string;
+  room: string;
+  block: string;
+  kind: OutingKind;
+  dueAt: string;
+  returnedAt: string | null;
+  minutesLate: number;
+};
+
+export function readLateReturns(value: unknown): LateReturn[] {
+  return items(value).flatMap((item) => {
+    const id = str(item.id);
+    const kind = outingKind(item.source);
+    const dueAt = str(item.due_at);
+    if (!id || !kind || !dueAt) {
+      return [];
+    }
+    return [
+      {
+        id,
+        name: str(item.resident_name) ?? "",
+        room: str(item.room_label) ?? "",
+        block: str(item.block_name) ?? "",
+        kind,
+        dueAt,
+        returnedAt: str(item.returned_at),
+        minutesLate: num(item.minutes_late),
+      },
+    ];
+  });
+}
+
+/** How late: minutes, hours, or days. */
+export function lateFor(minutes: number): string {
+  if (minutes < 60) {
+    return `${Math.max(0, minutes)} min late`;
+  }
+  if (minutes < 24 * 60) {
+    const rest = minutes % 60;
+    const hours = Math.floor(minutes / 60);
+    return rest ? `${hours} h ${rest} min late` : `${hours} h late`;
+  }
+  const days = Math.floor(minutes / (24 * 60));
+  return `${days} ${days === 1 ? "day" : "days"} late`;
+}
+
+/** `45 min`, `2 h 10 min`, or `3 days`. Used as `Late by …` on the return scan card. */
 function lateSpan(minutes: number): string {
   if (minutes < 60) {
     return `${minutes} min`;
@@ -408,21 +424,52 @@ function lateSpan(minutes: number): string {
   return `${days} ${days === 1 ? "day" : "days"}`;
 }
 
-/** How long past the due time: minutes, hours, or days. */
-export function lateBy(dueAt: string, now: Date = new Date()): string {
-  const minutes = Math.max(0, Math.floor((now.getTime() - new Date(dueAt).getTime()) / 60_000));
-  if (minutes < 60) {
-    return `${minutes} min late`;
-  }
-  if (minutes < 24 * 60) {
-    const rest = minutes % 60;
-    return rest ? `${Math.floor(minutes / 60)} h ${rest} min late` : `${minutes / 60} h late`;
-  }
-  const days = Math.floor(minutes / (24 * 60));
-  return `${days} ${days === 1 ? "day" : "days"} late`;
+function clockDay(iso: string | null): string {
+  const parts = iso ? formatWhenParts(iso) : null;
+  return parts ? `${parts.clock}, ${shortDay(parts.day)}` : "";
 }
 
 export function dueLabel(dueAt: string): string {
-  const parts = formatWhenParts(dueAt);
-  return parts ? `due ${parts.clock}, ${shortDay(parts.day)}` : "";
+  const when = clockDay(dueAt);
+  return when ? `due ${when}` : "";
+}
+
+/** `due 9:30 PM, 13 Oct`, then `back 10:05 PM, 13 Oct` once she has returned. */
+export function lateDetail(row: LateReturn): string {
+  const back = row.returnedAt ? `back ${clockDay(row.returnedAt)}` : "";
+  return [row.room, OUTING_WORDS[row.kind], dueLabel(row.dueAt), back].filter(Boolean).join(" · ");
+}
+
+export type StaffNotice = {
+  key: string;
+  sentence: string;
+  room: string;
+  at: string;
+  unread: boolean;
+};
+
+const NOTICE_WORDS: Record<string, (name: string) => string> = {
+  permission_requested: (name) => `${name} asked for a permission`,
+  guest_stay_requested: (name) => `${name} asked for a guest stay`,
+  resident_late: (name) => `${name} is late back`,
+};
+
+export function readStaffNotices(value: unknown): StaffNotice[] {
+  return items(value).flatMap((item) => {
+    const words = NOTICE_WORDS[String(item.kind)];
+    const id = str(item.record_id);
+    const at = str(item.occurred_at) ?? "";
+    if (!words || !id) {
+      return [];
+    }
+    return [
+      {
+        key: `${String(item.kind)}-${id}`,
+        sentence: words(str(item.resident_name) ?? ""),
+        room: str(item.room_label) ?? "",
+        at,
+        unread: item.unread === true,
+      },
+    ];
+  });
 }
