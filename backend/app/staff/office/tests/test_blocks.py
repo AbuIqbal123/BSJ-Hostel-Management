@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import PROVOST_PHRASE, RESIDENT_PHRASE, WARDEN_PHRASE
+from app.shared.testing_env import role_credential
 
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "admin-blocks.json"
 BLOCK_B = "d032aad6-a203-5ea0-ba9a-3a9257edbfc8"
@@ -48,9 +48,9 @@ def issue_people(path: Path) -> None:
             (ROOM_ID, BLOCK_B),
         )
         people = (
-            (PROVOST_ID, "provost", "provost.halima", "Halima Begum", PROVOST_PHRASE, "Provost"),
-            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", WARDEN_PHRASE, "Warden"),
-            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", RESIDENT_PHRASE, None),
+            (PROVOST_ID, "provost", "provost.halima", "Halima Begum", role_credential("provost"), "Provost"),
+            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", role_credential("warden"), "Warden"),
+            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", role_credential("resident"), None),
         )
         for user_id, role, username, full_name, password, job in people:
             connection.execute(
@@ -102,7 +102,7 @@ def test_admin_blocks(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
         issue_people(database_path)
 
         assert_error(client.get("/api/v1/admin/blocks"), 401, "unauthenticated")
-        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        resident = sign_in(client, "24-GLLB-118", role_credential("resident"))
         assert_error(
             client.get(
                 "/api/v1/admin/blocks",
@@ -111,7 +111,7 @@ def test_admin_blocks(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
             403,
             "forbidden",
         )
-        warden = sign_in(client, "warden.sara", WARDEN_PHRASE)
+        warden = sign_in(client, "warden.sara", role_credential("warden"))
         assert_error(
             client.get(
                 "/api/v1/admin/blocks",
@@ -121,7 +121,7 @@ def test_admin_blocks(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
             "forbidden",
         )
 
-        provost = sign_in(client, "provost.halima", PROVOST_PHRASE)
+        provost = sign_in(client, "provost.halima", role_credential("provost"))
         headers = {"Authorization": f"Bearer {provost}"}
 
         listed = client.get("/api/v1/admin/blocks", headers=headers)
@@ -235,7 +235,7 @@ def test_block_patch_rejects_null_except_floors(
     monkeypatch.setattr(clock, "utc_now", FrozenClock().utc_now)
     with TestClient(app) as client:
         issue_people(database_path)
-        provost = sign_in(client, "provost.halima", PROVOST_PHRASE)
+        provost = sign_in(client, "provost.halima", role_credential("provost"))
         headers = {"Authorization": f"Bearer {provost}"}
 
         listed = client.get("/api/v1/admin/blocks", headers=headers)

@@ -10,7 +10,8 @@ import sqlite3
 from argon2 import PasswordHasher
 from fastapi.testclient import TestClient
 
-from app.dev_seed import GATE_PHRASE, WARDEN_PHRASE, joined
+from app.shared.testing_env import joined
+from app.shared.testing_env import role_credential
 
 BLOCK_B = "d032aad6-a203-5ea0-ba9a-3a9257edbfc8"
 GATE_ID = "a11ce000-0000-4000-8000-000000000001"
@@ -62,8 +63,8 @@ def issue_late_outside(path: Path) -> None:
             (ROOM_ID, BLOCK_B),
         )
         for user_id, role, username, full_name, phrase, job in (
-            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", GATE_PHRASE, "Gatekeeper"),
-            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", WARDEN_PHRASE, "Warden"),
+            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", role_credential("gate"), "Gatekeeper"),
+            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", role_credential("warden"), "Warden"),
             (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", None, None),
         ):
             connection.execute(
@@ -136,7 +137,7 @@ def test_mock_late_and_return_notices(database_path: Path, monkeypatch: pytest.M
         assert client.get("/health").json() == {"status": "ok"}
         issue_late_outside(database_path)
 
-        warden = _sign_in(client, "warden.sara", WARDEN_PHRASE)
+        warden = _sign_in(client, "warden.sara", role_credential("warden"))
         late_page = client.get("/api/v1/register/late", headers=_bearer(warden))
         assert late_page.status_code == 200
         assert late_page.json()["total"] >= 1
@@ -162,7 +163,7 @@ def test_mock_late_and_return_notices(database_path: Path, monkeypatch: pytest.M
         finally:
             connection.close()
 
-        gate = _sign_in(client, "gate.fatima", GATE_PHRASE)
+        gate = _sign_in(client, "gate.fatima", role_credential("gate"))
         scan_body: dict[str, str] = {}
         scan_body["qr_payload"] = QR
         returned = client.post(
@@ -216,7 +217,7 @@ def test_return_sends_late_notice_when_the_register_was_not_opened(
     with TestClient(app) as client:
         assert client.get("/health").json() == {"status": "ok"}
         issue_late_outside(database_path)
-        gate = _sign_in(client, "gate.fatima", GATE_PHRASE)
+        gate = _sign_in(client, "gate.fatima", role_credential("gate"))
         returned = client.post(
             "/api/v1/gate/scans",
             json={"qr_payload": QR},

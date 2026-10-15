@@ -22,6 +22,13 @@ class Settings(BaseSettings):
     sqlite_busy_timeout_ms: int = 5000
     sms_driver: str = "mock"
     app_secret_key: str = ""
+    # Local `python -m app.dev_seed` only.
+    bsj_seed_password: str = ""
+    bsj_seed_password_gate: str = ""
+    bsj_seed_password_resident: str = ""
+    bsj_seed_password_suspended: str = ""
+    bsj_seed_password_warden: str = ""
+    bsj_seed_password_provost: str = ""
 
     def reject_unsafe_sms(self) -> None:
         if self.sms_driver not in {"mock", "dlt"}:
