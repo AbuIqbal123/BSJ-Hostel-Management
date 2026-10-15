@@ -12,10 +12,7 @@ from zoneinfo import ZoneInfo
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import (
-    GATE_PHRASE,
-    RESIDENT_PHRASE,
-)
+from app.shared.testing_env import role_credential
 
 
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "plan-outing.json"
@@ -62,8 +59,8 @@ def issue_people(path: Path) -> None:
             (ROOM_ID, BLOCK_B),
         )
         people = (
-            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", GATE_PHRASE),
-            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", RESIDENT_PHRASE),
+            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", role_credential("gate")),
+            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", role_credential("resident")),
         )
         for user_id, role, username, full_name, password in people:
             connection.execute(
@@ -220,14 +217,14 @@ def test_plan_outing(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
             "unauthenticated",
             "Sign in again.",
         )
-        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
+        gate = sign_in(client, "gate.fatima", role_credential("gate"))
         assert_error(
             plan(client, gate, {"destination_id": LIBRARY, "starts_at": "2026-09-30T08:00:00Z", "expected_return_at": "2026-09-30T13:00:00Z"}),
             403,
             "forbidden",
             "This account cannot do that.",
         )
-        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        resident = sign_in(client, "24-GLLB-118", role_credential("resident"))
         library = {"destination_id": LIBRARY, "starts_at": "2026-09-30T08:00:00Z", "expected_return_at": "2026-09-30T13:00:00Z"}
         assert_error(
             plan(client, resident, {"destination_id": LIBRARY, "starts_at": "2026-09-30T00:00:00Z", "expected_return_at": NOW}),
@@ -446,7 +443,7 @@ def test_cannot_plan_while_an_outing_window_is_open(
     monkeypatch.setattr(clock, "utc_now", LaterClock().utc_now)
     with TestClient(app) as client:
         issue_people(database_path)
-        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        resident = sign_in(client, "24-GLLB-118", role_credential("resident"))
         first = plan(
             client,
             resident,

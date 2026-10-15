@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import GATE_PHRASE, RESIDENT_PHRASE
+from app.shared.testing_env import role_credential
 from app.residents.home.tests import test_home
 
 
@@ -574,14 +574,14 @@ def test_resident_history(database_path: Path, monkeypatch: pytest.MonkeyPatch) 
             "unauthenticated",
             "Sign in again.",
         )
-        gate = test_home.sign_in(client, "gate.fatima", GATE_PHRASE)
+        gate = test_home.sign_in(client, "gate.fatima", role_credential("gate"))
         test_home.assert_error(
             client.get("/api/v1/me/history", headers={"Authorization": f"Bearer {gate}"}),
             403,
             "forbidden",
             "This account cannot do that.",
         )
-        resident = test_home.sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        resident = test_home.sign_in(client, "24-GLLB-118", role_credential("resident"))
         headers = {"Authorization": f"Bearer {resident}"}
         empty = client.get("/api/v1/me/history", headers=headers)
         assert empty.status_code == 200

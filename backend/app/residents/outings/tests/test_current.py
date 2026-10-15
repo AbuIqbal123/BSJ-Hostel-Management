@@ -10,10 +10,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import (
-    GATE_PHRASE,
-    RESIDENT_PHRASE,
-)
+from app.shared.testing_env import role_credential
 
 
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "current-outing.json"
@@ -56,8 +53,8 @@ def issue_people(path: Path) -> None:
             (ROOM_ID, BLOCK_B),
         )
         people = (
-            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", GATE_PHRASE),
-            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", RESIDENT_PHRASE),
+            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", role_credential("gate")),
+            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", role_credential("resident")),
         )
         for user_id, role, username, full_name, password in people:
             connection.execute(
@@ -113,9 +110,9 @@ def test_current_outing(database_path: Path, monkeypatch: pytest.MonkeyPatch) ->
     with TestClient(app) as client:
         issue_people(database_path)
         assert_error(client.get("/api/v1/me/outings/current"), 401, "unauthenticated", "Sign in again.")
-        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
+        gate = sign_in(client, "gate.fatima", role_credential("gate"))
         assert_error(current(client, gate), 403, "forbidden", "This account cannot do that.")
-        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        resident = sign_in(client, "24-GLLB-118", role_credential("resident"))
         empty = current(client, resident)
         assert empty.status_code == 200
         assert empty.json() == expected["empty"]
@@ -136,7 +133,7 @@ def test_current_outing(database_path: Path, monkeypatch: pytest.MonkeyPatch) ->
         }
 
         frozen.moment = datetime(2026, 9, 30, 13, 0, tzinfo=timezone.utc)
-        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        resident = sign_in(client, "24-GLLB-118", role_credential("resident"))
         still = current(client, resident)
         assert still.status_code == 200
         assert still.json()["outing"]["id"] == outing_id
@@ -197,7 +194,7 @@ def test_current_outing(database_path: Path, monkeypatch: pytest.MonkeyPatch) ->
         assert outside.json() == expected["outside"]
 
         frozen.moment = datetime(2026, 9, 30, 13, 30, tzinfo=timezone.utc)
-        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        resident = sign_in(client, "24-GLLB-118", role_credential("resident"))
         on_grace = current(client, resident)
         assert on_grace.json()["outing"]["lateness"] == "on_time"
         frozen.moment = datetime(2026, 9, 30, 13, 30, 1, tzinfo=timezone.utc)
