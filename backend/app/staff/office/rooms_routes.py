@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import sqlite3
 import uuid
 from typing import Annotated
 
@@ -12,6 +11,7 @@ from fastapi import APIRouter, Query
 from app.shared import clock
 from app.shared.audit import record_audit
 from app.shared.auth.routes import ConnectionDep
+from app.shared.db import INTEGRITY_ERRORS
 from app.shared.errors import ApiError
 from app.staff.office.records import (
     Room,
@@ -65,7 +65,7 @@ def create_room(
             """,
             (room_id, body.block_id, number, label, block.beds_per_room),
         )
-    except sqlite3.IntegrityError as exc:
+    except INTEGRITY_ERRORS as exc:
         message = str(exc).lower()
         if "rooms_block_number" in message or "unique" in message or "rooms_label" in message:
             raise ApiError(
@@ -163,7 +163,7 @@ def update_room(
             f"UPDATE rooms SET {', '.join(assignments)} WHERE id = ?",
             (*values, room_id),
         )
-    except sqlite3.IntegrityError as exc:
+    except INTEGRITY_ERRORS as exc:
         message = str(exc).lower()
         if "rooms_block_number" in message or "unique" in message or "rooms_label" in message:
             raise ApiError(

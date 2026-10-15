@@ -14,7 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.shared import clock
 from app.shared.audit import record_audit
-from app.shared.db import get_connection
+from app.shared.db import INTEGRITY_ERRORS, get_connection
 from app.shared.errors import ApiError
 from app.shared.auth.rate_limit import (
     client_key,
@@ -419,7 +419,7 @@ def onboard_resident(
                 now_text,
             ),
         )
-    except sqlite3.IntegrityError as exc:
+    except INTEGRITY_ERRORS as exc:
         message = str(exc).lower()
         if "unique" in message:
             raise ApiError(
