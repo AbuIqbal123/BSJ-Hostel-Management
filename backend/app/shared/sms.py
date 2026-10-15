@@ -147,15 +147,6 @@ def send_return_notice_if_due(
     ).fetchone()
     if late is None or late["status"] != "sent":
         return False
-    existing = connection.execute(
-        """
-        SELECT 1 FROM guardian_messages
-        WHERE outing_id = ? AND notice_type = 'return_notice'
-        """,
-        (outing_id,),
-    ).fetchone()
-    if existing is not None:
-        return False
     row = connection.execute(
         """
         SELECT

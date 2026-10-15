@@ -35,7 +35,7 @@ jobs:
           SMS_DRIVER: mock
 
   mobile:
-    name: Mobile typecheck
+    name: Mobile typecheck and tests
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -50,3 +50,5 @@ jobs:
       - run: npm ci
       - name: Typecheck
         run: npx tsc --noEmit
+      - name: Tests
+        run: npm test -- --ci

@@ -11,7 +11,10 @@ from pydantic import BaseModel, ConfigDict
 
 from app.shared import clock
 from app.shared.auth.routes import Account, AccountDep, ConnectionDep
+from app.shared.db import hall_settings
 from app.shared.errors import ApiError
+from app.residents.outings.usable import find_usable_outing
+from app.shared.inbox import decode_cursor, encode_cursor
 from app.residents.outings.records import OutingBody, UpcomingOuting, expire_passed_plans, load_current_outing, load_upcoming_outings, ordinary_window_is_open
 from app.residents.permissions.records import PermissionBody, expire_passed_permissions, permission_from_row
 
@@ -47,6 +50,7 @@ class HistoryItem(BaseModel):
 class HistoryList(BaseModel):
     model_config = ConfigDict(extra="forbid")
     items: list[HistoryItem]
+    next_cursor: str | None = None
 
 
 class HomeResident(BaseModel):
@@ -70,11 +74,13 @@ class ResidentHome(BaseModel):
     model_config = ConfigDict(extra="forbid")
     resident: HomeResident
     ordinary_outing_active: bool
+    hall_pass_outing_type: Literal["ordinary", "late_night", "home_going"] | None
     current_outing: OutingBody | None
     upcoming_outings: list[UpcomingOuting]
     active_permission: PermissionBody | None
     recent_history: list[HistoryEvent]
     notifications_unread: bool
+    notifications_unread_count: int
 
 
 def resident_account(account: AccountDep) -> Account:
@@ -84,6 +90,15 @@ def resident_account(account: AccountDep) -> Account:
 
 
 ResidentDep = Annotated[Account, Depends(resident_account)]
+
+
+def _hall_pass_outing_type(
+    connection: sqlite3.Connection, resident_id: str, now: datetime
+) -> str | None:
+    """Type of the outing her QR is showing for now, or None when it is hidden."""
+    lead = int(hall_settings(connection)["permission_lead_minutes"])
+    usable = find_usable_outing(connection, resident_id, now, lead)
+    return usable.outing_type if usable is not None and usable.is_open else None
 
 
 def _active_permission(connection: sqlite3.Connection, resident_id: str) -> PermissionBody | None:
@@ -183,6 +198,10 @@ def resident_home(account: ResidentDep, connection: ConnectionDep) -> ResidentHo
         """,
         (account.id, account.id, account.id, account.id, account.id, account.id),
     ).fetchone()
+    unread = connection.execute(
+        "SELECT COUNT(*) FROM resident_notifications WHERE resident_id = ? AND read_at IS NULL",
+        (account.id,),
+    ).fetchone()[0]
     return ResidentHome(
         resident=HomeResident(
             full_name=account.full_name,
@@ -200,18 +219,13 @@ def resident_home(account: ResidentDep, connection: ConnectionDep) -> ResidentHo
             guest_stays=int(counts["guest_stays"]),
         ),
         ordinary_outing_active=ordinary_window_is_open(connection, account.id, now),
+        hall_pass_outing_type=_hall_pass_outing_type(connection, account.id, now),
         current_outing=load_current_outing(connection, account.id, now),
         upcoming_outings=load_upcoming_outings(connection, account.id, now),
         active_permission=_active_permission(connection, account.id),
         recent_history=_recent_history(connection, account.id),
-        notifications_unread=connection.execute(
-            """
-            SELECT 1 FROM resident_notifications
-            WHERE resident_id = ? AND read_at IS NULL
-            LIMIT 1
-            """,
-            (account.id,),
-        ).fetchone() is not None,
+        notifications_unread=unread > 0,
+        notifications_unread_count=unread,
     )
 
 
@@ -420,6 +434,8 @@ def resident_history(
     on: Annotated[date | None, Query()] = None,
     from_day: Annotated[date | None, Query(alias="from")] = None,
     to_day: Annotated[date | None, Query(alias="to")] = None,
+    cursor: Annotated[str | None, Query(max_length=200)] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> HistoryList:
     now = clock.utc_now()
     today = clock.hall_local_date(now)
@@ -443,7 +459,14 @@ def resident_history(
             for item in items
             if _overlaps_range(item.started_at, item.ended_at, from_day, to_day)
         ]
-    return HistoryList(items=items)
+    if cursor:
+        after = decode_cursor(cursor)
+        items = [item for item in items if (item.ended_at, item.id) < after]
+    page = items[:limit]
+    next_cursor = (
+        encode_cursor(page[-1].ended_at, page[-1].id) if len(items) > limit else None
+    )
+    return HistoryList(items=page, next_cursor=next_cursor)
 
 
 class ExpirePassedResult(BaseModel):

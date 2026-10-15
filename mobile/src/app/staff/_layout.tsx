@@ -27,6 +27,7 @@ export default function StaffLayout() {
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.paper } }}>
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="out" />
+      <Stack.Screen name="notifications" />
     </Stack>
   );
 }

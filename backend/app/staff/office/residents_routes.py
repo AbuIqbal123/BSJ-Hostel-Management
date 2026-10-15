@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import sqlite3
 import uuid
 from typing import Annotated
 
@@ -13,6 +12,7 @@ from app.shared import clock
 from app.shared.audit import record_audit
 from app.shared.auth.routes import ConnectionDep
 from app.shared.auth.security import hash_password
+from app.shared.db import INTEGRITY_ERRORS
 from app.shared.errors import ApiError
 from app.staff.office.records import (
     HallPass,
@@ -115,7 +115,7 @@ def admin_create_resident(
                 now_text,
             ),
         )
-    except sqlite3.IntegrityError as exc:
+    except INTEGRITY_ERRORS as exc:
         message = str(exc).lower()
         if "unique" in message:
             raise ApiError(409, "duplicate_username", _DUPLICATE) from exc
@@ -254,7 +254,7 @@ def admin_update_resident(
                 f"UPDATE residents SET {', '.join(resident_sets)} WHERE user_id = ?",
                 (*resident_values, resident_id),
             )
-    except sqlite3.IntegrityError as exc:
+    except INTEGRITY_ERRORS as exc:
         message = str(exc).lower()
         if "unique" in message:
             raise ApiError(409, "duplicate_username", _DUPLICATE) from exc
