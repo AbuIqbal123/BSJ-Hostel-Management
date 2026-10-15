@@ -4,4 +4,13 @@ select = [
   "F",     # unused imports/variables, undefined names: dead code and typos
   "E9",    # syntax errors
   "B006",  # mutable default arguments shared across calls
+  "TID251",  # banned APIs (see below)
 ]
+
+[lint.flake8-tidy-imports.banned-api]
+"sqlite3.IntegrityError".msg = "Turso raises its own IntegrityError, so `except sqlite3.IntegrityError` misses it in production. Use `except INTEGRITY_ERRORS` from app.shared.db."
+
+
+[lint.per-file-ignores]
+"app/shared/db.py" = ["TID251"]  # defines INTEGRITY_ERRORS
+"tests/test_integrity_errors.py" = ["TID251"]  # proves both classes are caught
