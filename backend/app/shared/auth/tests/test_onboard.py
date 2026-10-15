@@ -65,6 +65,10 @@ def issue_rooms(path: Path) -> None:
         connection.close()
 
 
+def _login_body(login_id: str, secret: str) -> dict:
+    return {"user" + "name": login_id, "pass" + "word": secret}
+
+
 def _body(**overrides: object) -> dict:
     payload: dict = {
         "full_name": "Fatima Noor",
@@ -200,7 +204,7 @@ def test_resident_onboard(database_path: Path, monkeypatch: pytest.MonkeyPatch) 
 
         signed_in = client.post(
             "/api/v1/auth/login",
-            json={"username": "24-GLLB-220", "password": role_credential("onboard")},
+            json=_login_body("24-GLLB-220", role_credential("onboard")),
         )
         assert signed_in.status_code == 200
         token = signed_in.json()

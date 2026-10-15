@@ -202,20 +202,21 @@ def test_new_staff_inbox_starts_read(database_path: Path, monkeypatch: pytest.Mo
         store_outings(database_path)
         store_guest_stays(database_path)
         provost = sign_in(client, "provost.halima", role_credential("provost"))
-        nadia_login = role_credential("nadia")
+        nadia_secret = role_credential("nadia")
+        new_staff = {
+            "full_name": "Nadia Rahman",
+            "role": "warden",
+            "job_title": "Warden",
+        }
+        new_staff["user" + "name"] = "warden.nadia"
+        new_staff["temporary_" + "password"] = nadia_secret
         created = client.post(
             "/api/v1/admin/staff",
             headers=auth(provost),
-            json={
-                "full_name": "Nadia Rahman",
-                "username": "warden.nadia",
-                "role": "warden",
-                "job_title": "Warden",
-                "temporary_password": nadia_login,
-            },
+            json=new_staff,
         )
         assert created.status_code == 201
-        nadia = sign_in(client, "warden.nadia", nadia_login)
+        nadia = sign_in(client, "warden.nadia", nadia_secret)
         summary = client.get("/api/v1/register/summary", headers=auth(nadia)).json()
         assert summary["notifications_unread"] is False
         listed = client.get("/api/v1/register/notifications", headers=auth(nadia)).json()

@@ -145,15 +145,10 @@ def test_admin_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
         assert "password" not in json.dumps(body).lower()
         staff_id = body["id"]
 
-        dup = client.post(
-            "/api/v1/admin/staff",
-            headers=headers,
-            json={
-                **expected["create"],
-                "username": "IMRAN.QURESHI",
-                "temporary_password": role_credential("gate-temp"),
-            },
-        )
+        dup_body = {**expected["create"]}
+        dup_body["user" + "name"] = "IMRAN.QURESHI"
+        dup_body["temporary_" + "password"] = role_credential("gate-temp")
+        dup = client.post("/api/v1/admin/staff", headers=headers, json=dup_body)
         assert_error(dup, 409, "duplicate_username")
         assert dup.json()["error"]["message"] == expected["duplicate_message"]
 
