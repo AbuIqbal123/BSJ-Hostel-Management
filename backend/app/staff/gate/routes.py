@@ -7,7 +7,7 @@ import uuid
 from datetime import timedelta
 from typing import Annotated, Literal, NoReturn
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.residents.outings.records import (
@@ -19,6 +19,8 @@ from app.residents.outings.records import (
     return_is_taken,
 )
 from app.shared import clock
+from app.residents.notifications.records import record_late_outings
+from app.shared import push
 from app.shared.sms import consider_late_notices, send_return_notice_if_due
 from app.shared.auth.routes import Account, AccountDep, ConnectionDep
 from app.shared.db import hall_settings
@@ -423,6 +425,7 @@ def scan_hall_pass(
     body: ScanRequest,
     account: GateDep,
     connection: ConnectionDep,
+    background_tasks: BackgroundTasks,
 ) -> ScanResult:
     resident = _load_resident_by_qr(connection, body.qr_payload)
     if resident is None:
@@ -474,6 +477,8 @@ def scan_hall_pass(
                 "This resident is marked outside but no open outing was found to return on.",
                 resident,
             )
+        # Her late row and late push are due before the return, as the SMS is.
+        background_tasks.add_task(push.dispatch, record_late_outings(connection, now_text))
         outing = _record_return(
             connection,
             outing_id=open_row["id"],

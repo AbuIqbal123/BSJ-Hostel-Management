@@ -73,6 +73,10 @@ tags:
     description: >
       Warden and provost presence board under /api/v1/register. Inside, outside, and late
       for the hall and each block.
+  - name: Devices
+    description: >
+      Expo push tokens under /api/v1/devices for any signed-in account. Push is
+      best effort and never blocks the request that caused it.
   - name: Hall office
     description: Provost only. Residents, staff, rooms, destinations, settings, export, SMS log, and audit.
 
@@ -486,7 +490,10 @@ paths:
         presence, the open outing if there is one, her planned future ordinary
         outings (`upcoming_outings`), the permission the resident is waiting
         on or cleared to use, the last ten exit and return lines, and
-        `notifications_unread` (true when a permission decision is still unread).
+        `notifications_unread` and `notifications_unread_count` for her inbox.
+        `current_outing` carries `expected_return_at` and `grace_ends_at`; the
+        phone schedules its own local reminder before them (the server has
+        no scheduler and sends no "window ending" push).
         `upcoming_outings` is soonest start first. It leaves off returned,
         cancelled, outside, and plans whose expected return has already
         passed. A plan inside its show window stays on the list with
@@ -525,6 +532,7 @@ paths:
                     can_modify: true
                 active_permission: null
                 notifications_unread: false
+                notifications_unread_count: 0
                 recent_history:
                   - event: returned
                     place: Maulana Azad Library
@@ -541,57 +549,144 @@ paths:
     get:
       tags: [Resident]
       operationId: list_resident_notifications
-      summary: Own permission decisions, newest first
+      summary: Her inbox, newest first, one page
       description: |
-        Caller: resident. The newest 50 rows written when a warden or the
-        provost approved or rejected her permission. Does not mark them read.
-        Call POST /api/v1/me/notifications/read for that.
+        Caller: resident. Rows written for her when a warden or the provost
+        approved or declined her permission or guest stay, and when an
+        outing of hers passed grace while she was out (`resident_late`, once
+        per outing). Only the last 90 days are listed; the records
+        themselves are permanent and stay in GET /api/v1/me/history.
+        Ordered by (`occurred_at`, `id`) descending. Reading does not mark
+        anything read.
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          description: |
+            Opaque `next_cursor` from the previous page. Omit for the first
+            page. A cursor that does not decode is 422 `validation_error`.
+          schema:
+            type: string
+            maxLength: 200
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 30
+        - name: filter
+          in: query
+          required: false
+          description: |
+            `all` (default), `unread`, or `needs_action`. `needs_action` keeps
+            a request still pending or a resident still out late.
+          schema:
+            type: string
+            enum: [all, unread, needs_action]
+            default: all
       responses:
         "200":
-          description: Her notification rows, newest first, at most 50.
+          description: One page of her inbox.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ResidentNotificationList"
+                $ref: "#/components/schemas/ResidentNotificationPage"
               example:
                 items:
                   - id: 00000000-0000-4000-8000-0000000000a1
+                    kind: permission_decided
+                    record_id: 00000000-0000-4000-8000-0000000000b1
+                    occurred_at: "2026-09-30T13:00:00Z"
+                    read_at: null
+                    unread: true
+                    needs_action: false
+                    outcome: approved
+                    decided_at: "2026-09-30T13:00:00Z"
+                    decided_by_name: Sara Malik
+                    place: Women's College
+                    guest_name: null
                     permission_id: 00000000-0000-4000-8000-0000000000b1
                     permission_type: late_night
                     decision: approved
-                    place: Women's College
                     departure_at: "2026-09-30T14:00:00Z"
                     expected_return_at: "2026-09-30T18:00:00Z"
                     decided_by: Sara Malik
                     created_at: "2026-09-30T13:00:00Z"
-                    unread: true
+                next_cursor: null
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
 
   /api/v1/me/notifications/read:
     post:
       tags: [Resident]
       operationId: mark_resident_notifications_read
-      summary: Mark her unread permission decisions read
+      summary: Mark her inbox read, up to an instant
       description: |
-        Caller: resident. Sets read on every unread row of hers, including
-        any older than the 50 returned by the list. Returns how many rows
-        changed. A second call marks nothing.
+        Caller: resident. Marks every unread row of hers read, including
+        rows older than the listed 90 days. With `up_to` (a UTC instant or
+        a `next_cursor`), only rows with `occurred_at` at or before that
+        instant change, so a row that arrived after the phone loaded the
+        list stays unread. Returns how many changed and what is still unread.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationsReadRequest"
+            example:
+              up_to: "2026-09-30T13:00:00Z"
       responses:
         "200":
-          description: How many rows were marked read.
+          description: How many rows changed, and the unread count after.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ResidentNotificationsMarked"
+                $ref: "#/components/schemas/NotificationsMarked"
               example:
                 marked: 1
+                unread_count: 0
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+
+  /api/v1/me/notifications/{notification_id}/read:
+    post:
+      tags: [Resident]
+      operationId: mark_resident_notification_read
+      summary: Mark one row of her inbox read
+      description: |
+        Caller: resident. Idempotent. A row that is not hers is 404.
+      parameters:
+        - name: notification_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Her unread count after the change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnreadCount"
+              example:
+                unread_count: 2
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /api/v1/me/hall-pass:
     get:
@@ -686,7 +781,10 @@ paths:
       summary: Own history
       description: |
         Caller: resident. One row per record that has left live use, newest
-        `ended_at` first. No page control.
+        `ended_at` first, ordered by (`ended_at`, `id`) descending, one page
+        at a time (`limit`, `cursor`, `next_cursor`). Nothing is ever dropped
+        from her history; the phone loads a recent page and asks for older
+        pages or a date range (`from`, `to`, `on`) on demand.
 
         An ordinary outing is a row in three cases. Unused (`unused` true): no
         gate exit, and the planned return has passed, or she cancelled the
@@ -764,9 +862,25 @@ paths:
             type: string
             format: date
             example: "2026-09-22"
+        - name: cursor
+          in: query
+          required: false
+          description: |
+            Opaque `next_cursor` from the previous page. Omit for the first page.
+          schema:
+            type: string
+            maxLength: 200
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
       responses:
         "200":
-          description: History rows, newest ended_at first.
+          description: One page of history rows, newest ended_at first.
           content:
             application/json:
               schema:
@@ -791,10 +905,13 @@ paths:
                     exit_recorded_by: null
                     return_recorded_by: null
                     unused: true
+                next_cursor: null
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
 
   /api/v1/destinations:
     get:
@@ -1790,6 +1907,7 @@ paths:
                     guests_should_have_left_count: 0
                     pending_guest_stay_count: 1
                 notifications_unread: true
+                notifications_unread_count: 4
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -1972,55 +2090,225 @@ paths:
     get:
       tags: [Register]
       operationId: list_staff_notifications
-      summary: Staff inbox, newest first
+      summary: Staff inbox, newest first, one page
       description: |
-        Caller: warden or provost. The newest 50 hall events: a permission
-        requested, a guest stay requested, or an outing passing grace while
-        she was out. Events are read from those records; nothing else writes
-        them. `unread` is true for an event after the caller last called
-        POST /api/v1/register/notifications/read. Does not mark them read.
+        Caller: warden or provost. Hall events from the last 90 days: a
+        permission requested, a guest stay requested, or an outing passing
+        grace while she was out. Events are read from those records, so a
+        decided request stays listed with its `outcome`, and a late entry
+        shows `returned` once the gate records her return. The records are
+        the permanent history; older ones are reached through the
+        permission and guest-stay queues, late returns, and the register
+        export. Ordered by (`occurred_at`, `id`) descending. Reading does
+        not mark anything read. Gate staff get 403: the inbox is for the
+        people who decide requests.
+
+        Unread for the caller means after her mark-all instant (which starts
+        at her account creation) and not marked one by one.
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          description: |
+            Opaque `next_cursor` from the previous page. Omit for the first
+            page. A cursor that does not decode is 422 `validation_error`.
+          schema:
+            type: string
+            maxLength: 200
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 30
+        - name: filter
+          in: query
+          required: false
+          description: |
+            `all` (default), `unread`, or `needs_action`. `needs_action` keeps
+            a request still pending or a resident still out late.
+          schema:
+            type: string
+            enum: [all, unread, needs_action]
+            default: all
+        - name: q
+          in: query
+          required: false
+          description: Part of the resident's name or room label, any case.
+          schema:
+            type: string
+            maxLength: 80
+        - name: from
+          in: query
+          required: false
+          description: First Asia/Kolkata date of `occurred_at`, inclusive.
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          description: Last Asia/Kolkata date of `occurred_at`, inclusive.
+          schema:
+            type: string
+            format: date
+        - name: block_id
+          in: query
+          required: false
+          description: Block of the resident's current room.
+          schema:
+            type: string
       responses:
         "200":
-          description: Events, newest first, at most 50.
+          description: One page of events.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StaffNotificationList"
+                $ref: "#/components/schemas/StaffNotificationPage"
               example:
                 items:
-                  - kind: resident_late
+                  - id: "resident_late:00000000-0000-4000-8000-0000000000c1"
+                    kind: resident_late
                     record_id: 00000000-0000-4000-8000-0000000000c1
+                    resident_id: b22de000-0000-4000-8000-000000000002
                     resident_name: Aisha Khan
                     room_label: B-204
+                    block_name: Block-B
                     occurred_at: "2026-09-30T12:15:00Z"
+                    read_at: null
                     unread: true
+                    needs_action: false
+                    outcome: returned
+                    decided_at: "2026-09-30T12:40:00Z"
+                    decided_by_name: Fatima Khan
+                next_cursor: "MjAyNi0wOS0zMFQxMjoxNTowMFp8cmVzaWRlbnRfbGF0ZTowMDAw"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
 
   /api/v1/register/notifications/read:
     post:
       tags: [Register]
       operationId: mark_staff_notifications_read
-      summary: Mark the caller's inbox read
+      summary: Mark the caller's inbox read, up to an instant
       description: |
-        Caller: warden or provost. Marks every event up to now read for the
-        caller only, including any older than the 50 listed. Returns how many
-        were unread. A second call marks nothing.
+        Caller: warden or provost. Moves the caller's mark-all instant to
+        now, or to `up_to` (a UTC instant or a `next_cursor`) when given, so
+        events after the page she saw stay unread. The instant never moves
+        back. Counts every event, not only the last 90 days.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationsReadRequest"
+            example:
+              up_to: "2026-09-30T13:00:00Z"
       responses:
         "200":
-          description: How many events were unread.
+          description: How many events were unread up to that instant, and what is still unread.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StaffNotificationsMarked"
+                $ref: "#/components/schemas/NotificationsMarked"
               example:
                 marked: 3
+                unread_count: 0
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+
+  /api/v1/register/notifications/{notification_id}/read:
+    post:
+      tags: [Register]
+      operationId: mark_staff_notification_read
+      summary: Mark one event read for the caller
+      description: |
+        Caller: warden or provost. `notification_id` is the item `id`
+        (`<kind>:<record_id>`). Idempotent. An id that names no event is 404.
+      parameters:
+        - name: notification_id
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 80
+          example: "permission_requested:00000000-0000-4000-8000-0000000000b1"
+      responses:
+        "200":
+          description: The caller's unread count after the change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnreadCount"
+              example:
+                unread_count: 4
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/devices/push-token:
+    post:
+      tags: [Devices]
+      operationId: register_push_token
+      summary: Register this phone for push
+      description: |
+        Any signed-in account (resident, gate, warden, provost). Stores the
+        Expo push token for the caller. Idempotent: the same token again is
+        204. A token held by another account moves to the caller, because
+        the phone changed hands. Push goes to residents (decisions on her
+        requests, and when she is late) and to wardens and the provost (new
+        permission or guest-stay requests, and a resident becoming late).
+        Gate accounts may register and receive nothing today.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushTokenRegister"
+            example:
+              token: "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]"
+              platform: android
+      responses:
+        "204":
+          description: Stored for the caller.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+    delete:
+      tags: [Devices]
+      operationId: delete_push_token
+      summary: Stop push to this phone
+      description: |
+        Any signed-in account. Call before sign-out. Deletes the token only
+        if the caller holds it. Idempotent: 204 either way.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushTokenDelete"
+            example:
+              token: "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]"
+      responses:
+        "204":
+          description: The caller no longer holds that token.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
 
   /api/v1/permissions:
     get:
@@ -3739,8 +4027,11 @@ components:
     StaffNotification:
       type: object
       additionalProperties: false
-      required: [kind, record_id, resident_name, room_label, occurred_at, unread]
+      required: [id, kind, record_id, resident_id, resident_name, room_label, block_name, occurred_at, read_at, unread, needs_action, outcome, decided_at, decided_by_name]
       properties:
+        id:
+          type: string
+          description: Stable `<kind>:<record_id>`. Use it to mark one event read.
         kind:
           type: string
           enum: [permission_requested, guest_stay_requested, resident_late]
@@ -3751,37 +4042,110 @@ components:
             The permission, the guest stay, or the outing. Open it with
             GET /api/v1/permissions/{id}, GET /api/v1/guest-stays/{id}, or
             GET /api/v1/register/residents/{resident_id}.
+        resident_id:
+          type: string
+          format: uuid
         resident_name:
           type: string
           description: The resident who asked, hosts the guest, or is late.
         room_label:
           type: string
+        block_name:
+          type: string
         occurred_at:
           type: string
           format: date-time
           description: When the request was made, or when grace ended on the outing.
+        read_at:
+          type: [string, "null"]
+          description: When the caller read it, one by one or by mark-all. Null while unread.
         unread:
           type: boolean
+          description: Same as `read_at` being null. Kept for older clients.
+        needs_action:
+          type: boolean
+          description: A request still pending, or a resident still out late.
+        outcome:
+          type: [string, "null"]
+          enum: [approved, declined, cancelled, returned, null]
+          description: |
+            Null while pending or while she is still out. `approved` covers a
+            permission later used or expired and a guest stay that departed.
+            `returned` is for `resident_late` once the gate recorded her return.
+        decided_at:
+          type: [string, "null"]
+          description: When it was approved, declined, or cancelled, or when she returned.
+        decided_by_name:
+          type: [string, "null"]
+          description: The warden or provost who decided, the resident who cancelled, or the gate staff who recorded her return.
 
-    StaffNotificationList:
+    StaffNotificationPage:
       type: object
       additionalProperties: false
-      required: [items]
+      required: [items, next_cursor]
       properties:
         items:
           type: array
-          maxItems: 50
+          maxItems: 100
           items:
             $ref: "#/components/schemas/StaffNotification"
+        next_cursor:
+          type: [string, "null"]
+          description: Pass as `cursor` for the next page. Null on the last page.
 
-    StaffNotificationsMarked:
+    NotificationsReadRequest:
       type: object
       additionalProperties: false
-      required: [marked]
+      properties:
+        up_to:
+          type: [string, "null"]
+          maxLength: 200
+          description: A UTC instant (`YYYY-MM-DDTHH:MM:SSZ`) or a `next_cursor`. Omit for now.
+
+    NotificationsMarked:
+      type: object
+      additionalProperties: false
+      required: [marked, unread_count]
       properties:
         marked:
           type: integer
           minimum: 0
+        unread_count:
+          type: integer
+          minimum: 0
+
+    UnreadCount:
+      type: object
+      additionalProperties: false
+      required: [unread_count]
+      properties:
+        unread_count:
+          type: integer
+          minimum: 0
+
+    PushTokenRegister:
+      type: object
+      additionalProperties: false
+      required: [token, platform]
+      properties:
+        token:
+          type: string
+          maxLength: 200
+          pattern: '^Expo(nent)?PushToken\[[A-Za-z0-9_-]+\]$'
+          description: From expo-notifications getExpoPushTokenAsync({ projectId }).
+        platform:
+          type: string
+          enum: [ios, android]
+
+    PushTokenDelete:
+      type: object
+      additionalProperties: false
+      required: [token]
+      properties:
+        token:
+          type: string
+          maxLength: 200
+
           description: How many events were unread for her before this call.
 
     HomeResident:
@@ -3837,7 +4201,7 @@ components:
     ResidentHome:
       type: object
       additionalProperties: false
-      required: [resident, ordinary_outing_active, current_outing, upcoming_outings, active_permission, recent_history, notifications_unread]
+      required: [resident, ordinary_outing_active, current_outing, upcoming_outings, active_permission, recent_history, notifications_unread, notifications_unread_count]
       properties:
         resident:
           $ref: "#/components/schemas/HomeResident"
@@ -3872,70 +4236,87 @@ components:
             $ref: "#/components/schemas/HistoryEvent"
         notifications_unread:
           type: boolean
-          description: |
-            True when she has at least one permission decision she has not
-            marked read. False when the inbox is empty or every row is read.
+          description: True when `notifications_unread_count` is above zero.
+        notifications_unread_count:
+          type: integer
+          minimum: 0
+          description: Unread rows in her inbox, any age. Use it for the bell and the app badge.
 
     ResidentNotification:
       type: object
       additionalProperties: false
-      required: [id, permission_id, permission_type, decision, place, departure_at, expected_return_at, decided_by, created_at, unread]
+      required: [id, kind, record_id, occurred_at, read_at, unread, needs_action, outcome, decided_at, decided_by_name, place, guest_name, permission_id, permission_type, decision, departure_at, expected_return_at, decided_by, created_at]
       properties:
         id:
           type: string
           format: uuid
-        permission_id:
+        kind:
+          type: string
+          enum: [permission_decided, guest_stay_decided, resident_late]
+        record_id:
           type: string
           format: uuid
-          description: The permission this decision is about.
-        permission_type:
+          description: The permission, guest stay, or outing.
+        occurred_at:
           type: string
-          enum: [late_night, home_going]
-        decision:
-          type: string
-          enum: [approved, rejected]
-        place:
-          type: string
-          description: The permission's short place, such as Women's College or Lucknow.
-        departure_at:
-          type: string
-          description: When she planned to leave. The same instant as on the permission.
-          example: "2026-09-30T14:00:00Z"
-        expected_return_at:
-          type: string
-          description: When she planned to be back. The same instant as on the permission.
-          example: "2026-09-30T18:00:00Z"
-        decided_by:
-          type: string
-          description: Display name of the warden or provost who decided. Not a user id.
-          example: Sara Malik
-        created_at:
-          type: string
-          description: UTC instant when the decision was recorded.
-          example: "2026-09-30T13:00:00Z"
+          description: When the row was written.
+        read_at:
+          type: [string, "null"]
         unread:
           type: boolean
+          description: Same as `read_at` being null. Kept for older clients.
+        needs_action:
+          type: boolean
+          description: True for `resident_late` while she is still out.
+        outcome:
+          type: [string, "null"]
+          enum: [approved, declined, returned, null]
+          description: The decision, or `returned` on a late row once she is back. Null while she is still out.
+        decided_at:
+          type: [string, "null"]
+        decided_by_name:
+          type: [string, "null"]
+          description: The warden or provost who decided, or the gate staff who recorded her return.
+        place:
+          type: [string, "null"]
+          description: Permission short place or outing place. Null for a guest stay.
+        guest_name:
+          type: [string, "null"]
+          description: Set only for `guest_stay_decided`.
+        permission_id:
+          type: [string, "null"]
+          description: Set only for `permission_decided`. Kept for older clients.
+        permission_type:
+          type: [string, "null"]
+          enum: [late_night, home_going, null]
+        decision:
+          type: [string, "null"]
+          enum: [approved, rejected, null]
+          description: Stored decision word. Kept for older clients; prefer `outcome`.
+        departure_at:
+          type: [string, "null"]
+        expected_return_at:
+          type: [string, "null"]
+          description: Permission or outing expected return.
+        decided_by:
+          type: [string, "null"]
+          description: Same as `decided_by_name`. Kept for older clients.
+        created_at:
+          type: string
+          description: Same as `occurred_at`. Kept for older clients.
 
-    ResidentNotificationList:
+    ResidentNotificationPage:
       type: object
       additionalProperties: false
-      required: [items]
+      required: [items, next_cursor]
       properties:
         items:
           type: array
-          maxItems: 50
+          maxItems: 100
           items:
             $ref: "#/components/schemas/ResidentNotification"
-
-    ResidentNotificationsMarked:
-      type: object
-      additionalProperties: false
-      required: [marked]
-      properties:
-        marked:
-          type: integer
-          minimum: 0
-          description: How many of her rows changed from unread to read.
+        next_cursor:
+          type: [string, "null"]
 
     HallPass:
       type: object
@@ -4115,12 +4496,16 @@ components:
     HistoryList:
       type: object
       additionalProperties: false
-      required: [items]
+      required: [items, next_cursor]
       properties:
         items:
           type: array
+          maxItems: 200
           items:
             $ref: "#/components/schemas/HistoryItem"
+        next_cursor:
+          type: [string, "null"]
+          description: Pass as `cursor` for the next page. Null on the last page.
 
     Destination:
       type: object
@@ -5205,6 +5590,7 @@ components:
         - pending_guest_stay_count
         - blocks
         - notifications_unread
+        - notifications_unread_count
       properties:
         inside_count:
           type: integer
@@ -5227,10 +5613,11 @@ components:
             $ref: "#/components/schemas/BlockRegisterCounts"
         notifications_unread:
           type: boolean
-          description: |
-            True when the caller has an event in GET
-            /api/v1/register/notifications after she last called
-            POST /api/v1/register/notifications/read.
+          description: True when `notifications_unread_count` is above zero.
+        notifications_unread_count:
+          type: integer
+          minimum: 0
+          description: Events unread by the caller, any age. Use it for the bell and the app badge.
 
     BlockRegisterCounts:
       type: object
