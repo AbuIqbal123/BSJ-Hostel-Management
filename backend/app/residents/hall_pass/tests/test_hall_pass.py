@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import GATE_PHRASE, RESIDENT_PHRASE, WARDEN_PHRASE
+from app.shared.testing_env import role_credential
 
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "resident-hall-pass.json"
 BLOCK_B = "d032aad6-a203-5ea0-ba9a-3a9257edbfc8"
@@ -49,9 +49,9 @@ def issue_people(path: Path) -> None:
             (ROOM_ID, BLOCK_B),
         )
         people = (
-            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", GATE_PHRASE),
-            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", WARDEN_PHRASE),
-            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", RESIDENT_PHRASE),
+            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", role_credential("gate")),
+            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", role_credential("warden")),
+            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", role_credential("resident")),
         )
         for user_id, role, username, full_name, password in people:
             connection.execute(
@@ -108,21 +108,21 @@ def test_resident_hall_pass(database_path: Path, monkeypatch: pytest.MonkeyPatch
             "unauthenticated",
             "Sign in again.",
         )
-        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
+        gate = sign_in(client, "gate.fatima", role_credential("gate"))
         assert_error(
             client.get("/api/v1/me/hall-pass", headers={"Authorization": f"Bearer {gate}"}),
             403,
             "forbidden",
             "This account cannot do that.",
         )
-        warden = sign_in(client, "warden.sara", WARDEN_PHRASE)
+        warden = sign_in(client, "warden.sara", role_credential("warden"))
         assert_error(
             client.get("/api/v1/me/hall-pass", headers={"Authorization": f"Bearer {warden}"}),
             403,
             "forbidden",
             "This account cannot do that.",
         )
-        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        resident = sign_in(client, "24-GLLB-118", role_credential("resident"))
         headers = {"Authorization": f"Bearer {resident}"}
         response = client.get("/api/v1/me/hall-pass", headers=headers)
         assert response.status_code == 200
