@@ -1,36 +1,38 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Feather } from "@expo/vector-icons";
 import { useNavigation } from "expo-router";
-import { Pressable, ScrollView, SectionList, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, SectionList, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
 import { BackMark } from "@/components/back-mark";
+import { DayRange, type DayRangeValue } from "@/components/day-range";
 import { DenseRow } from "@/components/dense-row";
 import { FilterChip } from "@/components/filter-chip";
+import { SearchField } from "@/components/search-field";
 import { SectionHead } from "@/components/section-head";
 import { useSession } from "@/session";
 import {
-  blockCode,
-  dueLabel,
-  lateBy,
-  permissionOutRow,
+  lateDetail,
+  lateFor,
+  readLateReturns,
   readOutRows,
-  readPermissionReviews,
   readSummary,
-  splitOutLists,
+  readTotal,
   trimStop,
   type HallBlock,
+  type LateReturn,
   type OutingKind,
   type OutRow,
 } from "@/staff";
-import { kindLabel } from "@/requests";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
-type OutSection = { key: string; title: string; note: string; data: OutRow[] };
-type View3 = "ordinary" | "permission" | "late";
-type OutData = { late: OutRow[]; ordinary: OutRow[]; permission: OutRow[] };
+const PAGE = 50;
+
+type Tab = "ordinary" | "permission" | "late";
+type LateState = "now" | "past";
+type Row = { tab: "out"; row: OutRow } | { tab: "late"; row: LateReturn };
+type OutSection = { key: string; title: string; note: string; data: Row[] };
 
 const SOURCES: { value: OutingKind | null; label: string }[] = [
   { value: null, label: "All" },
@@ -39,41 +41,44 @@ const SOURCES: { value: OutingKind | null; label: string }[] = [
   { value: "home_going", label: "Home going" },
 ];
 
-const VIEWS: { value: View3; label: string }[] = [
+const TABS: { value: Tab; label: string }[] = [
   { value: "ordinary", label: "Ordinary" },
   { value: "permission", label: "Permission" },
-  { value: "late", label: "Late now" },
+  { value: "late", label: "Late" },
 ];
 
-function byBackBy(a: OutRow, b: OutRow) {
-  return a.sortKey.localeCompare(b.sortKey);
+function outPath(q: string, blockId: string | null): string {
+  const search = new URLSearchParams({ state: "outside", order: "back_by", limit: "500" });
+  if (q.trim()) {
+    search.set("q", q.trim());
+  }
+  if (blockId) {
+    search.set("block_id", blockId);
+  }
+  return `/register/residents?${search.toString()}`;
 }
 
-function matches(row: OutRow, query: string): boolean {
-  const q = query.trim().toLowerCase();
-  return !q || row.name.toLowerCase().includes(q) || row.room.toLowerCase().includes(q);
+function latePath(state: LateState, source: OutingKind | null, range: DayRangeValue, offset: number): string {
+  const search = new URLSearchParams({ state, limit: String(PAGE), offset: String(offset) });
+  if (source) {
+    search.set("source", source);
+  }
+  if (state === "past" && range.from) {
+    search.set("from", range.from);
+  }
+  if (state === "past" && range.to) {
+    search.set("to", range.to);
+  }
+  return `/register/late-returns?${search.toString()}`;
 }
 
-/** Late is one list by due time; the others get one section per block, each by back-by time. */
-function outSections(view: View3, data: OutData, blocks: HallBlock[]): OutSection[] {
-  if (view === "late") {
-    const late = [...data.late].sort(byBackBy);
-    return late.length > 0 ? [{ key: "late", title: "Late", note: String(late.length), data: late }] : [];
-  }
-  const outside = data[view];
-  const sections: OutSection[] = [];
-  for (const block of blocks) {
-    const members = outside.filter((row) => blockCode(row.room) === block.code).sort(byBackBy);
-    if (members.length > 0) {
-      sections.push({ key: block.id, title: block.name, note: `${members.length} out`, data: members });
-    }
-  }
-  const known = new Set(blocks.map((block) => block.code));
-  const other = outside.filter((row) => !known.has(blockCode(row.room))).sort(byBackBy);
-  if (other.length > 0) {
-    sections.push({ key: "other", title: "Other rooms", note: `${other.length} out`, data: other });
-  }
-  return sections;
+/** On-time rows arrive ordered by back-by; keep that order inside one section per block. */
+function blockSections(rows: OutRow[], blocks: HallBlock[]): OutSection[] {
+  const names = [...blocks.map((block) => block.name), ...rows.map((row) => row.block)];
+  return [...new Set(names)].flatMap((name) => {
+    const data = rows.filter((row) => row.block === name).map((row): Row => ({ tab: "out", row }));
+    return data.length > 0 ? [{ key: name, title: name || "Other rooms", note: `${data.length} out`, data }] : [];
+  });
 }
 
 export default function OutNowScreen() {
@@ -82,83 +87,102 @@ export default function OutNowScreen() {
   const navigation = useNavigation();
   const { staffRequest } = useSession();
   const [blocks, setBlocks] = useState<HallBlock[]>([]);
+  const [lateCount, setLateCount] = useState<number | null>(null);
   const [blockId, setBlockId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [view, setView] = useState<View3>("ordinary");
-  const [rows, setRows] = useState<OutData | null>(null);
+  const [tab, setTab] = useState<Tab>("ordinary");
+  const [outRows, setOutRows] = useState<OutRow[] | null>(null);
+  const [lateState, setLateState] = useState<LateState>("now");
   const [source, setSource] = useState<OutingKind | null>(null);
-  const searchGen = useRef(0);
+  const [range, setRange] = useState<DayRangeValue>({ from: null, to: null });
+  const [late, setLate] = useState<LateReturn[] | null>(null);
+  const [lateTotal, setLateTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const outGen = useRef(0);
+  const lateGen = useRef(0);
+  const lateLoading = useRef(false);
 
   useEffect(() => {
     void staffRequest("/register/summary").then((reply) => {
-      if (reply.ok) {
-        setBlocks(readSummary(reply.data)?.blocks ?? []);
+      const summary = reply.ok ? readSummary(reply.data) : null;
+      if (summary) {
+        setBlocks(summary.blocks);
+        setLateCount(summary.late);
       }
     });
   }, [staffRequest]);
 
-  const load = useCallback(
+  const loadOut = useCallback(
     async (q: string, block: string | null) => {
-      const params = (state: string) => {
-        const search = new URLSearchParams({ state, limit: "500" });
-        if (q.trim()) {
-          search.set("q", q.trim());
-        }
-        if (block) {
-          search.set("block_id", block);
-        }
-        return `/register/residents?${search.toString()}`;
-      };
-      const permits = new URLSearchParams({ status: "in_use", limit: "500" });
-      if (block) {
-        permits.set("block_id", block);
-      }
-      const generation = searchGen.current + 1;
-      searchGen.current = generation;
-      const [late, outside, inUse] = await Promise.all([
-        staffRequest(params("late")),
-        staffRequest(params("outside")),
-        staffRequest(`/permissions?${permits.toString()}`),
-      ]);
-      if (generation !== searchGen.current) {
+      const run = ++outGen.current;
+      const reply = await staffRequest(outPath(q, block));
+      if (run !== outGen.current) {
         return;
       }
-      if (!late.ok) {
-        setError(trimStop(late.message));
-        return;
-      }
-      if (!outside.ok) {
-        setError(trimStop(outside.message));
-        return;
-      }
-      if (!inUse.ok) {
-        setError(trimStop(inUse.message));
+      if (!reply.ok) {
+        setError(trimStop(reply.message));
         return;
       }
       setError(null);
-      const permission = readPermissionReviews(inUse.data).map(permissionOutRow).filter((row) => matches(row, q));
-      setRows(splitOutLists(readOutRows(outside.data, false), readOutRows(late.data, true), permission));
+      setOutRows(readOutRows(reply.data));
     },
     [staffRequest],
   );
 
-  useEffect(() => {
-    const timer = setTimeout(() => void load(query, blockId), query ? 250 : 0);
-    return () => clearTimeout(timer);
-  }, [blockId, load, query]);
-
-  const sections = useMemo(
-    () => {
-      if (!rows) {
-        return [];
+  const loadLate = useCallback(
+    async (offset: number) => {
+      if (offset > 0 && lateLoading.current) {
+        return;
       }
-      const late = rows.late.filter((row) => source === null || row.kind === source);
-      return outSections(view, { ...rows, late }, blocks);
+      lateLoading.current = true;
+      const run = offset === 0 ? ++lateGen.current : lateGen.current;
+      const reply = await staffRequest(latePath(lateState, source, range, offset));
+      lateLoading.current = false;
+      if (run !== lateGen.current) {
+        return;
+      }
+      if (!reply.ok) {
+        setError(trimStop(reply.message));
+        return;
+      }
+      setError(null);
+      const page = readLateReturns(reply.data);
+      setLateTotal(readTotal(reply.data));
+      setLate((current) => (offset === 0 || !current ? page : [...current, ...page]));
     },
-    [blocks, rows, source, view],
+    [lateState, range, source, staffRequest],
   );
+
+  useEffect(() => {
+    const timer = setTimeout(() => void loadOut(query, blockId), query ? 300 : 0);
+    return () => clearTimeout(timer);
+  }, [blockId, loadOut, query]);
+
+  useEffect(() => {
+    if (tab === "late") {
+      void loadLate(0);
+    }
+  }, [loadLate, tab]);
+
+  const sections = useMemo((): OutSection[] => {
+    if (tab === "late") {
+      const data = (late ?? []).map((row): Row => ({ tab: "late", row }));
+      const title = lateState === "now" ? "Still out" : "Came back late";
+      return data.length > 0 ? [{ key: "late", title, note: String(lateTotal), data }] : [];
+    }
+    const wanted = (outRows ?? []).filter((row) => (tab === "ordinary") === (row.kind === "ordinary"));
+    return blockSections(wanted, blocks);
+  }, [blocks, late, lateState, lateTotal, outRows, tab]);
+
+  const count = (value: Tab): number | null => {
+    if (value === "late") {
+      return lateCount;
+    }
+    return outRows ? outRows.filter((row) => (value === "ordinary") === (row.kind === "ordinary")).length : null;
+  };
+  const filtered = tab === "late" ? source !== null || range.from !== null || range.to !== null : query !== "" || blockId !== null;
   const blockName = blocks.find((block) => block.id === blockId)?.name;
+  const loaded = tab === "late" ? late !== null : outRows !== null;
 
   const header = (
     <View style={styles.header}>
@@ -172,96 +196,93 @@ export default function OutNowScreen() {
       </Pressable>
       <Text style={[text.hallName, styles.title, { color: colors.ink }]}>Out now</Text>
       <View style={[styles.segment, { backgroundColor: colors.line }]}>
-        {VIEWS.map((item) => {
-          const on = view === item.value;
-          const count = rows ? rows[item.value].length : null;
+        {TABS.map((item) => {
+          const on = tab === item.value;
+          const n = count(item.value);
           return (
             <Pressable
               key={item.value}
               accessibilityRole="tab"
               accessibilityState={{ selected: on }}
-              onPress={() => setView(item.value)}
+              onPress={() => setTab(item.value)}
               style={[styles.segmentItem, on && { backgroundColor: colors.surface }]}
             >
               <Text numberOfLines={1} style={[text.label, { color: on ? colors.ink : colors.inkSoft }]}>
-                {count === null ? item.label : `${item.label} ${count}`}
+                {n === null ? item.label : `${item.label} ${n}`}
               </Text>
             </Pressable>
           );
         })}
       </View>
-      <View style={[styles.search, { backgroundColor: colors.surface, borderColor: colors.line }]}>
-        <Feather name="search" size={16} color={colors.inkFaint} />
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Name or room"
-          placeholderTextColor={colors.inkFaint}
-          autoCapitalize="none"
-          autoCorrect={false}
-          returnKeyType="search"
-          style={[text.field, styles.searchInput, { color: colors.ink }]}
-        />
-      </View>
-      {view === "late" ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-          {SOURCES.map((item) => (
-            <FilterChip
-              key={item.label}
-              label={item.label}
-              on={source === item.value}
-              onPress={() => setSource(item.value)}
-            />
-          ))}
-        </ScrollView>
-      ) : null}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-        <FilterChip label="All blocks" on={blockId === null} onPress={() => setBlockId(null)} />
-        {blocks.map((block) => (
-          <FilterChip key={block.id} label={block.name} on={blockId === block.id} onPress={() => setBlockId(block.id)} />
-        ))}
-      </ScrollView>
+      {tab === "late" ? (
+        <>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+            <FilterChip label="Still out" on={lateState === "now"} onPress={() => setLateState("now")} />
+            <FilterChip label="Came back late" on={lateState === "past"} onPress={() => setLateState("past")} />
+            <View style={[styles.divider, { backgroundColor: colors.line }]} />
+            {SOURCES.map((item) => (
+              <FilterChip key={item.label} label={item.label} on={source === item.value} onPress={() => setSource(item.value)} />
+            ))}
+          </ScrollView>
+          {lateState === "past" ? <DayRange value={range} onChange={setRange} /> : null}
+        </>
+      ) : (
+        <>
+          <SearchField value={query} placeholder="Name or room" onChange={setQuery} />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+            <FilterChip label="All blocks" on={blockId === null} onPress={() => setBlockId(null)} />
+            {blocks.map((block) => (
+              <FilterChip key={block.id} label={block.name} on={blockId === block.id} onPress={() => setBlockId(block.id)} />
+            ))}
+          </ScrollView>
+        </>
+      )}
       {error ? <Text style={[text.error, { color: colors.danger }]}>{error}</Text> : null}
     </View>
   );
+
+  const emptyTitle = filtered
+    ? "No one matches"
+    : tab === "late"
+      ? lateState === "now"
+        ? "No one is late"
+        : "No late returns"
+      : "No one is out";
 
   return (
     <SectionList
       style={[styles.screen, { backgroundColor: colors.paper }]}
       contentContainerStyle={[styles.content, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 28 }]}
       sections={sections}
-      keyExtractor={(row) => row.id}
+      keyExtractor={(item) => item.row.id}
       ListHeaderComponent={header}
       stickySectionHeadersEnabled
       initialNumToRender={20}
       windowSize={9}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
-      renderSectionHeader={({ section }) => <SectionHead title={section.title} count={section.note} />}
-      renderItem={({ item, index, section }) => {
-        const dueAt = item.late ? item.dueAt : null;
-        return (
-          <DenseRow
-            title={item.name}
-            detail={
-              item.late && item.kind && dueAt
-                ? `${item.room} · ${item.kind === "ordinary" ? "Ordinary" : kindLabel(item.kind)} · ${dueLabel(dueAt)}`
-                : [item.room, item.place].filter(Boolean).join(" · ")
-            }
-            time={dueAt ? lateBy(dueAt) : item.backBy}
-            late={item.late}
-            first={index === 0}
-            last={index === section.data.length - 1}
-          />
-        );
+      onEndReachedThreshold={0.5}
+      onEndReached={() => {
+        if (tab === "late" && late && late.length < lateTotal) {
+          void loadLate(late.length);
+        }
       }}
+      renderSectionHeader={({ section }) => <SectionHead title={section.title} count={section.note} />}
+      renderItem={({ item, index, section }) => (
+        <DenseRow
+          title={item.row.name}
+          detail={item.tab === "late" ? lateDetail(item.row) : [item.row.room, item.row.place].filter(Boolean).join(" · ")}
+          time={item.tab === "late" ? lateFor(item.row.minutesLate) : item.row.backBy}
+          late={item.tab === "late"}
+          first={index === 0}
+          last={index === section.data.length - 1}
+        />
+      )}
       ListEmptyComponent={
-        rows ? (
+        loaded && !error ? (
           <View style={styles.empty}>
-            <Text style={[styles.place, { color: colors.ink }]}>
-              {query || blockId ? "No one matches" : view === "late" ? "No one is late" : "No one is out"}
-            </Text>
-            {query || blockId ? (
+            <Text style={[styles.place, { color: colors.ink }]}>{emptyTitle}</Text>
+            {filtered && tab !== "late" ? (
               <Text numberOfLines={2} style={[text.body, styles.center, { color: colors.inkSoft }]}>
                 {`No one out${blockName ? ` in ${blockName}` : ""}${query ? ` matches ${query.trim()}` : ""}`}
               </Text>
@@ -289,18 +310,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 6,
   },
-  search: {
-    height: 44,
-    borderWidth: 1,
-    borderRadius: 12,
-    borderCurve: "continuous",
-    paddingHorizontal: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  searchInput: { flex: 1, height: "100%", paddingVertical: 0 },
-  chips: { gap: 8 },
+  chips: { gap: 8, alignItems: "center" },
+  divider: { width: 1, height: 20, marginHorizontal: 4 },
   empty: { alignItems: "center", gap: 8, paddingTop: 96 },
   place: { fontFamily: "SourceSerif4_600SemiBold", fontSize: 20, letterSpacing: -0.2 },
   center: { textAlign: "center" },

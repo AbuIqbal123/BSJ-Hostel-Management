@@ -7,7 +7,7 @@ import uuid
 from datetime import timedelta
 from typing import Annotated, Literal, NoReturn
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.residents.outings.records import (
@@ -20,6 +20,8 @@ from app.residents.outings.records import (
 )
 from app.residents.outings.usable import find_usable_outing
 from app.shared import clock
+from app.residents.notifications.records import record_late_outings
+from app.shared import push
 from app.shared.sms import consider_late_notices, send_return_notice_if_due
 from app.shared.auth.routes import Account, AccountDep, ConnectionDep
 from app.shared.db import hall_settings
@@ -64,6 +66,10 @@ class ScanReturnRecord(BaseModel):
     return_timeliness: Literal["on_time", "within_grace", "late"]
     returned_at: str
     return_recorded_by_name: str
+    outing_type: Literal["ordinary", "late_night", "home_going"]
+    place: str
+    expected_return_at: str
+    minutes_late: int
 
 
 class ScanExitResult(BaseModel):
@@ -95,6 +101,14 @@ def _return_timeliness(
     if returned_at <= grace_ends_at:
         return "within_grace"
     return "late"
+
+
+def _minutes_late(returned_at: str, expected_return_at: str, timeliness: str) -> int:
+    """Same rule as the late-returns register: late only past grace, counted from expected return."""
+    if timeliness != "late":
+        return 0
+    seconds = (clock.parse_instant(returned_at) - clock.parse_instant(expected_return_at)).total_seconds()
+    return int(seconds // 60)
 
 
 def _exit_outing(outing: OutingBody, recorded_at: str) -> ScanExitOuting:
@@ -358,6 +372,7 @@ def scan_hall_pass(
     body: ScanRequest,
     account: GateDep,
     connection: ConnectionDep,
+    background_tasks: BackgroundTasks,
 ) -> ScanResult:
     resident = _load_resident_by_qr(connection, body.qr_payload)
     if resident is None:
@@ -409,6 +424,8 @@ def scan_hall_pass(
                 "This resident is marked outside but no open outing was found to return on.",
                 resident,
             )
+        # Her late row and late push are due before the return, as the SMS is.
+        background_tasks.add_task(push.dispatch, record_late_outings(connection, now_text))
         outing = _record_return(
             connection,
             outing_id=open_row["id"],
@@ -435,6 +452,10 @@ def scan_hall_pass(
                 return_timeliness=timeliness,
                 returned_at=now_text,
                 return_recorded_by_name=account.full_name,
+                outing_type=outing.outing_type,
+                place=outing.place,
+                expected_return_at=outing.expected_return_at,
+                minutes_late=_minutes_late(now_text, outing.expected_return_at, timeliness),
             ),
         )
 

@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -84,9 +85,25 @@ export default function StaffHomeScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.identity}>
-        <Text numberOfLines={1} style={[text.hallName, styles.title, { color: colors.ink }]}>
-          {`Welcome, ${user.full_name}`}
-        </Text>
+        <View style={styles.welcomeRow}>
+          <Text numberOfLines={1} style={[text.hallName, styles.title, { color: colors.ink }]}>
+            {`Welcome, ${user.full_name}`}
+          </Text>
+          {register ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Notifications"
+              hitSlop={12}
+              onPress={() => router.push("/staff/notifications")}
+              style={[styles.bell, { backgroundColor: colors.ink }]}
+            >
+              <Feather name="bell" size={16} color={colors.paper} />
+              {summary?.unread ? (
+                <View style={[styles.dot, { backgroundColor: colors.forest, borderColor: colors.paper }]} />
+              ) : null}
+            </Pressable>
+          ) : null}
+        </View>
         <Text numberOfLines={1} style={[text.body, { color: colors.inkSoft }]}>
           {roleLabel(user.role)}
         </Text>
@@ -136,7 +153,18 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { flexGrow: 1, paddingHorizontal: 28, gap: 28 },
   identity: { gap: 16 },
-  title: { textAlign: "left" },
+  welcomeRow: { flexDirection: "row", alignItems: "center", gap: 16 },
+  title: { flex: 1, textAlign: "left" },
+  bell: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  dot: {
+    position: "absolute",
+    top: 1,
+    right: 1,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 1.5,
+  },
   stats: { flexDirection: "row", gap: 12 },
   stat: {
     flex: 1,

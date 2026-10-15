@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import sqlite3
-import uuid
-
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, BackgroundTasks, Query
 from pydantic import BaseModel, ConfigDict
 
 from app.shared.schemas import DecisionRequest
@@ -20,7 +18,8 @@ from app.residents.permissions.records import (
     load_review,
     record_permission,
 )
-from app.shared import clock
+from app.residents.notifications.records import record_decision
+from app.shared import clock, push
 from app.shared.auth.routes import ConnectionDep
 from app.shared.errors import ApiError
 from app.staff.register.routes import RegisterDep
@@ -121,6 +120,7 @@ def decide_permission(
     body: DecisionRequest,
     account: RegisterDep,
     connection: ConnectionDep,
+    background_tasks: BackgroundTasks,
 ) -> PermissionReviewBody:
     now_text = clock.format_instant(clock.utc_now())
     expire_passed_permissions(connection, now_text, permission_id=permission_id)
@@ -152,14 +152,18 @@ def decide_permission(
     label = "late-night" if row["type"] == "late_night" else "home-going"
     action = "permission.approved" if body.decision == "approved" else "permission.rejected"
     verb = "approved" if body.decision == "approved" else "rejected"
-    connection.execute(
-        """
-        INSERT INTO resident_notifications (
-          id, resident_id, permission_id, decision, created_at
-        ) VALUES (?, ?, ?, ?, ?)
-        """,
-        (str(uuid.uuid4()), row["resident_id"], permission_id, body.decision, now_text),
+    job = record_decision(
+        connection,
+        kind="permission_decided",
+        record_id=permission_id,
+        resident_id=row["resident_id"],
+        decision=body.decision,
+        now_text=now_text,
+        what=f"{label} permission",
+        noun=f"{label} request",
+        by_name=account.full_name,
     )
+    background_tasks.add_task(push.dispatch, [job])
     record_permission(
         connection,
         now_text,
