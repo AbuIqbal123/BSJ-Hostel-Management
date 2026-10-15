@@ -2,18 +2,23 @@
 
 Startup creates the hall and does not create people. This command adds
 the accounts used on a development machine. Room B-204 is a dev-only room
-for that resident. A second run leaves an existing account, including a
-password that was changed.
+for that resident.
 
-Passwords come from environment variables, or a strong random value is
-generated and printed once when an account is created. Nothing in this
-file embeds a development password. Old values that once lived in git
-history must be treated as burned.
+Passwords come from the app settings loader (process environment or the
+untracked backend/.env): BSJ_SEED_PASSWORD_<ROLE>, then BSJ_SEED_PASSWORD.
+With neither, a strong random password is generated and printed once, only
+for an account this run creates. Passwords from settings are never printed.
+Nothing in this file embeds a development password. Old values that once
+lived in git history must be treated as burned.
+
+Re-runs: an account that already exists is left exactly as it is, including
+its password. Pass --reset-passwords to set every seed account's password
+again (a generated one is printed once; a configured one is not shown).
 """
 
 from __future__ import annotations
 
-import os
+import argparse
 import secrets
 import string
 from dataclasses import dataclass
@@ -24,15 +29,11 @@ from app.shared.config import get_settings, is_hosted
 from app.shared.db import create_connection
 from app.shared.migrate import migrate
 
-# Re-export for tests that still import the join helper from this module.
-from app.shared.testing_env import joined as joined  # noqa: F401
-
 BLOCK_B = "d032aad6-a203-5ea0-ba9a-3a9257edbfc8"
 ROOM_ID = "d4400000-0000-4000-8000-000000000004"
 RESIDENT_QR = "bsj:v1:test-resident-hall-pass"
 
 _PASSWORD_ALPHABET = string.ascii_letters + string.digits + "!@#$%&*"
-_resolved: dict[str, str] = {}
 
 
 def _generate_password() -> str:
@@ -48,29 +49,22 @@ def _generate_password() -> str:
             return value
 
 
-def _resolve_password(role_key: str) -> str:
-    """Prefer BSJ_SEED_PASSWORD_<ROLE>, then BSJ_SEED_PASSWORD, else generate once."""
-    cached = _resolved.get(role_key)
-    if cached is not None:
-        return cached
-    specific = os.environ.get(f"BSJ_SEED_PASSWORD_{role_key}", "").strip()
+def configured_password(role_key: str) -> str | None:
+    """Configured value for a role, read through the app settings loader."""
+    settings = get_settings()
+    specific = getattr(settings, f"bsj_seed_password_{role_key.lower()}", "").strip()
     if specific:
-        _resolved[role_key] = specific
         return specific
-    shared = os.environ.get("BSJ_SEED_PASSWORD", "").strip()
-    if shared:
-        _resolved[role_key] = shared
-        return shared
-    generated = _generate_password()
-    _resolved[role_key] = generated
-    return generated
+    return settings.bsj_seed_password.strip() or None
 
 
-GATE_PHRASE = _resolve_password("GATE")
-RESIDENT_PHRASE = _resolve_password("RESIDENT")
-SUSPENDED_PHRASE = _resolve_password("SUSPENDED")
-WARDEN_PHRASE = _resolve_password("WARDEN")
-PROVOST_PHRASE = _resolve_password("PROVOST")
+@dataclass(frozen=True)
+class SeedResult:
+    created: list[str]
+    reset: list[str]
+    left: list[str]
+    generated: dict[str, str]  # username -> generated password (never configured ones)
+    configured: list[str]  # usernames whose password came from settings
 
 
 @dataclass(frozen=True)
@@ -79,7 +73,7 @@ class DevAccount:
     role: str
     username: str
     full_name: str
-    phrase: str
+    role_key: str
     status: str
     job_title: str | None = None
     course: str | None = None
@@ -94,7 +88,7 @@ ACCOUNTS = (
         "gate",
         "gate.fatima",
         "Fatima Khan",
-        GATE_PHRASE,
+        "GATE",
         "active",
         job_title="Gatekeeper",
     ),
@@ -103,7 +97,7 @@ ACCOUNTS = (
         "resident",
         "24-GLLB-118",
         "Aisha Khan",
-        RESIDENT_PHRASE,
+        "RESIDENT",
         "active",
         course="B.A. LL.B. (Hons.)",
         phone="+919811112222",
@@ -115,7 +109,7 @@ ACCOUNTS = (
         "gate",
         "gate.suspended",
         "Noor Ali",
-        SUSPENDED_PHRASE,
+        "SUSPENDED",
         "suspended",
         job_title="Gatekeeper",
     ),
@@ -124,7 +118,7 @@ ACCOUNTS = (
         "warden",
         "warden.sara",
         "Sara Malik",
-        WARDEN_PHRASE,
+        "WARDEN",
         "active",
         job_title="Warden",
     ),
@@ -133,15 +127,18 @@ ACCOUNTS = (
         "provost",
         "provost.halima",
         "Halima Begum",
-        PROVOST_PHRASE,
+        "PROVOST",
         "active",
         job_title="Provost",
     ),
 )
 
 
-def seed() -> list[str]:
-    """Add any missing development accounts. Returns the usernames just added."""
+def seed(reset_passwords: bool = False) -> SeedResult:
+    """Add any missing development accounts.
+
+    Existing accounts keep their password unless reset_passwords is true.
+    """
     if is_hosted():
         raise RuntimeError(
             "Development accounts are not added on Render. "
@@ -154,7 +151,17 @@ def seed() -> list[str]:
     migrate()
     created = clock.format_instant(clock.utc_now())
     connection = create_connection()
-    added: list[str] = []
+    result = SeedResult([], [], [], {}, [])
+
+    def password_for(account: DevAccount) -> str:
+        value = configured_password(account.role_key)
+        if value is not None:
+            result.configured.append(account.username)
+            return value
+        value = _generate_password()
+        result.generated[account.username] = value
+        return value
+
     try:
         room = connection.execute(
             "SELECT id FROM rooms WHERE label = ?",
@@ -177,6 +184,14 @@ def seed() -> list[str]:
                 (account.username,),
             ).fetchone()
             if existing is not None:
+                if reset_passwords:
+                    connection.execute(
+                        "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?",
+                        (hash_password(password_for(account)), created, existing["id"]),
+                    )
+                    result.reset.append(account.username)
+                else:
+                    result.left.append(account.username)
                 continue
             connection.execute(
                 """
@@ -189,7 +204,7 @@ def seed() -> list[str]:
                     account.role,
                     account.username,
                     account.full_name,
-                    hash_password(account.phrase),
+                    hash_password(password_for(account)),
                     account.status,
                     created,
                     created,
@@ -221,31 +236,51 @@ def seed() -> list[str]:
                     "INSERT INTO staff (user_id, job_title) VALUES (?, ?)",
                     (account.id, account.job_title),
                 )
-            added.append(account.username)
+            result.created.append(account.username)
         connection.commit()
     except Exception:
         connection.rollback()
         raise
     finally:
         connection.close()
-    return added
+    return result
+
+
+def report(result: SeedResult) -> list[str]:
+    """Lines to print. Only generated passwords appear, once."""
+    lines: list[str] = []
+    if result.created:
+        lines.append("Added: " + ", ".join(result.created))
+    if result.reset:
+        lines.append("Password reset: " + ", ".join(result.reset))
+    if result.left:
+        lines.append(
+            "Left unchanged (already exist, password NOT touched): "
+            + ", ".join(result.left)
+            + ". Use --reset-passwords if you do not know them."
+        )
+    if result.configured:
+        lines.append(
+            "Password taken from BSJ_SEED_PASSWORD* settings (not shown): "
+            + ", ".join(result.configured)
+        )
+    if result.generated:
+        lines.append("Generated passwords (shown once, save them now):")
+        for username, value in result.generated.items():
+            lines.append(f"  {username}  {value}")
+    return lines
 
 
 def main() -> None:
-    added = seed()
-    if not added:
-        print(
-            "Development accounts are already in the database. "
-            "Existing passwords were left as they are."
-        )
-        return
-    print("Added development accounts:")
-    for account in ACCOUNTS:
-        if account.username in added:
-            print(f"  {account.username}  {account.phrase}")
-    skipped = [account.username for account in ACCOUNTS if account.username not in added]
-    if skipped:
-        print("Left existing accounts as they are: " + ", ".join(skipped))
+    parser = argparse.ArgumentParser(description="Add local development accounts.")
+    parser.add_argument(
+        "--reset-passwords",
+        action="store_true",
+        help="Set a new password on accounts that already exist.",
+    )
+    args = parser.parse_args()
+    for line in report(seed(reset_passwords=args.reset_passwords)):
+        print(line)
 
 
 if __name__ == "__main__":

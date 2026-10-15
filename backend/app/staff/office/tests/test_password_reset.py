@@ -10,8 +10,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import PROVOST_PHRASE, RESIDENT_PHRASE, WARDEN_PHRASE
-from app.shared.testing_env import fixture_password
+from app.shared.testing_env import role_credential
 
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "admin-password-reset.json"
 PROVOST_ID = "f66ab000-0000-4000-8000-000000000006"
@@ -51,9 +50,9 @@ def issue_people(path: Path) -> None:
             (ROOM_ID, BLOCK_B),
         )
         people = (
-            (PROVOST_ID, "provost", "provost.halima", "Halima Begum", PROVOST_PHRASE, "Provost"),
-            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", WARDEN_PHRASE, "Warden"),
-            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", RESIDENT_PHRASE, None),
+            (PROVOST_ID, "provost", "provost.halima", "Halima Begum", role_credential("provost"), "Provost"),
+            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", role_credential("warden"), "Warden"),
+            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", role_credential("resident"), None),
         )
         for user_id, role, username, full_name, password, job in people:
             connection.execute(
@@ -106,7 +105,6 @@ def attempt_login(client: TestClient, username: str, secret: str):
 
 def test_admin_password_reset(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     expected = json.loads(ARTIFACT.read_text(encoding="utf-8"))
-    new_password = fixture_password("reset")
     from app.main import app
     from app.shared import clock
 
@@ -117,36 +115,36 @@ def test_admin_password_reset(database_path: Path, monkeypatch: pytest.MonkeyPat
         assert_error(
             client.post(
                 f"/api/v1/admin/users/{RESIDENT_ID}/password",
-                json={"temporary_password": new_password},
+                json={"temporary_password": role_credential("reset")},
             ),
             401,
             "unauthenticated",
         )
-        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        resident = sign_in(client, "24-GLLB-118", role_credential("resident"))
         assert_error(
             client.post(
                 f"/api/v1/admin/users/{RESIDENT_ID}/password",
                 headers={"Authorization": f"Bearer {resident['access_token']}"},
-                json={"temporary_password": new_password},
+                json={"temporary_password": role_credential("reset")},
             ),
             403,
             "forbidden",
         )
-        warden = sign_in(client, "warden.sara", WARDEN_PHRASE)
+        warden = sign_in(client, "warden.sara", role_credential("warden"))
         assert_error(
             client.post(
                 f"/api/v1/admin/users/{RESIDENT_ID}/password",
                 headers={"Authorization": f"Bearer {warden['access_token']}"},
-                json={"temporary_password": new_password},
+                json={"temporary_password": role_credential("reset")},
             ),
             403,
             "forbidden",
         )
 
-        aisha = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        aisha = sign_in(client, "24-GLLB-118", role_credential("resident"))
         old_refresh = aisha["refresh_token"]
 
-        provost = sign_in(client, "provost.halima", PROVOST_PHRASE)
+        provost = sign_in(client, "provost.halima", role_credential("provost"))
         headers = {"Authorization": f"Bearer {provost['access_token']}"}
 
         short = client.post(
@@ -169,7 +167,7 @@ def test_admin_password_reset(database_path: Path, monkeypatch: pytest.MonkeyPat
             client.post(
                 "/api/v1/admin/users/00000000-0000-4000-8000-000000000099/password",
                 headers=headers,
-                json={"temporary_password": new_password},
+                json={"temporary_password": role_credential("reset")},
             ),
             404,
             "not_found",
@@ -178,13 +176,13 @@ def test_admin_password_reset(database_path: Path, monkeypatch: pytest.MonkeyPat
         reset = client.post(
             f"/api/v1/admin/users/{RESIDENT_ID}/password",
             headers=headers,
-            json={"temporary_password": new_password},
+            json={"temporary_password": role_credential("reset")},
         )
         assert reset.status_code == 204
         assert reset.content == b""
 
         assert_error(
-            attempt_login(client, "24-GLLB-118", RESIDENT_PHRASE),
+            attempt_login(client, "24-GLLB-118", role_credential("resident")),
             401,
             "unauthenticated",
         )
@@ -193,22 +191,20 @@ def test_admin_password_reset(database_path: Path, monkeypatch: pytest.MonkeyPat
             401,
             "unauthenticated",
         )
-        fresh = sign_in(client, "24-GLLB-118", new_password)
+        fresh = sign_in(client, "24-GLLB-118", role_credential("reset"))
         assert fresh["access_token"]
-
-        staff_password = fixture_password("warden-reset")
         staff_reset = client.post(
             f"/api/v1/admin/users/{WARDEN_ID}/password",
             headers=headers,
-            json={"temporary_password": staff_password},
+            json={"temporary_password": role_credential("warden-reset")},
         )
         assert staff_reset.status_code == 204
         assert_error(
-            attempt_login(client, "warden.sara", WARDEN_PHRASE),
+            attempt_login(client, "warden.sara", role_credential("warden")),
             401,
             "unauthenticated",
         )
-        sign_in(client, "warden.sara", staff_password)
+        sign_in(client, "warden.sara", role_credential("warden-reset"))
 
         connection = sqlite3.connect(database_path)
         try:
@@ -232,4 +228,4 @@ def test_admin_password_reset(database_path: Path, monkeypatch: pytest.MonkeyPat
             connection.close()
         blob = " ".join(d for d in details if d)
         assert "reset-pass" not in blob
-        assert new_password not in blob
+        assert role_credential("reset") not in blob

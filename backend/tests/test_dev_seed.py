@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib
 import json
 import secrets
 import sqlite3
@@ -99,37 +98,169 @@ def assert_error(response, message: str) -> None:
     assert body["error"]["message"] == message
 
 
+ROLE_KEYS = ("GATE", "RESIDENT", "SUSPENDED", "WARDEN", "PROVOST")
+
+
+def _use_env_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, lines: dict[str, str]
+) -> None:
+    """Point the app settings loader at a temp .env (never the real one)."""
+    from app.shared.config import Settings, get_settings
+
+    env_file = tmp_path / "seed.env"
+    env_file.write_text(
+        "".join(f"{key}={value}\n" for key, value in lines.items()), encoding="utf-8"
+    )
+    for key in ("BSJ_SEED_PASSWORD", *(f"BSJ_SEED_PASSWORD_{r}" for r in ROLE_KEYS)):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setitem(Settings.model_config, "env_file", env_file)
+    get_settings.cache_clear()
+
+
+def _runtime_password(label: str) -> str:
+    return f"T-{label}-{secrets.token_hex(8)}!9"
+
+
 def test_dev_seed_source_has_no_password_literals() -> None:
     """Seed module must not embed reconstructable development passwords."""
     source = Path(__file__).resolve().parents[1] / "app" / "dev_seed.py"
     text = source.read_text(encoding="utf-8")
     assert "def joined" not in text
+    assert "_PHRASE" not in text
     assert '"pass"' not in text
     assert "'pass'" not in text
-    # Role-key args are fine; a full password string assigned to *_PHRASE is not.
-    for line in text.splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-        if "_PHRASE =" in stripped:
-            assert "_resolve_password(" in stripped
 
 
-def test_dev_seed_adds_local_accounts(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_dev_seed_reads_passwords_from_env_file(
+    database_path: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Values that exist only in .env (not os.environ) must be used."""
+    from app.main import app
+
+    passwords = {role: _runtime_password(role.lower()) for role in ROLE_KEYS}
+    _use_env_file(
+        tmp_path,
+        monkeypatch,
+        {
+            "APP_SECRET_KEY": "k" * 40,
+            **{f"BSJ_SEED_PASSWORD_{r}": v for r, v in passwords.items()},
+        },
+    )
+    import app.dev_seed as dev_seed
+
+    result = dev_seed.seed()
+    assert result.generated == {}
+    assert sorted(result.configured) == sorted(result.created)
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/v1/auth/login",
+            json=_login_body("warden.sara", passwords["WARDEN"]),
+        )
+        assert response.status_code == 200
+    output = "\n".join(dev_seed.report(result))
+    for value in passwords.values():
+        assert value not in output
+
+
+def test_dev_seed_shared_env_file_value_and_role_override(
+    database_path: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.main import app
+
+    shared = _runtime_password("shared")
+    gate = _runtime_password("gate")
+    _use_env_file(
+        tmp_path,
+        monkeypatch,
+        {
+            "APP_SECRET_KEY": "k" * 40,
+            "BSJ_SEED_PASSWORD": shared,
+            "BSJ_SEED_PASSWORD_GATE": gate,
+        },
+    )
+    import app.dev_seed as dev_seed
+
+    dev_seed.seed()
+    with TestClient(app) as client:
+        for username, secret in (
+            ("gate.fatima", gate),
+            ("provost.halima", shared),
+        ):
+            response = client.post(
+                "/api/v1/auth/login", json=_login_body(username, secret)
+            )
+            assert response.status_code == 200
+
+
+def test_dev_seed_generates_and_reports_passwords_once(
+    database_path: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.main import app
+
+    _use_env_file(tmp_path, monkeypatch, {"APP_SECRET_KEY": "k" * 40})
+    import app.dev_seed as dev_seed
+
+    first = dev_seed.seed()
+    assert sorted(first.generated) == sorted(first.created)
+    lines = dev_seed.report(first)
+    assert all(
+        any(value in line for line in lines) for value in first.generated.values()
+    )
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/v1/auth/login",
+            json=_login_body("gate.fatima", first.generated["gate.fatima"]),
+        )
+        assert response.status_code == 200
+
+    second = dev_seed.seed()
+    assert second.created == [] and second.generated == {}
+    assert sorted(second.left) == sorted(first.created)
+    text = "\n".join(dev_seed.report(second))
+    assert "Left unchanged" in text and "--reset-passwords" in text
+    for value in first.generated.values():
+        assert value not in text
+
+
+def test_dev_seed_reset_passwords_replaces_existing(
+    database_path: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.main import app
+
+    _use_env_file(tmp_path, monkeypatch, {"APP_SECRET_KEY": "k" * 40})
+    import app.dev_seed as dev_seed
+
+    first = dev_seed.seed()
+    again = dev_seed.seed(reset_passwords=True)
+    assert again.created == [] and sorted(again.reset) == sorted(first.created)
+    with TestClient(app) as client:
+        old = client.post(
+            "/api/v1/auth/login",
+            json=_login_body("gate.fatima", first.generated["gate.fatima"]),
+        )
+        assert old.status_code == 401
+        new = client.post(
+            "/api/v1/auth/login",
+            json=_login_body("gate.fatima", again.generated["gate.fatima"]),
+        )
+        assert new.status_code == 200
+
+
+def test_dev_seed_adds_local_accounts(
+    database_path: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr("app.shared.clock.utc_now", lambda: CREATED)
     artifact = ARTIFACT.read_text(encoding="utf-8")
     assert "password" not in artifact
     assert "qr_token" not in artifact
     assert "bsj:v1:" not in artifact
 
-    def _pw(label: str) -> str:
-        return f"T-{label}-{secrets.token_hex(8)}!9"
-
-    gate_pw = _pw("gate")
-    resident_pw = _pw("resident")
-    suspended_pw = _pw("suspended")
-    warden_pw = _pw("warden")
-    provost_pw = _pw("provost")
+    gate_pw = _runtime_password("gate")
+    resident_pw = _runtime_password("resident")
+    suspended_pw = _runtime_password("suspended")
+    warden_pw = _runtime_password("warden")
+    provost_pw = _runtime_password("provost")
+    _use_env_file(tmp_path, monkeypatch, {"APP_SECRET_KEY": "k" * 40})
     monkeypatch.setenv("BSJ_SEED_PASSWORD_GATE", gate_pw)
     monkeypatch.setenv("BSJ_SEED_PASSWORD_RESIDENT", resident_pw)
     monkeypatch.setenv("BSJ_SEED_PASSWORD_SUSPENDED", suspended_pw)
@@ -138,10 +269,7 @@ def test_dev_seed_adds_local_accounts(database_path: Path, monkeypatch: pytest.M
 
     import app.dev_seed as dev_seed
 
-    importlib.reload(dev_seed)
-    seed = dev_seed.seed
-
-    added = seed()
+    added = dev_seed.seed().created
     assert added == [
         "gate.fatima",
         "24-GLLB-118",
@@ -194,8 +322,10 @@ def test_dev_seed_adds_local_accounts(database_path: Path, monkeypatch: pytest.M
 
     before = private_state(database_path)
     assert all(row[1].startswith("$argon2id$") for row in before["users"])
-    assert seed() == []
+    assert dev_seed.seed().created == []
     assert private_state(database_path) == before
+
+
 
 
 def test_dev_seed_refuses_on_render(

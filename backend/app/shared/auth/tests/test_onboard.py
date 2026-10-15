@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import joined
+from app.shared.testing_env import role_credential
 from app.shared.auth.rate_limit import login_limiter, refresh_limiter
 from app.shared.auth.security import password_matches
 from app.shared.auth.tests.test_session import assert_error
@@ -23,8 +23,6 @@ BLOCK_B = "d032aad6-a203-5ea0-ba9a-3a9257edbfc8"
 ROOM_B = "d4400000-0000-4000-8000-000000000204"
 ROOM_A = "d4400000-0000-4000-8000-000000000104"
 NOW = datetime(2026, 9, 30, 12, 0, tzinfo=timezone.utc)
-PHRASE = joined("Resident", "onboard", "10")
-SHORT_PHRASE = "short"  # intentionally under 10 characters
 
 
 class FrozenClock:
@@ -71,7 +69,7 @@ def _body(**overrides: object) -> dict:
     payload: dict = {
         "full_name": "Fatima Noor",
         "enrolment_number": "24-GLLB-220",
-        "password": PHRASE,
+        "password": role_credential("onboard"),
         "course": "B.A. LL.B. (Hons.)",
         "phone": "+919811112222",
         "block_id": BLOCK_B,
@@ -139,7 +137,7 @@ def test_resident_onboard(database_path: Path, monkeypatch: pytest.MonkeyPatch) 
             "phone",
         )
 
-        short = client.post("/api/v1/auth/onboard", json=_body(password=SHORT_PHRASE))
+        short = client.post("/api/v1/auth/onboard", json=_body(password="short"))
         assert_error(
             short,
             422,
@@ -202,7 +200,7 @@ def test_resident_onboard(database_path: Path, monkeypatch: pytest.MonkeyPatch) 
 
         signed_in = client.post(
             "/api/v1/auth/login",
-            json={"username": "24-GLLB-220", "password": PHRASE},
+            json={"username": "24-GLLB-220", "password": role_credential("onboard")},
         )
         assert signed_in.status_code == 200
         token = signed_in.json()
@@ -227,7 +225,7 @@ def test_resident_onboard(database_path: Path, monkeypatch: pytest.MonkeyPatch) 
 
         stored = read_resident(database_path)
         assert stored["qr_token"].startswith("bsj:v1:")
-        assert password_matches(stored["password_hash"], PHRASE)
+        assert password_matches(stored["password_hash"], role_credential("onboard"))
         public = {
             key: stored[key]
             for key in expected["stored"]

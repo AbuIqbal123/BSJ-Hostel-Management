@@ -10,8 +10,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import PROVOST_PHRASE, RESIDENT_PHRASE, WARDEN_PHRASE
-from app.shared.testing_env import fixture_password
+from app.shared.testing_env import role_credential
 
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "admin-residents.json"
 BLOCK_B = "d032aad6-a203-5ea0-ba9a-3a9257edbfc8"
@@ -22,7 +21,6 @@ ROOM_B204 = "d4400000-0000-4000-8000-000000000004"
 ROOM_B205 = "d4400000-0000-4000-8000-000000000005"
 CREATED = "2026-09-30T00:00:00Z"
 NOW = datetime(2026, 9, 30, 12, 0, tzinfo=timezone.utc)
-TEMP_PASSWORD = fixture_password("resident-temp")
 AISHA_QR = "bsj:v1:test-resident-hall-pass"
 
 
@@ -53,9 +51,9 @@ def issue_people(path: Path) -> None:
             (ROOM_B204, BLOCK_B, ROOM_B205, BLOCK_B),
         )
         people = (
-            (PROVOST_ID, "provost", "provost.halima", "Halima Begum", PROVOST_PHRASE, "Provost"),
-            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", WARDEN_PHRASE, "Warden"),
-            (AISHA_ID, "resident", "24-GLLB-118", "Aisha Khan", RESIDENT_PHRASE, None),
+            (PROVOST_ID, "provost", "provost.halima", "Halima Begum", role_credential("provost"), "Provost"),
+            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", role_credential("warden"), "Warden"),
+            (AISHA_ID, "resident", "24-GLLB-118", "Aisha Khan", role_credential("resident"), None),
         )
         for user_id, role, username, full_name, password, job in people:
             connection.execute(
@@ -107,7 +105,7 @@ def test_admin_residents(database_path: Path, monkeypatch: pytest.MonkeyPatch) -
         issue_people(database_path)
 
         assert_error(client.get("/api/v1/admin/residents"), 401, "unauthenticated")
-        aisha = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        aisha = sign_in(client, "24-GLLB-118", role_credential("resident"))
         assert_error(
             client.get(
                 "/api/v1/admin/residents",
@@ -116,7 +114,7 @@ def test_admin_residents(database_path: Path, monkeypatch: pytest.MonkeyPatch) -
             403,
             "forbidden",
         )
-        warden = sign_in(client, "warden.sara", WARDEN_PHRASE)
+        warden = sign_in(client, "warden.sara", role_credential("warden"))
         assert_error(
             client.get(
                 "/api/v1/admin/residents",
@@ -126,7 +124,7 @@ def test_admin_residents(database_path: Path, monkeypatch: pytest.MonkeyPatch) -
             "forbidden",
         )
 
-        provost = sign_in(client, "provost.halima", PROVOST_PHRASE)
+        provost = sign_in(client, "provost.halima", role_credential("provost"))
         headers = {"Authorization": f"Bearer {provost['access_token']}"}
 
         listed = client.get("/api/v1/admin/residents", headers=headers)
@@ -143,7 +141,7 @@ def test_admin_residents(database_path: Path, monkeypatch: pytest.MonkeyPatch) -
             json={
                 **expected["create"],
                 "room_id": ROOM_B205,
-                "temporary_password": TEMP_PASSWORD,
+                "temporary_password": role_credential("resident-temp"),
             },
         )
         assert created.status_code == 201
@@ -167,7 +165,7 @@ def test_admin_residents(database_path: Path, monkeypatch: pytest.MonkeyPatch) -
                 **expected["create"],
                 "enrolment_number": "26-ba-001",
                 "room_id": ROOM_B204,
-                "temporary_password": TEMP_PASSWORD,
+                "temporary_password": role_credential("resident-temp"),
             },
         )
         assert_error(dup, 409, "duplicate_username")
@@ -196,7 +194,7 @@ def test_admin_residents(database_path: Path, monkeypatch: pytest.MonkeyPatch) -
             "not_found",
         )
 
-        maryam_session = sign_in(client, "26-BA-001", TEMP_PASSWORD)
+        maryam_session = sign_in(client, "26-BA-001", role_credential("resident-temp"))
         maryam_refresh = maryam_session["refresh_token"]
 
         patched = client.patch(
@@ -214,7 +212,7 @@ def test_admin_residents(database_path: Path, monkeypatch: pytest.MonkeyPatch) -
         assert patched.json()["room_label"] == "B-204"
 
         # Username follows enrolment
-        moved_login = sign_in(client, "26-BA-002", TEMP_PASSWORD)
+        moved_login = sign_in(client, "26-BA-002", role_credential("resident-temp"))
         assert moved_login["access_token"]
 
         suspended = client.patch(
@@ -310,7 +308,7 @@ def test_null_resident_fields_and_retired_room(
         finally:
             connection.close()
 
-        provost = sign_in(client, "provost.halima", PROVOST_PHRASE)
+        provost = sign_in(client, "provost.halima", role_credential("provost"))
         headers = {"Authorization": f"Bearer {provost['access_token']}"}
 
         missing_phone = {
@@ -322,7 +320,7 @@ def test_null_resident_fields_and_retired_room(
             json={
                 **missing_phone,
                 "room_id": ROOM_B204,
-                "temporary_password": TEMP_PASSWORD,
+                "temporary_password": role_credential("resident-temp"),
             },
         )
         assert_error(refused_phone, 422, "validation_error")
@@ -373,7 +371,7 @@ def test_null_resident_fields_and_retired_room(
             json={
                 **expected["create"],
                 "room_id": ROOM_B205,
-                "temporary_password": TEMP_PASSWORD,
+                "temporary_password": role_credential("resident-temp"),
             },
         )
         assert_error(created, 409, "room_inactive")
@@ -412,17 +410,17 @@ def test_list_hides_deleted_accounts_not_usernames(
             connection.commit()
         finally:
             connection.close()
-        provost = sign_in(client, "provost.halima", PROVOST_PHRASE)
+        provost = sign_in(client, "provost.halima", role_credential("provost"))
         headers = {"Authorization": f"Bearer {provost['access_token']}"}
 
         listed = client.get("/api/v1/admin/residents", headers=headers)
         assert [item["id"] for item in listed.json()["items"]] == [AISHA_ID]
 
-        aisha = sign_in(client, "deleted-118", RESIDENT_PHRASE)
+        aisha = sign_in(client, "deleted-118", role_credential("resident"))
         deleted = client.post(
             "/api/v1/me/account/delete",
             headers={"Authorization": f"Bearer {aisha['access_token']}"},
-            json={"password": RESIDENT_PHRASE},
+            json={"password": role_credential("resident")},
         )
         assert deleted.status_code == 204
         after = client.get("/api/v1/admin/residents", headers=headers)

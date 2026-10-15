@@ -17,7 +17,7 @@ python -m app.dev_seed
 uvicorn app.main:app --host localhost --port 8000
 ```
 
-The seed command reads `BSJ_SEED_PASSWORD_*` when set, otherwise generates and prints each new account's phrase. Copy those into the next shell. Do not commit them. `DATABASE_PATH` above is only for the seed and the server. Locust talks to the host below and does not open the file.
+The seed command reads `BSJ_SEED_PASSWORD_*` from the environment or the untracked `backend/.env` when set, otherwise generates and prints each new account's phrase once. If the accounts already exist and you do not know their passwords, run `python -m app.dev_seed --reset-passwords`. Copy those into the next shell. Do not commit them. `DATABASE_PATH` above is only for the seed and the server. Locust talks to the host below and does not open the file.
 
 ```bash
 cd backend

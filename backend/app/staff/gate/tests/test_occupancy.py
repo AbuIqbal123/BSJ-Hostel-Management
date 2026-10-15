@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import GATE_PHRASE, RESIDENT_PHRASE, WARDEN_PHRASE
+from app.shared.testing_env import role_credential
 
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "gate-occupancy.json"
 BLOCK_B = "d032aad6-a203-5ea0-ba9a-3a9257edbfc8"
@@ -43,7 +43,7 @@ def assert_error(response, status: int, code: str) -> None:
 
 def issue_people(path: Path) -> None:
     from app.shared.auth.security import hash_password
-    from app.dev_seed import joined
+    from app.shared.testing_env import joined
 
     connection = sqlite3.connect(path)
     try:
@@ -56,9 +56,9 @@ def issue_people(path: Path) -> None:
             (ROOM_ID, BLOCK_B, OTHER_ROOM, BLOCK_B),
         )
         people = (
-            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", GATE_PHRASE),
-            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", WARDEN_PHRASE),
-            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", RESIDENT_PHRASE),
+            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", role_credential("gate")),
+            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", role_credential("warden")),
+            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", role_credential("resident")),
             (OTHER_ID, "resident", "24-BA-002", "Maryam Siddiqui", joined("resident", "20")),
         )
         for user_id, role, username, full_name, password in people:
@@ -255,7 +255,7 @@ def test_gate_occupancy(database_path: Path, monkeypatch: pytest.MonkeyPatch) ->
         seed_stays(database_path)
 
         assert_error(client.get("/api/v1/gate/occupancy"), 401, "unauthenticated")
-        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        resident = sign_in(client, "24-GLLB-118", role_credential("resident"))
         assert_error(
             client.get(
                 "/api/v1/gate/occupancy",
@@ -265,13 +265,13 @@ def test_gate_occupancy(database_path: Path, monkeypatch: pytest.MonkeyPatch) ->
             "forbidden",
         )
 
-        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
+        gate = sign_in(client, "gate.fatima", role_credential("gate"))
         headers = {"Authorization": f"Bearer {gate}"}
         response = client.get("/api/v1/gate/occupancy", headers=headers)
         assert response.status_code == 200
         assert response.json() == expected
 
-        warden = sign_in(client, "warden.sara", WARDEN_PHRASE)
+        warden = sign_in(client, "warden.sara", role_credential("warden"))
         warden_response = client.get(
             "/api/v1/gate/occupancy",
             headers={"Authorization": f"Bearer {warden}"},

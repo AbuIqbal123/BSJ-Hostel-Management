@@ -33,3 +33,16 @@ _JOIN_NONCE: str | None = None
 def fixture_password(label: str = "fixture") -> str:
     """Strong runtime password for fixtures (meets hall character-class rules)."""
     return f"Fx-{label}-{secrets.token_hex(8)}!9"
+
+
+_ROLE_CREDENTIALS: dict[str, str] = {}
+
+
+def role_credential(role: str) -> str:
+    """Per-process runtime credential for a seeded-style test account.
+
+    Tests insert accounts with this value directly. Nothing here is a literal.
+    """
+    if role not in _ROLE_CREDENTIALS:
+        _ROLE_CREDENTIALS[role] = fixture_password(role)
+    return _ROLE_CREDENTIALS[role]
