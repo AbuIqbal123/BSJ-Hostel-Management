@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import GATE_PHRASE, RESIDENT_PHRASE, WARDEN_PHRASE
+from app.shared.testing_env import role_credential
 from app.staff.gate.tests.test_scans import (
     CREATED,
     LIBRARY,
@@ -103,7 +103,7 @@ def seed_permission(
 
 def scan(client: TestClient):
     # Sign in per call: the clock moves hours, and access tokens are short-lived.
-    token = sign_in(client, "gate.fatima", GATE_PHRASE)
+    token = sign_in(client, "gate.fatima", role_credential("gate"))
     return client.post(
         "/api/v1/gate/scans",
         headers={"Authorization": f"Bearer {token}"},
@@ -112,7 +112,7 @@ def scan(client: TestClient):
 
 
 def hall_pass(client: TestClient) -> dict:
-    token = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+    token = sign_in(client, "24-GLLB-118", role_credential("resident"))
     response = client.get("/api/v1/me/hall-pass", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200
     return response.json()
@@ -206,7 +206,7 @@ def test_outside_resident_keeps_the_qr_after_the_permission_window_and_late_retu
         connection.close()
     assert notices == ["late_notice", "return_notice"]
     assert status == "completed"
-    warden = sign_in(client, "warden.sara", WARDEN_PHRASE)
+    warden = sign_in(client, "warden.sara", role_credential("warden"))
     past = client.get(
         "/api/v1/register/late-returns",
         headers={"Authorization": f"Bearer {warden}"},
@@ -248,7 +248,7 @@ def test_approval_refuses_a_permission_that_overlaps_an_approved_one(desk) -> No
     client, _movable, path = desk
     seed_permission(path, PERMISSION_ID, "late_night", "approved", stamp(15), stamp(17))
     seed_permission(path, SECOND_PERMISSION_ID, "home_going", "pending", stamp(16), stamp(20))
-    warden = sign_in(client, "warden.sara", WARDEN_PHRASE)
+    warden = sign_in(client, "warden.sara", role_credential("warden"))
     headers = {"Authorization": f"Bearer {warden}"}
     path_decision = f"/api/v1/permissions/{SECOND_PERMISSION_ID}/decision"
 
@@ -271,7 +271,7 @@ def test_approval_allows_back_to_back_permissions(desk) -> None:
     client, _movable, path = desk
     seed_permission(path, PERMISSION_ID, "late_night", "approved", stamp(15), stamp(17))
     seed_permission(path, SECOND_PERMISSION_ID, "late_night", "pending", stamp(17), stamp(19))
-    warden = sign_in(client, "warden.sara", WARDEN_PHRASE)
+    warden = sign_in(client, "warden.sara", role_credential("warden"))
     response = client.post(
         f"/api/v1/permissions/{SECOND_PERMISSION_ID}/decision",
         headers={"Authorization": f"Bearer {warden}"},
