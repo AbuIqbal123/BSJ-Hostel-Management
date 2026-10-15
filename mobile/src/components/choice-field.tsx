@@ -194,7 +194,7 @@ export const ChoiceField = memo(function ChoiceField({
         />
       ) : null}
       {hint ? <Text style={[text.body, { color: colors.inkSoft }]}>{hint}</Text> : null}
-      {note ? <Text style={[text.error, { color: colors.danger }]}>{note}</Text> : null}
+      {note ? <Text accessibilityLiveRegion="polite" style={[text.error, { color: colors.danger }]}>{note}</Text> : null}
     </View>
   );
 });

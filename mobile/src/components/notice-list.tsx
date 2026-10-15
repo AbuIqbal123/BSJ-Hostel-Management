@@ -215,7 +215,7 @@ export function NoticeList({ base, role, back, staff }: { base: string; role: Ha
         ))}
       </ScrollView>
       {staff ? <DayRange value={range} onChange={setRange} /> : null}
-      {error ? <Text style={[text.error, { color: colors.danger }]}>{error}</Text> : null}
+      {error ? <Text accessibilityLiveRegion="polite" style={[text.error, { color: colors.danger }]}>{error}</Text> : null}
     </View>
   );
 

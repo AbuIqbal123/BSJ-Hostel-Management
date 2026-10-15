@@ -561,7 +561,7 @@ export default function OnboardScreen() {
           room_id: selectedRoom.id,
         });
         if (message) {
-          if (message === "That enrolment number is already an account.") {
+          if (message === "That enrolment number is already an account") {
             setEnrolmentTaken(message);
             enrolmentField.reveal();
             showStep(0);
@@ -733,7 +733,7 @@ export default function OnboardScreen() {
           autoComplete="off"
           returnKeyType="next"
         />
-        {nameNote ? <Text style={[text.error, { color: colors.danger }]}>{nameNote}</Text> : null}
+        {nameNote ? <Text accessibilityLiveRegion="polite" style={[text.error, { color: colors.danger }]}>{nameNote}</Text> : null}
       </View>
       <View style={styles.noteBlock}>
         <TextField
@@ -749,7 +749,7 @@ export default function OnboardScreen() {
           returnKeyType="next"
         />
         {enrolmentNote ? (
-          <Text style={[text.error, { color: colors.danger }]}>{enrolmentNote}</Text>
+          <Text accessibilityLiveRegion="polite" style={[text.error, { color: colors.danger }]}>{enrolmentNote}</Text>
         ) : null}
       </View>
       <View style={styles.noteBlock}>
@@ -764,7 +764,7 @@ export default function OnboardScreen() {
           returnKeyType="next"
         />
         {ownPhoneNote ? (
-          <Text style={[text.error, { color: colors.danger }]}>{ownPhoneNote}</Text>
+          <Text accessibilityLiveRegion="polite" style={[text.error, { color: colors.danger }]}>{ownPhoneNote}</Text>
         ) : null}
       </View>
       <View style={styles.noteBlock}>
@@ -779,7 +779,7 @@ export default function OnboardScreen() {
           onSubmitEditing={advance}
         />
         {passwordNote ? (
-          <Text style={[text.error, { color: colors.danger }]}>{passwordNote}</Text>
+          <Text accessibilityLiveRegion="polite" style={[text.error, { color: colors.danger }]}>{passwordNote}</Text>
         ) : null}
       </View>
     </View>
@@ -801,7 +801,7 @@ export default function OnboardScreen() {
           returnKeyType="next"
         />
         {guardianNameNote ? (
-          <Text style={[text.error, { color: colors.danger }]}>{guardianNameNote}</Text>
+          <Text accessibilityLiveRegion="polite" style={[text.error, { color: colors.danger }]}>{guardianNameNote}</Text>
         ) : null}
       </View>
       <View style={styles.noteBlock}>
@@ -817,7 +817,7 @@ export default function OnboardScreen() {
           onSubmitEditing={advance}
         />
         {guardianPhoneNote ? (
-          <Text style={[text.error, { color: colors.danger }]}>{guardianPhoneNote}</Text>
+          <Text accessibilityLiveRegion="polite" style={[text.error, { color: colors.danger }]}>{guardianPhoneNote}</Text>
         ) : null}
       </View>
     </View>
@@ -894,6 +894,9 @@ export default function OnboardScreen() {
               key={index}
               style={styles.hit}
               accessibilityRole="button"
+              accessibilityLabel={
+                index === step ? `Step ${index + 1} of 3, current` : `Step ${index + 1} of 3`
+              }
               accessibilityState={{ selected: index === step }}
               onPress={() => {
                 if (index < step) {
@@ -938,7 +941,7 @@ export default function OnboardScreen() {
           accessibilityElementsHidden={error === null}
           style={styles.errorSlot}
         >
-          <Text
+          <Text accessibilityLiveRegion="polite"
             selectable={error !== null}
             style={[
               text.error,

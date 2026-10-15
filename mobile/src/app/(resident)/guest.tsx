@@ -18,7 +18,7 @@ import { BackMark } from "@/components/back-mark";
 import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
-import { HALL_ZONE, formatHallDate } from "@/format-when";
+import { HALL_ZONE, formatChipDay, formatHallDate } from "@/format-when";
 import { hallDay } from "@/outing-when";
 import { guestLine } from "@/requests";
 import { useSession, type GuestStay } from "@/session";
@@ -61,12 +61,7 @@ function HallDate({
   const colors = useHallColors();
   const [pickerKey, setPickerKey] = useState(0);
   const shown = value ?? new Date();
-  const dayLabel = new Intl.DateTimeFormat("en-GB", {
-    timeZone: HALL_ZONE,
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(shown);
+  const dayLabel = formatChipDay(shown);
   const open = () => {
     DateTimePickerAndroid.open({
       value: shown,
@@ -321,7 +316,7 @@ function GuestForm({ existing }: { existing?: GuestStay }) {
           }}
         />
         {start && end && endDate < startDate ? (
-          <Text style={[text.error, { color: colors.danger }]}>Leaves has to be on or after Arrives</Text>
+          <Text accessibilityLiveRegion="polite" style={[text.error, { color: colors.danger }]}>Leaves has to be on or after Arrives</Text>
         ) : null}
       </Pressable>
       <View style={styles.submit}>
@@ -359,7 +354,7 @@ function GuestForm({ existing }: { existing?: GuestStay }) {
         </Pressable>
       ) : null}
       {error ? (
-        <Text selectable style={[text.error, { color: colors.danger }]}>
+        <Text accessibilityLiveRegion="polite" selectable style={[text.error, { color: colors.danger }]}>
           {error}
         </Text>
       ) : null}
@@ -487,7 +482,7 @@ function GuestDetail({ id }: { id: string }) {
         </View>
       ) : null}
       {error ? (
-        <Text selectable style={[text.error, { color: colors.danger }]}>
+        <Text accessibilityLiveRegion="polite" selectable style={[text.error, { color: colors.danger }]}>
           {error}
         </Text>
       ) : null}

@@ -330,7 +330,7 @@ export default function HomeScreen() {
           Confirm
         </Text>
       </Pressable>
-      {error ? <Text style={[text.error, styles.planNote, { color: colors.danger }]}>{error}</Text> : null}
+      {error ? <Text accessibilityLiveRegion="polite" style={[text.error, styles.planNote, { color: colors.danger }]}>{error}</Text> : null}
     </View>
   ) : null;
 
@@ -364,7 +364,7 @@ export default function HomeScreen() {
             ) : null}
           </View>
           {error && !planCard ? (
-            <Text style={[text.error, { color: colors.danger }]}>{error}</Text>
+            <Text accessibilityLiveRegion="polite" style={[text.error, { color: colors.danger }]}>{error}</Text>
           ) : null}
           {loaded && out ? (
             <Text style={[text.body, { color: colors.ink }]}>You are out</Text>

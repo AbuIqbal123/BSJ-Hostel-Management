@@ -15,6 +15,7 @@ import { AppState, Platform } from "react-native";
 
 import { allowReturnReminders, clearNotificationSurface, PUSH_TOKEN_KEY, pushToken } from "@/push";
 import { refreshEffect, registerPushToken, singleFlight } from "@/session-refresh";
+import { trimStop } from "@/staff";
 
 const SESSION_KEY = "bsj.session";
 
@@ -356,7 +357,7 @@ async function hallFailure(response: Response): Promise<HallFailure> {
         ? body.error.message
         : "The hall could not be reached";
     const code = typeof body.error?.code === "string" ? body.error.code : null;
-    return { code, message };
+    return { code, message: trimStop(message) };
   } catch {
     return { code: null, message: "The hall could not be reached" };
   }
@@ -1484,7 +1485,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const error = (json as { error?: { message?: unknown; details?: unknown } } | null)?.error;
       return {
         ok: false,
-        message: typeof error?.message === "string" && error.message ? error.message : unreachable.message,
+        message: trimStop(
+          typeof error?.message === "string" && error.message ? error.message : unreachable.message,
+        ),
         details:
           error?.details && typeof error.details === "object"
             ? (error.details as Record<string, unknown>)

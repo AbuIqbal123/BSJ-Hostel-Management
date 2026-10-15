@@ -289,7 +289,7 @@ export default function RequestsScreen() {
           <FilterChip key={block.id} label={block.name} on={blockId === block.id} onPress={() => setBlockId(block.id)} />
         ))}
       </ScrollView>
-      {error ? <Text style={[text.error, { color: colors.danger }]}>{error}</Text> : null}
+      {error ? <Text accessibilityLiveRegion="polite" style={[text.error, { color: colors.danger }]}>{error}</Text> : null}
     </View>
   );
 

@@ -7,6 +7,7 @@ import { goBackOr } from "@/back";
 import { BackMark } from "@/components/back-mark";
 import { DayRange, type DayRangeValue } from "@/components/day-range";
 import { formatSpan } from "@/format-when";
+import { mergeHistoryRows } from "@/history-rows";
 import { kindLabel } from "@/requests";
 import { useSession, type HistoryItem, type HistoryKind } from "@/session";
 import { useHallColors } from "@/theme/colors";
@@ -66,7 +67,7 @@ function HistoryRow({ item }: { item: HistoryItem }) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={title}
+      accessibilityLabel={[kindLabel(item.kind), whenLine(item), recorded].filter(Boolean).join(", ")}
       onPress={() => openHistory(item)}
       style={({ pressed }) => [styles.cell, pressed && styles.pressed]}
     >
@@ -102,8 +103,10 @@ export default function HistoryScreen() {
   const [range, setRange] = useState<DayRangeValue>({ from: null, to: null });
   const [items, setItems] = useState<HistoryItem[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const [olderFailed, setOlderFailed] = useState(false);
   const [next, setNext] = useState<string | null>(null);
   const requestId = useRef(0);
+  const paging = useRef(false);
 
   const load = useCallback(() => {
     const id = ++requestId.current;
@@ -114,9 +117,11 @@ export default function HistoryScreen() {
       if (result.error !== null) {
         setItems(null);
         setFailed(true);
+        setNext(null);
         return;
       }
       setFailed(false);
+      setOlderFailed(false);
       setItems(result.items);
       setNext(result.next);
     });
@@ -124,15 +129,22 @@ export default function HistoryScreen() {
 
   // Older pages load only when she asks, so the phone never holds years of rows.
   const older = useCallback(() => {
-    if (!next) {
+    if (!next || paging.current) {
       return;
     }
+    paging.current = true;
     const id = requestId.current;
     void loadHistory({ kind, from: range.from, to: range.to, cursor: next }).then((result) => {
-      if (id !== requestId.current || result.error !== null) {
+      paging.current = false;
+      if (id !== requestId.current) {
         return;
       }
-      setItems((current) => [...(current ?? []), ...result.items]);
+      if (result.error !== null) {
+        setOlderFailed(true);
+        return;
+      }
+      setOlderFailed(false);
+      setItems((current) => mergeHistoryRows(current ?? [], result.items));
       setNext(result.next);
     });
   }, [kind, loadHistory, next, range]);
@@ -182,7 +194,16 @@ export default function HistoryScreen() {
       </ScrollView>
       <DayRange value={range} onChange={setRange} />
       </View>
-      {failed ? <Text style={[text.error, { color: colors.danger }]}>History didn't load</Text> : null}
+      {failed ? (
+        <View style={styles.failed}>
+          <Text accessibilityLiveRegion="polite" style={[text.error, { color: colors.danger }]}>
+            History didn't load
+          </Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Try again" onPress={load} hitSlop={12}>
+            <Text style={[text.button, { color: colors.forest }]}>Try again</Text>
+          </Pressable>
+        </View>
+      ) : null}
       {items !== null && items.length === 0 && !failed ? (
         <Text style={[text.body, { color: colors.inkFaint }]}>No history</Text>
       ) : null}
@@ -196,8 +217,19 @@ export default function HistoryScreen() {
           ))}
         </View>
       ) : null}
+      {olderFailed ? (
+        <Text accessibilityLiveRegion="polite" style={[text.error, { color: colors.danger }]}>
+          Older entries didn't load
+        </Text>
+      ) : null}
       {next ? (
-        <Pressable accessibilityRole="button" onPress={older} hitSlop={12} style={styles.older}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Show older"
+          onPress={older}
+          hitSlop={12}
+          style={styles.older}
+        >
           <Text style={[text.button, { color: colors.forest }]}>Show older</Text>
         </Pressable>
       ) : null}
@@ -239,6 +271,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   cellWhen: { flex: 1 },
+  failed: { alignItems: "center", gap: 12 },
   older: { alignSelf: "center", minHeight: 44, justifyContent: "center" },
   pressed: { opacity: 0.6 },
 });

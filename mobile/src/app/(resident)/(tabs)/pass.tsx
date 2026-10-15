@@ -265,7 +265,7 @@ export default function HallPassScreen() {
         <View style={[styles.stage, styles.waiting]}>
           {who}
           {failed ? (
-            <Text style={[text.error, styles.center, { color: colors.danger }]}>The pass didn't load</Text>
+            <Text accessibilityLiveRegion="polite" style={[text.error, styles.center, { color: colors.danger }]}>The pass didn't load</Text>
           ) : null}
           {empty ? (
             <Text style={[text.body, styles.center, { color: colors.inkSoft }]}>No pass right now</Text>

@@ -244,7 +244,7 @@ export default function OutNowScreen() {
           </ScrollView>
         </>
       )}
-      {error ? <Text style={[text.error, { color: colors.danger }]}>{error}</Text> : null}
+      {error ? <Text accessibilityLiveRegion="polite" style={[text.error, { color: colors.danger }]}>{error}</Text> : null}
     </View>
   );
 
