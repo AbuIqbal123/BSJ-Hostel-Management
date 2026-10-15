@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import WARDEN_PHRASE
+from app.shared.testing_env import role_credential
 from app.staff.register.tests.staff_desk_records import (
     STAY_A,
     STAY_B,
@@ -47,7 +47,7 @@ def test_staff_search_and_sort(database_path: Path, monkeypatch: pytest.MonkeyPa
         store_pending_permissions(database_path)
         store_guest_stays(database_path)
         store_outings(database_path)
-        warden = sign_in(client, "warden.sara", WARDEN_PHRASE)
+        warden = sign_in(client, "warden.sara", role_credential("warden"))
 
         def ids(path: str, **params) -> list[str]:
             response = client.get(path, params=params, headers=auth(warden))
