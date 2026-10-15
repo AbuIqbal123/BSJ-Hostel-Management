@@ -381,7 +381,7 @@ export default function HomeScreen() {
           ) : null}
           {loaded && !out && windowOpen ? (
             <Text style={[text.body, { color: colors.ink }]}>
-              You cannot start another outing while one is inside its window.
+              You can plan another outing once your current one ends
             </Text>
           ) : null}
           {planCard}

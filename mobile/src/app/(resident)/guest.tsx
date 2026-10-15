@@ -324,6 +324,17 @@ function GuestForm({ existing }: { existing?: GuestStay }) {
           <Text style={[text.error, { color: colors.danger }]}>Leaves has to be on or after Arrives</Text>
         ) : null}
       </Pressable>
+      <View style={styles.submit}>
+        <HallButton
+          label={existing ? "Save" : "Submit"}
+          disabled={!ready}
+          onPress={() => {
+            setTimeout(() => {
+              void submit();
+            }, 50);
+          }}
+        />
+      </View>
       {existing ? (
         <Pressable accessibilityRole="button" onPress={() => {
           Alert.alert("Cancel guest stay", undefined, [
@@ -347,17 +358,6 @@ function GuestForm({ existing }: { existing?: GuestStay }) {
           <Text style={[text.button, { color: colors.danger }]}>Cancel guest stay</Text>
         </Pressable>
       ) : null}
-      <View style={styles.submit}>
-        <HallButton
-          label={existing ? "Save" : "Submit"}
-          disabled={!ready}
-          onPress={() => {
-            setTimeout(() => {
-              void submit();
-            }, 50);
-          }}
-        />
-      </View>
       {error ? (
         <Text selectable style={[text.error, { color: colors.danger }]}>
           {error}
