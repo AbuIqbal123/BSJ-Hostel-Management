@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import GATE_PHRASE, PROVOST_PHRASE, WARDEN_PHRASE
+from app.shared.testing_env import role_credential
 from app.staff.register.tests.staff_desk_records import (
     OUT_LATE_NOW,
     OUT_LATE_PAST,
@@ -55,14 +55,14 @@ def test_staff_notifications(database_path: Path, monkeypatch: pytest.MonkeyPatc
         store_outings(database_path)
         store_guest_stays(database_path)
 
-        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
+        gate = sign_in(client, "gate.fatima", role_credential("gate"))
         assert client.get("/api/v1/register/notifications", headers=auth(gate)).status_code == 403
         assert (
             client.post("/api/v1/register/notifications/read", headers=auth(gate)).status_code
             == 403
         )
-        warden = sign_in(client, "warden.sara", WARDEN_PHRASE)
-        provost = sign_in(client, "provost.halima", PROVOST_PHRASE)
+        warden = sign_in(client, "warden.sara", role_credential("warden"))
+        provost = sign_in(client, "provost.halima", role_credential("provost"))
 
         summary = client.get("/api/v1/register/summary", headers=auth(warden)).json()
         assert summary["notifications_unread"] is True

@@ -10,13 +10,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import (
-    GATE_PHRASE,
-    PROVOST_PHRASE,
-    RESIDENT_PHRASE,
-    WARDEN_PHRASE,
-    joined,
-)
+from app.shared.testing_env import joined
+from app.shared.testing_env import role_credential
 
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "guest-stays-staff.json"
 BLOCK_B = "d032aad6-a203-5ea0-ba9a-3a9257edbfc8"
@@ -67,10 +62,10 @@ def issue_people(path: Path) -> None:
             (ROOM_ID, BLOCK_B, OTHER_ROOM, BLOCK_B),
         )
         people = (
-            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", GATE_PHRASE),
-            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", WARDEN_PHRASE),
-            (PROVOST_ID, "provost", "provost.halima", "Halima Begum", PROVOST_PHRASE),
-            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", RESIDENT_PHRASE),
+            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", role_credential("gate")),
+            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", role_credential("warden")),
+            (PROVOST_ID, "provost", "provost.halima", "Halima Begum", role_credential("provost")),
+            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", role_credential("resident")),
             (OTHER_ID, "resident", "24-BA-002", "Maryam Siddiqui", joined("resident", "20")),
         )
         for user_id, role, username, full_name, password in people:
@@ -341,14 +336,14 @@ def test_guest_stays_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch)
             "unauthenticated",
             "Sign in again.",
         )
-        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
+        gate = sign_in(client, "gate.fatima", role_credential("gate"))
         assert_error(
             client.get("/api/v1/guest-stays", headers={"Authorization": f"Bearer {gate}"}),
             403,
             "forbidden",
             "This account cannot do that.",
         )
-        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        resident = sign_in(client, "24-GLLB-118", role_credential("resident"))
         assert_error(
             client.get(
                 "/api/v1/guest-stays",
@@ -359,7 +354,7 @@ def test_guest_stays_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch)
             "This account cannot do that.",
         )
 
-        warden = sign_in(client, "warden.sara", WARDEN_PHRASE)
+        warden = sign_in(client, "warden.sara", role_credential("warden"))
         headers = {"Authorization": f"Bearer {warden}"}
 
         default_list = client.get("/api/v1/guest-stays", headers=headers)
@@ -592,7 +587,7 @@ def test_guest_stays_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch)
         )
 
         # After arrival the resident cannot edit. Gate departure of the approved stay is unchanged.
-        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        resident = sign_in(client, "24-GLLB-118", role_credential("resident"))
         resident_headers = {"Authorization": f"Bearer {resident}"}
         assert_error(
             client.patch(
@@ -604,7 +599,7 @@ def test_guest_stays_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch)
             "not_editable",
             "The guest has already arrived, so this stay cannot be edited.",
         )
-        gate_token = sign_in(client, "gate.fatima", GATE_PHRASE)
+        gate_token = sign_in(client, "gate.fatima", role_credential("gate"))
         left = client.post(
             f"/api/v1/gate/guests/{IN_HALL}/departure",
             headers={"Authorization": f"Bearer {gate_token}"},
@@ -617,7 +612,7 @@ def test_guest_stays_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch)
         assert after_leave.json()["decided_by"] == WARDEN_ID
         assert after_leave.json()["departed_at"] is not None
 
-        provost = sign_in(client, "provost.halima", PROVOST_PHRASE)
+        provost = sign_in(client, "provost.halima", role_credential("provost"))
         provost_headers = {"Authorization": f"Bearer {provost}"}
         provost_list = client.get(
             "/api/v1/guest-stays?bucket=upcoming",

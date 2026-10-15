@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import GATE_PHRASE, RESIDENT_PHRASE
+from app.shared.testing_env import role_credential
 from app.residents.outings.tests.test_cancel import (
     LIBRARY,
     RESIDENT_ID,
@@ -61,7 +61,7 @@ def test_update_refuses_a_second_open_window(
     monkeypatch.setattr(clock, "utc_now", FrozenClock().utc_now)
     with TestClient(app) as client:
         issue_people(database_path)
-        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        resident = sign_in(client, "24-GLLB-118", role_credential("resident"))
         later = plan(
             client,
             resident,
@@ -132,7 +132,7 @@ def test_update_outing(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
             "unauthenticated",
             "Sign in again.",
         )
-        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
+        gate = sign_in(client, "gate.fatima", role_credential("gate"))
         assert_error(
             change(
                 client,
@@ -148,7 +148,7 @@ def test_update_outing(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
             "forbidden",
             "This account cannot do that.",
         )
-        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        resident = sign_in(client, "24-GLLB-118", role_credential("resident"))
         assert_error(
             change(
                 client,
