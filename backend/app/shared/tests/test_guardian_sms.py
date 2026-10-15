@@ -10,7 +10,6 @@ import sqlite3
 from argon2 import PasswordHasher
 from fastapi.testclient import TestClient
 
-from app.shared.testing_env import joined
 from app.shared.testing_env import role_credential
 
 BLOCK_B = "d032aad6-a203-5ea0-ba9a-3a9257edbfc8"
@@ -78,7 +77,7 @@ def issue_late_outside(path: Path) -> None:
                     role,
                     username,
                     full_name,
-                    hasher.hash(phrase if phrase is not None else joined("unused", "resident", "login")),
+                    hasher.hash(phrase if phrase is not None else role_credential("unused-resident-login")),
                     CREATED,
                     CREATED,
                 ),

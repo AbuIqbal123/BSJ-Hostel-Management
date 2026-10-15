@@ -10,7 +10,6 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.shared.testing_env import joined
 from app.shared.testing_env import role_credential
 
 
@@ -106,7 +105,7 @@ def issue_people(path: Path) -> None:
                 ZARA_ID,
                 "24-BA-003",
                 "Zara Ahmed",
-                joined("resident", "30"),
+                role_credential("resident-30"),
                 ROOM_A101,
                 "B.A.",
                 "Imran Ahmed",

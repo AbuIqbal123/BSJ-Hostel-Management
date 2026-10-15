@@ -14,7 +14,7 @@ from app.shared.auth.rate_limit import login_limiter, options_limiter, refresh_l
 from app.shared.auth.security import hash_password
 from app.shared.auth.tests.test_session import assert_error
 from app.shared.testing_env import signing_key_for_tests
-from app.shared.testing_env import joined
+from app.shared.testing_env import role_credential
 
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "auth-onboard-options.json"
 BLOCK_A = "01b885ad-e40d-56a4-81ab-2371f654f558"
@@ -84,7 +84,7 @@ def assign_resident(path: Path, room_label: str, username: str) -> None:
             "SELECT id FROM rooms WHERE label = ?",
             (room_label,),
         ).fetchone()[0]
-        phrase = hash_password(joined("resident", "options", "10"))
+        phrase = hash_password(role_credential("resident-options-10"))
         connection.execute(
             """
             INSERT INTO users (
@@ -127,7 +127,7 @@ def assign_every_room_in_block(path: Path, block_id: str) -> None:
             "SELECT id, label FROM rooms WHERE block_id = ? ORDER BY CAST(number AS INTEGER)",
             (block_id,),
         ).fetchall()
-        phrase = hash_password(joined("resident", "full", "10"))
+        phrase = hash_password(role_credential("resident-full-10"))
         for index, (room_id, label) in enumerate(rooms):
             user_id = f"b22de000-0000-4000-8000-{index + 1:012d}"
             username = f"24-FULL-{index + 1:03d}"

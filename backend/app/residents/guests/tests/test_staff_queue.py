@@ -10,7 +10,6 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.shared.testing_env import joined
 from app.shared.testing_env import role_credential
 
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "guest-stays-staff.json"
@@ -66,7 +65,7 @@ def issue_people(path: Path) -> None:
             (WARDEN_ID, "warden", "warden.sara", "Sara Malik", role_credential("warden")),
             (PROVOST_ID, "provost", "provost.halima", "Halima Begum", role_credential("provost")),
             (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", role_credential("resident")),
-            (OTHER_ID, "resident", "24-BA-002", "Maryam Siddiqui", joined("resident", "20")),
+            (OTHER_ID, "resident", "24-BA-002", "Maryam Siddiqui", role_credential("resident-20")),
         )
         for user_id, role, username, full_name, password in people:
             connection.execute(

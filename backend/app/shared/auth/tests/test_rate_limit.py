@@ -10,7 +10,7 @@ import pytest
 from argon2 import PasswordHasher
 from fastapi.testclient import TestClient
 
-from app.shared.testing_env import role_credential
+from app.shared.testing_env import role_credential, signing_key_for_tests
 from app.shared.auth.rate_limit import login_limiter, refresh_limiter
 from app.shared.auth.tests.test_session import assert_error
 
@@ -35,7 +35,7 @@ def database_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[P
     monkeypatch.setenv("SMS_DRIVER", "mock")
     monkeypatch.setenv(
         "APP_SECRET_KEY",
-        "".join(("hall", "-test-", "signing-", "key-", "0123456789abcdef")),
+        signing_key_for_tests(),
     )
     from app.shared.config import get_settings
 

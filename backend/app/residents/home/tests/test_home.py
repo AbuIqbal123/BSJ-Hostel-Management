@@ -11,7 +11,6 @@ from zoneinfo import ZoneInfo
 import pytest
 from fastapi.testclient import TestClient
 
-from app.shared.testing_env import joined
 from app.shared.testing_env import role_credential
 
 
@@ -57,7 +56,7 @@ def issue_people(path: Path) -> None:
             (GATE_ID, "gate", "gate.fatima", "Fatima Khan", role_credential("gate")),
             (WARDEN_ID, "warden", "warden.sara", "Sara Malik", role_credential("warden")),
             (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", role_credential("resident")),
-            (OTHER_ID, "resident", "24-BA-002", "Maryam Siddiqui", joined("resident", "20")),
+            (OTHER_ID, "resident", "24-BA-002", "Maryam Siddiqui", role_credential("resident-20")),
         )
         for user_id, role, username, full_name, password in people:
             connection.execute(
