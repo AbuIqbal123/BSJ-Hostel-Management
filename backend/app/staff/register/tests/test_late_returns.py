@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import GATE_PHRASE, PROVOST_PHRASE, WARDEN_PHRASE
+from app.shared.testing_env import role_credential
 from app.staff.register.tests.staff_desk_records import (
     OUT_LATE_NOW,
     OUT_LATE_PAST,
@@ -76,10 +76,10 @@ def test_late_returns_record(database_path: Path, monkeypatch: pytest.MonkeyPatc
             "minutes_late": 45,
         }
 
-        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
+        gate = sign_in(client, "gate.fatima", role_credential("gate"))
         assert client.get(PATH, headers=auth(gate)).status_code == 403
-        warden = sign_in(client, "warden.sara", WARDEN_PHRASE)
-        provost = sign_in(client, "provost.halima", PROVOST_PHRASE)
+        warden = sign_in(client, "warden.sara", role_credential("warden"))
+        provost = sign_in(client, "provost.halima", role_credential("provost"))
 
         def page(token: str, **params) -> dict:
             response = client.get(PATH, params=params, headers=auth(token))

@@ -10,7 +10,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import GATE_PHRASE, RESIDENT_PHRASE, WARDEN_PHRASE, joined
+from app.shared.testing_env import joined
+from app.shared.testing_env import role_credential
 
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "guest-stays-resident.json"
 BLOCK_B = "d032aad6-a203-5ea0-ba9a-3a9257edbfc8"
@@ -59,9 +60,9 @@ def issue_people(path: Path) -> None:
             (ROOM_ID, BLOCK_B, OTHER_ROOM, BLOCK_B),
         )
         people = (
-            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", GATE_PHRASE),
-            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", WARDEN_PHRASE),
-            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", RESIDENT_PHRASE),
+            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", role_credential("gate")),
+            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", role_credential("warden")),
+            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", role_credential("resident")),
             (OTHER_ID, "resident", "24-BA-002", "Maryam Siddiqui", joined("resident", "20")),
         )
         for user_id, role, username, full_name, password in people:
@@ -238,14 +239,14 @@ def test_guest_stays_resident(database_path: Path, monkeypatch: pytest.MonkeyPat
             "unauthenticated",
             "Sign in again.",
         )
-        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
+        gate = sign_in(client, "gate.fatima", role_credential("gate"))
         assert_error(
             client.get("/api/v1/me/guest-stays", headers={"Authorization": f"Bearer {gate}"}),
             403,
             "forbidden",
             "This account cannot do that.",
         )
-        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        resident = sign_in(client, "24-GLLB-118", role_credential("resident"))
         headers = {"Authorization": f"Bearer {resident}"}
 
         payload = {
@@ -580,7 +581,7 @@ def test_expected_means_paid_inside_dates(
     with TestClient(app) as client:
         issue_people(database_path)
         seed_expected_boundary_stays(database_path)
-        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        resident = sign_in(client, "24-GLLB-118", role_credential("resident"))
         headers = {"Authorization": f"Bearer {resident}"}
         cases = (
             (PAID_INSIDE_STAY, "expected"),
