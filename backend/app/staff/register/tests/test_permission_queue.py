@@ -10,13 +10,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import (
-    GATE_PHRASE,
-    PROVOST_PHRASE,
-    RESIDENT_PHRASE,
-    WARDEN_PHRASE,
-    joined,
-)
+from app.shared.testing_env import joined
+from app.shared.testing_env import role_credential
 
 
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "permission-queue.json"
@@ -68,9 +63,9 @@ def issue_people(path: Path) -> None:
     try:
         connection.execute("PRAGMA foreign_keys=ON;")
         for user_id, role, username, full_name, password, job_title in (
-            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", GATE_PHRASE, "Gatekeeper"),
-            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", WARDEN_PHRASE, "Warden"),
-            (PROVOST_ID, "provost", "provost.halima", "Halima Begum", PROVOST_PHRASE, "Provost"),
+            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", role_credential("gate"), "Gatekeeper"),
+            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", role_credential("warden"), "Warden"),
+            (PROVOST_ID, "provost", "provost.halima", "Halima Begum", role_credential("provost"), "Provost"),
         ):
             connection.execute(
                 """
@@ -100,7 +95,7 @@ def issue_people(path: Path) -> None:
                 AISHA_ID,
                 "24-GLLB-118",
                 "Aisha Khan",
-                RESIDENT_PHRASE,
+                role_credential("resident"),
                 ROOM_B204,
                 "B.A. LL.B. (Hons.)",
                 "Rashid Khan",
@@ -333,10 +328,10 @@ def test_permission_queue_filters_and_sort(
         issue_people(database_path)
         store_pending_permissions(database_path)
 
-        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
-        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
-        warden = sign_in(client, "warden.sara", WARDEN_PHRASE)
-        provost = sign_in(client, "provost.halima", PROVOST_PHRASE)
+        gate = sign_in(client, "gate.fatima", role_credential("gate"))
+        resident = sign_in(client, "24-GLLB-118", role_credential("resident"))
+        warden = sign_in(client, "warden.sara", role_credential("warden"))
+        provost = sign_in(client, "provost.halima", role_credential("provost"))
 
         assert_error(
             client.get("/api/v1/permissions", headers=auth(gate)),

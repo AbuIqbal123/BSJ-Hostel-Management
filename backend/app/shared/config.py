@@ -24,6 +24,13 @@ class Settings(BaseSettings):
     push_driver: str = "mock"
     expo_access_token: str = ""
     app_secret_key: str = ""
+    # Local `python -m app.dev_seed` only.
+    bsj_seed_password: str = ""
+    bsj_seed_password_gate: str = ""
+    bsj_seed_password_resident: str = ""
+    bsj_seed_password_suspended: str = ""
+    bsj_seed_password_warden: str = ""
+    bsj_seed_password_provost: str = ""
 
     def reject_unsafe_sms(self) -> None:
         if self.sms_driver not in {"mock", "dlt"}:

@@ -11,13 +11,8 @@ from zoneinfo import ZoneInfo
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import (
-    GATE_PHRASE,
-    PROVOST_PHRASE,
-    RESIDENT_PHRASE,
-    WARDEN_PHRASE,
-    joined,
-)
+from app.shared.testing_env import joined
+from app.shared.testing_env import role_credential
 
 
 UNREAD_FOR_WARDEN = 4
@@ -83,9 +78,9 @@ def issue_staff(path: Path) -> None:
     try:
         connection.execute("PRAGMA foreign_keys=ON;")
         people = (
-            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", GATE_PHRASE, "active", "Gatekeeper"),
-            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", WARDEN_PHRASE, "active", "Warden"),
-            (PROVOST_ID, "provost", "provost.halima", "Halima Begum", PROVOST_PHRASE, "active", "Provost"),
+            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", role_credential("gate"), "active", "Gatekeeper"),
+            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", role_credential("warden"), "active", "Warden"),
+            (PROVOST_ID, "provost", "provost.halima", "Halima Begum", role_credential("provost"), "active", "Provost"),
         )
         for user_id, role, username, full_name, password, status, job_title in people:
             connection.execute(
@@ -126,7 +121,7 @@ def issue_residents(path: Path) -> None:
                 (room_id, block_id, number, label),
             )
         people = (
-            (AISHA_ID, "24-GLLB-118", "Aisha Khan", RESIDENT_PHRASE, "active"),
+            (AISHA_ID, "24-GLLB-118", "Aisha Khan", role_credential("resident"), "active"),
             (MARYAM_ID, "24-BA-002", "Maryam Siddiqui", joined("resident", "20"), "active"),
             (ZARA_ID, "24-BA-003", "Zara Ahmed", joined("resident", "30"), "active"),
             (NOOR_ID, "24-BA-004", "Noor Fatima", joined("resident", "40"), "suspended"),
@@ -706,9 +701,9 @@ def test_register_presence(database_path: Path, monkeypatch: pytest.MonkeyPatch)
         )
 
         issue_staff(database_path)
-        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
-        warden = sign_in(client, "warden.sara", WARDEN_PHRASE)
-        provost = sign_in(client, "provost.halima", PROVOST_PHRASE)
+        gate = sign_in(client, "gate.fatima", role_credential("gate"))
+        warden = sign_in(client, "warden.sara", role_credential("warden"))
+        provost = sign_in(client, "provost.halima", role_credential("provost"))
 
         assert_error(
             client.get("/api/v1/register/summary", headers=auth_headers(gate)),
@@ -722,7 +717,7 @@ def test_register_presence(database_path: Path, monkeypatch: pytest.MonkeyPatch)
         assert empty.json() == expected["empty"]
 
         issue_residents(database_path)
-        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        resident = sign_in(client, "24-GLLB-118", role_credential("resident"))
         assert_error(
             client.get("/api/v1/register/summary", headers=auth_headers(resident)),
             403,

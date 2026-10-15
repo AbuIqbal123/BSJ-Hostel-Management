@@ -13,7 +13,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import GATE_PHRASE, PROVOST_PHRASE, RESIDENT_PHRASE, WARDEN_PHRASE
+from app.shared.testing_env import role_credential
 from app.staff.register.tests.staff_desk_records import (
     OUT_LATE_NOW,
     STAY_B,
@@ -55,10 +55,10 @@ def test_push_tokens_and_messages(database_path: Path, monkeypatch: pytest.Monke
         issue_people(database_path)
         store_outings(database_path)
         store_guest_stays(database_path)
-        warden = sign_in(client, "warden.sara", WARDEN_PHRASE)
-        provost = sign_in(client, "provost.halima", PROVOST_PHRASE)
-        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
-        aisha = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        warden = sign_in(client, "warden.sara", role_credential("warden"))
+        provost = sign_in(client, "provost.halima", role_credential("provost"))
+        gate = sign_in(client, "gate.fatima", role_credential("gate"))
+        aisha = sign_in(client, "24-GLLB-118", role_credential("resident"))
         url = "/api/v1/devices/push-token"
 
         assert client.post(url, json={"token": TOKEN["aisha"], "platform": "ios"}).status_code == 401

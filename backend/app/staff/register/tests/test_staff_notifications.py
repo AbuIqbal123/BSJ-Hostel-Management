@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import GATE_PHRASE, PROVOST_PHRASE, WARDEN_PHRASE, joined
+from app.shared.testing_env import role_credential
 from app.staff.register.tests.staff_desk_records import (
     OUT_LATE_NOW,
     OUT_LATE_PAST,
@@ -73,14 +73,14 @@ def test_staff_notifications(database_path: Path, monkeypatch: pytest.MonkeyPatc
         store_outings(database_path)
         store_guest_stays(database_path)
 
-        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
+        gate = sign_in(client, "gate.fatima", role_credential("gate"))
         assert client.get("/api/v1/register/notifications", headers=auth(gate)).status_code == 403
         assert (
             client.post("/api/v1/register/notifications/read", headers=auth(gate)).status_code
             == 403
         )
-        warden = sign_in(client, "warden.sara", WARDEN_PHRASE)
-        provost = sign_in(client, "provost.halima", PROVOST_PHRASE)
+        warden = sign_in(client, "warden.sara", role_credential("warden"))
+        provost = sign_in(client, "provost.halima", role_credential("provost"))
 
         summary = client.get("/api/v1/register/summary", headers=auth(warden)).json()
         assert summary["notifications_unread"] is True
@@ -201,8 +201,8 @@ def test_new_staff_inbox_starts_read(database_path: Path, monkeypatch: pytest.Mo
         store_pending_permissions(database_path)
         store_outings(database_path)
         store_guest_stays(database_path)
-        provost = sign_in(client, "provost.halima", PROVOST_PHRASE)
-        first_phrase = joined("Nadia", "desk", "41")
+        provost = sign_in(client, "provost.halima", role_credential("provost"))
+        nadia_login = role_credential("nadia")
         created = client.post(
             "/api/v1/admin/staff",
             headers=auth(provost),
@@ -211,11 +211,11 @@ def test_new_staff_inbox_starts_read(database_path: Path, monkeypatch: pytest.Mo
                 "username": "warden.nadia",
                 "role": "warden",
                 "job_title": "Warden",
-                "temporary_password": first_phrase,
+                "temporary_password": nadia_login,
             },
         )
         assert created.status_code == 201
-        nadia = sign_in(client, "warden.nadia", first_phrase)
+        nadia = sign_in(client, "warden.nadia", nadia_login)
         summary = client.get("/api/v1/register/summary", headers=auth(nadia)).json()
         assert summary["notifications_unread"] is False
         listed = client.get("/api/v1/register/notifications", headers=auth(nadia)).json()

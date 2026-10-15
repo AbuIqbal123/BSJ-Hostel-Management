@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import GATE_PHRASE, RESIDENT_PHRASE
+from app.shared.testing_env import role_credential
 from app.shared.auth.rate_limit import login_limiter, refresh_limiter
 from app.shared.auth.tests.test_session import (
     RESIDENT_ID,
@@ -60,13 +60,13 @@ def test_resident_deletes_her_account(database_path: Path) -> None:
         assert client.get("/health").json() == {"status": "ok"}
         gate = client.post(
             "/api/v1/auth/login",
-            json=_login_body("gate.fatima", GATE_PHRASE),
+            json=_login_body("gate.fatima", role_credential("gate")),
         )
         assert gate.status_code == 200
         assert_error(
             client.post(
                 "/api/v1/me/account/delete",
-                json=_delete_body(GATE_PHRASE),
+                json=_delete_body(role_credential("gate")),
                 headers=bearer(gate.json()["access_token"]),
             ),
             403,
@@ -75,7 +75,7 @@ def test_resident_deletes_her_account(database_path: Path) -> None:
         )
         resident = client.post(
             "/api/v1/auth/login",
-            json=_login_body("24-GLLB-118", RESIDENT_PHRASE),
+            json=_login_body("24-GLLB-118", role_credential("resident")),
         )
         assert resident.status_code == 200
         token = resident.json()["access_token"]
@@ -91,14 +91,14 @@ def test_resident_deletes_her_account(database_path: Path) -> None:
         )
         deleted = client.post(
             "/api/v1/me/account/delete",
-            json=_delete_body(RESIDENT_PHRASE),
+            json=_delete_body(role_credential("resident")),
             headers=bearer(token),
         )
         assert deleted.status_code == 204
         assert deleted.content == b""
         again = client.post(
             "/api/v1/auth/login",
-            json=_login_body("24-GLLB-118", RESIDENT_PHRASE),
+            json=_login_body("24-GLLB-118", role_credential("resident")),
         )
         assert_error(again, 401, "unauthenticated", "Username or password is wrong.")
         connection = sqlite3.connect(database_path)
@@ -167,13 +167,13 @@ def test_delete_is_refused_while_she_is_outside(
             connection.close()
         resident = client.post(
             "/api/v1/auth/login",
-            json=_login_body("24-GLLB-118", RESIDENT_PHRASE),
+            json=_login_body("24-GLLB-118", role_credential("resident")),
         )
         assert resident.status_code == 200
         assert_error(
             client.post(
                 "/api/v1/me/account/delete",
-                json=_delete_body(RESIDENT_PHRASE),
+                json=_delete_body(role_credential("resident")),
                 headers=bearer(resident.json()["access_token"]),
             ),
             409,
