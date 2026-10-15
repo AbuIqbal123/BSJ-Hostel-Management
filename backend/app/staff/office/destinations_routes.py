@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import sqlite3
 import uuid
 
 from fastapi import APIRouter
@@ -11,6 +10,7 @@ from fastapi import APIRouter
 from app.shared import clock
 from app.shared.audit import record_audit
 from app.shared.auth.routes import ConnectionDep
+from app.shared.db import INTEGRITY_ERRORS
 from app.shared.errors import ApiError
 from app.staff.office.records import (
     Destination,
@@ -64,7 +64,7 @@ def create_destination(
             """,
             (destination_id, name, 1 if body.source == "custom" else 0),
         )
-    except sqlite3.IntegrityError as exc:
+    except INTEGRITY_ERRORS as exc:
         message = str(exc).lower()
         if "destinations_one_active_other" in message:
             raise ApiError(409, "other_exists", _OTHER_EXISTS) from exc
@@ -153,7 +153,7 @@ def update_destination(
             f"UPDATE destinations SET {', '.join(assignments)} WHERE id = ?",
             (*values, destination_id),
         )
-    except sqlite3.IntegrityError as exc:
+    except INTEGRITY_ERRORS as exc:
         message = str(exc).lower()
         if "destinations_one_active_other" in message:
             raise ApiError(409, "other_exists", _OTHER_EXISTS) from exc

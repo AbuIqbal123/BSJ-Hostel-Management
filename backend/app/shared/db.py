@@ -12,9 +12,14 @@ import sqlite3
 from collections.abc import Iterator
 from typing import Any
 
+import turso_serverless
 from fastapi import Request
 
 from app.shared.config import Settings, get_settings, is_hosted
+
+# Plain SQLite (laptop) and Turso (Render) raise different IntegrityError classes,
+# and Turso's is not a subclass of sqlite3's. Catch this tuple, never one of them.
+INTEGRITY_ERRORS = (sqlite3.IntegrityError, turso_serverless.IntegrityError)
 
 
 def _named_row(cursor: object, row: object) -> object:
@@ -40,8 +45,6 @@ def _connect_turso(settings: Settings) -> Any:
         raise RuntimeError(
             "TURSO_DATABASE_URL must be a Turso URL. Refusing to open a database file."
         )
-    import turso_serverless
-
     connection = turso_serverless.connect(url, auth_token=token)
     connection.row_factory = _named_row
     connection.execute("PRAGMA foreign_keys=ON;")
