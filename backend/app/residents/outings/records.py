@@ -65,14 +65,13 @@ def qr_window(
     """QR show window for one outing.
 
     An ordinary outing opens 30 minutes before starts_at. A planned outing
-    closes at expected_return_at. An outside ordinary outing stays open until
-    the return scan. Other types have no ordinary window.
+    closes at expected_return_at. An outside outing of any type stays open
+    until the return scan. A permission has no plan row until the gate scan;
+    its window is in usable.py.
     """
-    if outing_type != "ordinary":
-        return False, None, None
-    if starts_at is None:
-        if status == "outside":
-            return True, exited_at, None
+    if status == "outside" and not (outing_type == "ordinary" and starts_at is not None):
+        return True, exited_at, None
+    if outing_type != "ordinary" or starts_at is None:
         return False, None, None
     start = clock.parse_instant(starts_at)
     visible_from = clock.format_instant(start - _QR_LEAD)

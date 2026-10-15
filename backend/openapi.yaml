@@ -597,22 +597,33 @@ paths:
     get:
       tags: [Resident]
       operationId: resident_hall_pass
-      summary: Hall pass for the outing in its window
+      summary: Hall pass for the outing she can use now
       description: |
         Caller: resident. The hall-pass code is still the resident's permanent
         token (the gate scans that same code). The phone shows it for one
-        outing only. `qr_payload` is set only while that window is open.
-        `place`, `starts_at`, and `expected_return_at` are that outing's
-        lines, the same values as on home `upcoming_outings`. All three are
-        null when `outing_id` is null.
+        outing only: the one she can use now, picked by the same rule the gate
+        scan uses. `qr_payload` is set only while that outing's window is open.
+        `outing_type` says which kind it is: `ordinary`, `late_night`, or
+        `home_going`. `place`, `starts_at`, and `expected_return_at` are that
+        outing's lines. `starts_at` is the planned start of an ordinary
+        outing, or the permission's departure.
 
-        An ordinary outing's window opens 30 minutes before `starts_at`. If
-        `starts_at` is within 5 minutes, the 30-minute lead has already begun,
-        so the QR is shown immediately. A planned outing's window ends at
-        `expected_return_at`. An outside outing has not ended until the return
-        scan, so the payload stays available until then, including a permission
-        outing she is already outside on. The gate scan still decides whether
-        the movement is recorded.
+        Windows. An ordinary outing opens 30 minutes before `starts_at` and
+        ends at `expected_return_at`. A late-night or home-going permission
+        (approved) opens `permission_lead_minutes` before its departure and
+        ends at its expected return. A plan saved before `starts_at` existed
+        is open for its hall day. Once she is outside, her outing's QR stays
+        up until the return scan, for every type, even after the permission
+        window has ended.
+
+        Which outing. If she is outside, that outing. Otherwise, of the
+        outings open now, a permission beats an ordinary plan, then the
+        earlier window wins. If none is open, the next one to open comes back
+        with `qr_visible` false and `qr_visible_from` set, and `qr_payload`
+        null. With nothing coming, every outing field is null. For an approved
+        permission she has not used yet, `outing_id` is null and
+        `permission_id` is set; once she has left, both are set.
+        The gate scan still decides whether the movement is recorded.
       responses:
         "200":
           description: Hall pass payload.
@@ -625,6 +636,8 @@ paths:
                 full_name: Aisha Khan
                 room_label: B-204
                 outing_id: 00000000-0000-4000-8000-000000000001
+                permission_id: null
+                outing_type: ordinary
                 place: Maulana Azad Library
                 starts_at: "2026-09-30T08:00:00Z"
                 expected_return_at: "2026-09-30T13:00:00Z"
@@ -1434,17 +1447,19 @@ paths:
 
         Send the raw QR text. Both `bsj:v1:{token}` and the bare token are accepted.
 
-        While the resident is inside, a scan records an exit. Among ordinary
-        outings planned for today's hall date whose expected return has not
-        passed, the earliest return is used, and only when the current time is
-        inside ordinary hours today. A later return today is left planned. A
-        plan for another day is left planned and is not used today. The scan
-        records the exit time and the staff member. Otherwise an approved
-        permission inside its use window is opened as an outing and marked in
-        use. If neither exists, the scan is refused. An ordinary exit needs a
-        destination and an expected return saved before the resident reaches
-        the gate. If she meant a later trip today, or a permission, she cancels
-        the plan the gate would use and shows the pass again.
+        While the resident is inside, a scan records an exit on the outing she
+        can use now: the same rule as `GET /api/v1/me/hall-pass`, for every
+        outing type. A planned ordinary outing is usable from 30 minutes before
+        its `starts_at` until its expected return, and only inside ordinary
+        hours. An approved late-night or home-going permission is usable from
+        `permission_lead_minutes` before its departure until its expected
+        return, and is opened as an outing and marked in use. If both are open,
+        the permission wins and the ordinary plan stays planned. If none is
+        open the scan is refused: `outing_not_yet_open` or
+        `permission_not_yet_valid` when one is coming, `no_outing_planned`
+        when none is. An ordinary exit needs a destination and an expected
+        return saved before the resident reaches the gate. A plan saved before
+        `starts_at` existed is usable for its hall day.
 
         While the resident is outside, a scan records the return. Nothing else
         is filled in.
@@ -1528,7 +1543,9 @@ paths:
         "409":
           description: |
             `duplicate_scan`, `no_outing_planned`, `outside_ordinary_hours`,
-            `permission_not_yet_valid`, `open_outing_exists`,
+            `outing_not_yet_open` (an ordinary outing, before 30 minutes ahead of
+            its `starts_at`), `permission_not_yet_valid` (a permission, before
+            its use window), `open_outing_exists`,
             `resident_suspended`, or `return_already_planned`. The body includes
             the resident name and room when the pass is known, so the gate
             screen can say what to do.
@@ -2157,6 +2174,12 @@ paths:
         request whose expected return has already passed. Approval does not
         create an outing and does not by itself let a scan succeed before the
         use window. Rejection leaves ordinary outings available.
+
+        Approval is refused with 409 `permission_overlap` when the resident
+        already holds an approved or in-use permission whose hours overlap
+        this one. A permission that starts when another ends is allowed. A
+        planned ordinary outing in the same hours is not a conflict: it stays
+        planned, and the permission wins at the gate and on the hall pass.
       parameters:
         - $ref: "#/components/parameters/PermissionId"
       requestBody:
@@ -2184,7 +2207,9 @@ paths:
         "409":
           description: |
             Only a pending permission can be approved or rejected. The message
-            names the current status. Code `not_pending`.
+            names the current status. Code `not_pending`. An approval that
+            overlaps another approved or in-use permission of the same
+            resident returns code `permission_overlap`.
           content:
             application/json:
               schema:
@@ -3347,7 +3372,7 @@ components:
             `room_in_use`, `room_inactive`, `other_exists`, `already_outside`, `return_already_planned`,
             `open_outing_exists`,
             `outside_ordinary_hours`, `permission_required`, `no_outing_planned`,
-            `permission_not_yet_valid`,
+            `permission_not_yet_valid`, `outing_not_yet_open`, `permission_overlap`,
             `duplicate_scan`, `resident_suspended`, `unknown_hall_pass`,
             `not_pending`, `permission_in_use`, `not_cancellable`, `not_editable`, `guest_not_expected`, `guest_not_in_hall`,
             `payment_required`, `payment_locked`, `account_in_use`.
@@ -3833,7 +3858,7 @@ components:
     ResidentHome:
       type: object
       additionalProperties: false
-      required: [resident, ordinary_outing_active, current_outing, upcoming_outings, active_permission, recent_history, notifications_unread]
+      required: [resident, ordinary_outing_active, hall_pass_outing_type, current_outing, upcoming_outings, active_permission, recent_history, notifications_unread]
       properties:
         resident:
           $ref: "#/components/schemas/HomeResident"
@@ -3841,9 +3866,17 @@ components:
           type: boolean
           description: |
             True when one of her ordinary outings is inside its show window
-            now. That window opens 30 minutes before `starts_at` (immediately
-            when the start is within 5 minutes, because the lead has already
-            begun) and lasts until the outing ends.
+            now. That window opens 30 minutes before `starts_at` (a plan made
+            inside that lead is open as soon as it exists) and lasts until the
+            outing ends. Planning another is refused while this is true. It is
+            about ordinary outings only; `hall_pass_outing_type` covers all types.
+        hall_pass_outing_type:
+          oneOf:
+            - $ref: "#/components/schemas/OutingType"
+            - type: "null"
+          description: |
+            The type of outing whose hall-pass QR is showing now, by the same
+            rule as `GET /api/v1/me/hall-pass`. Null when the QR is hidden.
         current_outing:
           oneOf:
             - $ref: "#/components/schemas/Outing"
@@ -3950,7 +3983,7 @@ components:
     ResidentHallPass:
       type: object
       additionalProperties: false
-      required: [qr_payload, full_name, room_label, outing_id, place, starts_at, expected_return_at, qr_visible, qr_visible_from, qr_visible_until]
+      required: [qr_payload, full_name, room_label, outing_id, permission_id, outing_type, place, starts_at, expected_return_at, qr_visible, qr_visible_from, qr_visible_until]
       properties:
         qr_payload:
           oneOf:
@@ -3969,7 +4002,21 @@ components:
             - type: string
               format: uuid
             - type: "null"
-          description: The outing this pass is for, if she has a planned or outside outing.
+          description: |
+            The outing row this pass is for: a planned ordinary outing, or any
+            outing she is outside on. Null for an approved permission she has
+            not used yet, and when she has nothing coming.
+        permission_id:
+          oneOf:
+            - type: string
+              format: uuid
+            - type: "null"
+          description: The permission this pass is for. Null for an ordinary outing.
+        outing_type:
+          oneOf:
+            - $ref: "#/components/schemas/OutingType"
+            - type: "null"
+          description: Which kind of outing the pass is for. Null when she has nothing coming.
         place:
           oneOf:
             - type: string
@@ -3999,15 +4046,15 @@ components:
             - type: string
               format: date-time
             - type: "null"
-          description: When the QR may be shown. Null when she has no upcoming ordinary outing.
+          description: When the QR may be shown. Null when she has nothing coming, and on a plan saved before `starts_at` existed.
         qr_visible_until:
           oneOf:
             - type: string
               format: date-time
             - type: "null"
           description: |
-            Planned ordinary outings close at `expected_return_at`. Null while
-            she is outside, because the outing ends at the return scan.
+            Planned outings and permissions close at `expected_return_at`. Null
+            while she is outside, because the outing ends at the return scan.
 
     HistoryEvent:
       type: object
@@ -4286,9 +4333,11 @@ components:
         qr_visible:
           type: boolean
           description: |
-            True when the phone may show this outing's hall-pass QR now.
-            Ordinary only. Opens 30 minutes before `starts_at` (immediately
-            when the start is within 5 minutes) and lasts until the outing ends.
+            True when the phone may show this outing's hall-pass QR now. A
+            planned ordinary outing opens 30 minutes before `starts_at` (a plan
+            made inside that lead is open as soon as it exists) and closes at
+            `expected_return_at`. An outing she is outside on, of any type,
+            stays true until the return scan.
         qr_visible_from:
           oneOf:
             - type: string

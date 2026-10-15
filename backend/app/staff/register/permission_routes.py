@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 import uuid
 
 from typing import Annotated, Literal
@@ -84,6 +85,36 @@ def get_permission(
     return review
 
 
+def _refuse_overlap(connection: sqlite3.Connection, permission_id: str) -> None:
+    """A resident cannot hold two approved or in-use permissions that overlap.
+
+    Back-to-back trips (one ends when the next begins) are fine. A planned
+    ordinary outing in the same hours is not a conflict: it stays, and the
+    permission wins at the gate and on the hall pass (see usable.py).
+    """
+    clash = connection.execute(
+        """
+        SELECT 1
+        FROM permissions AS target
+        JOIN permissions AS other
+          ON other.resident_id = target.resident_id
+         AND other.id != target.id
+         AND other.status IN ('approved', 'in_use')
+         AND other.departure_at < target.expected_return_at
+         AND target.departure_at < other.expected_return_at
+        WHERE target.id = ? AND target.status = 'pending'
+        LIMIT 1
+        """,
+        (permission_id,),
+    ).fetchone()
+    if clash is not None:
+        raise ApiError(
+            409,
+            "permission_overlap",
+            "This resident already has an approved permission that overlaps these hours.",
+        )
+
+
 @router.post("/permissions/{permission_id}/decision", response_model=PermissionReviewBody)
 def decide_permission(
     permission_id: str,
@@ -94,6 +125,8 @@ def decide_permission(
     now_text = clock.format_instant(clock.utc_now())
     expire_passed_permissions(connection, now_text, permission_id=permission_id)
     note = None if body.note is None else body.note.strip() or None
+    if body.decision == "approved":
+        _refuse_overlap(connection, permission_id)
     row = connection.execute(
         """
         UPDATE permissions
