@@ -10,9 +10,11 @@ import {
 } from "react";
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
-import { Platform } from "react-native";
+import * as Notifications from "expo-notifications";
+import { AppState, Platform } from "react-native";
 
-import { pushToken } from "@/push";
+import { allowReturnReminders, clearNotificationSurface, PUSH_TOKEN_KEY, pushToken } from "@/push";
+import { refreshEffect, registerPushToken, singleFlight } from "@/session-refresh";
 
 const SESSION_KEY = "bsj.session";
 
@@ -806,6 +808,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         user: body.user,
       };
       sessionRef.current = next;
+      allowReturnReminders();
       await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(next));
       setSession(next);
       return null;
@@ -860,6 +863,23 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const endSession = useCallback(async () => {
+    pushTokenRef.current = null;
+    await clearNotificationSurface();
+    try {
+      await SecureStore.deleteItemAsync(PUSH_TOKEN_KEY);
+    } catch {
+      // The key may already be gone.
+    }
+    sessionRef.current = null;
+    setSession(null);
+    try {
+      await SecureStore.deleteItemAsync(SESSION_KEY);
+    } catch {
+      // The key may already be gone.
+    }
+  }, []);
+
   const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
     if (!sessionRef.current) {
       return "Sign in again";
@@ -874,16 +894,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }),
       });
       if (response.status === 204) {
-        sessionRef.current = null;
-        setSession(null);
-        await SecureStore.deleteItemAsync(SESSION_KEY);
+        await endSession();
         return null;
       }
       return await errorMessage(response);
     } catch {
       return "The hall could not be reached";
     }
-  }, []);
+  }, [endSession]);
 
   const renewing = useRef<Promise<StoredSession | null> | null>(null);
 
@@ -891,46 +909,56 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (renewing.current) {
       return renewing.current;
     }
-    const run = (async (): Promise<StoredSession | null> => {
+    return singleFlight(renewing, async (): Promise<StoredSession | null> => {
       const current = sessionRef.current;
       if (!current?.refreshToken) {
         return null;
       }
+      const sent = current.refreshToken;
+      let status: number | "network" = "network";
+      let body: { access_token: string; refresh_token: string; user: HallUser } | null = null;
       try {
         const response = await hallFetch("/api/v1/auth/refresh", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refresh_token: current.refreshToken }),
+          body: JSON.stringify({ refresh_token: sent }),
         });
-        if (!response.ok) {
-          return null;
+        status = response.status;
+        if (response.status === 200) {
+          body = (await response.json()) as {
+            access_token: string;
+            refresh_token: string;
+            user: HallUser;
+          };
         }
-        const body = (await response.json()) as {
-          access_token: string;
-          refresh_token: string;
-          user: HallUser;
-        };
-        const next: StoredSession = {
-          accessToken: body.access_token,
-          refreshToken: body.refresh_token,
-          user: body.user,
-        };
-        if (sessionRef.current?.refreshToken !== current.refreshToken) {
-          return sessionRef.current;
-        }
-        sessionRef.current = next;
-        await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(next));
-        setSession(next);
-        return next;
       } catch {
+        status = "network";
+      }
+      const effect = refreshEffect(status, sent, sessionRef.current?.refreshToken ?? null);
+      if (effect === "end") {
+        await endSession();
         return null;
       }
-    })();
-    renewing.current = run.finally(() => {
-      renewing.current = null;
+      if (effect === "keep") {
+        return sessionRef.current?.refreshToken === sent ? null : sessionRef.current;
+      }
+      if (!body) {
+        return null;
+      }
+      if (sessionRef.current?.refreshToken !== sent) {
+        return sessionRef.current;
+      }
+      const next: StoredSession = {
+        accessToken: body.access_token,
+        refreshToken: body.refresh_token,
+        user: body.user,
+      };
+      sessionRef.current = next;
+      await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(next));
+      setSession(next);
+      return next;
     });
-    return renewing.current;
-  }, []);
+  }, [endSession]);
 
   const authorized = useCallback(
     async (path: string, init: RequestInit = {}): Promise<Response> => {
@@ -957,53 +985,117 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
-    if (sessionRef.current) {
+    const current = sessionRef.current;
+    const token = pushTokenRef.current;
+    if (current) {
+      const headers = {
+        Authorization: `Bearer ${current.accessToken}`,
+        "Content-Type": "application/json",
+      };
       try {
-        if (pushTokenRef.current) {
-          await authorized("/api/v1/devices/push-token", {
+        if (token) {
+          await hallFetch("/api/v1/devices/push-token", {
             method: "DELETE",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token: pushTokenRef.current }),
+            headers,
+            body: JSON.stringify({ token }),
           });
-          pushTokenRef.current = null;
         }
-        await authorized("/api/v1/auth/logout", { method: "POST" });
+        await hallFetch("/api/v1/auth/logout", { method: "POST", headers });
       } catch {
         // The phone still signs out when the hall cannot be reached.
       }
     }
-    sessionRef.current = null;
-    setSession(null);
-    await SecureStore.deleteItemAsync(SESSION_KEY);
-  }, [authorized]);
+    await endSession();
+  }, [endSession]);
 
   const signedInAs = session?.user.id ?? null;
 
-  // Ask for push after sign-in, never before. The OS shows its prompt once; later launches only refresh the token.
+  // Ask for push after sign-in, never before. Gate staff are not asked. Android without Firebase fails quietly.
   useEffect(() => {
-    if (!signedInAs || Platform.OS === "web") {
+    const role = session?.user.role;
+    if (!signedInAs || !role || role === "gate" || Platform.OS === "web") {
       return;
     }
     let active = true;
-    void pushToken()
-      .then(async (token) => {
-        if (!active || !token) {
-          return;
-        }
+    let saved: string | null = null;
+    let refused = false;
+
+    const post = async (token: string): Promise<number | "error"> => {
+      try {
         const response = await authorized("/api/v1/devices/push-token", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ token, platform: Platform.OS === "ios" ? "ios" : "android" }),
         });
-        if (response.ok) {
-          pushTokenRef.current = token;
+        return response.status;
+      } catch {
+        return "error";
+      }
+    };
+
+    const attempt = async (token: string) => {
+      if (!active || refused) {
+        return;
+      }
+      const outcome = await registerPushToken(token, post);
+      if (!active) {
+        return;
+      }
+      if (outcome === "refused") {
+        refused = true;
+        return;
+      }
+      if (outcome !== "saved") {
+        return;
+      }
+      saved = token;
+      pushTokenRef.current = token;
+      try {
+        await SecureStore.setItemAsync(PUSH_TOKEN_KEY, token);
+      } catch {
+        // The next foreground tries the save again.
+      }
+    };
+
+    const onToken = (event: { data: string }) => {
+      if (event.data && event.data !== saved) {
+        void attempt(event.data);
+      }
+    };
+    let removeListener = () => {};
+    try {
+      removeListener = Notifications.addPushTokenListener(onToken).remove;
+    } catch {
+      // No push service on this phone.
+    }
+
+    void pushToken()
+      .then((token) => {
+        if (active && token) {
+          return attempt(token);
         }
       })
       .catch(() => undefined);
+
+    const foreground = AppState.addEventListener("change", (state) => {
+      if (state !== "active" || saved || refused) {
+        return;
+      }
+      void pushToken()
+        .then((token) => {
+          if (active && token) {
+            return attempt(token);
+          }
+        })
+        .catch(() => undefined);
+    });
+
     return () => {
       active = false;
+      removeListener();
+      foreground.remove();
     };
-  }, [authorized, signedInAs]);
+  }, [authorized, session?.user.role, signedInAs]);
 
   const loadResidentHome = useCallback(async (): Promise<ResidentHomeResult> => {
     if (!sessionRef.current) {
@@ -1362,9 +1454,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           body: JSON.stringify({ password }),
         });
         if (response.status === 204) {
-          sessionRef.current = null;
-          setSession(null);
-          await SecureStore.deleteItemAsync(SESSION_KEY);
+          await endSession();
           return null;
         }
         return await errorMessage(response);
@@ -1372,7 +1462,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         return "The hall could not be reached";
       }
     },
-    [authorized],
+    [authorized, endSession],
   );
 
   const staffRequest = useCallback(async (path: string, body?: unknown): Promise<StaffReply> => {

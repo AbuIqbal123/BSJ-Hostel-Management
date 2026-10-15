@@ -22,29 +22,76 @@ if (pushSupported) {
   });
 }
 
-/** Asks once, after sign-in. Returns the Expo token, or null when she says no or this is not a phone. */
+/** Stored after the hall accepts the token with 204. */
+export const PUSH_TOKEN_KEY = "bsj.pushToken";
+
+/** Closed by sign-out so a late home load cannot schedule another reminder. */
+let returnRemindersOpen = true;
+
+export function allowReturnReminders() {
+  returnRemindersOpen = true;
+}
+
+export function blockReturnReminders() {
+  returnRemindersOpen = false;
+}
+
+/** Asks once, after sign-in. Null when she says no, this is not a phone, or the phone has no push service. */
 export async function pushToken(): Promise<string | null> {
   if (!pushSupported || !Device.isDevice) {
     return null;
   }
-  if (Platform.OS === "android") {
-    await Notifications.setNotificationChannelAsync("default", {
-      name: "Hall",
-      importance: Notifications.AndroidImportance.HIGH,
-    });
-  }
-  let { status } = await Notifications.getPermissionsAsync();
-  if (status !== "granted") {
-    status = (await Notifications.requestPermissionsAsync()).status;
-  }
-  if (status !== "granted") {
+  try {
+    if (Platform.OS === "android") {
+      await Notifications.setNotificationChannelAsync("default", {
+        name: "Hall",
+        importance: Notifications.AndroidImportance.HIGH,
+      });
+    }
+    let { status } = await Notifications.getPermissionsAsync();
+    if (status !== "granted") {
+      status = (await Notifications.requestPermissionsAsync()).status;
+    }
+    if (status !== "granted") {
+      return null;
+    }
+    const projectId: unknown = Constants.expoConfig?.extra?.eas?.projectId;
+    if (typeof projectId !== "string") {
+      return null;
+    }
+    return (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+  } catch {
+    // Android without Firebase rejects the token call. The app keeps working.
     return null;
   }
-  const projectId: unknown = Constants.expoConfig?.extra?.eas?.projectId;
-  if (typeof projectId !== "string") {
-    return null;
+}
+
+/** Cancels outing reminders, clears the badge, banners, and the last tap. Each step stands alone. */
+export async function clearNotificationSurface(): Promise<void> {
+  blockReturnReminders();
+  if (!pushSupported) {
+    return;
   }
-  return (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+  const steps: Array<() => Promise<unknown>> = [
+    async () => {
+      const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+      await Promise.all(
+        scheduled
+          .filter((item) => item.identifier.startsWith(OUTING_ENDING))
+          .map((item) => Notifications.cancelScheduledNotificationAsync(item.identifier)),
+      );
+    },
+    () => Notifications.setBadgeCountAsync(0),
+    () => Notifications.dismissAllNotificationsAsync(),
+    () => Notifications.clearLastNotificationResponseAsync(),
+  ];
+  for (const step of steps) {
+    try {
+      await step();
+    } catch {
+      // A missing notification permission must not stop the session from ending.
+    }
+  }
 }
 
 export type PushData = { notification_id?: unknown; kind?: unknown; record_id?: unknown };
@@ -91,7 +138,7 @@ export function endingReminderAt(expectedReturnAt: string | null, now = Date.now
 
 /** One reminder at a time. Each home load replaces it, or clears it when she has no open outing. */
 export async function scheduleOutingEnding(outing: { id: string; expectedReturnAt: string } | null) {
-  if (!pushSupported) {
+  if (!pushSupported || !returnRemindersOpen) {
     return;
   }
   await Notifications.cancelScheduledNotificationAsync(OUTING_ENDING).catch(() => undefined);
@@ -116,7 +163,7 @@ export async function scheduleOutingEnding(outing: { id: string; expectedReturnA
 
 /** Keeps the app icon badge in step with the inbox after a read. */
 export function setBadge(count: number) {
-  if (pushSupported) {
+  if (pushSupported && returnRemindersOpen) {
     void Notifications.setBadgeCountAsync(count).catch(() => undefined);
   }
 }
