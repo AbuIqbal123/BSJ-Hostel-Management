@@ -601,6 +601,32 @@ Copy this block for each test and fill every field.
 
 
 
+### `e2e-resident` Resident app flows on an iOS simulator
+
+| Field | Content |
+|---|---|
+| Test | `e2e/tests/resident.e2e.ts` |
+| Purpose | The real app signs a resident in and her main screens work end to end: Home, hall pass tab, Permissions, planning an ordinary outing, Settings, and changing the password. |
+| Actor | Resident. |
+| Preconditions | macOS with Xcode, an iOS simulator, the release app built against the throwaway API from `e2e/scripts/serve-api.sh` (fresh SQLite hall, dev-seed accounts, mock SMS). Passwords from `E2E_*_PASSWORD` or the seed output. Never Render or Turso. |
+| Action | Sign in as `24-GLLB-118`. Open Home, Pass, Permissions (open late-night and go back), plan an outing to Maulana Azad Library tomorrow (the date and time pickers use the one agent step), open Settings and Change password, then change the password and sign in with the new one. |
+| Expected response | Home shows Plan an outing and Notifications. Pass shows no pass or a planned outing. Permissions lists late-night, home going and guest stay. The planned outing appears under Upcoming outings. Change password stays disabled until filled, then returns to Sign in and the new password signs in. |
+| Failure cases | E2E; failure cases are covered by the expected response. |
+| Artifact | Report under `e2e/.e2e/` (gitignored) and the replay cache `e2e/.e2e/cache/` for the one agent step. |
+
+### `e2e-staff` Staff app flows on an iOS simulator
+
+| Field | Content |
+|---|---|
+| Test | `e2e/tests/staff.e2e.ts` |
+| Purpose | The real app signs a warden and a gate account in and shows the right tabs. A simulator has no camera, so the gate records a scan by typed pass code. |
+| Actor | Warden and gate. |
+| Preconditions | macOS with Xcode, an iOS simulator, the release app built against the throwaway API from `e2e/scripts/serve-api.sh` (fresh SQLite hall, dev-seed accounts, mock SMS). Passwords from `E2E_*_PASSWORD` or the seed output. Never Render or Turso. |
+| Action | Sign in as `warden.sara`; open Out now, go back, open Requests. Sign out state is fresh, sign in as `gate.fatima`, check there is no Requests tab, type the dev resident pass code in Scan and tap Record. |
+| Expected response | The warden sees the Home, Out now and Requests screens. The gate has no Requests tab and the scan shows the resident name or that she has no planned outing. |
+| Failure cases | E2E; failure cases are covered by the expected response. |
+| Artifact | Report under `e2e/.e2e/` (gitignored) and the replay cache `e2e/.e2e/cache/` for the one agent step. |
+
 ### `admin-residents` Resident accounts and hall-pass reissue
 
 | Field | Content |
