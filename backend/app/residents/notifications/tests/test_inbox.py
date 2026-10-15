@@ -10,7 +10,6 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.shared.testing_env import joined
 from app.shared.testing_env import role_credential
 
 
@@ -113,7 +112,7 @@ def issue_people(path: Path) -> None:
                 ZARA_ID,
                 "24-BA-003",
                 "Zara Ahmed",
-                joined("resident", "30"),
+                role_credential("resident-30"),
                 ROOM_B205,
                 "B.A.",
                 "Imran Ahmed",
@@ -189,7 +188,7 @@ def test_resident_notification_inbox(database_path: Path, monkeypatch: pytest.Mo
             "Sign in again.",
         )
         aisha = sign_in(client, "24-GLLB-118", role_credential("resident"))
-        zara = sign_in(client, "24-BA-003", joined("resident", "30"))
+        zara = sign_in(client, "24-BA-003", role_credential("resident-30"))
         warden = sign_in(client, "warden.sara", role_credential("warden"))
         assert_error(
             client.get("/api/v1/me/notifications", headers=auth(warden)),
