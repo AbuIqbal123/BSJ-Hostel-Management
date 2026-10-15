@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, BackgroundTasks, Query
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.residents.home.routes import ResidentDep
@@ -19,7 +19,8 @@ from app.residents.permissions.records import (
     load_permission,
     record_permission,
 )
-from app.shared import clock
+from app.residents.notifications.records import request_push
+from app.shared import clock, push
 from app.shared.auth.routes import ConnectionDep
 from app.shared.errors import ApiError
 
@@ -165,6 +166,7 @@ def submit_permission(
     body: PermissionCreate,
     account: ResidentDep,
     connection: ConnectionDep,
+    background_tasks: BackgroundTasks,
 ) -> PermissionBody:
     now = clock.utc_now()
     fields = _permission_fields(body, now)
@@ -204,6 +206,19 @@ def submit_permission(
         "permission.submitted",
         permission_id,
         f"{account.full_name} submitted a {fields.label} permission for {fields.short_place}.",
+    )
+    background_tasks.add_task(
+        push.dispatch,
+        [
+            request_push(
+                kind="permission_requested",
+                record_id=permission_id,
+                resident_id=account.id,
+                resident_name=account.full_name,
+                room_label=account.room_label,
+                what=f"a {fields.label} permission for {fields.short_place}",
+            )
+        ],
     )
     return load_permission(connection, permission_id)
 

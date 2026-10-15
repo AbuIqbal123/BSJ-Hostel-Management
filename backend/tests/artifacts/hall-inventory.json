@@ -9,12 +9,14 @@
     "hall_settings",
     "outings",
     "permissions",
+    "push_tokens",
     "resident_notifications",
     "residents",
     "rooms",
     "schema_migrations",
     "sessions",
     "staff",
+    "staff_notification_reads",
     "users"
   ],
   "columns": {
@@ -141,10 +143,18 @@
       "created_at",
       "updated_at"
     ],
+    "push_tokens": [
+      "token",
+      "user_id",
+      "platform",
+      "created_at",
+      "updated_at"
+    ],
     "resident_notifications": [
       "id",
       "resident_id",
-      "permission_id",
+      "kind",
+      "record_id",
       "decision",
       "created_at",
       "read_at"
@@ -186,6 +196,11 @@
       "job_title",
       "notifications_read_at"
     ],
+    "staff_notification_reads": [
+      "user_id",
+      "notification_id",
+      "read_at"
+    ],
     "users": [
       "id",
       "role",
@@ -205,12 +220,17 @@
     "destinations_one_active_other",
     "guardian_messages_one_per_type",
     "guardian_messages_outing_id",
+    "guest_stays_created_at",
     "guest_stays_host_created",
     "guest_stays_status_arrived",
+    "outings_grace_ends_at",
     "outings_one_outside",
     "outings_one_return",
+    "outings_resident_expected",
+    "permissions_created_at",
     "permissions_resident_created",
     "permissions_status_created",
+    "push_tokens_user_id",
     "resident_notifications_resident_created",
     "residents_enrolment_number",
     "residents_qr_token",
@@ -1849,10 +1869,12 @@
     "guest_stays": 0,
     "outings": 0,
     "permissions": 0,
+    "push_tokens": 0,
     "resident_notifications": 0,
     "residents": 0,
     "sessions": 0,
     "staff": 0,
+    "staff_notification_reads": 0,
     "users": 0
   }
 }
