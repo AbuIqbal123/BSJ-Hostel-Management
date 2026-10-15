@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, File, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, Query, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -23,7 +23,8 @@ from app.residents.guests.records import (
     load_guest_stay,
     record_guest_stay,
 )
-from app.shared import clock
+from app.residents.notifications.records import record_decision
+from app.shared import clock, push
 from app.shared.auth.routes import ConnectionDep
 from app.shared.errors import ApiError
 from app.shared.schemas import DecisionRequest
@@ -111,6 +112,7 @@ def decide_guest_stay(
     body: DecisionRequest,
     account: RegisterDep,
     connection: ConnectionDep,
+    background_tasks: BackgroundTasks,
 ) -> GuestStayBody:
     now_text = clock.format_instant(clock.utc_now())
     note = None if body.note is None else body.note.strip() or None
@@ -147,7 +149,7 @@ def decide_guest_stay(
           decision_note = ?,
           updated_at = ?
         WHERE id = ? AND status = 'pending'
-        RETURNING id, guest_name
+        RETURNING id, guest_name, host_resident_id
         """,
         (body.decision, account.id, now_text, note, now_text, guest_stay_id),
     ).fetchone()
@@ -168,6 +170,18 @@ def decide_guest_stay(
         guest_stay_id,
         f"{account.full_name} {verb} a guest stay for {row['guest_name']}.",
     )
+    job = record_decision(
+        connection,
+        kind="guest_stay_decided",
+        record_id=guest_stay_id,
+        resident_id=row["host_resident_id"],
+        decision=body.decision,
+        now_text=now_text,
+        what=f"guest stay for {row['guest_name']}",
+        noun="guest stay",
+        by_name=account.full_name,
+    )
+    background_tasks.add_task(push.dispatch, [job])
     today = clock.hall_local_date(clock.utc_now())
     stay = load_guest_stay(connection, guest_stay_id, today=today)
     assert stay is not None

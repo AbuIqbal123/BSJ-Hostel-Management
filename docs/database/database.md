@@ -277,9 +277,33 @@ A staff profile exists only for gate, warden, or provost. The role on the person
 |---|---|---|---|---|
 | user_id | Identifier | Yes | The person's id | One profile for that person. |
 | job_title | Text | Yes | Provost | The name of the post. |
-| notifications_read_at | Instant | No | System | When she last marked her staff inbox read. Empty until then. |
+| notifications_read_at | Instant | No | System | Her mark-all instant: every event at or before it is read for her. Empty until her first mark-all, and then her account's created_at stands in, so a new staff member does not inherit the hall's past as unread. Staff who had never marked their inbox were set to the moment the change reached the hall. It only moves forward. |
 
-A warden's or the provost's inbox is not stored as rows. It is read from the records that already exist: a permission or guest stay being requested (its created_at) and an outing passing grace while she was still out (its grace_ends_at). An event after notifications_read_at is unread for that staff member. Marking the inbox read sets notifications_read_at to now and changes nothing else.
+A warden's or the provost's inbox is not stored as rows. It is read from the records that already exist: a permission or guest stay being requested (its created_at) and an outing passing grace while she was still out (its grace_ends_at). Each event carries what has happened since: a request's outcome (approved, declined, or cancelled), when, and by whom; a late outing's return and the gate staff who recorded it. An event is unread for a staff member when it is after her mark-all instant and she has not marked it read on its own. Marking all read moves notifications_read_at to now, or to the instant she names, and changes nothing else. The inbox lists the last 90 days. It is a view, never the history: the permissions, guest stays, outings, and audit log are the permanent record.
+
+### Staff notification reads
+
+One row when a warden or the provost marks one inbox event read on its own.
+
+| Detail | Kept as | Required | Where it comes from | Rule |
+|---|---|---|---|---|
+| user_id | Identifier | Yes | The staff member | Whose read this is. |
+| notification_id | Text | Yes | The event | `<kind>:<record_id>`, such as `permission_requested:<permission id>`. One row per staff member and event. |
+| read_at | Instant | Yes | System | When she marked it read. |
+
+### Push tokens
+
+One row per phone that asked for push. Any signed-in account may register its phone.
+
+| Detail | Kept as | Required | Where it comes from | Rule |
+|---|---|---|---|---|
+| token | Text | Yes | The phone (Expo) | An Expo push token, `ExponentPushToken[...]` or `ExpoPushToken[...]`, at most 200 characters. Unique. When another account registers the same token, the row moves to that account. |
+| user_id | Identifier | Yes | The signed-in account | Who the phone belongs to now. |
+| platform | Choice | Yes | The phone | ios or android. |
+| created_at | Instant | Yes | System | First registration. |
+| updated_at | Instant | Yes | System | Last registration. |
+
+The row is deleted when she signs out on that phone, or when Expo reports the token `DeviceNotRegistered`. Push is sent to wardens and the provost on a new permission request, a new guest-stay request, and a resident becoming late; and to a resident when her permission or guest stay is decided and when she becomes late. A late push goes once per outing, with no quiet hours or batching. The badge is the recipient's unread count. Push is best effort: it is sent after the record is saved, and a failure is logged, never shown to the caller. The server sends no "outing window ending" reminder; the phone schedules that locally from the outing's expected_return_at and grace_ends_at.
 
 ### Signed-in session
 
@@ -334,16 +358,17 @@ A resident may hold more than one permission. She may also plan several future o
 
 ## Resident notifications
 
-A row is written when a warden or the provost approves or rejects a permission. One decision, one row. Nothing else writes this list. The resident reads her own rows, newest first, at most 50. Each row includes the permission's short place, kind, departure, expected return, and the decider's name. The phone sentence is in `docs/design/notifications.md`. Opening that list does not mark them read. She marks every unread row read with one call.
+A row is written when a warden or the provost approves or rejects her permission or guest stay, and once per outing when it passes grace while she is out (written by the read-time late check, the same one that records the guardian late notice). The late row is also the marker that the late push went out. The resident reads her own rows from the last 90 days, newest first, a page at a time. Each row shows the outcome: the decision and who made it, or for a late row, her return and the gate staff who recorded it. Opening the list does not mark anything read. She marks one row read, or every unread row up to an instant.
 
 | Detail | Kept as | Required | Where it comes from | Rule |
 |---|---|---|---|---|
 | id | Identifier | Yes | System | Identifies this notice. |
 | resident_id | Identifier | Yes | The permission | The resident the decision is for. |
-| permission_id | Identifier | Yes | The permission | One row per permission. A second decision on the same permission is not stored. |
-| decision | Choice | Yes | The warden or provost | Approved or rejected. |
-| created_at | Instant | Yes | System, at the decision | When the row was written. The same instant as `decided_at`. |
-| read_at | Instant | Empty until she marks them read | System, when she marks her inbox read | Set on every unread row for her at that moment. |
+| kind | Choice | Yes | System | permission_decided, guest_stay_decided, or resident_late. |
+| record_id | Identifier | Yes | The permission, guest stay, or outing | One row per kind and record. A second decision on the same record, or a second late check on the same outing, is not stored. |
+| decision | Choice | For a decision | The warden or provost | Approved or rejected. Empty on a late row. |
+| created_at | Instant | Yes | System | When the decision was recorded, or the outing's grace_ends_at for a late row. |
+| read_at | Instant | Empty until she reads it | System | Set when she marks that row, or all rows up to an instant, read. |
 
 ## Outings
 
@@ -623,7 +648,8 @@ The home screen's recent lines are still those exits and returns for that reside
 ## What this version does not keep
 
 - Emergency alerts, duty phone numbers, or a second emergency contact besides the guardian.
-- Push notifications, and a notice on a staff phone. A resident keeps an inbox row when a warden or the provost approves or rejects her permission. Nothing else writes that list. Text messages to the guardian are kept above.
+- Whether a push reached the phone. Expo push receipts are not stored; a send is logged only.
+- Archived or cold-stored history. Every record stays in the hall database; at this hall's size (tens of MB a year) archiving is not needed.
 - A payment amount or card collection. The office marks a guest stay paid or unpaid, may type a free-text payment note, and may optionally keep a JPEG, PNG, or PDF receipt file as payment evidence. Amounts and card rails are not kept.
 - Parent or guardian accounts.
 - More than one outside outing, or two planned or outside outings with the same expected return.
@@ -644,4 +670,9 @@ Besides the unique indexes that enforce one username, one open outside outing, a
 | audit_log_occurred_at | audit_log (occurred_at) | Provost audit log newest first. |
 | sessions_user_id | sessions (user_id) | Sign-out and password change revoke every live session for that person. |
 | guardian_messages_outing_id | guardian_messages (outing_id) | Register resident record looks up the late notice for the open outing. |
-| resident_notifications_resident_created | resident_notifications (resident_id, created_at) | A resident's permission-decision inbox, newest first, and whether any row is unread. |
+| resident_notifications_resident_created | resident_notifications (resident_id, created_at) | A resident's inbox, newest first, and her unread count. |
+| permissions_created_at | permissions (created_at) | Date-range reads across every resident: the staff inbox window and the permission queue's created_at range. |
+| guest_stays_created_at | guest_stays (created_at) | The staff inbox window and date-range guest-stay reads. |
+| outings_grace_ends_at | outings (grace_ends_at) | The staff inbox late events and the late-returns list by date. |
+| outings_resident_expected | outings (resident_id, expected_return_at) | A resident's own outings by date, for her history. |
+| push_tokens_user_id | push_tokens (user_id) | The phones of the people a push goes to. |

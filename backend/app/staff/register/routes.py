@@ -10,12 +10,14 @@ from fastapi import APIRouter, Depends, Query
 from app.shared import clock
 from app.shared.auth.routes import Account, AccountDep, ConnectionDep
 from app.shared.errors import ApiError
+from app.residents.notifications.records import record_late_outings
+from app.shared import push
 from app.shared.sms import consider_late_notices
 from app.staff.register.records import (
     LateReturnPage,
     LateSource,
     LateState,
-    has_unread,
+    unread_count,
     list_late_returns,
     RegisterPage,
     RegisterFilter,
@@ -42,14 +44,17 @@ RegisterDep = Annotated[Account, Depends(staff_register_account)]
 def _run_late_notices(connection: ConnectionDep) -> None:
     now_text = clock.format_instant(clock.utc_now())
     consider_late_notices(connection, now_text)
+    jobs = record_late_outings(connection, now_text)
     connection.commit()
+    push.dispatch(jobs)
 
 
 @router.get("/summary", response_model=RegisterSummary)
 def register_summary(account: RegisterDep, connection: ConnectionDep) -> RegisterSummary:
     _run_late_notices(connection)
     summary = load_summary(connection)
-    summary.notifications_unread = has_unread(connection, account.id)
+    summary.notifications_unread_count = unread_count(connection, account.id)
+    summary.notifications_unread = summary.notifications_unread_count > 0
     return summary
 
 

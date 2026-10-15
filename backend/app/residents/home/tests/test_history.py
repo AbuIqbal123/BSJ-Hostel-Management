@@ -585,12 +585,26 @@ def test_resident_history(database_path: Path, monkeypatch: pytest.MonkeyPatch) 
         headers = {"Authorization": f"Bearer {resident}"}
         empty = client.get("/api/v1/me/history", headers=headers)
         assert empty.status_code == 200
-        assert empty.json() == {"items": []}
+        assert empty.json() == {"items": [], "next_cursor": None}
 
         _seed(database_path)
         full = client.get("/api/v1/me/history", headers=headers)
         assert full.status_code == 200
-        assert full.json() == {"items": ALL_ROWS}
+        assert full.json() == {"items": ALL_ROWS, "next_cursor": None}
+
+        # Paging walks the same rows in the same order, two at a time.
+        walked: list[dict] = []
+        cursor = None
+        while True:
+            query = "/api/v1/me/history?limit=2" + (f"&cursor={cursor}" if cursor else "")
+            page = client.get(query, headers=headers).json()
+            assert len(page["items"]) <= 2
+            walked.extend(page["items"])
+            cursor = page["next_cursor"]
+            if cursor is None:
+                break
+        assert walked == ALL_ROWS
+        assert client.get("/api/v1/me/history?cursor=bad!", headers=headers).status_code == 422
         same = client.get("/api/v1/me/history?kind=all", headers=headers)
         assert same.json() == full.json()
 
@@ -638,7 +652,7 @@ def test_resident_history(database_path: Path, monkeypatch: pytest.MonkeyPatch) 
         on_last = client.get("/api/v1/me/history?on=2026-09-22", headers=headers)
         assert on_last.json()["items"] == [DEPARTED]
         on_before = client.get("/api/v1/me/history?on=2026-09-19", headers=headers)
-        assert on_before.json() == {"items": []}
+        assert on_before.json() == {"items": [], "next_cursor": None}
         on_after = client.get("/api/v1/me/history?on=2026-09-23", headers=headers)
         assert [item["id"] for item in on_after.json()["items"]] == [CANCELLED_PASSED]
         narrowed = client.get(

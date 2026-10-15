@@ -69,7 +69,8 @@
         "pending_guest_stay_count": 0
       }
     ],
-    "notifications_unread": false
+    "notifications_unread": false,
+    "notifications_unread_count": 0
   },
   "summary": {
     "inside_count": 1,
@@ -141,7 +142,8 @@
         "pending_guest_stay_count": 0
       }
     ],
-    "notifications_unread": true
+    "notifications_unread": true,
+    "notifications_unread_count": 4
   },
   "residents": {
     "total": 3,

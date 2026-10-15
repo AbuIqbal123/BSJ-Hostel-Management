@@ -20,7 +20,8 @@
     "recent_history": [],
     "ordinary_outing_active": false,
     "upcoming_outings": [],
-    "notifications_unread": false
+    "notifications_unread": false,
+    "notifications_unread_count": 0
   },
   "outside": {
     "resident": {
@@ -156,6 +157,7 @@
     ],
     "ordinary_outing_active": true,
     "upcoming_outings": [],
-    "notifications_unread": false
+    "notifications_unread": false,
+    "notifications_unread_count": 0
   }
 }

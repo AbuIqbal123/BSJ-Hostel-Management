@@ -20,8 +20,9 @@ import { IBMPlexMono_500Medium } from "@expo-google-fonts/ibm-plex-mono";
 
 import { HallMark } from "@/components/hall-mark";
 import { PushRouter } from "@/components/push-router";
+import { leavesWhenSignedIn, routeSettled } from "@/launch";
 import { pushSupported } from "@/push";
-import { SessionProvider, useSession, type HallRole } from "@/session";
+import { SessionProvider, useSession } from "@/session";
 import { homePath } from "@/staff";
 import { AppearanceProvider, useDark } from "@/theme/appearance";
 import { useHallColors } from "@/theme/colors";
@@ -37,21 +38,6 @@ const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 export const unstable_settings = {
   initialRouteName: "index",
 };
-
-function routeSettled(
-  ready: boolean,
-  user: { role: HallRole } | null,
-  here: string | undefined,
-  onSignUp: boolean,
-): boolean {
-  if (!ready || !here) {
-    return false;
-  }
-  if (user) {
-    return here === (user.role === "resident" ? "(resident)" : "staff");
-  }
-  return here === "sign-in" || onSignUp;
-}
 
 // The restored route can be signup. It stays underneath until this lifts.
 function LaunchShell({ fontsReady }: { fontsReady: boolean }) {
@@ -77,7 +63,7 @@ function LaunchShell({ fontsReady }: { fontsReady: boolean }) {
       return;
     }
     if (user) {
-      if (here === "index" || here === "onboard" || here === "sign-in") {
+      if (leavesWhenSignedIn(here)) {
         router.replace(homePath(user.role));
       }
       return;
