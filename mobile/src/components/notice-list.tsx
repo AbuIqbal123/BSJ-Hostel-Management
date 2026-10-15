@@ -4,6 +4,7 @@ import { AppState, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
+import { onHallRefresh } from "@/hall-refresh";
 import { BackMark } from "@/components/back-mark";
 import { DayRange, type DayRangeValue } from "@/components/day-range";
 import { FilterChip } from "@/components/filter-chip";
@@ -127,6 +128,8 @@ export function NoticeList({ base, role, back, staff }: { base: string; role: Ha
     return () => subscription.remove();
   }, [load]);
 
+  useEffect(() => onHallRefresh(() => void load(null)), [load]);
+
   const refresh = useCallback(async () => {
     setRefreshing(true);
     await load(null);
@@ -150,6 +153,8 @@ export function NoticeList({ base, role, back, staff }: { base: string; role: Ha
           const count = reply.ok ? readUnreadCount(reply.data) : null;
           if (count !== null) {
             setBadge(count);
+          } else {
+            void load(null);
           }
         });
       }
@@ -157,7 +162,7 @@ export function NoticeList({ base, role, back, staff }: { base: string; role: Ha
         router.push(item.target as Href);
       }
     },
-    [base, staffRequest],
+    [base, load, staffRequest],
   );
 
   const newest = items?.[0]?.at ?? null;
@@ -173,7 +178,7 @@ export function NoticeList({ base, role, back, staff }: { base: string; role: Ha
       if (count !== null) {
         setBadge(count);
       }
-      if (filter === "unread") {
+      if (count === null || filter === "unread") {
         void load(null);
       }
     });

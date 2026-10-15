@@ -1,7 +1,11 @@
 import { formatWhenParts } from "@/format-when";
-import { isRecord, type HallRole } from "@/session";
-import { pushTarget } from "@/push";
+import { pushTarget } from "@/push-target";
+import type { HallRole } from "@/session";
 import { shortDay } from "@/staff";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
 
 /** One inbox card, staff or resident. `status` is the outcome line, or null while it waits. */
 export type Notice = {

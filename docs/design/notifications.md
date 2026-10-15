@@ -10,7 +10,9 @@ The resident inbox on the phone. Each row is one sentence from this table, then 
 
 The quieter line is the short place, then the leave and return. Home going and a guest stay use the dates. Late-night and an ordinary outing use the time, then the date. A guest line uses the guest's name instead of a place.
 
-Written into the inbox today: the four permission decisions, the two guest-stay decisions, and "She has not returned by the time she was due" (once per outing). Each of these also goes to her phone as a push whose body is the sentence. The others are the sentences for when that notice is added. Before an outing is due, the phone shows its own local reminder from the outing's expected return and grace; the server sends none. Her own submit, edit, plan, and cancel do not notify her. A request that is still waiting, and a trip she is still on, do not notify her.
+Written into the inbox today: the four permission decisions, the two guest-stay decisions, and "She has not returned by the time she was due" (once per outing). Each of these also goes to her phone as a push whose body is the sentence. The others are the sentences for when that notice is added. Her own submit, edit, plan, and cancel do not notify her. A request that is still waiting, and a trip she is still on, do not notify her.
+
+The phone also keeps its own return reminder, 15 minutes before she is due back. The hall does not send that one. While she is out, only that outing is reminded. Otherwise each ordinary plan and each approved late-night permission has its own reminder, from the moment the permission is approved. An ordinary plan that overlaps an approved permission is dropped, because the gate uses the permission. Home-going has no return reminder. The hall clock is fixed at UTC+5:30, so there is no daylight-saving change. One known limit: a reminder still fires if she returns early or does not use the outing. The phone drops it on the next Home load.
 
 | When | Sentence | Quieter line |
 |---|---|---|
