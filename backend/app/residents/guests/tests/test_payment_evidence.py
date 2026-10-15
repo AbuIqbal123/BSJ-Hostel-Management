@@ -13,12 +13,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import (
-    GATE_PHRASE,
-    PROVOST_PHRASE,
-    RESIDENT_PHRASE,
-    WARDEN_PHRASE,
-)
+from app.shared.testing_env import role_credential
 
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "guest-payment-evidence.json"
 BLOCK_B = "d032aad6-a203-5ea0-ba9a-3a9257edbfc8"
@@ -94,10 +89,10 @@ def issue_people(path: Path) -> None:
             (ROOM_ID, BLOCK_B),
         )
         people = (
-            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", GATE_PHRASE),
-            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", WARDEN_PHRASE),
-            (PROVOST_ID, "provost", "provost.halima", "Halima Begum", PROVOST_PHRASE),
-            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", RESIDENT_PHRASE),
+            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", role_credential("gate")),
+            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", role_credential("warden")),
+            (PROVOST_ID, "provost", "provost.halima", "Halima Begum", role_credential("provost")),
+            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", role_credential("resident")),
         )
         for user_id, role, username, full_name, password in people:
             connection.execute(
@@ -191,7 +186,7 @@ def test_optional_payment_evidence_upload(
     with TestClient(app) as client:
         assert_error(client.post(evidence_url, files={"evidence": ("receipt.png", PNG_BYTES, "image/png")}), 401, "unauthenticated")
 
-        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
+        gate = sign_in(client, "gate.fatima", role_credential("gate"))
         assert_error(
             client.post(
                 evidence_url,
@@ -201,7 +196,7 @@ def test_optional_payment_evidence_upload(
             403,
             "forbidden",
         )
-        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        resident = sign_in(client, "24-GLLB-118", role_credential("resident"))
         assert_error(
             client.post(
                 evidence_url,
@@ -212,7 +207,7 @@ def test_optional_payment_evidence_upload(
             "forbidden",
         )
 
-        warden = sign_in(client, "warden.sara", WARDEN_PHRASE)
+        warden = sign_in(client, "warden.sara", role_credential("warden"))
         headers = {"Authorization": f"Bearer {warden}"}
 
         # Mark paid WITHOUT evidence — must succeed (evidence is optional)

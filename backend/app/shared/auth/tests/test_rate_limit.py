@@ -10,13 +10,12 @@ import pytest
 from argon2 import PasswordHasher
 from fastapi.testclient import TestClient
 
-from app.dev_seed import GATE_PHRASE, joined
+from app.shared.testing_env import role_credential
 from app.shared.auth.rate_limit import login_limiter, refresh_limiter
 from app.shared.auth.tests.test_session import assert_error
 
 GATE_ID = "a11ce000-0000-4000-8000-000000000001"
 CREATED = "2026-09-30T00:00:00Z"
-WRONG_PHRASE = joined("not", "the", "one")
 
 
 
@@ -60,7 +59,7 @@ def issue_gate(path: Path) -> None:
               id, role, username, full_name, password_hash, status, created_at, updated_at
             ) VALUES (?, 'gate', 'gate.fatima', 'Fatima Khan', ?, 'active', ?, ?)
             """,
-            (GATE_ID, hasher.hash(GATE_PHRASE), CREATED, CREATED),
+            (GATE_ID, hasher.hash(role_credential("gate")), CREATED, CREATED),
         )
         connection.execute(
             "INSERT INTO staff (user_id, job_title) VALUES (?, 'Gatekeeper')",
@@ -88,19 +87,19 @@ def test_forwarded_clients_do_not_share_a_limit(
     for _ in range(2):
         refused = proxy.post(
             "/api/v1/auth/login",
-            json=_login_body("gate.fatima", WRONG_PHRASE),
+            json=_login_body("gate.fatima", role_credential("wrong")),
             headers=first,
         )
         assert refused.status_code == 401
     blocked = proxy.post(
         "/api/v1/auth/login",
-        json=_login_body("gate.fatima", WRONG_PHRASE),
+        json=_login_body("gate.fatima", role_credential("wrong")),
         headers=faked,
     )
     assert_error(blocked, 429, "rate_limited", "Too many attempts. Try again shortly.")
     other = proxy.post(
         "/api/v1/auth/login",
-        json=_login_body("gate.fatima", WRONG_PHRASE),
+        json=_login_body("gate.fatima", role_credential("wrong")),
         headers=second,
     )
     assert other.status_code == 401
@@ -118,7 +117,7 @@ def test_login_and_refresh_rate_limit(database_path: Path, monkeypatch: pytest.M
         for _ in range(3):
             refused = client.post(
                 "/api/v1/auth/login",
-                json=_login_body("gate.fatima", WRONG_PHRASE),
+                json=_login_body("gate.fatima", role_credential("wrong")),
             )
             assert_error(
                 refused,
@@ -128,7 +127,7 @@ def test_login_and_refresh_rate_limit(database_path: Path, monkeypatch: pytest.M
             )
         blocked = client.post(
             "/api/v1/auth/login",
-            json=_login_body("gate.fatima", WRONG_PHRASE),
+            json=_login_body("gate.fatima", role_credential("wrong")),
         )
         assert_error(
             blocked,
@@ -140,7 +139,7 @@ def test_login_and_refresh_rate_limit(database_path: Path, monkeypatch: pytest.M
         login_limiter.reset()
         signed_in = client.post(
             "/api/v1/auth/login",
-            json=_login_body("gate.fatima", GATE_PHRASE),
+            json=_login_body("gate.fatima", role_credential("gate")),
         )
         assert signed_in.status_code == 200
 

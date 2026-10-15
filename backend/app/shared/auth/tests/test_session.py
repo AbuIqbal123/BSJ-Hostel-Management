@@ -16,12 +16,7 @@ from argon2.exceptions import VerifyMismatchError
 from fastapi.testclient import TestClient
 
 from app.shared.auth.rate_limit import login_limiter, refresh_limiter
-from app.dev_seed import (
-    GATE_PHRASE,
-    RESIDENT_PHRASE,
-    SUSPENDED_PHRASE,
-    joined,
-)
+from app.shared.testing_env import role_credential
 
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "auth-session.json"
 BLOCK_B = "d032aad6-a203-5ea0-ba9a-3a9257edbfc8"
@@ -30,13 +25,11 @@ RESIDENT_ID = "b22de000-0000-4000-8000-000000000002"
 SUSPENDED_ID = "c33ef000-0000-4000-8000-000000000003"
 ROOM_ID = "d4400000-0000-4000-8000-000000000004"
 CREATED = "2026-09-30T00:00:00Z"
-GATE_NEW_PHRASE = joined("Gate", "pass", "20")
-WRONG_PHRASE = joined("not", "the", "one")
-SECRETS = (
-    GATE_PHRASE,
-    GATE_NEW_PHRASE,
-    RESIDENT_PHRASE,
-    SUSPENDED_PHRASE,
+LEAK_CHECK_VALUES = (
+    role_credential("gate"),
+    role_credential("gate-new"),
+    role_credential("resident"),
+    role_credential("suspended"),
 )
 
 
@@ -91,9 +84,9 @@ def issue_accounts(path: Path) -> None:
             (ROOM_ID, BLOCK_B),
         )
         accounts = (
-            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", GATE_PHRASE, "active"),
-            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", RESIDENT_PHRASE, "active"),
-            (SUSPENDED_ID, "gate", "gate.suspended", "Noor Ali", SUSPENDED_PHRASE, "suspended"),
+            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", role_credential("gate"), "active"),
+            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", role_credential("resident"), "active"),
+            (SUSPENDED_ID, "gate", "gate.suspended", "Noor Ali", role_credential("suspended"), "suspended"),
         )
         for user_id, role, username, full_name, password, status in accounts:
             connection.execute(
@@ -216,7 +209,7 @@ def test_logout_does_not_succeed_when_the_commit_fails(
         issue_accounts(database_path)
         signed = client.post(
             "/api/v1/auth/login",
-            json=_login_body("gate.fatima", GATE_PHRASE),
+            json=_login_body("gate.fatima", role_credential("gate")),
         )
         assert signed.status_code == 200
         token = signed.json()["access_token"]
@@ -256,7 +249,7 @@ def test_auth_session(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
 
         wrong = client.post(
             "/api/v1/auth/login",
-            json=_login_body("gate.fatima", WRONG_PHRASE),
+            json=_login_body("gate.fatima", role_credential("wrong")),
         )
         assert_error(
             wrong,
@@ -266,12 +259,12 @@ def test_auth_session(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
         )
         unknown = client.post(
             "/api/v1/auth/login",
-            json=_login_body("nobody", GATE_PHRASE),
+            json=_login_body("nobody", role_credential("gate")),
         )
         assert_error(unknown, 401, "unauthenticated", "Username or password is wrong.")
         suspended = client.post(
             "/api/v1/auth/login",
-            json=_login_body("gate.suspended", SUSPENDED_PHRASE),
+            json=_login_body("gate.suspended", role_credential("suspended")),
         )
         assert_error(
             suspended,
@@ -284,7 +277,7 @@ def test_auth_session(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
 
         signed_in = client.post(
             "/api/v1/auth/login",
-            json=_login_body("GATE.FATIMA", GATE_PHRASE),
+            json=_login_body("GATE.FATIMA", role_credential("gate")),
         )
         assert signed_in.status_code == 200
         first = signed_in.json()
@@ -346,7 +339,7 @@ def test_auth_session(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
         frozen.set(3)
         other_phone = client.post(
             "/api/v1/auth/login",
-            json=_login_body("gate.fatima", GATE_PHRASE),
+            json=_login_body("gate.fatima", role_credential("gate")),
         )
         assert other_phone.status_code == 200
         third = other_phone.json()
@@ -376,7 +369,7 @@ def test_auth_session(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
         frozen.set(5)
         again = client.post(
             "/api/v1/auth/login",
-            json=_login_body("gate.fatima", GATE_PHRASE),
+            json=_login_body("gate.fatima", role_credential("gate")),
         )
         assert again.status_code == 200
         fourth = again.json()
@@ -384,7 +377,7 @@ def test_auth_session(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
             client.post(
                 "/api/v1/auth/change-password",
                 headers=bearer(fourth["access_token"]),
-                json={"current_password": WRONG_PHRASE, "new_password": GATE_NEW_PHRASE},
+                json={"current_password": role_credential("wrong"), "new_password": role_credential("gate-new")},
             ),
             401,
             "unauthenticated",
@@ -394,7 +387,7 @@ def test_auth_session(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
             client.post(
                 "/api/v1/auth/change-password",
                 headers=bearer(fourth["access_token"]),
-                json={"current_password": GATE_PHRASE, "new_password": "short"},
+                json={"current_password": role_credential("gate"), "new_password": "short"},
             ),
             422,
             "validation_error",
@@ -406,7 +399,7 @@ def test_auth_session(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
                 client.post(
                     "/api/v1/auth/change-password",
                     headers=bearer(fourth["access_token"]),
-                    json={"current_password": GATE_PHRASE, "new_password": weak_password},
+                    json={"current_password": role_credential("gate"), "new_password": weak_password},
                 ),
                 422,
                 "validation_error",
@@ -416,7 +409,7 @@ def test_auth_session(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
         assert_error(
             client.post(
                 "/api/v1/auth/change-password",
-                json={"current_password": GATE_PHRASE, "new_password": GATE_NEW_PHRASE},
+                json={"current_password": role_credential("gate"), "new_password": role_credential("gate-new")},
             ),
             401,
             "unauthenticated",
@@ -427,7 +420,7 @@ def test_auth_session(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
         changed = client.post(
             "/api/v1/auth/change-password",
             headers=bearer(fourth["access_token"]),
-            json={"current_password": GATE_PHRASE, "new_password": GATE_NEW_PHRASE},
+            json={"current_password": role_credential("gate"), "new_password": role_credential("gate-new")},
         )
         assert changed.status_code == 204
         assert changed.content == b""
@@ -441,7 +434,7 @@ def test_auth_session(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
         assert_error(
             client.post(
                 "/api/v1/auth/login",
-                json=_login_body("gate.fatima", GATE_PHRASE),
+                json=_login_body("gate.fatima", role_credential("gate")),
             ),
             401,
             "unauthenticated",
@@ -451,7 +444,7 @@ def test_auth_session(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
         frozen.set(7)
         replaced = client.post(
             "/api/v1/auth/login",
-            json=_login_body("gate.fatima", GATE_NEW_PHRASE),
+            json=_login_body("gate.fatima", role_credential("gate-new")),
         )
         assert replaced.status_code == 200
         fifth = replaced.json()
@@ -460,7 +453,7 @@ def test_auth_session(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
         frozen.set(8)
         resident = client.post(
             "/api/v1/auth/login",
-            json=_login_body("24-gllb-118", RESIDENT_PHRASE),
+            json=_login_body("24-gllb-118", role_credential("resident")),
         )
         assert resident.status_code == 200
         resident_body = resident.json()
@@ -489,7 +482,7 @@ def test_auth_session(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
         frozen.set(9)
         latest = client.post(
             "/api/v1/auth/login",
-            json=_login_body("gate.fatima", GATE_NEW_PHRASE),
+            json=_login_body("gate.fatima", role_credential("gate-new")),
         )
         assert latest.status_code == 200
         sixth = latest.json()
@@ -511,7 +504,7 @@ def test_auth_session(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
         )
 
     raw = database_path.read_bytes()
-    for secret in SECRETS:
+    for secret in LEAK_CHECK_VALUES:
         assert secret.encode() not in raw
     for token in (
         first["refresh_token"],
@@ -540,8 +533,8 @@ def test_auth_session(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
     assert gate_hash.startswith("$argon2id$")
     assert resident_hash.startswith("$argon2id$")
     checker = PasswordHasher()
-    checker.verify(gate_hash, GATE_NEW_PHRASE)
+    checker.verify(gate_hash, role_credential("gate-new"))
     with pytest.raises(VerifyMismatchError):
-        checker.verify(gate_hash, GATE_PHRASE)
+        checker.verify(gate_hash, role_credential("gate"))
 
     assert read_auth_state(database_path) == expected
