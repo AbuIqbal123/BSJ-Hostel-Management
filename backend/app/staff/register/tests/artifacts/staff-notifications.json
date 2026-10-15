@@ -5,64 +5,94 @@
       "f8800000-0000-4000-8000-000000000044",
       "Zara Ahmed",
       "2026-09-30T12:30:00Z",
-      true
+      null,
+      true,
+      null,
+      null
     ],
     [
       "resident_late",
       "0a700000-0000-4000-8000-000000000061",
       "Aisha Khan",
       "2026-09-30T12:15:00Z",
-      true
+      null,
+      true,
+      null,
+      null
     ],
     [
       "permission_requested",
       "f8800000-0000-4000-8000-000000000043",
       "Zara Ahmed",
       "2026-09-30T12:00:00Z",
-      true
+      null,
+      true,
+      null,
+      null
     ],
     [
       "permission_requested",
       "f8800000-0000-4000-8000-000000000042",
       "Aisha Khan",
       "2026-09-30T11:00:00Z",
-      true
+      null,
+      true,
+      null,
+      null
     ],
     [
       "permission_requested",
       "f8800000-0000-4000-8000-000000000041",
       "Aisha Khan",
       "2026-09-30T10:00:00Z",
-      true
+      null,
+      true,
+      null,
+      null
     ],
     [
       "guest_stay_requested",
       "9e500000-0000-4000-8000-000000000071",
       "Aisha Khan",
       "2026-09-30T09:30:00Z",
-      true
+      null,
+      true,
+      null,
+      null
     ],
     [
       "guest_stay_requested",
       "9e500000-0000-4000-8000-000000000072",
       "Zara Ahmed",
       "2026-09-30T08:30:00Z",
-      true
+      null,
+      true,
+      null,
+      null
     ],
     [
       "resident_late",
       "0a700000-0000-4000-8000-000000000062",
       "Zara Ahmed",
       "2026-09-29T16:15:00Z",
-      true
+      "2026-09-30T00:00:00Z",
+      false,
+      "returned",
+      "Fatima Khan"
     ],
     [
       "permission_requested",
       "f8800000-0000-4000-8000-000000000051",
       "Zara Ahmed",
       "2026-09-28T09:00:00Z",
-      true
+      "2026-09-30T00:00:00Z",
+      false,
+      "approved",
+      "Sara Malik"
     ]
   ],
-  "marked": 9
+  "marked": [
+    4,
+    2
+  ]
 }

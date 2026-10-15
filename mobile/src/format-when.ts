@@ -56,12 +56,12 @@ function whenPieces(iso: string): { day: string; clock: string } | null {
   const marker = hour24 >= 12 ? "PM" : "AM";
   const hour12 = hour24 % 12 || 12;
   return {
-    day: `${day} ${MONTHS[month - 1]} ${year}`,
+    day: `${String(day).padStart(2, "0")} ${MONTHS[month - 1]} ${year}`,
     clock: `${hour12}:${minute.padStart(2, "0")} ${marker}`,
   };
 }
 
-/** Hall clock: `5 September 2026, 7:00 PM` in Asia/Kolkata. */
+/** Hall clock: `05 September 2026, 7:00 PM` in Asia/Kolkata. */
 export function formatWhen(iso: string): string {
   const pieces = whenPieces(iso);
   if (!pieces) {
@@ -74,7 +74,7 @@ export function formatWhenParts(iso: string): { day: string; clock: string } | n
   return whenPieces(iso);
 }
 
-/** `7:00 PM, 5 September 2026`. */
+/** `7:00 PM, 05 September 2026`. */
 export function formatClockDay(iso: string): string {
   const pieces = whenPieces(iso);
   if (!pieces) {
@@ -105,7 +105,7 @@ export function formatHallDate(iso: string): string {
   if (!year || !name || !day || Number.isNaN(Number(day))) {
     return iso;
   }
-  return `${Number(day)} ${name} ${year}`;
+  return `${String(Number(day)).padStart(2, "0")} ${name} ${year}`;
 }
 
 /** UTC instant the hall accepts: `YYYY-MM-DDTHH:MM:SSZ`, to the minute. */

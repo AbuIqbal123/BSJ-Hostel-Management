@@ -272,9 +272,9 @@ export default function HallPassScreen() {
           ) : null}
           {before ? (
             <View style={styles.note}>
-              <Text style={[text.body, styles.center, { color: colors.ink }]}>You have a planned outing</Text>
+              <Text style={[text.body, styles.center, { color: colors.ink }]}>{waitingTitle(pass?.outingType)}</Text>
               <Text style={[text.body, styles.center, { color: colors.ink }]}>
-                {`Your QR code appears at ${formatWhen(before)}, 30 minutes before you leave`}
+                {`Your QR code appears at ${formatWhen(before)}`}
               </Text>
             </View>
           ) : null}
@@ -282,6 +282,16 @@ export default function HallPassScreen() {
       )}
     </View>
   );
+}
+
+function waitingTitle(type: HallPass["outingType"] | undefined): string {
+  if (type === "late_night") {
+    return "You have an approved late-night permission";
+  }
+  if (type === "home_going") {
+    return "You have an approved home-going permission";
+  }
+  return "You have a planned outing";
 }
 
 function returnBy(pass: HallPass): { value: string; detail: string | null } {

@@ -3,9 +3,11 @@ import { router, useFocusEffect } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { Bell } from "@/components/bell";
 import { DenseRow } from "@/components/dense-row";
 import { HallButton } from "@/components/hall-button";
 import { SectionHead } from "@/components/section-head";
+import { setBadge } from "@/push";
 import { roleLabel, useSession } from "@/session";
 import { readActivity, readSummary, readsRegister, trimStop, type GateEvent, type RegisterSummary } from "@/staff";
 import { useHallColors } from "@/theme/colors";
@@ -62,7 +64,11 @@ export default function StaffHomeScreen() {
       if (register) {
         void staffRequest("/register/summary").then((reply) => {
           if (active && reply.ok) {
-            setSummary(readSummary(reply.data));
+            const next = readSummary(reply.data);
+            setSummary(next);
+            if (next) {
+              setBadge(next.unread);
+            }
           }
         });
       }
@@ -84,9 +90,12 @@ export default function StaffHomeScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.identity}>
-        <Text numberOfLines={1} style={[text.hallName, styles.title, { color: colors.ink }]}>
-          {`Welcome, ${user.full_name}`}
-        </Text>
+        <View style={styles.welcomeRow}>
+          <Text numberOfLines={1} style={[text.hallName, styles.title, { color: colors.ink }]}>
+            {`Welcome, ${user.full_name}`}
+          </Text>
+          {register ? <Bell count={summary?.unread ?? 0} href="/staff/notifications" /> : null}
+        </View>
         <Text numberOfLines={1} style={[text.body, { color: colors.inkSoft }]}>
           {roleLabel(user.role)}
         </Text>
@@ -136,7 +145,8 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { flexGrow: 1, paddingHorizontal: 28, gap: 28 },
   identity: { gap: 16 },
-  title: { textAlign: "left" },
+  welcomeRow: { flexDirection: "row", alignItems: "center", gap: 16 },
+  title: { flex: 1, textAlign: "left" },
   stats: { flexDirection: "row", gap: 12 },
   stat: {
     flex: 1,
