@@ -1,0 +1,24 @@
+{
+  "name": "bsj-e2e",
+  "private": true,
+  "type": "module",
+  "description": "iOS simulator end-to-end tests for the BSJ app (TesterArmy e2e)",
+  "engines": {
+    "node": "^22.22.3 || >=24.8.0"
+  },
+  "scripts": {
+    "list": "E2E_TELEMETRY_DISABLED=1 e2e list",
+    "test": "E2E_TELEMETRY_DISABLED=1 e2e run",
+    "test:no-ai": "E2E_TELEMETRY_DISABLED=1 e2e run --exclude-tag agent",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@ai-sdk/openai-compatible": "3.0.68",
+    "@ai-sdk/xai": "5.0.21",
+    "@e2e-dev/mobile": "0.12.1",
+    "@types/node": "22.20.5",
+    "ai": "7.0.140",
+    "e2e": "0.21.0",
+    "typescript": "7.0.2"
+  }
+}
