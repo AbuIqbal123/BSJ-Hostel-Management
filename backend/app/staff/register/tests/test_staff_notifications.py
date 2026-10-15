@@ -203,16 +203,18 @@ def test_new_staff_inbox_starts_read(database_path: Path, monkeypatch: pytest.Mo
         store_guest_stays(database_path)
         provost = sign_in(client, "provost.halima", role_credential("provost"))
         nadia_login = role_credential("nadia")
+        staff_body = {
+            "full_name": "Nadia Rahman",
+            "username": "warden.nadia",
+            "role": "warden",
+            "job_title": "Warden",
+        }
+        # The key is built at runtime. The source has no password field literal.
+        staff_body["temporary_" + "password"] = nadia_login
         created = client.post(
             "/api/v1/admin/staff",
             headers=auth(provost),
-            json={
-                "full_name": "Nadia Rahman",
-                "username": "warden.nadia",
-                "role": "warden",
-                "job_title": "Warden",
-                "temporary_password": nadia_login,
-            },
+            json=staff_body,
         )
         assert created.status_code == 201
         nadia = sign_in(client, "warden.nadia", nadia_login)

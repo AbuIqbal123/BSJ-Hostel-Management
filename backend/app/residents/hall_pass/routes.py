@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
-import sqlite3
-from functools import partial
+from typing import Literal
 
 from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict
 
 from app.residents.home.routes import ResidentDep
-from app.residents.outings.records import qr_window
+from app.residents.outings.usable import find_usable_outing
 from app.shared import clock
 from app.shared.auth.routes import ConnectionDep
+from app.shared.db import hall_settings
 from app.shared.errors import ApiError
 
 router = APIRouter(prefix="/api/v1", tags=["Resident"])
@@ -23,36 +23,14 @@ class ResidentHallPass(BaseModel):
     full_name: str
     room_label: str
     outing_id: str | None
+    permission_id: str | None
+    outing_type: Literal["ordinary", "late_night", "home_going"] | None
     place: str | None
     starts_at: str | None
     expected_return_at: str | None
     qr_visible: bool
     qr_visible_from: str | None
     qr_visible_until: str | None
-
-
-def _pass(
-    *,
-    token: str | None,
-    full_name: str,
-    room_label: str,
-    outing: sqlite3.Row | None,
-    qr_visible: bool,
-    qr_visible_from: str | None,
-    qr_visible_until: str | None,
-) -> ResidentHallPass:
-    return ResidentHallPass(
-        qr_payload=token if qr_visible else None,
-        full_name=full_name,
-        room_label=room_label,
-        outing_id=None if outing is None else outing["id"],
-        place=None if outing is None else outing["place"],
-        starts_at=None if outing is None else outing["starts_at"],
-        expected_return_at=None if outing is None else outing["expected_return_at"],
-        qr_visible=qr_visible,
-        qr_visible_from=qr_visible_from,
-        qr_visible_until=qr_visible_until,
-    )
 
 
 @router.get("/me/hall-pass", response_model=ResidentHallPass)
@@ -63,88 +41,20 @@ def resident_hall_pass(account: ResidentDep, connection: ConnectionDep) -> Resid
     ).fetchone()
     if row is None:
         raise ApiError(404, "not_found", "That record was not found.")
-    now = clock.utc_now()
-    outings = connection.execute(
-        """
-        SELECT id, type, status, place, starts_at, expected_return_at, exited_at
-        FROM outings
-        WHERE resident_id = ? AND status IN ('planned', 'outside')
-        ORDER BY expected_return_at, id
-        """,
-        (account.id,),
-    ).fetchall()
-    hall_pass = partial(
-        _pass,
-        token=row["qr_token"],
+    lead = int(hall_settings(connection)["permission_lead_minutes"])
+    usable = find_usable_outing(connection, account.id, clock.utc_now(), lead)
+    shown = usable is not None and usable.is_open
+    return ResidentHallPass(
+        qr_payload=row["qr_token"] if shown else None,
         full_name=account.full_name,
         room_label=account.room_label,
-    )
-
-    open_ordinary: list[tuple[sqlite3.Row, str | None, str | None]] = []
-    for outing in outings:
-        if outing["type"] != "ordinary":
-            continue
-        visible, visible_from, visible_until = qr_window(
-            outing_type=outing["type"],
-            status=outing["status"],
-            starts_at=outing["starts_at"],
-            expected_return_at=outing["expected_return_at"],
-            exited_at=outing["exited_at"],
-            now=now,
-        )
-        if visible:
-            open_ordinary.append((outing, visible_from, visible_until))
-    if open_ordinary:
-        open_ordinary.sort(
-            key=lambda item: (
-                0 if item[0]["status"] == "outside" else 1,
-                item[0]["expected_return_at"],
-                item[0]["id"],
-            )
-        )
-        outing, visible_from, visible_until = open_ordinary[0]
-        return hall_pass(
-            outing=outing,
-            qr_visible=True,
-            qr_visible_from=visible_from,
-            qr_visible_until=visible_until,
-        )
-
-    outside = next((outing for outing in outings if outing["status"] == "outside"), None)
-    if outside is not None:
-        return hall_pass(
-            outing=outside,
-            qr_visible=True,
-            qr_visible_from=outside["exited_at"],
-            qr_visible_until=None,
-        )
-
-    waiting = [
-        outing
-        for outing in outings
-        if outing["type"] == "ordinary" and outing["status"] == "planned" and outing["starts_at"]
-    ]
-    if waiting:
-        waiting.sort(key=lambda outing: (outing["starts_at"], outing["id"]))
-        outing = waiting[0]
-        _visible, visible_from, visible_until = qr_window(
-            outing_type=outing["type"],
-            status=outing["status"],
-            starts_at=outing["starts_at"],
-            expected_return_at=outing["expected_return_at"],
-            exited_at=outing["exited_at"],
-            now=now,
-        )
-        return hall_pass(
-            outing=outing,
-            qr_visible=False,
-            qr_visible_from=visible_from,
-            qr_visible_until=visible_until,
-        )
-
-    return hall_pass(
-        outing=None,
-        qr_visible=False,
-        qr_visible_from=None,
-        qr_visible_until=None,
+        outing_id=None if usable is None else usable.outing_id,
+        permission_id=None if usable is None else usable.permission_id,
+        outing_type=None if usable is None else usable.outing_type,
+        place=None if usable is None else usable.place,
+        starts_at=None if usable is None else usable.starts_at,
+        expected_return_at=None if usable is None else usable.expected_return_at,
+        qr_visible=shown,
+        qr_visible_from=None if usable is None else usable.visible_from,
+        qr_visible_until=None if usable is None else usable.visible_until,
     )

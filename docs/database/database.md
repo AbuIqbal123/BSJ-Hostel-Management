@@ -51,7 +51,7 @@ The rules in this document are the contract. The room inventory is taken from th
 ## What the hall already decided
 
 - The hall is Begum Sultan Jahan Hall, Aligarh Muslim University. The hall page lists 206 double rooms and 412 beds. For session 2025–26 the same page lists 506 resident students and 434 non-resident students. That roll is not a room count. This system keeps the provost, wardens, and gate staff.
-- A resident has one permanent hall pass. It is not replaced for each outing. The same code records leaving and coming back. The provost can issue a new code from the resident's record. The steps are under Residents. The resident phone shows that code for one outing at a time: from 30 minutes before the ordinary outing's start (immediately when the start is within 5 minutes, because that lead has already begun) until the outing ends. While she is outside, the code stays available until the return scan. The gate scan still decides the movement.
+- A resident has one permanent hall pass. It is not replaced for each outing. The same code records leaving and coming back. The provost can issue a new code from the resident's record. The steps are under Residents. The resident phone shows that code for one outing at a time, the one she can use now (see Leaving on a permission): an ordinary outing from 30 minutes before its start, or a late-night or home-going permission from its lead before departure, until that outing ends. While she is outside, the code stays available until the return scan, for every type. The gate scan still decides the movement.
 - An ordinary outing is a same-day outing inside ordinary hours. The resident sets the destination and the expected return in the app before going to the gate. The gate scan does not ask for either. If either is missing, the scan does not let her out. An ordinary outing needs no warden approval. The scan records the exit, the time, and which staff member scanned.
 - Ordinary hours are a window with a start and an end. Summer is 1 April through 30 September, 6:30 AM to 6:30 PM. Winter is 1 October through 31 March, 6:30 AM to 5:30 PM. On 30 September the summer window is in force. On 1 October the winter window is in force. The clock times and the two start dates are under Hall settings.
 - Grace is 30 minutes after the expected return. An expected return of 7:00 PM means grace ends at 7:30 PM.
@@ -267,7 +267,7 @@ The resident's own phone is separate from the guardian phone. Self-onboard and o
 | created_at | Instant | Yes | System | When the profile was created. |
 | updated_at | Instant | Yes | System | When it last changed. |
 
-The hall pass code stays the same from outing to outing. It changes only when the provost issues a new one. The resident phone returns that code on her hall pass only while an outing's show window is open. The provost does that on the resident's record, for example after a lost phone or because someone else has seen the code. The provost does not type the new code. The system makes a new random code, puts it in place of the old one at that moment, and writes an audit log entry. The old code stops working immediately. The resident's phone shows the new code the next time it loads the pass.
+The hall pass code stays the same from outing to outing. It changes only when the provost issues a new one. The resident phone returns that code on her hall pass only while the window of an outing she can use is open. The provost does that on the resident's record, for example after a lost phone or because someone else has seen the code. The provost does not type the new code. The system makes a new random code, puts it in place of the old one at that moment, and writes an audit log entry. The old code stops working immediately. The resident's phone shows the new code the next time it loads the pass.
 
 ### Staff
 
@@ -410,7 +410,7 @@ A resident has at most one outing that is outside, and at most one planned or ou
 
 Created when the resident confirms a destination, a start, and an expected return. Other future plans may already exist, including another return on that same hall day, as long as none of them is inside its show window. Planning does not change whether she is inside or outside. This is the step before the gate. The scan cannot invent the destination, the start, or the expected return. No warden approval.
 
-The start and the expected return must both be in the future at the moment she confirms them, the return after the start, and both on the same hall day. Each must fall after that day's ordinary-hours start and at or before that day's ordinary-hours end. The season is the one that contains that hall date. If either time would be outside that window, the plan is refused and she asks for late-night permission or home going instead. If one ordinary outing is already inside its show window, the plan is refused. The show window opens 30 minutes before `starts_at`. When `starts_at` is within 5 minutes, that lead has already opened, so the hall-pass QR is shown immediately. A planned outing's window ends at the expected return. An outside ordinary outing's window stays open until the return scan. If she already has a planned or outside outing ending at that same instant, the plan is refused. After that outing is cancelled or returned, she may plan that instant again.
+The start and the expected return must both be in the future at the moment she confirms them, the return after the start, and both on the same hall day. Each must fall after that day's ordinary-hours start and at or before that day's ordinary-hours end. The season is the one that contains that hall date. If either time would be outside that window, the plan is refused and she asks for late-night permission or home going instead. If one ordinary outing is already inside its show window, the plan is refused. The show window opens 30 minutes before `starts_at`. A plan made inside that lead is open as soon as it exists. A planned outing's window ends at the expected return. An outside ordinary outing's window stays open until the return scan. If she already has a planned or outside outing ending at that same instant, the plan is refused. After that outing is cancelled or returned, she may plan that instant again.
 
 The outing stays planned until the gate scans the hall pass. She may change or cancel one planned outing by choosing it, until that outing's show window opens. Once the window is open, or she is outside on it, she cannot change or cancel it here. Her other plans stay planned, and she can still change one whose window is shut. Changing a plan stores the new destination, start, and expected return, and recalculates grace from that return. If the expected return passes and she has not been scanned out, the system cancels that plan only, and writes an audit log entry with no staff member.
 
@@ -418,14 +418,27 @@ The outing stays planned until the gate scans the hall pass. She may change or c
 
 Approving a permission does not create an outing. A home-going permission for next week must not block an ordinary outing today.
 
+One rule, "the outing she can use now", decides both the gate scan and the hall pass on her phone. It looks at three kinds of outing:
+
+| Kind | Window |
+|---|---|
+| Ordinary plan | 30 minutes before `starts_at`, until `expected_return_at`. A plan stored without `starts_at` (older rows) is open for its hall day. |
+| Late-night or home-going permission (approved) | `permission_lead_minutes` before `departure_at`, until `expected_return_at`. |
+| An outing she is already outside on, of any type | From the exit scan until the return scan, even after the permission window ended. |
+
 When the resident is inside and the gate scans the pass:
 
 1. If this resident was just scanned inside the ignore window, refuse. Do not undo the last movement.
-2. If one or more ordinary outings are planned for today's hall date, and at least one of those expected returns has not passed, record the exit on the earliest of those returns, including the time and the staff member, provided the current time is inside today's ordinary-hours window. Leave every later plan for today planned. Leave a plan for another hall day planned. Do not use a later day's plan today. Do not attach a permission.
-3. Otherwise, if an approved permission is inside its use window, open the outing already outside, link the permission, copy its short place onto the outing, record the exit time and the staff member, mark the permission in use, and mark the resident outside. If several permissions match, use the one with the earliest departure.
-4. Otherwise refuse. She has not set a destination and an expected return, or the current time is outside ordinary hours, or the permission is not yet valid, or it is still waiting.
+2. Find the outing she can use now. If several are open, a permission wins over an ordinary plan, then the earlier window wins. The policy is one ranking in `backend/app/residents/outings/usable.py`. The losing ordinary plan stays planned, and she sees the permission on her hall pass.
+3. An ordinary plan is used only inside today's ordinary-hours window. Record the exit on that outing, with the time and the staff member.
+4. A permission opens an outing already outside: link the permission, copy its short place onto the outing, record the exit time and the staff member, mark the permission in use, and mark the resident outside.
+5. If none is open, refuse. `outing_not_yet_open` (an ordinary plan, too early) and `permission_not_yet_valid` (a permission, too early) say one is coming. `outside_ordinary_hours` says only an ordinary plan is open and the hall is outside ordinary hours. `no_outing_planned` says she has none.
 
-If a planned ordinary outing for today would be used and she meant a later trip today, or a permission, she cancels that plan in the app and shows the hall pass again. The gate does not choose for her. Her other plans stay planned. A scan while she is outside records the return on the outing she is already on. It does not start the next plan.
+One permission covers the whole trip. A resident who leaves in ordinary hours and comes back late asks for a permission for the whole trip, and leaves on it. The late rule is the same for every type: after the grace that follows the expected return, she is late, the guardian is messaged, and the return scan notes it.
+
+Approving a permission is refused when it overlaps another approved or in-use permission of the same resident (`permission_overlap`). A permission that starts when another ends is allowed. A planned ordinary outing in the same hours is not touched: it stays planned, and the permission wins.
+
+If she meant a later trip today, or a different outing, she cancels the plan the gate would use and shows the hall pass again. A scan while she is outside records the return on the outing she is already on. It does not start the next plan.
 
 ### Return
 
