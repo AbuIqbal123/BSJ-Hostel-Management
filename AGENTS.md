@@ -95,3 +95,12 @@ Group the service by business area.
 ### Test documentation
 
 Every test has an entry in `docs/tests/tests.md`, updated in the same change as the test. The entry names the test file, the purpose, the actor, and the artifact. Use the format at the top of that file. The entry does not copy every payload when the test file already states them.
+
+### Rules that something enforces
+
+When a mistake repeats, fix it so it cannot happen, then add a row here. Drop the row once the mistake cannot happen.
+
+| Rule | Enforced by |
+|---|---|
+| Catch database integrity errors with `INTEGRITY_ERRORS` from `app.shared.db`, never `sqlite3.IntegrityError` (Turso raises a different class) | `ruff check` rule TID251 in `backend/ruff.toml`; `backend/tests/test_integrity_errors.py` |
+| No unused imports, locals or undefined names | `ruff check` (F rules) |
