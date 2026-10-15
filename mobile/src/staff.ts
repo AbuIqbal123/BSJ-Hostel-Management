@@ -1,5 +1,5 @@
 import type { HallRole, PermissionKind } from "@/session";
-import { formatHallDate, formatWhenParts } from "@/format-when";
+import { formatHallDate, formatWhen, formatWhenParts } from "@/format-when";
 
 export function homePath(role: HallRole): "/home" | "/staff" {
   return role === "resident" ? "/home" : "/staff";
@@ -376,15 +376,36 @@ export function readScan(value: unknown): ScanResult | null {
   if (body.outcome === "return_recorded") {
     const returned = record(body.return_record);
     const timeliness = str(returned?.return_timeliness) ?? "";
+    const due = str(returned?.expected_return_at);
+    const minutes = num(returned?.minutes_late);
+    const late = timeliness === "late";
     return {
       ...scanBase(body),
       kind: "return",
-      facts: clockFact("Back", str(returned?.returned_at)),
-      timeliness: TIMELINESS[timeliness] ?? "",
-      late: timeliness === "late",
+      outing: OUTING_WORDS[str(returned?.outing_type) ?? ""] ?? "",
+      place: str(returned?.place) ?? "",
+      facts: [
+        ...clockFact("Back", str(returned?.returned_at)),
+        ...(due ? [{ label: "Due by", value: formatWhen(due) }] : []),
+      ],
+      timeliness: late && minutes > 0 ? `Late by ${lateSpan(minutes)}` : (TIMELINESS[timeliness] ?? ""),
+      late,
     };
   }
   return null;
+}
+
+/** `45 min`, `2 h 10 min`, or `3 days`. */
+function lateSpan(minutes: number): string {
+  if (minutes < 60) {
+    return `${minutes} min`;
+  }
+  if (minutes < 24 * 60) {
+    const rest = minutes % 60;
+    return rest ? `${Math.floor(minutes / 60)} h ${rest} min` : `${minutes / 60} h`;
+  }
+  const days = Math.floor(minutes / (24 * 60));
+  return `${days} ${days === 1 ? "day" : "days"}`;
 }
 
 /** How long past the due time: minutes, hours, or days. */
