@@ -209,7 +209,7 @@ def test_new_staff_inbox_starts_read(database_path: Path, monkeypatch: pytest.Mo
             "role": "warden",
             "job_title": "Warden",
         }
-        # Built at runtime so the source has no password field literal.
+        # The key is built at runtime. The source has no password field literal.
         staff_body["temporary_" + "password"] = nadia_login
         created = client.post(
             "/api/v1/admin/staff",
