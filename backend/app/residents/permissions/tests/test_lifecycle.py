@@ -142,7 +142,7 @@ def insert_seed_permissions(path: Path) -> None:
               decision_note, created_at, updated_at
             ) VALUES
             (?, ?, 'late_night', 'in_use', 'Women''s College', 'Seminar Hall', NULL,
-             'Already left on this permission.', '2026-09-30T12:00:00Z', '2026-09-30T16:00:00Z',
+             'Already left on this permission.', '2026-09-30T12:00:00Z', '2026-09-30T13:30:00Z',
              ?, '2026-09-30T11:00:00Z', NULL, '2026-09-30T10:00:00Z', '2026-09-30T12:00:00Z'),
             (?, ?, 'home_going', 'approved', 'Lucknow', NULL, '12 Park Road',
              'Unused and past its return.', '2026-09-28T02:30:00Z', '2026-09-29T12:00:00Z',
