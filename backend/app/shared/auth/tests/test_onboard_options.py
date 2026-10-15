@@ -14,7 +14,7 @@ from app.shared.auth.rate_limit import login_limiter, options_limiter, refresh_l
 from app.shared.auth.security import hash_password
 from app.shared.auth.tests.test_session import assert_error
 from app.shared.testing_env import signing_key_for_tests
-from app.dev_seed import joined
+from app.shared.testing_env import joined
 
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "auth-onboard-options.json"
 BLOCK_A = "01b885ad-e40d-56a4-81ab-2371f654f558"

@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import GATE_PHRASE, RESIDENT_PHRASE, WARDEN_PHRASE
+from app.shared.testing_env import role_credential
 
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "gate-scans.json"
 BLOCK_B = "d032aad6-a203-5ea0-ba9a-3a9257edbfc8"
@@ -56,9 +56,9 @@ def issue_people(path: Path) -> None:
             (ROOM_ID, BLOCK_B),
         )
         for user_id, role, username, full_name, password in (
-            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", GATE_PHRASE),
-            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", WARDEN_PHRASE),
-            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", RESIDENT_PHRASE),
+            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", role_credential("gate")),
+            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", role_credential("warden")),
+            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", role_credential("resident")),
         ):
             connection.execute(
                 """
@@ -144,7 +144,7 @@ def test_gate_scans_and_activity(
     with TestClient(app) as client:
         issue_people(database_path)
         assert_error(client.post("/api/v1/gate/scans", json={"qr_payload": QR}), 401, "unauthenticated")
-        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        resident = sign_in(client, "24-GLLB-118", role_credential("resident"))
         assert_error(
             client.post(
                 "/api/v1/gate/scans",
@@ -155,7 +155,7 @@ def test_gate_scans_and_activity(
             "forbidden",
         )
 
-        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
+        gate = sign_in(client, "gate.fatima", role_credential("gate"))
         headers = {"Authorization": f"Bearer {gate}"}
         assert_error(
             client.post(
@@ -256,7 +256,7 @@ def test_gate_scans_and_activity(
         assert first["host_name"] is None
         assert first["host_room_label"] is None
 
-        warden = sign_in(client, "warden.sara", WARDEN_PHRASE)
+        warden = sign_in(client, "warden.sara", role_credential("warden"))
         warden_activity = client.get(
             "/api/v1/gate/activity",
             headers={"Authorization": f"Bearer {warden}"},
@@ -384,7 +384,7 @@ def test_permission_exit_refuses_when_return_already_planned(
     with TestClient(app) as client:
         issue_people(database_path)
         seed_clashing_return(database_path)
-        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
+        gate = sign_in(client, "gate.fatima", role_credential("gate"))
         response = client.post(
             "/api/v1/gate/scans",
             headers={"Authorization": f"Bearer {gate}"},
@@ -439,7 +439,7 @@ def test_tied_gate_activity_pages_do_not_skip_or_repeat(
                   id, role, username, full_name, password_hash, status, created_at, updated_at
                 ) VALUES (?, 'gate', 'gate.fatima', 'Fatima Khan', ?, 'active', ?, ?)
                 """,
-                (GATE_ID, hash_password(GATE_PHRASE), CREATED, CREATED),
+                (GATE_ID, hash_password(role_credential("gate")), CREATED, CREATED),
             )
             connection.execute(
                 "INSERT INTO staff (user_id, job_title) VALUES (?, 'Gatekeeper')",
@@ -464,7 +464,7 @@ def test_tied_gate_activity_pages_do_not_skip_or_repeat(
                       id, role, username, full_name, password_hash, status, created_at, updated_at
                     ) VALUES (?, 'resident', ?, 'Amina Khan', ?, 'active', ?, ?)
                     """,
-                    (resident_id, username, hash_password(RESIDENT_PHRASE), CREATED, CREATED),
+                    (resident_id, username, hash_password(role_credential("resident")), CREATED, CREATED),
                 )
                 connection.execute(
                     """
@@ -505,7 +505,7 @@ def test_tied_gate_activity_pages_do_not_skip_or_repeat(
         finally:
             connection.close()
 
-        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
+        gate = sign_in(client, "gate.fatima", role_credential("gate"))
         headers = {"Authorization": f"Bearer {gate}"}
         first = client.get("/api/v1/gate/activity?limit=1&offset=0", headers=headers)
         second = client.get("/api/v1/gate/activity?limit=1&offset=1", headers=headers)

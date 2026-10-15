@@ -11,12 +11,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import (
-    GATE_PHRASE,
-    PROVOST_PHRASE,
-    RESIDENT_PHRASE,
-    WARDEN_PHRASE,
-)
+from app.shared.testing_env import role_credential
 
 
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "permission-lifecycle.json"
@@ -98,11 +93,11 @@ def issue_people(path: Path) -> None:
             ),
         )
         people = (
-            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", GATE_PHRASE, "Gatekeeper"),
-            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", WARDEN_PHRASE, "Warden"),
-            (PROVOST_ID, "provost", "provost.halima", "Halima Begum", PROVOST_PHRASE, "Provost"),
-            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", RESIDENT_PHRASE, None),
-            (OTHER_ID, "resident", "24-GLLB-119", "Maryam Siddiqui", RESIDENT_PHRASE, None),
+            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", role_credential("gate"), "Gatekeeper"),
+            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", role_credential("warden"), "Warden"),
+            (PROVOST_ID, "provost", "provost.halima", "Halima Begum", role_credential("provost"), "Provost"),
+            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", role_credential("resident"), None),
+            (OTHER_ID, "resident", "24-GLLB-119", "Maryam Siddiqui", role_credential("resident"), None),
         )
         for user_id, role, username, full_name, password, job in people:
             connection.execute(
@@ -249,14 +244,14 @@ def test_permission_lifecycle(database_path: Path, monkeypatch: pytest.MonkeyPat
             "unauthenticated",
             "Sign in again.",
         )
-        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
+        gate = sign_in(client, "gate.fatima", role_credential("gate"))
         assert_error(
             client.post("/api/v1/me/permissions", headers=auth(gate), json=late_night_body),
             403,
             "forbidden",
             "This account cannot do that.",
         )
-        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        resident = sign_in(client, "24-GLLB-118", role_credential("resident"))
         assert_error(
             client.post(
                 "/api/v1/me/permissions",
@@ -444,7 +439,7 @@ def test_permission_lifecycle(database_path: Path, monkeypatch: pytest.MonkeyPat
             "This account cannot do that.",
         )
 
-        warden = sign_in(client, "warden.sara", WARDEN_PHRASE)
+        warden = sign_in(client, "warden.sara", role_credential("warden"))
         assert permission_row(database_path, STAFF_EXPIRE_ID)["status"] == "approved"
         queue_before = client.get("/api/v1/permissions", headers=auth(warden))
         assert queue_before.status_code == 200
@@ -516,7 +511,7 @@ def test_permission_lifecycle(database_path: Path, monkeypatch: pytest.MonkeyPat
         assert without_id(rejected.json()) == expected["rejected"]
         assert outing_count_for(database_path, home_id) == 0
 
-        provost = sign_in(client, "provost.halima", PROVOST_PHRASE)
+        provost = sign_in(client, "provost.halima", role_credential("provost"))
         provost_decision = client.post(
             f"/api/v1/permissions/{OTHER_PERM}/decision",
             headers=auth(provost),
@@ -575,7 +570,7 @@ def test_pending_permission_can_be_changed(
     }
     with TestClient(app) as client:
         issue_people(database_path)
-        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        resident = sign_in(client, "24-GLLB-118", role_credential("resident"))
         created = client.post("/api/v1/me/permissions", headers=auth(resident), json=body)
         assert created.status_code == 201
         permission_id = created.json()["id"]
@@ -602,7 +597,7 @@ def test_pending_permission_can_be_changed(
             "validation_error",
             "The expected return must be after the departure.",
         )
-        warden = sign_in(client, "warden.sara", WARDEN_PHRASE)
+        warden = sign_in(client, "warden.sara", role_credential("warden"))
         decided = client.post(
             f"/api/v1/permissions/{permission_id}/decision",
             headers=auth(warden),
@@ -654,7 +649,7 @@ def test_late_night_returns_the_same_night(
     }
     with TestClient(app) as client:
         issue_people(database_path)
-        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        resident = sign_in(client, "24-GLLB-118", role_credential("resident"))
         created = client.post("/api/v1/me/permissions", headers=auth(resident), json=same_night)
         assert created.status_code == 201
         at_midnight = client.post("/api/v1/me/permissions", headers=auth(resident), json=midnight)
