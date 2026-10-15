@@ -3472,7 +3472,11 @@ One of: [ScanExitResult](#schema-scanexitresult), [ScanReturnResult](#schema-sca
     "recorded_at": "2026-09-13T13:24:00Z",
     "return_timeliness": "on_time",
     "returned_at": "2026-09-13T13:24:00Z",
-    "return_recorded_by_name": "Fatima Khan"
+    "return_recorded_by_name": "Fatima Khan",
+    "outing_type": "ordinary",
+    "place": "Maulana Azad Library",
+    "expected_return_at": "2026-09-13T13:30:00Z",
+    "minutes_late": 0
   }
 }
 ```
@@ -6353,6 +6357,10 @@ Outing). Includes outing `lateness` (`on_time` or `late`). Omits
 | `return_timeliness` | yes | `on_time` or `within_grace` or `late` |  |
 | `returned_at` | yes | date-time |  |
 | `return_recorded_by_name` | yes | string | Staff member who scanned the return. |
+| `outing_type` | yes | `ordinary` or `late_night` or `home_going` | Kind of the outing that just ended. Same values as the exit `outing.outing_type` and late-returns `source`. |
+| `place` | yes | string | Where she went (the outing's `place`). |
+| `expected_return_at` | yes | date-time | When she was due back (UTC). Same instant as late-returns `due_at`. |
+| `minutes_late` | yes | integer | Never null. Same rule as late returns: 0 unless `return_timeliness` is `late` (returned after `grace_ends_at`). When late, whole minutes from `expected_return_at` to `returned_at`, rounded down. minimum 0. |
 
 ### <a id="schema-scanexitresult"></a>ScanExitResult
 
