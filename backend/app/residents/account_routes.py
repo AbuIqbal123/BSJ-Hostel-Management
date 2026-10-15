@@ -15,7 +15,7 @@ from app.shared.audit import record_audit
 from app.shared.auth.routes import ConnectionDep
 from app.shared.auth.security import hash_password, password_matches
 from app.shared.errors import ApiError
-from app.staff.office.records import FORMER_ROOM_ID, revoke_live_sessions
+from app.staff.office.records import FORMER_ROOM_ID, new_hall_pass_token, revoke_live_sessions
 
 router = APIRouter(prefix="/api/v1", tags=["Resident"])
 
@@ -144,7 +144,7 @@ def delete_own_account(
         (
             retired,
             FORMER_ROOM_ID,
-            f"bsj:v1:{secrets.token_urlsafe(32)}",
+            new_hall_pass_token(),
             now_text,
             account.id,
         ),
