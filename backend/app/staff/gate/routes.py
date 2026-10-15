@@ -7,7 +7,7 @@ import uuid
 from datetime import timedelta
 from typing import Annotated, Literal, NoReturn
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.residents.outings.records import (
@@ -18,7 +18,10 @@ from app.residents.outings.records import (
     record_outing,
     return_is_taken,
 )
+from app.residents.outings.usable import find_usable_outing
 from app.shared import clock
+from app.residents.notifications.records import record_late_outings
+from app.shared import push
 from app.shared.sms import consider_late_notices, send_return_notice_if_due
 from app.shared.auth.routes import Account, AccountDep, ConnectionDep
 from app.shared.db import hall_settings
@@ -63,6 +66,10 @@ class ScanReturnRecord(BaseModel):
     return_timeliness: Literal["on_time", "within_grace", "late"]
     returned_at: str
     return_recorded_by_name: str
+    outing_type: Literal["ordinary", "late_night", "home_going"]
+    place: str
+    expected_return_at: str
+    minutes_late: int
 
 
 class ScanExitResult(BaseModel):
@@ -94,6 +101,14 @@ def _return_timeliness(
     if returned_at <= grace_ends_at:
         return "within_grace"
     return "late"
+
+
+def _minutes_late(returned_at: str, expected_return_at: str, timeliness: str) -> int:
+    """Same rule as the late-returns register: late only past grace, counted from expected return."""
+    if timeliness != "late":
+        return 0
+    seconds = (clock.parse_instant(returned_at) - clock.parse_instant(expected_return_at)).total_seconds()
+    return int(seconds // 60)
 
 
 def _exit_outing(outing: OutingBody, recorded_at: str) -> ScanExitOuting:
@@ -185,60 +200,6 @@ def _outside_outing(connection: sqlite3.Connection, resident_id: str) -> sqlite3
         """,
         (resident_id,),
     ).fetchone()
-
-
-def _earliest_today_plan(
-    connection: sqlite3.Connection,
-    resident_id: str,
-    today: str,
-    now_text: str,
-) -> sqlite3.Row | None:
-    return connection.execute(
-        """
-        SELECT id, place, expected_return_at
-        FROM outings
-        WHERE resident_id = ?
-          AND status = 'planned'
-          AND type = 'ordinary'
-          AND hall_date = ?
-          AND expected_return_at >= ?
-        ORDER BY expected_return_at ASC, id ASC
-        LIMIT 1
-        """,
-        (resident_id, today, now_text),
-    ).fetchone()
-
-
-def _usable_permission(
-    connection: sqlite3.Connection,
-    resident_id: str,
-    now_text: str,
-    early_minutes: int,
-) -> tuple[sqlite3.Row | None, str | None]:
-    rows = connection.execute(
-        """
-        SELECT id, type, short_place, departure_at, expected_return_at
-        FROM permissions
-        WHERE resident_id = ? AND status = 'approved'
-        ORDER BY departure_at ASC, id ASC
-        """,
-        (resident_id,),
-    ).fetchall()
-    too_early = False
-    for row in rows:
-        window_start = clock.parse_instant(row["departure_at"]) - timedelta(
-            minutes=early_minutes
-        )
-        window_start_text = clock.format_instant(window_start)
-        if now_text < window_start_text:
-            too_early = True
-            continue
-        if now_text > row["expected_return_at"]:
-            continue
-        return row, None
-    if too_early:
-        return None, "permission_not_yet_valid"
-    return None, None
 
 
 def _record_ordinary_exit(
@@ -411,6 +372,7 @@ def scan_hall_pass(
     body: ScanRequest,
     account: GateDep,
     connection: ConnectionDep,
+    background_tasks: BackgroundTasks,
 ) -> ScanResult:
     resident = _load_resident_by_qr(connection, body.qr_payload)
     if resident is None:
@@ -462,6 +424,8 @@ def scan_hall_pass(
                 "This resident is marked outside but no open outing was found to return on.",
                 resident,
             )
+        # Her late row and late push are due before the return, as the SMS is.
+        background_tasks.add_task(push.dispatch, record_late_outings(connection, now_text))
         outing = _record_return(
             connection,
             outing_id=open_row["id"],
@@ -488,41 +452,62 @@ def scan_hall_pass(
                 return_timeliness=timeliness,
                 returned_at=now_text,
                 return_recorded_by_name=account.full_name,
+                outing_type=outing.outing_type,
+                place=outing.place,
+                expected_return_at=outing.expected_return_at,
+                minutes_late=_minutes_late(now_text, outing.expected_return_at, timeliness),
             ),
         )
 
-    today = clock.hall_local_date(now)
-    plan = _earliest_today_plan(connection, resident_id, today, now_text)
-    inside_hours = hours_refusal(now, settings) is None
-    if plan is not None and inside_hours:
+    usable = find_usable_outing(
+        connection, resident_id, now, int(settings["permission_lead_minutes"])
+    )
+    if usable is None:
+        _refuse(
+            "no_outing_planned",
+            "There is no planned outing for this resident to leave on.",
+            resident,
+        )
+    if not usable.is_open:
+        if usable.kind == "permission":
+            _refuse(
+                "permission_not_yet_valid",
+                "That permission is not yet valid for leaving.",
+                resident,
+            )
+        _refuse(
+            "outing_not_yet_open",
+            "This outing opens 30 minutes before its start. Ask her to come back then.",
+            resident,
+        )
+    if usable.kind == "ordinary":
+        if hours_refusal(now, settings) is not None:
+            _refuse(
+                "outside_ordinary_hours",
+                "Ordinary outings can only leave during ordinary hours.",
+                resident,
+            )
+        assert usable.outing_id is not None
         outing = _record_ordinary_exit(
             connection,
-            outing_id=plan["id"],
+            outing_id=usable.outing_id,
             account=account,
             now_text=now_text,
             full_name=full_name,
-            place=plan["place"],
+            place=usable.place,
         )
-        return ScanExitResult(
-            full_name=full_name,
-            room_label=room_label,
-            message="The resident is now outside.",
-            outing=_exit_outing(outing, now_text),
-        )
-
-    permission, permission_refusal = _usable_permission(
-        connection,
-        resident_id,
-        now_text,
-        int(settings["permission_lead_minutes"]),
-    )
-    if permission is not None:
-        if return_is_taken(connection, resident_id, permission["expected_return_at"]):
+    else:
+        assert usable.permission_id is not None
+        if return_is_taken(connection, resident_id, usable.expected_return_at):
             _refuse(
                 "return_already_planned",
                 "This resident already has an outing ending at that time.",
                 resident,
             )
+        permission = connection.execute(
+            "SELECT id, type, short_place, expected_return_at FROM permissions WHERE id = ?",
+            (usable.permission_id,),
+        ).fetchone()
         outing = _open_permission_exit(
             connection,
             permission=permission,
@@ -532,29 +517,11 @@ def scan_hall_pass(
             now_text=now_text,
             full_name=full_name,
         )
-        return ScanExitResult(
-            full_name=full_name,
-            room_label=room_label,
-            message="The resident is now outside.",
-            outing=_exit_outing(outing, now_text),
-        )
-
-    if permission_refusal == "permission_not_yet_valid":
-        _refuse(
-            "permission_not_yet_valid",
-            "That permission is not yet valid for leaving.",
-            resident,
-        )
-    if plan is not None and not inside_hours:
-        _refuse(
-            "outside_ordinary_hours",
-            "Ordinary outings can only leave during ordinary hours.",
-            resident,
-        )
-    _refuse(
-        "no_outing_planned",
-        "There is no planned outing for this resident to leave on.",
-        resident,
+    return ScanExitResult(
+        full_name=full_name,
+        room_label=room_label,
+        message="The resident is now outside.",
+        outing=_exit_outing(outing, now_text),
     )
 
 

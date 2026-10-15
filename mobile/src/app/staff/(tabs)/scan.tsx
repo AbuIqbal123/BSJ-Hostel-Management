@@ -143,6 +143,7 @@ function ManualEntry({ onSubmit, busy }: { onSubmit: (code: string) => void; bus
   return (
     <View style={styles.manual}>
       <TextInput
+        testID="scan-code"
         value={code}
         onChangeText={setCode}
         placeholder="Hall pass code"

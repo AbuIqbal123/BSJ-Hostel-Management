@@ -39,6 +39,12 @@
       "expo-font",
       "expo-secure-store",
       [
+        "expo-notifications",
+        {
+          "color": "#1F4D3A"
+        }
+      ],
+      [
         "expo-camera",
         {
           "cameraPermission": "The gate camera reads the code on a resident's hall pass",

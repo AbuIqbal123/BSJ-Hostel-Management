@@ -10,7 +10,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import RESIDENT_PHRASE, WARDEN_PHRASE, joined
+from app.shared.testing_env import joined
+from app.shared.testing_env import role_credential
 
 
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "resident-notifications.json"
@@ -90,7 +91,7 @@ def issue_people(path: Path) -> None:
               id, role, username, full_name, password_hash, status, created_at, updated_at
             ) VALUES (?, 'warden', 'warden.sara', 'Sara Malik', ?, 'active', ?, ?)
             """,
-            (WARDEN_ID, hash_password(WARDEN_PHRASE), CREATED, CREATED),
+            (WARDEN_ID, hash_password(role_credential("warden")), CREATED, CREATED),
         )
         connection.execute(
             "INSERT INTO staff (user_id, job_title) VALUES (?, 'Warden')",
@@ -101,7 +102,7 @@ def issue_people(path: Path) -> None:
                 AISHA_ID,
                 "24-GLLB-118",
                 "Aisha Khan",
-                RESIDENT_PHRASE,
+                role_credential("resident"),
                 ROOM_B204,
                 "B.A. LL.B. (Hons.)",
                 "Rashid Khan",
@@ -187,9 +188,9 @@ def test_resident_notification_inbox(database_path: Path, monkeypatch: pytest.Mo
             "unauthenticated",
             "Sign in again.",
         )
-        aisha = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        aisha = sign_in(client, "24-GLLB-118", role_credential("resident"))
         zara = sign_in(client, "24-BA-003", joined("resident", "30"))
-        warden = sign_in(client, "warden.sara", WARDEN_PHRASE)
+        warden = sign_in(client, "warden.sara", role_credential("warden"))
         assert_error(
             client.get("/api/v1/me/notifications", headers=auth(warden)),
             403,
@@ -199,7 +200,7 @@ def test_resident_notification_inbox(database_path: Path, monkeypatch: pytest.Mo
 
         empty = client.get("/api/v1/me/notifications", headers=auth(aisha))
         assert empty.status_code == 200
-        assert empty.json() == {"items": []}
+        assert empty.json() == {"items": [], "next_cursor": None}
         home = client.get("/api/v1/me/home", headers=auth(aisha))
         assert home.status_code == 200
         assert home.json()["notifications_unread"] is False
@@ -226,7 +227,7 @@ def test_resident_notification_inbox(database_path: Path, monkeypatch: pytest.Mo
         assert one[0]["permission_id"] == late_id
         assert one[0]["unread"] is True
         assert client.get("/api/v1/me/home", headers=auth(aisha)).json()["notifications_unread"] is True
-        assert client.get("/api/v1/me/notifications", headers=auth(zara)).json() == {"items": []}
+        assert client.get("/api/v1/me/notifications", headers=auth(zara)).json() == {"items": [], "next_cursor": None}
         assert client.get("/api/v1/me/home", headers=auth(zara)).json()["notifications_unread"] is False
 
         frozen.advance()
@@ -274,25 +275,26 @@ def test_resident_notification_inbox(database_path: Path, monkeypatch: pytest.Mo
 
         marked = client.post("/api/v1/me/notifications/read", headers=auth(aisha))
         assert marked.status_code == 200
-        assert marked.json() == {"marked": 2}
+        assert marked.json() == {"marked": 2, "unread_count": 0}
         read = client.get("/api/v1/me/notifications", headers=auth(aisha))
         assert [item["unread"] for item in read.json()["items"]] == [False, False]
         assert client.get("/api/v1/me/home", headers=auth(aisha)).json()["notifications_unread"] is False
         second = client.post("/api/v1/me/notifications/read", headers=auth(aisha))
-        assert second.json() == {"marked": 0}
+        assert second.json() == {"marked": 0, "unread_count": 0}
         assert client.get("/api/v1/me/home", headers=auth(zara)).json()["notifications_unread"] is True
 
         _store_older_than_the_list(database_path)
-        capped = client.get("/api/v1/me/notifications", headers=auth(aisha))
+        capped = client.get("/api/v1/me/notifications?limit=50", headers=auth(aisha))
         assert capped.status_code == 200
         items = capped.json()["items"]
         assert len(items) == 50
+        assert capped.json()["next_cursor"] is not None
         assert all(item["unread"] is True for item in items)
         assert items[0]["created_at"] > items[-1]["created_at"]
         assert late_id not in {item["permission_id"] for item in items}
         assert client.get("/api/v1/me/home", headers=auth(aisha)).json()["notifications_unread"] is True
         marked_all = client.post("/api/v1/me/notifications/read", headers=auth(aisha))
-        assert marked_all.json() == {"marked": 51}
+        assert marked_all.json() == {"marked": 51, "unread_count": 0}
         assert unread_count(database_path, AISHA_ID) == 0
         assert client.get("/api/v1/me/home", headers=auth(aisha)).json()["notifications_unread"] is False
 
@@ -331,8 +333,8 @@ def _store_older_than_the_list(path: Path) -> None:
             connection.execute(
                 """
                 INSERT INTO resident_notifications (
-                  id, resident_id, permission_id, decision, created_at
-                ) VALUES (?, ?, ?, 'approved', ?)
+                  id, resident_id, kind, record_id, decision, created_at
+                ) VALUES (?, ?, 'permission_decided', ?, 'approved', ?)
                 """,
                 (notice_id, AISHA_ID, permission_id, created),
             )

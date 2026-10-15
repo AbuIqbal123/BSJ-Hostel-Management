@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, SectionList, StyleSheet, Text, View } from "react-native";
+import { useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { DenseRow } from "@/components/dense-row";
 import { FilterChip } from "@/components/filter-chip";
+import { SearchField } from "@/components/search-field";
 import { SectionHead } from "@/components/section-head";
 import { ReviewSheet, type Fact } from "@/components/review-sheet";
 import { formatHallDate, formatSpan, formatWhen } from "@/format-when";
@@ -33,19 +35,27 @@ type Item = { tab: "permissions"; row: PermissionReview } | { tab: "guests"; row
 type Section = { key: string; title: string; data: Item[] };
 type Counts = { permissions: number; guests: number; late: number; home: number };
 
-function permissionPath(kind: PermissionKind | null, blockId: string | null, limit: number, offset: number) {
-  const search = new URLSearchParams({ status: "pending", limit: String(limit), offset: String(offset) });
-  if (kind) {
-    search.set("permission_type", kind);
+function filters(search: URLSearchParams, q: string, blockId: string | null): string {
+  if (q.trim()) {
+    search.set("q", q.trim());
   }
   if (blockId) {
     search.set("block_id", blockId);
   }
-  return `/permissions?${search.toString()}`;
+  return search.toString();
 }
 
-function guestPath(limit: number, offset: number) {
-  return `/guest-stays?bucket=pending&limit=${limit}&offset=${offset}`;
+function permissionPath(kind: PermissionKind | null, blockId: string | null, limit: number, offset: number, q = "") {
+  const search = new URLSearchParams({ status: "pending", limit: String(limit), offset: String(offset) });
+  if (kind) {
+    search.set("permission_type", kind);
+  }
+  return `/permissions?${filters(search, q, blockId)}`;
+}
+
+function guestPath(blockId: string | null, limit: number, offset: number, q: string) {
+  const search = new URLSearchParams({ bucket: "pending", limit: String(limit), offset: String(offset) });
+  return `/guest-stays?${filters(search, q, blockId)}`;
 }
 
 function itemDay(item: Item): string {
@@ -82,10 +92,13 @@ export default function RequestsScreen() {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
   const { staffRequest } = useSession();
+  const params = useLocalSearchParams<{ tab?: string; open?: string }>();
   const [tab, setTab] = useState<Tab>("permissions");
   const [kind, setKind] = useState<PermissionKind | null>(null);
   const [blockId, setBlockId] = useState<string | null>(null);
   const [blocks, setBlocks] = useState<HallBlock[]>([]);
+  const [query, setQuery] = useState("");
+  const [q, setQ] = useState("");
   const [counts, setCounts] = useState<Counts | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [total, setTotal] = useState(0);
@@ -99,10 +112,11 @@ export default function RequestsScreen() {
   const generation = useRef(0);
 
   const loadCounts = useCallback(async () => {
-    const [summary, late, home] = await Promise.all([
+    const [summary, late, home, guests] = await Promise.all([
       staffRequest("/register/summary"),
       staffRequest(permissionPath("late_night", blockId, 1, 0)),
       staffRequest(permissionPath("home_going", blockId, 1, 0)),
+      staffRequest(guestPath(blockId, 1, 0, "")),
     ]);
     const parsed = summary.ok ? readSummary(summary.data) : null;
     if (parsed) {
@@ -112,7 +126,7 @@ export default function RequestsScreen() {
     const homeCount = home.ok ? readTotal(home.data) : 0;
     setCounts({
       permissions: blockId ? lateCount + homeCount : (parsed?.pendingPermissions ?? lateCount + homeCount),
-      guests: parsed?.pendingGuests ?? 0,
+      guests: guests.ok ? readTotal(guests.data) : (parsed?.pendingGuests ?? 0),
       late: lateCount,
       home: homeCount,
     });
@@ -126,7 +140,7 @@ export default function RequestsScreen() {
       loading.current = true;
       const run = generation.current;
       const reply = await staffRequest(
-        tab === "permissions" ? permissionPath(kind, blockId, PAGE, offset) : guestPath(PAGE, offset),
+        tab === "permissions" ? permissionPath(kind, blockId, PAGE, offset, q) : guestPath(blockId, PAGE, offset, q),
       );
       loading.current = false;
       if (run !== generation.current) {
@@ -145,8 +159,13 @@ export default function RequestsScreen() {
       setTotal(readTotal(reply.data));
       setItems((current) => (offset === 0 ? page : [...current, ...page]));
     },
-    [blockId, kind, staffRequest, tab],
+    [blockId, kind, q, staffRequest, tab],
   );
+
+  useEffect(() => {
+    const timer = setTimeout(() => setQ(query), 300);
+    return () => clearTimeout(timer);
+  }, [query]);
 
   useEffect(() => {
     generation.current += 1;
@@ -180,6 +199,28 @@ export default function RequestsScreen() {
     },
     [staffRequest],
   );
+
+  // A push or notification card opens one request straight into its review sheet, if it still waits.
+  useEffect(() => {
+    const id = typeof params.open === "string" ? params.open : "";
+    if (!id) {
+      return;
+    }
+    const guests = params.tab === "guests";
+    setTab(guests ? "guests" : "permissions");
+    void staffRequest(`${guests ? "/guest-stays" : "/permissions"}/${encodeURIComponent(id)}`).then((reply) => {
+      if (!reply.ok || (reply.data as { status?: unknown } | null)?.status !== "pending") {
+        return;
+      }
+      const wrapped = { items: [reply.data] };
+      const item: Item | undefined = guests
+        ? readGuestReviews(wrapped).map((row) => ({ tab: "guests" as const, row }))[0]
+        : readPermissionReviews(wrapped).map((row) => ({ tab: "permissions" as const, row }))[0];
+      if (item) {
+        openItem(item);
+      }
+    });
+  }, [openItem, params.open, params.tab, staffRequest]);
 
   const decide = useCallback(
     async (decision: "approved" | "rejected", note: string) => {
@@ -229,18 +270,25 @@ export default function RequestsScreen() {
           );
         })}
       </View>
-      {tab === "permissions" ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-          <FilterChip label="All" on={kind === null} onPress={() => setKind(null)} />
-          <FilterChip label={`Late-night ${counts?.late ?? ""}`.trim()} on={kind === "late_night"} onPress={() => setKind("late_night")} />
-          <FilterChip label={`Home going ${counts?.home ?? ""}`.trim()} on={kind === "home_going"} onPress={() => setKind("home_going")} />
-          <View style={[styles.divider, { backgroundColor: colors.line }]} />
-          <FilterChip label="All blocks" on={blockId === null} onPress={() => setBlockId(null)} />
-          {blocks.map((block) => (
-            <FilterChip key={block.id} label={block.name} on={blockId === block.id} onPress={() => setBlockId(block.id)} />
-          ))}
-        </ScrollView>
-      ) : null}
+      <SearchField
+        value={query}
+        placeholder={tab === "permissions" ? "Name or room" : "Guest, host or room"}
+        onChange={setQuery}
+      />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+        {tab === "permissions" ? (
+          <>
+            <FilterChip label="All" on={kind === null} onPress={() => setKind(null)} />
+            <FilterChip label={`Late-night ${counts?.late ?? ""}`.trim()} on={kind === "late_night"} onPress={() => setKind("late_night")} />
+            <FilterChip label={`Home going ${counts?.home ?? ""}`.trim()} on={kind === "home_going"} onPress={() => setKind("home_going")} />
+            <View style={[styles.divider, { backgroundColor: colors.line }]} />
+          </>
+        ) : null}
+        <FilterChip label="All blocks" on={blockId === null} onPress={() => setBlockId(null)} />
+        {blocks.map((block) => (
+          <FilterChip key={block.id} label={block.name} on={blockId === block.id} onPress={() => setBlockId(block.id)} />
+        ))}
+      </ScrollView>
       {error ? <Text style={[text.error, { color: colors.danger }]}>{error}</Text> : null}
     </View>
   );
@@ -254,6 +302,8 @@ export default function RequestsScreen() {
         keyExtractor={(item) => item.row.id}
         ListHeaderComponent={header}
         stickySectionHeadersEnabled
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         initialNumToRender={20}
         windowSize={9}
         onEndReachedThreshold={0.5}
@@ -279,7 +329,9 @@ export default function RequestsScreen() {
         )}
         ListEmptyComponent={
           loaded && !error ? (
-            <Text style={[text.body, styles.empty, { color: colors.inkSoft }]}>Nothing is waiting</Text>
+            <Text style={[text.body, styles.empty, { color: colors.inkSoft }]}>
+              {q.trim() ? `Nothing matches ${q.trim()}` : "Nothing is waiting"}
+            </Text>
           ) : null
         }
       />

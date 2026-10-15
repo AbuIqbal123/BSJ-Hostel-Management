@@ -135,7 +135,7 @@ Set `APP_SECRET_KEY` to at least 32 bytes. Keep `SMS_DRIVER=mock` unless `ENVIRO
 | Health | http://localhost:8000/health |
 | Ready | http://localhost:8000/ready |
 
-Seed local accounts from `backend/` with `.venv/bin/python -m app.dev_seed`. It runs only in development, skips accounts that already exist, and prints each new password once.
+Seed local accounts from `backend/` with `.venv/bin/python -m app.dev_seed`. It runs only in development and refuses Render. Passwords come from `BSJ_SEED_PASSWORD` or a per-role `BSJ_SEED_PASSWORD_*` value, in the shell or in `backend/.env`. A missing one is generated and printed once. A password from settings is not printed. An account that already exists is left as it is. `--reset-passwords` sets the seed accounts again. Room B-204 is created for the sample resident. Passwords that once appeared in this repository are burned. Do not reuse them.
 
 Checks and lint, from `backend/`: `.venv/bin/pytest` and `.venv/bin/ruff check .`. A push to `dev`, and a pull request, runs both on GitHub, plus the phone typecheck and tests.
 

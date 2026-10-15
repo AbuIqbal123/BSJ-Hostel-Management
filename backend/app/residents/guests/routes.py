@@ -7,7 +7,7 @@ import uuid
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, BackgroundTasks, Query
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.residents.guests.records import (
@@ -20,7 +20,8 @@ from app.residents.guests.records import (
     record_guest_stay,
 )
 from app.residents.home.routes import ResidentDep
-from app.shared import clock
+from app.residents.notifications.records import request_push
+from app.shared import clock, push
 from app.shared.auth.routes import ConnectionDep
 from app.shared.db import hall_settings
 from app.shared.errors import ApiError
@@ -119,6 +120,7 @@ def submit_guest_stay(
     body: GuestStayCreate,
     account: ResidentDep,
     connection: ConnectionDep,
+    background_tasks: BackgroundTasks,
 ) -> GuestStayBody:
     start = _parse_date(body.guest_start_date, field="guest_start_date")
     end = _parse_date(body.guest_end_date, field="guest_end_date")
@@ -157,6 +159,19 @@ def submit_guest_stay(
         "guest_stay.submitted",
         stay_id,
         f"{account.full_name} applied for a guest stay for {guest_name}.",
+    )
+    background_tasks.add_task(
+        push.dispatch,
+        [
+            request_push(
+                kind="guest_stay_requested",
+                record_id=stay_id,
+                resident_id=account.id,
+                resident_name=account.full_name,
+                room_label=account.room_label,
+                what=f"a guest stay for {guest_name}",
+            )
+        ],
     )
     stay = load_guest_stay(
         connection,

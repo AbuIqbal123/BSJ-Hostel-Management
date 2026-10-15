@@ -71,6 +71,7 @@ export function HallTabBar({ state, descriptors, navigation }: TabBarProps) {
         return (
           <Pressable
             key={route.key}
+            testID={`tab-${route.name}`}
             accessibilityRole="button"
             accessibilityState={focused ? { selected: true } : {}}
             onPress={() => {

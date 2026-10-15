@@ -51,7 +51,7 @@ The rules in this document are the contract. The room inventory is taken from th
 ## What the hall already decided
 
 - The hall is Begum Sultan Jahan Hall, Aligarh Muslim University. The hall page lists 206 double rooms and 412 beds. For session 2025–26 the same page lists 506 resident students and 434 non-resident students. That roll is not a room count. This system keeps the provost, wardens, and gate staff.
-- A resident has one permanent hall pass. It is not replaced for each outing. The same code records leaving and coming back. The provost can issue a new code from the resident's record. The steps are under Residents. The resident phone shows that code for one outing at a time: from 30 minutes before the ordinary outing's start (immediately when the start is within 5 minutes, because that lead has already begun) until the outing ends. While she is outside, the code stays available until the return scan. The gate scan still decides the movement.
+- A resident has one permanent hall pass. It is not replaced for each outing. The same code records leaving and coming back. The provost can issue a new code from the resident's record. The steps are under Residents. The resident phone shows that code for one outing at a time, the one she can use now (see Leaving on a permission): an ordinary outing from 30 minutes before its start, or a late-night or home-going permission from its lead before departure, until that outing ends. While she is outside, the code stays available until the return scan, for every type. The gate scan still decides the movement.
 - An ordinary outing is a same-day outing inside ordinary hours. The resident sets the destination and the expected return in the app before going to the gate. The gate scan does not ask for either. If either is missing, the scan does not let her out. An ordinary outing needs no warden approval. The scan records the exit, the time, and which staff member scanned.
 - Ordinary hours are a window with a start and an end. Summer is 1 April through 30 September, 6:30 AM to 6:30 PM. Winter is 1 October through 31 March, 6:30 AM to 5:30 PM. On 30 September the summer window is in force. On 1 October the winter window is in force. The clock times and the two start dates are under Hall settings.
 - Grace is 30 minutes after the expected return. An expected return of 7:00 PM means grace ends at 7:30 PM.
@@ -267,7 +267,7 @@ The resident's own phone is separate from the guardian phone. Self-onboard and o
 | created_at | Instant | Yes | System | When the profile was created. |
 | updated_at | Instant | Yes | System | When it last changed. |
 
-The hall pass code stays the same from outing to outing. It changes only when the provost issues a new one. The resident phone returns that code on her hall pass only while an outing's show window is open. The provost does that on the resident's record, for example after a lost phone or because someone else has seen the code. The provost does not type the new code. The system makes a new random code, puts it in place of the old one at that moment, and writes an audit log entry. The old code stops working immediately. The resident's phone shows the new code the next time it loads the pass.
+The hall pass code stays the same from outing to outing. It changes only when the provost issues a new one. The resident phone returns that code on her hall pass only while the window of an outing she can use is open. The provost does that on the resident's record, for example after a lost phone or because someone else has seen the code. The provost does not type the new code. The system makes a new random code, puts it in place of the old one at that moment, and writes an audit log entry. The old code stops working immediately. The resident's phone shows the new code the next time it loads the pass.
 
 ### Staff
 
@@ -277,9 +277,33 @@ A staff profile exists only for gate, warden, or provost. The role on the person
 |---|---|---|---|---|
 | user_id | Identifier | Yes | The person's id | One profile for that person. |
 | job_title | Text | Yes | Provost | The name of the post. |
-| notifications_read_at | Instant | No | System | When she last marked her staff inbox read. Empty until then. |
+| notifications_read_at | Instant | No | System | Her mark-all instant: every event at or before it is read for her. Empty until her first mark-all, and then her account's created_at stands in, so a new staff member does not inherit the hall's past as unread. Staff who had never marked their inbox were set to the moment the change reached the hall. It only moves forward. |
 
-A warden's or the provost's inbox is not stored as rows. It is read from the records that already exist: a permission or guest stay being requested (its created_at) and an outing passing grace while she was still out (its grace_ends_at). An event after notifications_read_at is unread for that staff member. Marking the inbox read sets notifications_read_at to now and changes nothing else.
+A warden's or the provost's inbox is not stored as rows. It is read from the records that already exist: a permission or guest stay being requested (its created_at) and an outing passing grace while she was still out (its grace_ends_at). Each event carries what has happened since: a request's outcome (approved, declined, or cancelled), when, and by whom; a late outing's return and the gate staff who recorded it. An event is unread for a staff member when it is after her mark-all instant and she has not marked it read on its own. Marking all read moves notifications_read_at to now, or to the instant she names, and changes nothing else. The inbox lists the last 90 days. It is a view, never the history: the permissions, guest stays, outings, and audit log are the permanent record.
+
+### Staff notification reads
+
+One row when a warden or the provost marks one inbox event read on its own.
+
+| Detail | Kept as | Required | Where it comes from | Rule |
+|---|---|---|---|---|
+| user_id | Identifier | Yes | The staff member | Whose read this is. |
+| notification_id | Text | Yes | The event | `<kind>:<record_id>`, such as `permission_requested:<permission id>`. One row per staff member and event. |
+| read_at | Instant | Yes | System | When she marked it read. |
+
+### Push tokens
+
+One row per phone that asked for push. Any signed-in account may register its phone.
+
+| Detail | Kept as | Required | Where it comes from | Rule |
+|---|---|---|---|---|
+| token | Text | Yes | The phone (Expo) | An Expo push token, `ExponentPushToken[...]` or `ExpoPushToken[...]`, at most 200 characters. Unique. When another account registers the same token, the row moves to that account. |
+| user_id | Identifier | Yes | The signed-in account | Who the phone belongs to now. |
+| platform | Choice | Yes | The phone | ios or android. |
+| created_at | Instant | Yes | System | First registration. |
+| updated_at | Instant | Yes | System | Last registration. |
+
+The row is deleted when she signs out on that phone, or when Expo reports the token `DeviceNotRegistered`. Push is sent to wardens and the provost on a new permission request, a new guest-stay request, and a resident becoming late; and to a resident when her permission or guest stay is decided and when she becomes late. A late push goes once per outing, with no quiet hours or batching. The badge is the recipient's unread count. Push is best effort: it is sent after the record is saved, and a failure is logged, never shown to the caller. The server sends no "outing window ending" reminder; the phone schedules that locally from the outing's expected_return_at and grace_ends_at.
 
 ### Signed-in session
 
@@ -334,16 +358,17 @@ A resident may hold more than one permission. She may also plan several future o
 
 ## Resident notifications
 
-A row is written when a warden or the provost approves or rejects a permission. One decision, one row. Nothing else writes this list. The resident reads her own rows, newest first, at most 50. Each row includes the permission's short place, kind, departure, expected return, and the decider's name. The phone sentence is in `docs/design/notifications.md`. Opening that list does not mark them read. She marks every unread row read with one call.
+A row is written when a warden or the provost approves or rejects her permission or guest stay, and once per outing when it passes grace while she is out (written by the read-time late check, the same one that records the guardian late notice). The late row is also the marker that the late push went out. The resident reads her own rows from the last 90 days, newest first, a page at a time. Each row shows the outcome: the decision and who made it, or for a late row, her return and the gate staff who recorded it. Opening the list does not mark anything read. She marks one row read, or every unread row up to an instant.
 
 | Detail | Kept as | Required | Where it comes from | Rule |
 |---|---|---|---|---|
 | id | Identifier | Yes | System | Identifies this notice. |
 | resident_id | Identifier | Yes | The permission | The resident the decision is for. |
-| permission_id | Identifier | Yes | The permission | One row per permission. A second decision on the same permission is not stored. |
-| decision | Choice | Yes | The warden or provost | Approved or rejected. |
-| created_at | Instant | Yes | System, at the decision | When the row was written. The same instant as `decided_at`. |
-| read_at | Instant | Empty until she marks them read | System, when she marks her inbox read | Set on every unread row for her at that moment. |
+| kind | Choice | Yes | System | permission_decided, guest_stay_decided, or resident_late. |
+| record_id | Identifier | Yes | The permission, guest stay, or outing | One row per kind and record. A second decision on the same record, or a second late check on the same outing, is not stored. |
+| decision | Choice | For a decision | The warden or provost | Approved or rejected. Empty on a late row. |
+| created_at | Instant | Yes | System | When the decision was recorded, or the outing's grace_ends_at for a late row. |
+| read_at | Instant | Empty until she reads it | System | Set when she marks that row, or all rows up to an instant, read. |
 
 ## Outings
 
@@ -385,7 +410,7 @@ A resident has at most one outing that is outside, and at most one planned or ou
 
 Created when the resident confirms a destination, a start, and an expected return. Other future plans may already exist, including another return on that same hall day, as long as none of them is inside its show window. Planning does not change whether she is inside or outside. This is the step before the gate. The scan cannot invent the destination, the start, or the expected return. No warden approval.
 
-The start and the expected return must both be in the future at the moment she confirms them, the return after the start, and both on the same hall day. Each must fall after that day's ordinary-hours start and at or before that day's ordinary-hours end. The season is the one that contains that hall date. If either time would be outside that window, the plan is refused and she asks for late-night permission or home going instead. If one ordinary outing is already inside its show window, the plan is refused. The show window opens 30 minutes before `starts_at`. When `starts_at` is within 5 minutes, that lead has already opened, so the hall-pass QR is shown immediately. A planned outing's window ends at the expected return. An outside ordinary outing's window stays open until the return scan. If she already has a planned or outside outing ending at that same instant, the plan is refused. After that outing is cancelled or returned, she may plan that instant again.
+The start and the expected return must both be in the future at the moment she confirms them, the return after the start, and both on the same hall day. Each must fall after that day's ordinary-hours start and at or before that day's ordinary-hours end. The season is the one that contains that hall date. If either time would be outside that window, the plan is refused and she asks for late-night permission or home going instead. If one ordinary outing is already inside its show window, the plan is refused. The show window opens 30 minutes before `starts_at`. A plan made inside that lead is open as soon as it exists. A planned outing's window ends at the expected return. An outside ordinary outing's window stays open until the return scan. If she already has a planned or outside outing ending at that same instant, the plan is refused. After that outing is cancelled or returned, she may plan that instant again.
 
 The outing stays planned until the gate scans the hall pass. She may change or cancel one planned outing by choosing it, until that outing's show window opens. Once the window is open, or she is outside on it, she cannot change or cancel it here. Her other plans stay planned, and she can still change one whose window is shut. Changing a plan stores the new destination, start, and expected return, and recalculates grace from that return. If the expected return passes and she has not been scanned out, the system cancels that plan only, and writes an audit log entry with no staff member.
 
@@ -393,14 +418,27 @@ The outing stays planned until the gate scans the hall pass. She may change or c
 
 Approving a permission does not create an outing. A home-going permission for next week must not block an ordinary outing today.
 
+One rule, "the outing she can use now", decides both the gate scan and the hall pass on her phone. It looks at three kinds of outing:
+
+| Kind | Window |
+|---|---|
+| Ordinary plan | 30 minutes before `starts_at`, until `expected_return_at`. A plan stored without `starts_at` (older rows) is open for its hall day. |
+| Late-night or home-going permission (approved) | `permission_lead_minutes` before `departure_at`, until `expected_return_at`. |
+| An outing she is already outside on, of any type | From the exit scan until the return scan, even after the permission window ended. |
+
 When the resident is inside and the gate scans the pass:
 
 1. If this resident was just scanned inside the ignore window, refuse. Do not undo the last movement.
-2. If one or more ordinary outings are planned for today's hall date, and at least one of those expected returns has not passed, record the exit on the earliest of those returns, including the time and the staff member, provided the current time is inside today's ordinary-hours window. Leave every later plan for today planned. Leave a plan for another hall day planned. Do not use a later day's plan today. Do not attach a permission.
-3. Otherwise, if an approved permission is inside its use window, open the outing already outside, link the permission, copy its short place onto the outing, record the exit time and the staff member, mark the permission in use, and mark the resident outside. If several permissions match, use the one with the earliest departure.
-4. Otherwise refuse. She has not set a destination and an expected return, or the current time is outside ordinary hours, or the permission is not yet valid, or it is still waiting.
+2. Find the outing she can use now. If several are open, a permission wins over an ordinary plan, then the earlier window wins. The policy is one ranking in `backend/app/residents/outings/usable.py`. The losing ordinary plan stays planned, and she sees the permission on her hall pass.
+3. An ordinary plan is used only inside today's ordinary-hours window. Record the exit on that outing, with the time and the staff member.
+4. A permission opens an outing already outside: link the permission, copy its short place onto the outing, record the exit time and the staff member, mark the permission in use, and mark the resident outside.
+5. If none is open, refuse. `outing_not_yet_open` (an ordinary plan, too early) and `permission_not_yet_valid` (a permission, too early) say one is coming. `outside_ordinary_hours` says only an ordinary plan is open and the hall is outside ordinary hours. `no_outing_planned` says she has none.
 
-If a planned ordinary outing for today would be used and she meant a later trip today, or a permission, she cancels that plan in the app and shows the hall pass again. The gate does not choose for her. Her other plans stay planned. A scan while she is outside records the return on the outing she is already on. It does not start the next plan.
+One permission covers the whole trip. A resident who leaves in ordinary hours and comes back late asks for a permission for the whole trip, and leaves on it. The late rule is the same for every type: after the grace that follows the expected return, she is late, the guardian is messaged, and the return scan notes it.
+
+Approving a permission is refused when it overlaps another approved or in-use permission of the same resident (`permission_overlap`). A permission that starts when another ends is allowed. A planned ordinary outing in the same hours is not touched: it stays planned, and the permission wins.
+
+If she meant a later trip today, or a different outing, she cancels the plan the gate would use and shows the hall pass again. A scan while she is outside records the return on the outing she is already on. It does not start the next plan.
 
 ### Return
 
@@ -623,7 +661,8 @@ The home screen's recent lines are still those exits and returns for that reside
 ## What this version does not keep
 
 - Emergency alerts, duty phone numbers, or a second emergency contact besides the guardian.
-- Push notifications, and a notice on a staff phone. A resident keeps an inbox row when a warden or the provost approves or rejects her permission. Nothing else writes that list. Text messages to the guardian are kept above.
+- Whether a push reached the phone. Expo push receipts are not stored; a send is logged only.
+- Archived or cold-stored history. Every record stays in the hall database; at this hall's size (tens of MB a year) archiving is not needed.
 - A payment amount or card collection. The office marks a guest stay paid or unpaid, may type a free-text payment note, and may optionally keep a JPEG, PNG, or PDF receipt file as payment evidence. Amounts and card rails are not kept.
 - Parent or guardian accounts.
 - More than one outside outing, or two planned or outside outings with the same expected return.
@@ -644,4 +683,9 @@ Besides the unique indexes that enforce one username, one open outside outing, a
 | audit_log_occurred_at | audit_log (occurred_at) | Provost audit log newest first. |
 | sessions_user_id | sessions (user_id) | Sign-out and password change revoke every live session for that person. |
 | guardian_messages_outing_id | guardian_messages (outing_id) | Register resident record looks up the late notice for the open outing. |
-| resident_notifications_resident_created | resident_notifications (resident_id, created_at) | A resident's permission-decision inbox, newest first, and whether any row is unread. |
+| resident_notifications_resident_created | resident_notifications (resident_id, created_at) | A resident's inbox, newest first, and her unread count. |
+| permissions_created_at | permissions (created_at) | Date-range reads across every resident: the staff inbox window and the permission queue's created_at range. |
+| guest_stays_created_at | guest_stays (created_at) | The staff inbox window and date-range guest-stay reads. |
+| outings_grace_ends_at | outings (grace_ends_at) | The staff inbox late events and the late-returns list by date. |
+| outings_resident_expected | outings (resident_id, expected_return_at) | A resident's own outings by date, for her history. |
+| push_tokens_user_id | push_tokens (user_id) | The phones of the people a push goes to. |

@@ -1,0 +1,74 @@
+{
+  "late": [
+    [
+      "ExponentPushToken[aisha-phone]",
+      "You are late",
+      1,
+      {
+        "kind": "resident_late",
+        "notification_id": "<generated id>",
+        "record_id": "0a700000-0000-4000-8000-000000000061",
+        "resident_id": "b22de000-0000-4000-8000-000000000002"
+      }
+    ],
+    [
+      "ExponentPushToken[warden-phone]",
+      "Resident late",
+      3,
+      {
+        "kind": "resident_late",
+        "notification_id": "resident_late:0a700000-0000-4000-8000-000000000061",
+        "record_id": "0a700000-0000-4000-8000-000000000061",
+        "resident_id": "b22de000-0000-4000-8000-000000000002"
+      }
+    ],
+    [
+      "ExponentPushToken[provost-phone]",
+      "Resident late",
+      3,
+      {
+        "kind": "resident_late",
+        "notification_id": "resident_late:0a700000-0000-4000-8000-000000000061",
+        "record_id": "0a700000-0000-4000-8000-000000000061",
+        "resident_id": "b22de000-0000-4000-8000-000000000002"
+      }
+    ]
+  ],
+  "requested": [
+    [
+      "ExponentPushToken[warden-phone]",
+      "New request",
+      4,
+      {
+        "kind": "permission_requested",
+        "notification_id": "permission_requested:<generated id>",
+        "record_id": "<generated id>",
+        "resident_id": "b22de000-0000-4000-8000-000000000002"
+      }
+    ],
+    [
+      "ExponentPushToken[provost-phone]",
+      "New request",
+      4,
+      {
+        "kind": "permission_requested",
+        "notification_id": "permission_requested:<generated id>",
+        "record_id": "<generated id>",
+        "resident_id": "b22de000-0000-4000-8000-000000000002"
+      }
+    ]
+  ],
+  "stay": [
+    [
+      "ExponentPushToken[aisha-phone]",
+      "Guest stay for Noor Khan declined",
+      2,
+      {
+        "kind": "guest_stay_decided",
+        "notification_id": "<generated id>",
+        "record_id": "9e500000-0000-4000-8000-000000000071",
+        "resident_id": "b22de000-0000-4000-8000-000000000002"
+      }
+    ]
+  ]
+}

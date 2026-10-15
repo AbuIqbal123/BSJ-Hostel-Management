@@ -19,8 +19,10 @@
     "active_permission": null,
     "recent_history": [],
     "ordinary_outing_active": false,
+    "hall_pass_outing_type": null,
     "upcoming_outings": [],
-    "notifications_unread": false
+    "notifications_unread": false,
+    "notifications_unread_count": 0
   },
   "outside": {
     "resident": {
@@ -155,7 +157,9 @@
       }
     ],
     "ordinary_outing_active": true,
+    "hall_pass_outing_type": "ordinary",
     "upcoming_outings": [],
-    "notifications_unread": false
+    "notifications_unread": false,
+    "notifications_unread_count": 0
   }
 }

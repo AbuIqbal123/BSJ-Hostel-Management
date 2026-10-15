@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dev_seed import GATE_PHRASE, RESIDENT_PHRASE, WARDEN_PHRASE
+from app.shared.testing_env import role_credential
 
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "gate-scans.json"
 BLOCK_B = "d032aad6-a203-5ea0-ba9a-3a9257edbfc8"
@@ -56,9 +56,9 @@ def issue_people(path: Path) -> None:
             (ROOM_ID, BLOCK_B),
         )
         for user_id, role, username, full_name, password in (
-            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", GATE_PHRASE),
-            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", WARDEN_PHRASE),
-            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", RESIDENT_PHRASE),
+            (GATE_ID, "gate", "gate.fatima", "Fatima Khan", role_credential("gate")),
+            (WARDEN_ID, "warden", "warden.sara", "Sara Malik", role_credential("warden")),
+            (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", role_credential("resident")),
         ):
             connection.execute(
                 """
@@ -144,7 +144,7 @@ def test_gate_scans_and_activity(
     with TestClient(app) as client:
         issue_people(database_path)
         assert_error(client.post("/api/v1/gate/scans", json={"qr_payload": QR}), 401, "unauthenticated")
-        resident = sign_in(client, "24-GLLB-118", RESIDENT_PHRASE)
+        resident = sign_in(client, "24-GLLB-118", role_credential("resident"))
         assert_error(
             client.post(
                 "/api/v1/gate/scans",
@@ -155,7 +155,7 @@ def test_gate_scans_and_activity(
             "forbidden",
         )
 
-        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
+        gate = sign_in(client, "gate.fatima", role_credential("gate"))
         headers = {"Authorization": f"Bearer {gate}"}
         assert_error(
             client.post(
@@ -229,11 +229,19 @@ def test_gate_scans_and_activity(
         assert rr["recorded_at"] == "2026-09-30T12:01:00Z"
         assert "is_late" not in rr
         assert "status" not in rr
+        assert rr["outing_type"] == "ordinary"
+        assert rr["place"] == "Maulana Azad Library"
+        assert rr["minutes_late"] == 0
+        assert rr["expected_return_at"] == "2026-09-30T12:30:00Z"
         assert set(rr) == {
             "recorded_at",
             "return_timeliness",
             "returned_at",
             "return_recorded_by_name",
+            "outing_type",
+            "place",
+            "minutes_late",
+            "expected_return_at",
         }
 
         activity = client.get("/api/v1/gate/activity", headers=headers)
@@ -248,7 +256,7 @@ def test_gate_scans_and_activity(
         assert first["host_name"] is None
         assert first["host_room_label"] is None
 
-        warden = sign_in(client, "warden.sara", WARDEN_PHRASE)
+        warden = sign_in(client, "warden.sara", role_credential("warden"))
         warden_activity = client.get(
             "/api/v1/gate/activity",
             headers={"Authorization": f"Bearer {warden}"},
@@ -338,6 +346,34 @@ def seed_clashing_return(path: Path) -> None:
         connection.close()
 
 
+def test_late_return_reports_minutes_past_expected_return(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.main import app
+    from app.shared import clock
+
+    movable = MovableClock(NOW)
+    monkeypatch.setattr(clock, "utc_now", movable.utc_now)
+    with TestClient(app) as client:
+        issue_people(database_path)
+        plan_library(database_path)
+        gate = sign_in(client, "gate.fatima", role_credential("gate"))
+        headers = {"Authorization": f"Bearer {gate}"}
+        assert client.post("/api/v1/gate/scans", headers=headers, json={"qr_payload": QR}).status_code == 200
+        # returned 13:45Z, past grace → late, 75 minutes after expected return
+        movable.moment = datetime(2026, 9, 30, 13, 45, 30, tzinfo=timezone.utc)
+        gate = sign_in(client, "gate.fatima", role_credential("gate"))
+        headers = {"Authorization": f"Bearer {gate}"}
+        returned = client.post("/api/v1/gate/scans", headers=headers, json={"qr_payload": QR})
+        assert returned.status_code == 200
+        rr = returned.json()["return_record"]
+        assert rr["return_timeliness"] == "late"
+        assert rr["outing_type"] == "ordinary"
+        assert rr["place"] == "Maulana Azad Library"
+        assert rr["minutes_late"] == 75
+        assert rr["expected_return_at"] == "2026-09-30T12:30:00Z"
+
+
 def test_permission_exit_refuses_when_return_already_planned(
     database_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -348,7 +384,7 @@ def test_permission_exit_refuses_when_return_already_planned(
     with TestClient(app) as client:
         issue_people(database_path)
         seed_clashing_return(database_path)
-        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
+        gate = sign_in(client, "gate.fatima", role_credential("gate"))
         response = client.post(
             "/api/v1/gate/scans",
             headers={"Authorization": f"Bearer {gate}"},
@@ -403,7 +439,7 @@ def test_tied_gate_activity_pages_do_not_skip_or_repeat(
                   id, role, username, full_name, password_hash, status, created_at, updated_at
                 ) VALUES (?, 'gate', 'gate.fatima', 'Fatima Khan', ?, 'active', ?, ?)
                 """,
-                (GATE_ID, hash_password(GATE_PHRASE), CREATED, CREATED),
+                (GATE_ID, hash_password(role_credential("gate")), CREATED, CREATED),
             )
             connection.execute(
                 "INSERT INTO staff (user_id, job_title) VALUES (?, 'Gatekeeper')",
@@ -428,7 +464,7 @@ def test_tied_gate_activity_pages_do_not_skip_or_repeat(
                       id, role, username, full_name, password_hash, status, created_at, updated_at
                     ) VALUES (?, 'resident', ?, 'Amina Khan', ?, 'active', ?, ?)
                     """,
-                    (resident_id, username, hash_password(RESIDENT_PHRASE), CREATED, CREATED),
+                    (resident_id, username, hash_password(role_credential("resident")), CREATED, CREATED),
                 )
                 connection.execute(
                     """
@@ -469,7 +505,7 @@ def test_tied_gate_activity_pages_do_not_skip_or_repeat(
         finally:
             connection.close()
 
-        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
+        gate = sign_in(client, "gate.fatima", role_credential("gate"))
         headers = {"Authorization": f"Bearer {gate}"}
         first = client.get("/api/v1/gate/activity?limit=1&offset=0", headers=headers)
         second = client.get("/api/v1/gate/activity?limit=1&offset=1", headers=headers)

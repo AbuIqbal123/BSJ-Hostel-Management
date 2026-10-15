@@ -21,7 +21,16 @@ class Settings(BaseSettings):
     payment_evidence_dir: Path = BACKEND_ROOT / "data" / "payment-evidence"
     sqlite_busy_timeout_ms: int = 5000
     sms_driver: str = "mock"
+    push_driver: str = "mock"
+    expo_access_token: str = ""
     app_secret_key: str = ""
+    # Local `python -m app.dev_seed` only.
+    bsj_seed_password: str = ""
+    bsj_seed_password_gate: str = ""
+    bsj_seed_password_resident: str = ""
+    bsj_seed_password_suspended: str = ""
+    bsj_seed_password_warden: str = ""
+    bsj_seed_password_provost: str = ""
 
     def reject_unsafe_sms(self) -> None:
         if self.sms_driver not in {"mock", "dlt"}:
@@ -30,6 +39,15 @@ class Settings(BaseSettings):
             raise RuntimeError(
                 "SMS_DRIVER must be mock when ENVIRONMENT is not production. "
                 "Refusing to start so this process cannot send parent SMS."
+            )
+
+    def reject_unsafe_push(self) -> None:
+        if self.push_driver not in {"mock", "expo"}:
+            raise RuntimeError(f"Unsupported PUSH_DRIVER: {self.push_driver}")
+        if self.environment != "production" and self.push_driver != "mock":
+            raise RuntimeError(
+                "PUSH_DRIVER must be mock when ENVIRONMENT is not production. "
+                "Refusing to start so this process cannot push to phones."
             )
 
     def reject_missing_secret(self) -> None:
@@ -55,5 +73,6 @@ def is_hosted() -> bool:
 def get_settings() -> Settings:
     settings = Settings()
     settings.reject_unsafe_sms()
+    settings.reject_unsafe_push()
     settings.reject_missing_secret()
     return settings

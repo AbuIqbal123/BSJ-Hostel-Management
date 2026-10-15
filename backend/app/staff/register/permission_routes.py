@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import uuid
-
+import sqlite3
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, BackgroundTasks, Query
 from pydantic import BaseModel, ConfigDict
 
 from app.shared.schemas import DecisionRequest
@@ -19,7 +18,8 @@ from app.residents.permissions.records import (
     load_review,
     record_permission,
 )
-from app.shared import clock
+from app.residents.notifications.records import record_decision
+from app.shared import clock, push
 from app.shared.auth.routes import ConnectionDep
 from app.shared.errors import ApiError
 from app.staff.register.routes import RegisterDep
@@ -84,16 +84,49 @@ def get_permission(
     return review
 
 
+def _refuse_overlap(connection: sqlite3.Connection, permission_id: str) -> None:
+    """A resident cannot hold two approved or in-use permissions that overlap.
+
+    Back-to-back trips (one ends when the next begins) are fine. A planned
+    ordinary outing in the same hours is not a conflict: it stays, and the
+    permission wins at the gate and on the hall pass (see usable.py).
+    """
+    clash = connection.execute(
+        """
+        SELECT 1
+        FROM permissions AS target
+        JOIN permissions AS other
+          ON other.resident_id = target.resident_id
+         AND other.id != target.id
+         AND other.status IN ('approved', 'in_use')
+         AND other.departure_at < target.expected_return_at
+         AND target.departure_at < other.expected_return_at
+        WHERE target.id = ? AND target.status = 'pending'
+        LIMIT 1
+        """,
+        (permission_id,),
+    ).fetchone()
+    if clash is not None:
+        raise ApiError(
+            409,
+            "permission_overlap",
+            "This resident already has an approved permission that overlaps these hours.",
+        )
+
+
 @router.post("/permissions/{permission_id}/decision", response_model=PermissionReviewBody)
 def decide_permission(
     permission_id: str,
     body: DecisionRequest,
     account: RegisterDep,
     connection: ConnectionDep,
+    background_tasks: BackgroundTasks,
 ) -> PermissionReviewBody:
     now_text = clock.format_instant(clock.utc_now())
     expire_passed_permissions(connection, now_text, permission_id=permission_id)
     note = None if body.note is None else body.note.strip() or None
+    if body.decision == "approved":
+        _refuse_overlap(connection, permission_id)
     row = connection.execute(
         """
         UPDATE permissions
@@ -119,14 +152,18 @@ def decide_permission(
     label = "late-night" if row["type"] == "late_night" else "home-going"
     action = "permission.approved" if body.decision == "approved" else "permission.rejected"
     verb = "approved" if body.decision == "approved" else "rejected"
-    connection.execute(
-        """
-        INSERT INTO resident_notifications (
-          id, resident_id, permission_id, decision, created_at
-        ) VALUES (?, ?, ?, ?, ?)
-        """,
-        (str(uuid.uuid4()), row["resident_id"], permission_id, body.decision, now_text),
+    job = record_decision(
+        connection,
+        kind="permission_decided",
+        record_id=permission_id,
+        resident_id=row["resident_id"],
+        decision=body.decision,
+        now_text=now_text,
+        what=f"{label} permission",
+        noun=f"{label} request",
+        by_name=account.full_name,
     )
+    background_tasks.add_task(push.dispatch, [job])
     record_permission(
         connection,
         now_text,
