@@ -357,12 +357,12 @@ def test_late_return_reports_minutes_past_expected_return(
     with TestClient(app) as client:
         issue_people(database_path)
         plan_library(database_path)
-        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
+        gate = sign_in(client, "gate.fatima", role_credential("gate"))
         headers = {"Authorization": f"Bearer {gate}"}
         assert client.post("/api/v1/gate/scans", headers=headers, json={"qr_payload": QR}).status_code == 200
         # returned 13:45Z, past grace → late, 75 minutes after expected return
         movable.moment = datetime(2026, 9, 30, 13, 45, 30, tzinfo=timezone.utc)
-        gate = sign_in(client, "gate.fatima", GATE_PHRASE)
+        gate = sign_in(client, "gate.fatima", role_credential("gate"))
         headers = {"Authorization": f"Bearer {gate}"}
         returned = client.post("/api/v1/gate/scans", headers=headers, json={"qr_payload": QR})
         assert returned.status_code == 200
