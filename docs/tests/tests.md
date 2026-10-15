@@ -622,7 +622,7 @@ Copy this block for each test and fill every field.
 | Purpose | The real app signs a warden and a gate account in and shows the right tabs. A simulator has no camera, so the gate records a scan by typed pass code. |
 | Actor | Warden and gate. |
 | Preconditions | macOS with Xcode, an iOS simulator, the release app built against the throwaway API from `e2e/scripts/serve-api.sh` (fresh SQLite hall, dev-seed accounts, mock SMS). Passwords from `E2E_*_PASSWORD` or the seed output. Never Render or Turso. |
-| Action | Sign in as `warden.sara`; open Out now, go back, open Requests. Sign out state is fresh, sign in as `gate.fatima`, check there is no Requests tab, type the dev resident pass code in Scan and tap Record. |
+| Action | Sign in as `warden.sara`; open Out now, go back, open Requests. Relaunch fresh and sign in as `gate.fatima`, check there is no Requests tab, type the dev resident pass code in Scan and tap Record. |
 | Expected response | The warden sees the Home, Out now and Requests screens. The gate has no Requests tab and the scan shows the resident name or that she has no planned outing. |
 | Failure cases | E2E; failure cases are covered by the expected response. |
 | Artifact | Report under `e2e/.e2e/` (gitignored) and the replay cache `e2e/.e2e/cache/` for the one agent step. |
