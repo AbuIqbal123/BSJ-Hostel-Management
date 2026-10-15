@@ -10,7 +10,7 @@ The resident inbox on the phone. Each row is one sentence from this table, then 
 
 The quieter line is the short place, then the leave and return. Home going and a guest stay use the dates. Late-night and an ordinary outing use the time, then the date. A guest line uses the guest's name instead of a place.
 
-Written into the inbox today: the four permission decisions, the two guest-stay decisions, and "She has not returned by the time she was due" (once per outing). Each of these also goes to her phone as a push whose body is the sentence. The others are the sentences for when that notice is added. Before an outing is due, the phone shows its own local reminder from the outing's expected return and grace; the server sends none. Her own submit, edit, plan, and cancel do not notify her. A request that is still waiting, and a trip she is still on, do not notify her.
+Written into the inbox today: the four permission decisions, the two guest-stay decisions, and "She has not returned by the time she was due" (once per outing). Each of these also goes to her phone as a push whose body is the sentence. The others are the sentences for when that notice is added. Before an outing is due, the phone shows its own local reminder from the outing's expected return and grace; the server sends none. Settings shows "Notifications are off" and "Turn on in Settings" when a resident, warden, or provost has denied notification permission. Gate accounts are not asked. Android hides that row while push is switched off, so a phone without Firebase never sees it. Her own submit, edit, plan, and cancel do not notify her. A request that is still waiting, and a trip she is still on, do not notify her.
 
 | When | Sentence | Quieter line |
 |---|---|---|
