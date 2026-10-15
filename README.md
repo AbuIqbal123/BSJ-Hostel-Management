@@ -1,52 +1,125 @@
 # Begum Sultan Jahan Hall
 
-Hostel movement system for residents, wardens, gate staff, and the provost. The hall API is FastAPI under `/api/v1`. The phone app, for residents and staff, is Expo, in `mobile/`.
+Movement for one hall: who is inside, who is out, who is late, and who is still waiting on a decision.
 
-Start with these.
+Residents, gate staff, wardens, and the provost use the Expo app in `mobile/`. The hall API is FastAPI in `backend/`, under `/api/v1`. A laptop serves it at `http://localhost:8000`. Release phone builds call `https://bsj-hostel-api.onrender.com`.
 
-| Document | What is in it |
-|---|---|
-| [`docs/README.md`](docs/README.md) | Docs map by domain (design, api, database, architecture, tests, engineering) |
-| [`docs/architecture/system-architecture.md`](docs/architecture/system-architecture.md) | The diagram of the system as it stands |
-| [`docs/database/database.md`](docs/database/database.md) | What the hall keeps, and the rules for how it changes. Version 1. Created when the service starts |
-| [`docs/api/api.md`](docs/api/api.md) | Every endpoint: who calls it, the payload, and the response. API version 1 |
-| [`docs/design/design-system.md`](docs/design/design-system.md) | Visual design lock for the Expo client |
-| [`docs/design/workflows.md`](docs/design/workflows.md) | Product workflows (auth, home, permissions, register, gate, guests) |
+Work lands on `dev`. `main` is production and accepts pull requests only.
 
-Swagger serves the same HTTP contract at http://localhost:8000/docs from `backend/openapi.yaml`. The test catalog is [`docs/tests/tests.md`](docs/tests/tests.md).
+## How it fits together
 
-## Repository
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'ui-sans-serif, sans-serif', 'lineColor': '#1F4D3A', 'textColor': '#14261F'}}}%%
+flowchart TB
+  resident["Resident"]
+  gate["Gate"]
+  warden["Warden"]
+  provost["Provost"]
+  phone["Phone app"]
+  browser["Browser"]
+  api["Hall API"]
+  records[("Hall records")]
+  files["Payment evidence"]
+  sms["Guardian notices"]
+  push["Expo push"]
 
-| Path | What it is |
-|---|---|
-| `backend/app/main.py` | Starts the process |
-| `backend/app/shared/` | Sign-in, the clock, errors, settings, the database connection, and creating the hall. Sign-in tests are in `backend/app/shared/auth/tests/` |
-| `backend/app/residents/` | Resident phone: `home`, `notifications`, `outings`, `permissions`, `guests`, `hall_pass`, and `account_routes.py` (she deletes her own account) |
-| `backend/app/staff/` | Gate, the register, and the hall office: `gate`, `register`, `office` |
-| `backend/app/dev_seed.py` | Local sign-in accounts. Not created when the service starts |
-| `backend/tests/` | Checks for the whole hall: startup creates it, routes match the contract, the signing key, `/ready`, and the development accounts |
-| `mobile/` | Expo phone app for residents and staff. Commands and rules are in `mobile/AGENTS.md` |
-| `postman/` | Postman checks for the hall API. Folders match the OpenAPI tags |
-| `docs/` | Domain folders: design, api, database, architecture, tests, engineering. See `docs/README.md` |
-| `reference/` | The original proposal, demo, and prototype. Not the application |
-| `AGENTS.md` | Engineering rules for changes in this repo |
+  resident --> phone
+  gate --> phone
+  warden --> phone
+  provost --> phone
+  provost --> browser
+  phone -->|"sign-in, home, outings, permissions, guests, hall pass, history, inbox, scan, register"| api
+  browser -->|"Swagger, register, gate, hall office"| api
+  api -->|"Turso when hosted, SQLite file on a laptop"| records
+  api -->|"optional receipt, JPEG PNG or PDF"| files
+  api -->|"mock driver, no phone network"| sms
+  api -->|"after the record is saved"| push
+  push -->|"production driver only"| phone
 
-Local development runs the API at http://localhost:8000, without Docker. Release phone builds use the hall API at https://bsj-hostel-api.onrender.com (`mobile/eas.json`).
+  classDef person fill:#1F4D3A,stroke:#16382B,color:#FFFFFF
+  classDef client fill:#FFFFFF,stroke:#1F4D3A,color:#14261F
+  classDef core fill:#E5F0EA,stroke:#1F4D3A,color:#14261F
+  classDef store fill:#F0E6C9,stroke:#A68438,color:#14261F
+  class resident,gate,warden,provost person
+  class phone,browser client
+  class api core
+  class records,files,sms,push store
+```
 
-Secret scanning for commits is documented in [`docs/engineering/dev-pre-commit.md`](docs/engineering/dev-pre-commit.md) (free Gitleaks via pre-commit; no API key).
+The same data model is applied at startup. Hosted hall records live in Turso. A laptop and the checks use `backend/data/hostel.db`. The arrow-by-arrow account is [`docs/architecture/system-architecture.md`](docs/architecture/system-architecture.md).
 
-Before production, walk [`docs/security/pre-ship-checklist.md`](docs/security/pre-ship-checklist.md).
+## Who opens what
 
-Optional Locust load checks (not on every PR CI) are in [`docs/load.md`](docs/load.md).
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'ui-sans-serif, sans-serif', 'lineColor': '#1F4D3A'}}}%%
+flowchart LR
+  resident["Resident"] --> own["Own home, outing, permission, guest stay, hall pass, history, inbox"]
+  gate["Gate"] --> night["Scan, guest arrival and departure, recent activity"]
+  warden["Warden"] --> desk["Register, late list, requests"]
+  provost["Provost"] --> office["The warden's desk, plus people, rooms, settings, audit, export"]
 
-A change to stored data, HTTP, or the shape of the system updates the owning document in the same change. The rule is in `AGENTS.md`. Schema and HTTP edits follow `.grok/skills/contract-maintenance/SKILL.md`.
+  classDef person fill:#1F4D3A,stroke:#16382B,color:#FFFFFF
+  classDef work fill:#FFFFFF,stroke:#1F4D3A,color:#14261F
+  class resident,gate,warden,provost person
+  class own,night,desk,office work
+```
 
-## Local API
+| | Resident | Gate | Warden | Provost |
+|---|---|---|---|---|
+| Own outing, permission, guest stay, hall pass | Yes | | | |
+| Scan a hall pass, record a guest in or out | | Yes | Yes | Yes |
+| Register, late list, decide requests, mark a guest paid | | | Yes | Yes |
+| People, rooms, settings, audit, SMS log, register export | | | | Yes |
 
-Requires Python 3.11 or newer. This setup uses the interpreter on the machine.
+A resident can delete her own account. Parents have no login. Guests have no pass of their own.
+
+## One outing
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'ui-sans-serif, sans-serif', 'lineColor': '#1F4D3A'}}}%%
+flowchart LR
+  plan["Ordinary plan, or an approved late-night or home-going permission"]
+  qr["Hall pass QR opens in the lead window"]
+  exit["Gate scans the exit"]
+  back["Gate scans the return"]
+  late["Past grace: late on the register, guardian notice, push"]
+
+  plan --> qr --> exit --> back
+  exit --> late --> back
+
+  classDef step fill:#FFFFFF,stroke:#1F4D3A,color:#14261F
+  classDef warn fill:#F6EBE3,stroke:#8C4A24,color:#14261F
+  class plan,qr,exit,back step
+  class late warn
+```
+
+The hall pass and the gate use one rule for which outing she can use now. An ordinary exit is refused until 30 minutes before it starts. A permission uses its own lead. An approved permission that overlaps another is refused. Back-to-back is allowed.
+
+## A guest stay
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'ui-sans-serif, sans-serif', 'lineColor': '#1F4D3A'}}}%%
+flowchart LR
+  ask["Resident asks"]
+  decide["Warden or provost decides"]
+  paid["Mark paid, receipt optional"]
+  arrive["Gate records arrival"]
+  leave["Gate records departure"]
+
+  ask --> decide --> arrive --> leave
+  decide --> paid
+
+  classDef step fill:#FFFFFF,stroke:#1F4D3A,color:#14261F
+  class ask,decide,paid,arrive,leave step
+```
+
+Payment is a mark on the stay, not a card charge. Evidence is a file the hall stores. The client never sees the file path.
+
+## Run it
+
+From `backend/`, with Python 3.11 or newer:
 
 ```bash
-cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -54,39 +127,36 @@ cp .env.example .env
 uvicorn app.main:app --reload
 ```
 
-The hosted process is `backend/start.sh` on Render. Render runs the API only. The hall database is Turso (`libsql://` or `turso://`). Set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` on that service, and do not set `DATABASE_PATH`. The process refuses to start while `DATABASE_PATH` is set, and it does not create a SQLite file. `start.sh` sets `TRUST_FORWARDED_FOR=1`, so the API takes the client from the last `X-Forwarded-For` hop (the one Render's proxy appends) and ignores earlier entries a caller could fake. Uvicorn's own proxy handling is off. Each phone has its own sign-in limit behind Render.
+Set `APP_SECRET_KEY` to at least 32 bytes. Keep `SMS_DRIVER=mock` unless `ENVIRONMENT` is `production`.
 
-Then open:
+| | |
+|---|---|
+| Swagger | http://localhost:8000/docs |
+| Health | http://localhost:8000/health |
+| Ready | http://localhost:8000/ready |
 
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
-- OpenAPI file, as served: http://localhost:8000/openapi.json
-- Health: http://localhost:8000/health
-- Ready: http://localhost:8000/ready
+Seed local accounts from `backend/` with `.venv/bin/python -m app.dev_seed`. It runs only in development and refuses Render. Passwords come from `BSJ_SEED_PASSWORD` or a per-role `BSJ_SEED_PASSWORD_*` value, in the shell or in `backend/.env`. A missing one is generated and printed once. A password from settings is not printed. An account that already exists is left as it is. `--reset-passwords` sets the seed accounts again. Room B-204 is created for the sample resident. Passwords that once appeared in this repository are burned. Do not reuse them.
 
-Every path in `backend/openapi.yaml` is served. [`docs/api/api.md`](docs/api/api.md) lists them for reading.
+Checks and lint, from `backend/`: `.venv/bin/pytest` and `.venv/bin/ruff check .`. A push to `dev`, and a pull request, runs both on GitHub, plus the phone typecheck and tests.
 
-In development, `/docs` re-reads `openapi.yaml` on each load. A business route must be in that file before it is registered, or the process will not start.
+Phone, from `mobile/`: `npx expo start`. Set `EXPO_PUBLIC_API_URL` when the phone should not use the default host.
 
-On a development machine, startup creates the hall in `backend/data/hostel.db` when that file is new. On Render, startup creates the hall in that database when it is new. It does not create people. `GET /health` does not return hall data. `APP_SECRET_KEY` must be set in `backend/.env` or the process refuses to start. `SMS_DRIVER` must stay `mock` unless `ENVIRONMENT` is `production`. Any other value stops the process, so a laptop cannot send a parent SMS. Late and return guardian messages use the mock SMS path on register read and return scan (no phone network).
+## Read next
 
-`APP_SECRET_KEY` must be at least 32 bytes. A shorter value stops the process before it serves.
+| Document | What it is |
+|---|---|
+| [`docs/architecture/system-architecture.md`](docs/architecture/system-architecture.md) | The system as it stands |
+| [`docs/database/database.md`](docs/database/database.md) | What the hall keeps, and the rules |
+| [`docs/api/api.md`](docs/api/api.md) | Every endpoint, for reading |
+| [`docs/design/workflows.md`](docs/design/workflows.md) | Screens and steps |
+| [`docs/design/design-system.md`](docs/design/design-system.md) | Forest, paper, gold, and type |
+| [`docs/tests/tests.md`](docs/tests/tests.md) | Every recorded test |
+| [`docs/security/pre-ship-checklist.md`](docs/security/pre-ship-checklist.md) | Before production |
+| [`mobile/AGENTS.md`](mobile/AGENTS.md) | Phone commands |
+| [`AGENTS.md`](AGENTS.md) | How a change is made |
 
-From `backend/`, add the local sign-in accounts with `.venv/bin/python -m app.dev_seed`. This runs only when `ENVIRONMENT` is `development`, and it refuses to run on Render. Room B-204 is created for the sample resident because the published hall page does not list door numbers.
+Swagger serves `backend/openapi.yaml`. A route must be in that file before it is registered.
 
-Passwords are read through the same settings loader as the app, so they can come from the shell environment or from the untracked `backend/.env`: per-role `BSJ_SEED_PASSWORD_GATE`, `BSJ_SEED_PASSWORD_RESIDENT`, `BSJ_SEED_PASSWORD_SUSPENDED`, `BSJ_SEED_PASSWORD_WARDEN`, `BSJ_SEED_PASSWORD_PROVOST`, or `BSJ_SEED_PASSWORD` for every role (a per-role value wins). When a role has neither, the command generates a strong random password and prints it once, only for an account it creates in that run. A password that came from settings is never printed.
+## Left out of this version
 
-Running it again is safe: an account that already exists is left exactly as it is, including its password, and the output says "Left unchanged". If you do not know an existing account's password, run `.venv/bin/python -m app.dev_seed --reset-passwords`. That sets every seed account's password again, from settings if configured, otherwise a new generated one printed once. Older development passwords that once appeared in this repository (including git history) are burned — do not reuse them.
-
-From `backend/`, run the checks with `.venv/bin/pytest` and the lint with `.venv/bin/ruff check .` (`backend/ruff.toml`). A push to `dev`, and a pull request, runs both on GitHub. Every recorded check is listed in [`docs/tests/tests.md`](docs/tests/tests.md); each entry names its test file under `backend/app/.../tests/` or `backend/tests/`.
-
-## What is deliberately not here
-
-- Docker and Nginx
-- Live parent SMS provider (development stays on the mock driver; late/return notices are recorded only)
-- Emergency alerts (the proposal leaves those out of the first version)
-- A payment gateway (the hall office marks a guest stay paid or unpaid)
-
-## Open decisions
-
-The values the hall has not fixed yet are under "Still for the hall to decide" in [`docs/database/database.md`](docs/database/database.md). They are hall settings, so they change without reshaping the records.
+Emergency alerts. A live SMS provider. A payment gateway. Parent accounts. Docker.

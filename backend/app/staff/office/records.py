@@ -581,29 +581,18 @@ def room_is_active(connection: sqlite3.Connection, room_id: str) -> bool:
 def room_has_capacity(
     connection: sqlite3.Connection, room_id: str, *, excluding_user_id: str | None = None
 ) -> bool:
-    if excluding_user_id is None:
-        row = connection.execute(
-            """
-            SELECT rooms.bed_count AS beds,
-                   (SELECT COUNT(*) FROM residents WHERE room_id = rooms.id) AS taken
-            FROM rooms
-            WHERE rooms.id = ?
-            """,
-            (room_id,),
-        ).fetchone()
-    else:
-        row = connection.execute(
-            """
-            SELECT rooms.bed_count AS beds,
-                   (
-                     SELECT COUNT(*) FROM residents
-                     WHERE room_id = rooms.id AND user_id <> ?
-                   ) AS taken
-            FROM rooms
-            WHERE rooms.id = ?
-            """,
-            (excluding_user_id, room_id),
-        ).fetchone()
+    row = connection.execute(
+        """
+        SELECT rooms.bed_count AS beds,
+               (
+                 SELECT COUNT(*) FROM residents
+                 WHERE room_id = rooms.id AND user_id IS NOT ?
+               ) AS taken
+        FROM rooms
+        WHERE rooms.id = ?
+        """,
+        (excluding_user_id, room_id),
+    ).fetchone()
     if row is None:
         return False
     return int(row["taken"]) < int(row["beds"])

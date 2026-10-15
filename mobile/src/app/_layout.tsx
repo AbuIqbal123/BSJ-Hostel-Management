@@ -19,8 +19,10 @@ import { SourceSerif4_600SemiBold } from "@expo-google-fonts/source-serif-4";
 import { IBMPlexMono_500Medium } from "@expo-google-fonts/ibm-plex-mono";
 
 import { HallMark } from "@/components/hall-mark";
-import { SessionProvider, useSession } from "@/session";
+import { PushRouter } from "@/components/push-router";
 import { leavesWhenSignedIn, routeSettled } from "@/launch";
+import { pushSupported } from "@/push";
+import { SessionProvider, useSession } from "@/session";
 import { homePath } from "@/staff";
 import { AppearanceProvider, useDark } from "@/theme/appearance";
 import { useHallColors } from "@/theme/colors";
@@ -110,6 +112,7 @@ function LaunchShell({ fontsReady }: { fontsReady: boolean }) {
   return (
     <View style={styles.shell}>
       <StatusBar barStyle={dark ? "light-content" : "dark-content"} />
+      {pushSupported ? <PushRouter settled={settled && !splash} /> : null}
       <Stack
         screenOptions={{
           headerShadowVisible: false,

@@ -54,13 +54,14 @@ Response JSON uses explicit domain names so clients do not guess presentation. P
 
 ### Documents that stay current
 
-Finish the change and the document together.
+Finish the change and the document together. A document that disagrees with the system is stale. Fix that disagreement in the same change. Do not leave it for a later pass.
 
 | What changed | What to update |
 |---|---|
 | Stored data: a table, column, constraint, or the way a row moves | `docs/database/database.md` |
 | HTTP: a route, payload, response, status, error, or who may call it | `backend/openapi.yaml`, then regenerate `docs/api/api.md` |
 | The shape of the system: a part is added, removed, or connected | `docs/architecture/system-architecture.md` |
+| A fact the README states | `README.md` |
 
 A new endpoint or column updates the database document and the API document. Update the diagram when that work adds, removes, or connects a part, such as the phone app, a database the API opens, or a message that is sent. The line convention is at the top of `docs/architecture/system-architecture.md`. Schema and HTTP edits follow `.grok/skills/contract-maintenance/SKILL.md`.
 

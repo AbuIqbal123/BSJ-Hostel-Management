@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, SectionList, StyleSheet, Text, View } from "react-native";
+import { useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { DenseRow } from "@/components/dense-row";
@@ -91,6 +92,7 @@ export default function RequestsScreen() {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
   const { staffRequest } = useSession();
+  const params = useLocalSearchParams<{ tab?: string; open?: string }>();
   const [tab, setTab] = useState<Tab>("permissions");
   const [kind, setKind] = useState<PermissionKind | null>(null);
   const [blockId, setBlockId] = useState<string | null>(null);
@@ -197,6 +199,28 @@ export default function RequestsScreen() {
     },
     [staffRequest],
   );
+
+  // A push or notification card opens one request straight into its review sheet, if it still waits.
+  useEffect(() => {
+    const id = typeof params.open === "string" ? params.open : "";
+    if (!id) {
+      return;
+    }
+    const guests = params.tab === "guests";
+    setTab(guests ? "guests" : "permissions");
+    void staffRequest(`${guests ? "/guest-stays" : "/permissions"}/${encodeURIComponent(id)}`).then((reply) => {
+      if (!reply.ok || (reply.data as { status?: unknown } | null)?.status !== "pending") {
+        return;
+      }
+      const wrapped = { items: [reply.data] };
+      const item: Item | undefined = guests
+        ? readGuestReviews(wrapped).map((row) => ({ tab: "guests" as const, row }))[0]
+        : readPermissionReviews(wrapped).map((row) => ({ tab: "permissions" as const, row }))[0];
+      if (item) {
+        openItem(item);
+      }
+    });
+  }, [openItem, params.open, params.tab, staffRequest]);
 
   const decide = useCallback(
     async (decision: "approved" | "rejected", note: string) => {

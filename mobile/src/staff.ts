@@ -46,7 +46,7 @@ export type RegisterSummary = {
   pendingPermissions: number;
   pendingGuests: number;
   blocks: HallBlock[];
-  unread: boolean;
+  unread: number;
 };
 
 export function readSummary(value: unknown): RegisterSummary | null {
@@ -66,7 +66,7 @@ export function readSummary(value: unknown): RegisterSummary | null {
       const name = str(block?.name);
       return id && code && name ? [{ id, code, name }] : [];
     }),
-    unread: body.notifications_unread === true,
+    unread: num(body.notifications_unread_count),
   };
 }
 
@@ -397,21 +397,7 @@ export function readLateReturns(value: unknown): LateReturn[] {
   });
 }
 
-/** How late: minutes, hours, or days. */
-export function lateFor(minutes: number): string {
-  if (minutes < 60) {
-    return `${Math.max(0, minutes)} min late`;
-  }
-  if (minutes < 24 * 60) {
-    const rest = minutes % 60;
-    const hours = Math.floor(minutes / 60);
-    return rest ? `${hours} h ${rest} min late` : `${hours} h late`;
-  }
-  const days = Math.floor(minutes / (24 * 60));
-  return `${days} ${days === 1 ? "day" : "days"} late`;
-}
-
-/** `45 min`, `2 h 10 min`, or `3 days`. Used as `Late by …` on the return scan card. */
+/** `45 min`, `2 h 10 min`, or `3 days`. Used as `Late by …` on the scan card and by `lateFor`. */
 function lateSpan(minutes: number): string {
   if (minutes < 60) {
     return `${minutes} min`;
@@ -422,6 +408,11 @@ function lateSpan(minutes: number): string {
   }
   const days = Math.floor(minutes / (24 * 60));
   return `${days} ${days === 1 ? "day" : "days"}`;
+}
+
+/** How late: minutes, hours, or days. */
+export function lateFor(minutes: number): string {
+  return `${lateSpan(Math.max(0, minutes))} late`;
 }
 
 function clockDay(iso: string | null): string {
@@ -438,38 +429,4 @@ export function dueLabel(dueAt: string): string {
 export function lateDetail(row: LateReturn): string {
   const back = row.returnedAt ? `back ${clockDay(row.returnedAt)}` : "";
   return [row.room, OUTING_WORDS[row.kind], dueLabel(row.dueAt), back].filter(Boolean).join(" · ");
-}
-
-export type StaffNotice = {
-  key: string;
-  sentence: string;
-  room: string;
-  at: string;
-  unread: boolean;
-};
-
-const NOTICE_WORDS: Record<string, (name: string) => string> = {
-  permission_requested: (name) => `${name} asked for a permission`,
-  guest_stay_requested: (name) => `${name} asked for a guest stay`,
-  resident_late: (name) => `${name} is late back`,
-};
-
-export function readStaffNotices(value: unknown): StaffNotice[] {
-  return items(value).flatMap((item) => {
-    const words = NOTICE_WORDS[String(item.kind)];
-    const id = str(item.record_id);
-    const at = str(item.occurred_at) ?? "";
-    if (!words || !id) {
-      return [];
-    }
-    return [
-      {
-        key: `${String(item.kind)}-${id}`,
-        sentence: words(str(item.resident_name) ?? ""),
-        room: str(item.room_label) ?? "",
-        at,
-        unread: item.unread === true,
-      },
-    ];
-  });
 }
