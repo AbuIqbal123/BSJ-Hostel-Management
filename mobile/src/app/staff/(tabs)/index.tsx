@@ -7,11 +7,11 @@ import { Bell } from "@/components/bell";
 import { onHallRefresh } from "@/hall-refresh";
 import { DenseRow } from "@/components/dense-row";
 import { HallButton } from "@/components/hall-button";
-import { ListError } from "@/components/list-state";
+import { PagedList } from "@/components/paged-list";
 import { SectionHead } from "@/components/section-head";
-import { SkeletonRows } from "@/components/skeleton";
-import { useDelayedLoading } from "@/use-delayed-loading";
+import { pageQuery } from "@/list-page";
 import { setBadge } from "@/push";
+import { useListPage } from "@/use-list-page";
 import { runsOffice } from "@/office";
 import { roleLabel, useSession } from "@/session";
 import { readActivity, readSummary, readsRegister, trimStop, type GateEvent, type RegisterSummary } from "@/staff";
@@ -49,27 +49,23 @@ export default function StaffHomeScreen() {
   const insets = useSafeAreaInsets();
   const { user, staffRequest } = useSession();
   const [summary, setSummary] = useState<RegisterSummary | null>(null);
-  const [activity, setActivity] = useState<GateEvent[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const showActivitySkeleton = useDelayedLoading(loading && error === null) && error === null;
   const register = user ? readsRegister(user.role) : false;
+  const activity = useListPage<GateEvent>({
+    auto: false,
+    idOf: (item: GateEvent) => item.key,
+    loadPage: async () => {
+      const reply = await staffRequest(`/gate/activity?${pageQuery(0)}`);
+      if (!reply.ok) {
+        return { error: trimStop(reply.message) };
+      }
+      const items = readActivity(reply.data) ?? [];
+      return { items, total: items.length };
+    },
+  });
 
   const reload = useCallback(() => {
     let active = true;
-    setLoading(true);
-    void staffRequest("/gate/activity?limit=6").then((reply) => {
-      if (!active) {
-        return;
-      }
-      setLoading(false);
-      if (reply.ok) {
-        setActivity(readActivity(reply.data));
-        setError(null);
-      } else {
-        setError(trimStop(reply.message));
-      }
-    });
+    activity.load();
     if (register) {
       void staffRequest("/register/summary").then((reply) => {
         if (active && reply.ok) {
@@ -84,7 +80,7 @@ export default function StaffHomeScreen() {
     return () => {
       active = false;
     };
-  }, [register, staffRequest]);
+  }, [activity.load, register, staffRequest]);
 
   useFocusEffect(reload);
 
@@ -184,24 +180,31 @@ export default function StaffHomeScreen() {
         </Pressable>
       ) : null}
       <View style={[styles.section, { borderTopColor: colors.line }]}>
-        <SectionHead title="Recent at the gate" />
-        {showActivitySkeleton ? <SkeletonRows count={3} kind="row" /> : null}
-        {error ? <ListError message={error} onRetry={() => { reload(); }} /> : null}
-        {!showActivitySkeleton && activity && activity.length === 0 && !error ? (
-          <Text style={[text.body, { color: colors.inkSoft }]}>No one has passed the gate yet</Text>
-        ) : null}
-        <View>
-          {(showActivitySkeleton ? [] : (activity ?? [])).map((item, index, all) => (
-            <DenseRow
-              key={item.key}
-              title={item.title}
-              detail={item.detail}
-              time={item.at}
-              first={index === 0}
-              last={index === all.length - 1}
-            />
-          ))}
-        </View>
+        <PagedList
+          rows={activity.rows}
+          error={activity.error}
+          pageError={activity.pageError}
+          showListSkeleton={activity.showListSkeleton}
+          showPageSkeleton={activity.showPageSkeleton}
+          onRetry={activity.retry}
+          onRetryPage={() => activity.loadNext(true)}
+          skeletonCount={3}
+          header={<SectionHead title="Recent at the gate" />}
+          empty={<Text style={[text.body, { color: colors.inkSoft }]}>No one has passed the gate yet</Text>}
+        >
+          <View>
+            {(activity.rows ?? []).map((item, index, all) => (
+              <DenseRow
+                key={item.key}
+                title={item.title}
+                detail={item.detail}
+                time={item.at}
+                first={index === 0}
+                last={index === all.length - 1}
+              />
+            ))}
+          </View>
+        </PagedList>
       </View>
     </ScrollView>
   );

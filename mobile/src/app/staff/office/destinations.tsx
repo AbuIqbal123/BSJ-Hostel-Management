@@ -4,54 +4,41 @@ import { Text, View } from "react-native";
 
 import { DenseRow } from "@/components/dense-row";
 import { HallButton } from "@/components/hall-button";
-import { EmptyState, ListError } from "@/components/list-state";
 import { ChoiceLine, OfficeError, OfficeFrame, replyError } from "@/components/office-frame";
-import { SkeletonRows } from "@/components/skeleton";
+import { PagedList } from "@/components/paged-list";
 import { TextField } from "@/components/text-field";
-import { useDelayedLoading } from "@/use-delayed-loading";
 import { hiddenFromResidents, readPlace, readPlaces, type OfficePlace } from "@/office";
 import { useSession } from "@/session";
+import { useListPage } from "@/use-list-page";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
 export default function OfficeDestinations() {
   const colors = useHallColors();
   const { staffRequest } = useSession();
-  const [places, setPlaces] = useState<OfficePlace[] | null>(null);
-  const [listError, setListError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
   const [name, setName] = useState("");
   const [editing, setEditing] = useState<OfficePlace | null>(null);
   const [editName, setEditName] = useState("");
   const [status, setStatus] = useState<"active" | "inactive">("active");
   const [busy, setBusy] = useState<"preset" | "custom" | "save" | null>(null);
 
-  const load = useCallback(
-    (fromPull = false) => {
-      if (fromPull) {
-        setRefreshing(true);
-      }
-      void staffRequest("/admin/destinations").then((reply) => {
-        if (fromPull) {
-          setRefreshing(false);
-        }
-        const next = reply.ok ? readPlaces(reply.data) : null;
-        if (!next) {
-          setListError(replyError(reply) ?? "Destinations didn't load");
-          return;
-        }
-        setPlaces(next);
-        setListError(null);
-      });
+  const list = useListPage<OfficePlace>({
+    auto: false,
+    idOf: (place) => place.id,
+    loadPage: async () => {
+      const reply = await staffRequest("/admin/destinations");
+      const next = reply.ok ? readPlaces(reply.data) : null;
+      return next
+        ? { items: next, total: next.length }
+        : { error: replyError(reply) ?? "Destinations didn't load" };
     },
-    [staffRequest],
-  );
+  });
 
   useFocusEffect(
     useCallback(() => {
-      load();
-    }, [load]),
+      list.load();
+    }, [list.load]),
   );
 
   const create = async (source: "preset" | "custom") => {
@@ -72,7 +59,7 @@ export default function OfficeDestinations() {
     }
     setName("");
     setFormError(null);
-    load();
+    list.load();
   };
 
   const save = async () => {
@@ -104,27 +91,37 @@ export default function OfficeDestinations() {
     }
     setEditing(null);
     setFormError(null);
-    load();
+    list.load();
   };
 
-  const rows = places ?? [];
+  const rows = list.rows ?? [];
   const held = busy !== null;
-  const showListSkeleton = useDelayedLoading((places === null || refreshing) && listError === null) && listError === null;
 
   return (
-    <OfficeFrame title="Destinations" refreshing={refreshing} onRefresh={() => load(true)}>
-      <Text style={[text.body, { color: colors.inkSoft }]}>
-        An inactive place stays on this list. Residents only see active places
-      </Text>
-      <TextField label="Place" value={name} onChangeText={setName} maxLength={80} autoCapitalize="sentences" />
-      <HallButton label="Add place" busy={busy === "preset"} disabled={held} onPress={() => void create("preset")} />
-      <HallButton label="Add free-text place" busy={busy === "custom"} disabled={held} onPress={() => void create("custom")} />
-      <OfficeError message={formError} />
-      {showListSkeleton ? <SkeletonRows count={4} kind="row" /> : null}
-      {listError && rows.length === 0 ? <ListError message={listError} onRetry={() => load()} /> : null}
-      {listError && rows.length > 0 ? <ListError message={listError} onRetry={() => load(true)} /> : null}
+    <OfficeFrame title="Destinations" refreshing={list.refreshing} onRefresh={list.refresh}>
+      <PagedList
+        rows={list.rows}
+        error={list.error}
+        pageError={list.pageError}
+        showListSkeleton={list.showListSkeleton}
+        showPageSkeleton={list.showPageSkeleton}
+        onRetry={list.retry}
+        onRetryPage={() => list.loadNext(true)}
+        empty="No places yet. Add one with the form above."
+        header={
+          <>
+            <Text style={[text.body, { color: colors.inkSoft }]}>
+              An inactive place stays on this list. Residents only see active places
+            </Text>
+            <TextField label="Place" value={name} onChangeText={setName} maxLength={80} autoCapitalize="sentences" />
+            <HallButton label="Add place" busy={busy === "preset"} disabled={held} onPress={() => void create("preset")} />
+            <HallButton label="Add free-text place" busy={busy === "custom"} disabled={held} onPress={() => void create("custom")} />
+            <OfficeError message={formError} />
+          </>
+        }
+      >
       <View>
-        {(showListSkeleton ? [] : rows).map((place, index, all) => (
+        {rows.map((place, index, all) => (
           <View key={place.id}>
             <DenseRow
               title={place.name}
@@ -163,9 +160,7 @@ export default function OfficeDestinations() {
           </View>
         ))}
       </View>
-      {!showListSkeleton && places && rows.length === 0 && !listError ? (
-        <EmptyState message="No places yet. Add one with the form above." />
-      ) : null}
+      </PagedList>
     </OfficeFrame>
   );
 }

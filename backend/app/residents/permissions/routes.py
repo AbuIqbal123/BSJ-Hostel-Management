@@ -9,6 +9,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, BackgroundTasks, Query
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.shared.page import PageDep
 from app.residents.home.routes import ResidentDep
 from app.residents.permissions.records import (
     PermissionBody,
@@ -148,10 +149,11 @@ def _permission_fields(
 def list_own_permissions(
     account: ResidentDep,
     connection: ConnectionDep,
-    limit: Annotated[int, Query(ge=1, le=500)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    page: PageDep,
     status: Annotated[PermissionStatus | None, Query()] = None,
 ) -> PermissionPageBody:
+    limit = page.limit
+    offset = page.offset
     return list_own(
         connection,
         resident_id=account.id,

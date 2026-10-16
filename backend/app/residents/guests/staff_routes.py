@@ -8,6 +8,7 @@ from fastapi import APIRouter, BackgroundTasks, File, Query, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.shared.page import PageDep
 from app.residents.guests.payment_evidence import (
     MAX_EVIDENCE_BYTES,
     clear_evidence,
@@ -74,13 +75,14 @@ def _require_mutable_stay(connection, guest_stay_id: str):
 def list_guest_stays_staff(
     _account: RegisterDep,
     connection: ConnectionDep,
+    page: PageDep,
     bucket: Annotated[GuestBucket | None, Query()] = None,
     include_terminal: Annotated[bool, Query()] = False,
     q: Annotated[str | None, Query(max_length=80)] = None,
     block_id: Annotated[str | None, Query()] = None,
-    limit: Annotated[int, Query(ge=1, le=500)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> GuestStayPageBody:
+    limit = page.limit
+    offset = page.offset
     today = clock.hall_local_date(clock.utc_now())
     return list_guest_stays(
         connection,

@@ -4,125 +4,86 @@ import { View } from "react-native";
 
 import { DenseRow } from "@/components/dense-row";
 import { HallButton } from "@/components/hall-button";
-import { EmptyState, ListError, RetryRow } from "@/components/list-state";
+import { EmptyState } from "@/components/list-state";
 import { OfficeFrame, replyError } from "@/components/office-frame";
+import { PagedList } from "@/components/paged-list";
 import { SearchField } from "@/components/search-field";
-import { SkeletonRows } from "@/components/skeleton";
-import { acceptFailure, acceptPage, shouldRequestNext, type Listed } from "@/list-page";
-import { useDelayedLoading } from "@/use-delayed-loading";
+import { pageQuery } from "@/list-page";
 import { readPage, readResident, type OfficeResident } from "@/office";
 import { useSession } from "@/session";
-
-const PAGE = 50;
-const EMPTY: Listed<OfficeResident> = { rows: null, total: 0, error: null, pageError: null };
+import { useListPage } from "@/use-list-page";
 
 export default function OfficeResidents() {
   const { staffRequest } = useSession();
-  const ticket = useRef(0);
-  const paging = useRef(false);
   const [query, setQuery] = useState("");
-  const seenQuery = useRef(query);
-  const [list, setList] = useState<Listed<OfficeResident>>(EMPTY);
-  const [pagingUi, setPagingUi] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const load = useCallback(
-    (q: string, offset: number, fromPull = false) => {
-      if (offset > 0) {
-        if (paging.current) {
-          return;
-        }
-        paging.current = true;
-        setPagingUi(true);
-      }
-      if (fromPull) {
-        setRefreshing(true);
-      }
-      const search = new URLSearchParams({ limit: String(PAGE), offset: String(offset) });
-      const needle = q.trim().slice(0, 80);
+  const queryRef = useRef(query);
+  queryRef.current = query;
+  const list = useListPage<OfficeResident>({
+    idOf: (resident) => resident.id,
+    loadPage: async (offset) => {
+      const search = new URLSearchParams(pageQuery(offset));
+      const needle = queryRef.current.trim().slice(0, 80);
       if (needle) {
         search.set("q", needle);
       }
-      const current = offset === 0 ? ++ticket.current : ticket.current;
-      void staffRequest(`/admin/residents?${search.toString()}`).then((reply) => {
-        if (offset > 0) {
-          paging.current = false;
-          setPagingUi(false);
-        }
-        if (fromPull) {
-          setRefreshing(false);
-        }
-        if (current !== ticket.current) {
-          return;
-        }
-        const page = reply.ok ? readPage(reply.data, readResident) : null;
-        const message = replyError(reply) ?? "Residents didn't load";
-        setList((state) =>
-          page ? acceptPage(state, offset, page.items, page.total, (item) => item.id) : acceptFailure(state, offset, message),
-        );
-      });
+      const reply = await staffRequest(`/admin/residents?${search.toString()}`);
+      const page = reply.ok ? readPage(reply.data, readResident) : null;
+      return page
+        ? { items: page.items, total: page.total }
+        : { error: replyError(reply) ?? "Residents didn't load" };
     },
-    [staffRequest],
-  );
+  });
 
   useFocusEffect(
     useCallback(() => {
-      if (seenQuery.current !== query) {
-        seenQuery.current = query;
-        ticket.current += 1;
-        paging.current = false;
-        setList(EMPTY);
-      }
-      const timer = setTimeout(() => load(query, 0), query ? 300 : 0);
+      const timer = setTimeout(() => list.load(), query ? 300 : 0);
       return () => clearTimeout(timer);
-    }, [load, query]),
+    }, [list.load, query]),
   );
 
   const rows = list.rows ?? [];
-  const showListSkeleton = useDelayedLoading((list.rows === null || refreshing) && list.error === null) && list.error === null;
-  const showPageSkeleton = useDelayedLoading(pagingUi) && list.pageError === null;
-  const near = () => {
-    if (!shouldRequestNext(rows.length, list.total, paging.current, list.pageError !== null)) {
-      return;
-    }
-    load(query, rows.length);
-  };
+  const searching = query.trim().length > 0;
 
   return (
-    <OfficeFrame
-      title="Residents"
-      refreshing={refreshing}
-      onRefresh={() => load(query, 0, true)}
-      onNearEnd={near}
-    >
-      <SearchField value={query} placeholder="Name, enrolment, or room" onChange={setQuery} />
-      <HallButton label="Add a resident" onPress={() => router.push("/staff/office/resident")} />
-      {showListSkeleton ? <SkeletonRows count={4} kind="row" /> : null}
-      {list.error && rows.length === 0 ? <ListError message={list.error} onRetry={() => load(query, 0)} /> : null}
-      {list.error && rows.length > 0 ? <ListError message={list.error} onRetry={() => load(query, 0, true)} /> : null}
-      <View>
-        {(showListSkeleton ? [] : rows).map((resident, index, all) => (
-          <DenseRow
-            key={resident.id}
-            title={resident.fullName}
-            detail={`${resident.enrolmentNumber} · ${resident.roomLabel}`}
-            time={resident.status === "suspended" ? "Suspended" : resident.presence === "outside" ? "Outside" : "Inside"}
-            late={resident.status === "suspended"}
-            first={index === 0}
-            last={index === all.length - 1}
-            onPress={() => router.push({ pathname: "/staff/office/resident", params: { id: resident.id } })}
+    <OfficeFrame title="Residents" refreshing={list.refreshing} onRefresh={list.refresh} onNearEnd={() => list.loadNext()}>
+      <PagedList
+        rows={list.rows}
+        error={list.error}
+        pageError={list.pageError}
+        showListSkeleton={list.showListSkeleton}
+        showPageSkeleton={list.showPageSkeleton}
+        filling={list.filling}
+        onRetry={list.retry}
+        onRetryPage={() => list.loadNext(true)}
+        header={
+          <>
+            <SearchField value={query} placeholder="Name, enrolment, or room" onChange={setQuery} />
+            <HallButton label="Add a resident" onPress={() => router.push("/staff/office/resident")} />
+          </>
+        }
+        empty={
+          <EmptyState
+            message={searching ? "No one matches" : "No residents yet"}
+            actionLabel={searching ? undefined : "Add a resident"}
+            onAction={searching ? undefined : () => router.push("/staff/office/resident")}
           />
-        ))}
-      </View>
-      {!showListSkeleton && list.rows && rows.length === 0 && !list.error ? (
-        <EmptyState
-          message={query.trim() ? "No one matches" : "No residents yet"}
-          actionLabel={query.trim() ? undefined : "Add a resident"}
-          onAction={query.trim() ? undefined : () => router.push("/staff/office/resident")}
-        />
-      ) : null}
-      {showPageSkeleton ? <SkeletonRows count={1} kind="row" /> : null}
-      {list.pageError ? <RetryRow message={list.pageError} onRetry={() => load(query, rows.length)} /> : null}
+        }
+      >
+        <View>
+          {rows.map((resident, index, all) => (
+            <DenseRow
+              key={resident.id}
+              title={resident.fullName}
+              detail={`${resident.enrolmentNumber} · ${resident.roomLabel}`}
+              time={resident.status === "suspended" ? "Suspended" : resident.presence === "outside" ? "Outside" : "Inside"}
+              late={resident.status === "suspended"}
+              first={index === 0}
+              last={index === all.length - 1}
+              onPress={() => router.push({ pathname: "/staff/office/resident", params: { id: resident.id } })}
+            />
+          ))}
+        </View>
+      </PagedList>
     </OfficeFrame>
   );
 }

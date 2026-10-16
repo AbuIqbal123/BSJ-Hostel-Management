@@ -998,7 +998,7 @@ anything read.
 | Name | In | Required | Type | Notes |
 |---|---|---|---|---|
 | `cursor` | query | no | string | Opaque `next_cursor` from the previous page. Omit for the first page. A cursor that does not decode is 422 `validation_error`. at most 200 characters. |
-| `limit` | query | no | integer | 1–100. default `30`. |
+| `limit` | query | no | integer | 1–500. default `50`. |
 | `filter` | query | no | `all` or `unread` or `needs_action` | `all` (default), `unread`, or `needs_action`. `needs_action` keeps a request still pending or a resident still out late. default `all`. |
 
 **Responses**
@@ -1384,7 +1384,7 @@ field.
 | `from` | query | no | date | First calendar date in Asia/Kolkata, `YYYY-MM-DD`. A row matches when its hall days overlap the range from this date through `to`. Omit for no lower bound. |
 | `to` | query | no | date | Last calendar date in Asia/Kolkata, `YYYY-MM-DD`. A row matches when its hall days overlap the range through this date. Omit for no upper bound. |
 | `cursor` | query | no | string | Opaque `next_cursor` from the previous page. Omit for the first page. at most 200 characters. |
-| `limit` | query | no | integer | 1–200. default `50`. |
+| `limit` | query | no | integer | 1–500. default `50`. |
 
 **Responses**
 
@@ -3919,7 +3919,7 @@ label.
 |---|---|---|---|---|
 | `bucket` | query | yes | `expected` or `in_hall` |  |
 | `payment_status` | query | no | `paid` or `unpaid` | When set, keep only guests with that payment status. Omit to include both paid and unpaid for the chosen bucket. |
-| `limit` | query | no | integer | 1–50. default `50`. |
+| `limit` | query | no | integer | 1–500. default `50`. |
 | `offset` | query | no | integer | minimum 0. default `0`. |
 | `q` | query | no | string | at most 80 characters. |
 
@@ -3935,7 +3935,7 @@ Body: [GateGuestList](#schema-gateguestlist).
 |---|---|---|---|
 | `items` | yes | list of [GateGuestCard](#schema-gateguestcard) |  |
 | `total` | yes | integer | Guests that match the bucket, payment filter, and search. Not the page length. minimum 0. |
-| `limit` | yes | integer | 1–50. |
+| `limit` | yes | integer | 1–500. |
 | `offset` | yes | integer | minimum 0. |
 
 #### 401
@@ -4456,7 +4456,7 @@ at her account creation) and not marked one by one.
 | Name | In | Required | Type | Notes |
 |---|---|---|---|---|
 | `cursor` | query | no | string | Opaque `next_cursor` from the previous page. Omit for the first page. A cursor that does not decode is 422 `validation_error`. at most 200 characters. |
-| `limit` | query | no | integer | 1–100. default `30`. |
+| `limit` | query | no | integer | 1–500. default `50`. |
 | `filter` | query | no | `all` or `unread` or `needs_action` | `all` (default), `unread`, or `needs_action`. `needs_action` keeps a request still pending or a resident still out late. default `all`. |
 | `q` | query | no | string | Part of the resident's name or room label, any case. at most 80 characters. |
 | `from` | query | no | date | First Asia/Kolkata date of `occurred_at`, inclusive. |
@@ -6977,7 +6977,7 @@ are null.
 |---|---|---|---|
 | `items` | yes | list of [GateGuestCard](#schema-gateguestcard) |  |
 | `total` | yes | integer | Guests that match the bucket, payment filter, and search. Not the page length. minimum 0. |
-| `limit` | yes | integer | 1–50. |
+| `limit` | yes | integer | 1–500. |
 | `offset` | yes | integer | minimum 0. |
 
 ### <a id="schema-guestarrivalresult"></a>GuestArrivalResult

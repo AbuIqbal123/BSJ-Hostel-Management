@@ -7,6 +7,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
+from app.shared.page import PageDep
 from app.shared import clock
 from app.shared.auth.roles import REGISTER, require_roles
 from app.shared.auth.routes import Account, ConnectionDep
@@ -60,13 +61,14 @@ def register_summary(account: RegisterDep, connection: ConnectionDep) -> Registe
 def list_register_residents(
     _account: RegisterDep,
     connection: ConnectionDep,
+    page: PageDep,
     q: Annotated[str | None, Query(max_length=80)] = None,
     state: Annotated[RegisterFilter | None, Query()] = None,
     block_id: Annotated[str | None, Query()] = None,
     order: Annotated[RegisterOrder, Query()] = "name",
-    limit: Annotated[int, Query(ge=1, le=500)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> RegisterPage:
+    limit = page.limit
+    offset = page.offset
     _run_late_notices(connection)
     return list_register(
         connection,
@@ -96,9 +98,10 @@ def register_resident(
 def register_late(
     _account: RegisterDep,
     connection: ConnectionDep,
-    limit: Annotated[int, Query(ge=1, le=500)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    page: PageDep,
 ) -> RegisterPage:
+    limit = page.limit
+    offset = page.offset
     _run_late_notices(connection)
     return list_register(
         connection, q=None, state="late", block_id=None, limit=limit, offset=offset
@@ -109,13 +112,14 @@ def register_late(
 def register_late_returns(
     _account: RegisterDep,
     connection: ConnectionDep,
+    page: PageDep,
     source: Annotated[LateSource | None, Query()] = None,
     state: Annotated[LateState | None, Query()] = None,
     first_day: Annotated[date | None, Query(alias="from")] = None,
     last_day: Annotated[date | None, Query(alias="to")] = None,
-    limit: Annotated[int, Query(ge=1, le=500)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> LateReturnPage:
+    limit = page.limit
+    offset = page.offset
     if first_day is not None and last_day is not None and last_day < first_day:
         raise ApiError(422, "validation_error", "The end date is before the start date.", field="to")
     return list_late_returns(

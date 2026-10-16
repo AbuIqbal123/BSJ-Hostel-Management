@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigation } from "expo-router";
-import { FlatList, Modal, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
+import { Modal, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
 import { BackMark } from "@/components/back-mark";
 import { DenseRow } from "@/components/dense-row";
 import { HallButton } from "@/components/hall-button";
-import { EmptyState, ListError, RetryRow } from "@/components/list-state";
-import { SkeletonRows } from "@/components/skeleton";
-import { useDelayedLoading } from "@/use-delayed-loading";
-import { acceptFailure, acceptPage, shouldRequestNext, type Listed } from "@/list-page";
+import { EmptyState, ListError } from "@/components/list-state";
+import { PagedList } from "@/components/paged-list";
+import { pageQuery } from "@/list-page";
+import { useListPage } from "@/use-list-page";
 import { formatHallDate } from "@/format-when";
 import {
   arrivalRefusal,
@@ -41,16 +41,27 @@ export default function GateGuestsScreen() {
   const [bucket, setBucket] = useState<Bucket>("expected");
   const [query, setQuery] = useState("");
   const [q, setQ] = useState("");
-  const [list, setList] = useState<Listed<GateGuest>>({ rows: null, total: 0, error: null, pageError: null });
   const [occupancy, setOccupancy] = useState<GateOccupancy | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [pagingUi, setPagingUi] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [open, setOpen] = useState<GateGuest | null>(null);
   const [sheetError, setSheetError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const paging = useRef(false);
-  const generation = useRef(0);
+  const bucketRef = useRef(bucket);
+  const qRef = useRef(q);
+  bucketRef.current = bucket;
+  qRef.current = q;
+  const list = useListPage<GateGuest>({
+    idOf: (guest) => guest.id,
+    loadPage: async (offset) => {
+      const needle = qRef.current.trim().slice(0, 80);
+      const search = needle ? `&q=${encodeURIComponent(needle)}` : "";
+      const reply = await staffRequest(`/gate/guests?bucket=${bucketRef.current}&${pageQuery(offset)}${search}`);
+      const page = reply.ok ? readGateGuests(reply.data) : null;
+      return page
+        ? { items: page.items, total: page.total }
+        : { error: !reply.ok ? trimStop(reply.message) : "The guest list could not be read" };
+    },
+  });
 
   useEffect(() => {
     const timer = setTimeout(() => setQ(query), 300);
@@ -64,48 +75,11 @@ export default function GateGuestsScreen() {
     }
   }, [staffRequest]);
 
-  const loadPage = useCallback(
-    async (offset: number, fromPull = false) => {
-      if (offset > 0) {
-        if (paging.current) {
-          return;
-        }
-        paging.current = true;
-        setPagingUi(true);
-      }
-      if (fromPull) {
-        setRefreshing(true);
-      }
-      const run = generation.current;
-      const search = q.trim() ? `&q=${encodeURIComponent(q.trim().slice(0, 80))}` : "";
-      const reply = await staffRequest(`/gate/guests?bucket=${bucket}&limit=50&offset=${offset}${search}`);
-      if (offset > 0) {
-        paging.current = false;
-        setPagingUi(false);
-      }
-      if (fromPull) {
-        setRefreshing(false);
-      }
-      if (run !== generation.current) {
-        return;
-      }
-      const page = reply.ok ? readGateGuests(reply.data) : null;
-      const message = !reply.ok ? trimStop(reply.message) : "The guest list could not be read";
-      setList((state) =>
-        page ? acceptPage(state, offset, page.items, page.total, (item) => item.id) : acceptFailure(state, offset, message),
-      );
-    },
-    [bucket, q, staffRequest],
-  );
-
   useEffect(() => {
-    generation.current += 1;
-    paging.current = false;
-    setPagingUi(false);
-    setList({ rows: null, total: 0, error: null, pageError: null });
-    void loadPage(0);
+    list.clear();
+    list.load();
     void loadOccupancy();
-  }, [loadOccupancy, loadPage]);
+  }, [bucket, q, list.clear, list.load, loadOccupancy]);
 
   const record = async (guest: GateGuest) => {
     const arrival = bucket === "expected";
@@ -124,15 +98,11 @@ export default function GateGuestsScreen() {
     setOpen(null);
     setSheetError(null);
     setNotice(readGateMessage(reply.data) ?? (arrival ? "The guest is now in the hall." : "The guest has left."));
-    generation.current += 1;
-    paging.current = false;
-    void loadPage(0);
+    list.load();
     void loadOccupancy();
   };
 
   const rows = list.rows ?? [];
-  const showListSkeleton = useDelayedLoading((list.rows === null || refreshing) && list.error === null) && list.error === null;
-  const showPageSkeleton = useDelayedLoading(pagingUi) && list.pageError === null;
 
   const counts =
     occupancy === null ? "" : `${occupancy.inHall} in the hall, ${occupancy.shouldHaveLeft} should have left`;
@@ -185,40 +155,28 @@ export default function GateGuestsScreen() {
           autoCorrect={false}
           style={[text.field, styles.search, { backgroundColor: colors.surface, borderColor: colors.line, color: colors.ink }]}
         />
-        {list.error && rows.length > 0 ? <ListError message={list.error} onRetry={() => void loadPage(0, true)} /> : null}
+        {list.error && rows.length > 0 ? <ListError message={list.error} onRetry={list.refresh} /> : null}
       </View>
-      <FlatList
+      <PagedList
+        kind="flat"
         style={styles.list}
-        data={showListSkeleton ? [] : rows}
+        rows={list.rows}
+        data={rows}
+        error={rows.length > 0 ? null : list.error}
+        pageError={list.pageError}
+        showListSkeleton={list.showListSkeleton}
+        showPageSkeleton={list.showPageSkeleton}
+        onRetry={list.retry}
+        onRetryPage={() => list.loadNext(true)}
         keyExtractor={(item) => item.id}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingBottom: insets.bottom + 28, paddingHorizontal: 28, flexGrow: 1 }}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => void loadPage(0, true)} tintColor={colors.inkFaint} />
-        }
-        onEndReachedThreshold={0.5}
-        onEndReached={() => {
-          if (shouldRequestNext(rows.length, list.total, paging.current, list.pageError !== null)) {
-            void loadPage(rows.length);
-          }
-        }}
-        ListEmptyComponent={
-          showListSkeleton ? (
-            <SkeletonRows count={4} kind="row" />
-          ) : list.error && rows.length === 0 ? (
-            <ListError message={list.error} onRetry={() => void loadPage(0)} />
-          ) : list.rows && rows.length === 0 ? (
-            <EmptyState
-              message={q.trim() ? `Nothing matches ${q.trim()}` : bucket === "expected" ? "No one is expected" : "No guests in the hall"}
-            />
-          ) : null
-        }
-        ListFooterComponent={
-          showPageSkeleton ? (
-            <SkeletonRows count={1} kind="row" />
-          ) : list.pageError ? (
-            <RetryRow message={list.pageError} onRetry={() => void loadPage(rows.length)} />
-          ) : null
+        refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={list.refresh} tintColor={colors.inkFaint} />}
+        onEndReached={() => list.loadNext()}
+        empty={
+          <EmptyState
+            message={q.trim() ? `Nothing matches ${q.trim()}` : bucket === "expected" ? "No one is expected" : "No guests in the hall"}
+          />
         }
         renderItem={({ item, index }) => (
           <DenseRow

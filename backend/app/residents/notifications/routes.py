@@ -7,6 +7,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Body, Query
 from pydantic import BaseModel, ConfigDict
 
+from app.shared.page import PageDep
 from app.residents.home.routes import ResidentDep
 from app.residents.notifications.records import resident_unread_count
 from app.shared import clock
@@ -116,10 +117,11 @@ def _item(row) -> ResidentNotification:
 def list_notifications(
     account: ResidentDep,
     connection: ConnectionDep,
+    page: PageDep,
     cursor: Annotated[str | None, Query(max_length=200)] = None,
-    limit: Annotated[int, Query(ge=1, le=100)] = 30,
     filter: Annotated[InboxFilter, Query()] = "all",
 ) -> ResidentNotificationPage:
+    limit = page.limit
     now_text = clock.format_instant(clock.utc_now())
     where = ["notes.resident_id = :resident_id", "notes.created_at >= :since"]
     params: dict[str, object] = {

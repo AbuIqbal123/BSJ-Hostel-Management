@@ -9,6 +9,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict
 
+from app.shared.page import PageDep
 from app.shared import clock
 from app.shared.auth.roles import RESIDENT, require_roles
 from app.shared.auth.routes import Account, ConnectionDep
@@ -427,13 +428,14 @@ def _history_items(
 def resident_history(
     account: ResidentDep,
     connection: ConnectionDep,
+    page: PageDep,
     kind: Annotated[HistoryKind | None, Query()] = None,
     on: Annotated[date | None, Query()] = None,
     from_day: Annotated[date | None, Query(alias="from")] = None,
     to_day: Annotated[date | None, Query(alias="to")] = None,
     cursor: Annotated[str | None, Query(max_length=200)] = None,
-    limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> HistoryList:
+    limit = page.limit
     now = clock.utc_now()
     today = clock.hall_local_date(now)
     items = _history_items(

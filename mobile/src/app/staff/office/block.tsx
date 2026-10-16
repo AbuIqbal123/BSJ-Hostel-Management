@@ -4,13 +4,15 @@ import { View } from "react-native";
 
 import { DenseRow } from "@/components/dense-row";
 import { HallButton } from "@/components/hall-button";
-import { EmptyState, ListError } from "@/components/list-state";
+import { ListError } from "@/components/list-state";
 import { ChoiceLine, OfficeError, OfficeFrame, replyError } from "@/components/office-frame";
+import { PagedList } from "@/components/paged-list";
 import { SkeletonRows } from "@/components/skeleton";
 import { TextField } from "@/components/text-field";
 import { useDelayedLoading } from "@/use-delayed-loading";
 import { bounded, readBlock, readBlocks, readRoom, readRooms, type OfficeBlock, type OfficeRoom } from "@/office";
 import { useSession } from "@/session";
+import { useListPage } from "@/use-list-page";
 
 export default function OfficeBlock() {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -21,9 +23,7 @@ export default function OfficeBlock() {
   const [roomsCount, setRoomsCount] = useState("");
   const [beds, setBeds] = useState("");
   const [status, setStatus] = useState<"active" | "inactive">("active");
-  const [rooms, setRooms] = useState<OfficeRoom[] | null>(null);
   const [blockError, setBlockError] = useState<string | null>(null);
-  const [roomsError, setRoomsError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [number, setNumber] = useState("");
@@ -33,6 +33,19 @@ export default function OfficeBlock() {
   const [roomStatus, setRoomStatus] = useState<"active" | "inactive">("active");
   const [busy, setBusy] = useState<"block" | "add" | "room" | null>(null);
 
+  const roomsList = useListPage<OfficeRoom>({
+    auto: false,
+    idOf: (room) => room.id,
+    loadPage: async () => {
+      if (!id) {
+        return { items: [], total: 0 };
+      }
+      const reply = await staffRequest(`/admin/rooms?block_id=${encodeURIComponent(id)}`);
+      const next = reply.ok ? readRooms(reply.data) : null;
+      return next ? { items: next, total: next.length } : { error: replyError(reply) ?? "Rooms didn't load" };
+    },
+  });
+
   const load = useCallback(
     (fromPull = false) => {
       if (!id) {
@@ -40,6 +53,9 @@ export default function OfficeBlock() {
       }
       if (fromPull) {
         setRefreshing(true);
+        roomsList.refresh();
+      } else {
+        roomsList.load();
       }
       void staffRequest("/admin/blocks").then((reply) => {
         if (fromPull) {
@@ -59,17 +75,8 @@ export default function OfficeBlock() {
         setStatus(found.status);
         setBlockError(null);
       });
-      void staffRequest(`/admin/rooms?block_id=${encodeURIComponent(id)}`).then((reply) => {
-        const next = reply.ok ? readRooms(reply.data) : null;
-        if (!next) {
-          setRoomsError(replyError(reply) ?? "Rooms didn't load");
-          return;
-        }
-        setRooms(next);
-        setRoomsError(null);
-      });
     },
-    [id, staffRequest],
+    [id, roomsList.load, roomsList.refresh, staffRequest],
   );
 
   useFocusEffect(
@@ -79,12 +86,9 @@ export default function OfficeBlock() {
   );
 
   const showBlockSkeleton =
-    useDelayedLoading(block === null && rooms === null && blockError === null && roomsError === null) &&
+    useDelayedLoading(block === null && roomsList.rows === null && blockError === null && roomsList.error === null) &&
     blockError === null &&
-    roomsError === null;
-  const showRoomsSkeleton =
-    useDelayedLoading(((rooms === null && block !== null) || (refreshing && rooms !== null)) && roomsError === null) &&
-    roomsError === null;
+    roomsList.error === null;
 
   if (!id) {
     return <Redirect href="/staff/office/blocks" />;
@@ -205,11 +209,11 @@ export default function OfficeBlock() {
     load();
   };
 
-  const rows = rooms ?? [];
+  const rows = roomsList.rows ?? [];
   const held = busy !== null;
 
   return (
-    <OfficeFrame title={block?.name ?? "Block"} refreshing={refreshing} onRefresh={() => load(true)}>
+    <OfficeFrame title={block?.name ?? "Block"} refreshing={refreshing || roomsList.refreshing} onRefresh={() => load(true)}>
       {showBlockSkeleton ? <SkeletonRows count={4} kind="row" /> : null}
       {blockError && !block ? <ListError message={blockError} onRetry={() => load()} /> : null}
       {block ? (
@@ -234,11 +238,19 @@ export default function OfficeBlock() {
       ) : null}
       <OfficeError message={formError} />
       {blockError && block ? <ListError message={blockError} onRetry={() => load(true)} /> : null}
-      {roomsError && rows.length === 0 ? <ListError message={roomsError} onRetry={() => load()} /> : null}
-      {roomsError && rows.length > 0 ? <ListError message={roomsError} onRetry={() => load(true)} /> : null}
-      {showRoomsSkeleton ? <SkeletonRows count={3} kind="row" /> : null}
+      <PagedList
+        rows={roomsList.rows}
+        error={roomsList.error}
+        pageError={roomsList.pageError}
+        showListSkeleton={roomsList.showListSkeleton}
+        showPageSkeleton={roomsList.showPageSkeleton}
+        onRetry={roomsList.retry}
+        onRetryPage={() => roomsList.loadNext(true)}
+        skeletonCount={3}
+        empty="No rooms in this block yet. Add one above."
+      >
       <View>
-        {(showRoomsSkeleton ? [] : rows).map((room, index, all) => (
+        {rows.map((room, index, all) => (
           <View key={room.id}>
             <DenseRow
               title={room.label}
@@ -273,7 +285,7 @@ export default function OfficeBlock() {
           </View>
         ))}
       </View>
-      {!showRoomsSkeleton && rooms && rows.length === 0 && !roomsError ? <EmptyState message="No rooms in this block yet. Add one above." /> : null}
+      </PagedList>
     </OfficeFrame>
   );
 }

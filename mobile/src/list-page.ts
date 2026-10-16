@@ -1,6 +1,14 @@
 /** Paging rules shared by every list. A later page never drops or repeats rows. */
 
-export const PAGE = 50;
+export const PAGE_SIZE = 50;
+
+/** @deprecated Use PAGE_SIZE. Kept so existing imports keep working. */
+export const PAGE = PAGE_SIZE;
+
+/** The only place a screen may name `limit` and `offset` on a list request. */
+export function pageQuery(offset: number): string {
+  return `limit=${PAGE_SIZE}&offset=${offset}`;
+}
 
 export function placeholderMotion(reduceMotion: boolean): "shimmer" | "still" {
   return reduceMotion ? "still" : "shimmer";

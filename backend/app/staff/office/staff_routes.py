@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import json
 import uuid
-from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter
 
+from app.shared.page import PageDep
 from app.shared import clock
 from app.shared.audit import record_audit
 from app.shared.auth.routes import ConnectionDep
@@ -34,9 +34,10 @@ _DUPLICATE = "Username already in use."
 def admin_list_staff(
     _account: ProvostDep,
     connection: ConnectionDep,
-    limit: Annotated[int, Query(ge=1, le=500)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    page: PageDep,
 ) -> StaffPage:
+    limit = page.limit
+    offset = page.offset
     return list_staff_accounts(connection, limit=limit, offset=offset)
 
 

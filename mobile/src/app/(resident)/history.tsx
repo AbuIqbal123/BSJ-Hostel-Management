@@ -5,14 +5,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
 import { BackMark } from "@/components/back-mark";
-import { EmptyState, ListError, RetryRow } from "@/components/list-state";
-import { SkeletonRows } from "@/components/skeleton";
-import { useDelayedLoading } from "@/use-delayed-loading";
+import { PagedList } from "@/components/paged-list";
 import { DayRange, type DayRangeValue } from "@/components/day-range";
 import { formatSpan } from "@/format-when";
-import { mergeHistoryRows } from "@/history-rows";
 import { kindLabel } from "@/requests";
 import { useSession, type HistoryItem, type HistoryKind } from "@/session";
+import { useListPage } from "@/use-list-page";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
@@ -104,90 +102,32 @@ export default function HistoryScreen() {
   const { loadHistory } = useSession();
   const [kind, setKind] = useState<KindFilter>("all");
   const [range, setRange] = useState<DayRangeValue>({ from: null, to: null });
-  const [items, setItems] = useState<HistoryItem[] | null>(null);
-  const [failed, setFailed] = useState(false);
-  const [olderFailed, setOlderFailed] = useState<string | null>(null);
-  const [next, setNext] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [olderBusy, setOlderBusy] = useState(false);
-  const requestId = useRef(0);
-  const paging = useRef(false);
-  const showListSkeleton = useDelayedLoading((items === null || refreshing) && !failed) && !failed;
-  const showOlderSkeleton = useDelayedLoading(olderBusy) && olderFailed === null;
-  const queryKey = useRef("");
-
-  const load = useCallback(() => {
-    const key = `${kind}|${range.from ?? ""}|${range.to ?? ""}`;
-    const changed = queryKey.current !== key;
-    queryKey.current = key;
-    if (changed) {
-      setItems(null);
-    }
-    setRefreshing(false);
-    const id = ++requestId.current;
-    void loadHistory({ kind, from: range.from, to: range.to }).then((result) => {
-      if (id !== requestId.current) {
-        return;
-      }
+  const seen = useRef("");
+  const list = useListPage<HistoryItem>({
+    mode: "cursor",
+    auto: false,
+    idOf: (item) => item.id,
+    loadPage: async (cursor) => {
+      const result = await loadHistory({ kind, from: range.from, to: range.to, cursor });
       if (result.error !== null) {
-        setFailed(true);
-        if (changed) {
-          setItems(null);
-          setNext(null);
+        return { error: cursor ? result.error : "History didn't load" };
+      }
+      return { items: result.items, next: result.next };
+    },
+  });
+  const filterKey = `${kind}|${range.from ?? ""}|${range.to ?? ""}`;
+
+  useFocusEffect(
+    useCallback(() => {
+      if (seen.current !== filterKey) {
+        if (seen.current !== "") {
+          list.clear();
         }
-        return;
+        seen.current = filterKey;
       }
-      setFailed(false);
-      setOlderFailed(null);
-      setItems(result.items);
-      setNext(result.next);
-    });
-  }, [kind, loadHistory, range]);
-
-  const refresh = useCallback(() => {
-    setRefreshing(true);
-    const id = ++requestId.current;
-    void loadHistory({ kind, from: range.from, to: range.to }).then((result) => {
-      if (id !== requestId.current) {
-        return;
-      }
-      setRefreshing(false);
-      if (result.error !== null) {
-        setFailed(true);
-        return;
-      }
-      setFailed(false);
-      setOlderFailed(null);
-      setItems(result.items);
-      setNext(result.next);
-    });
-  }, [kind, loadHistory, range]);
-
-  // Older pages load only when she asks, so the phone never holds years of rows.
-  const older = useCallback(() => {
-    if (!next || paging.current) {
-      return;
-    }
-    paging.current = true;
-    setOlderBusy(true);
-    const id = requestId.current;
-    void loadHistory({ kind, from: range.from, to: range.to, cursor: next }).then((result) => {
-      paging.current = false;
-      setOlderBusy(false);
-      if (id !== requestId.current) {
-        return;
-      }
-      if (result.error !== null) {
-        setOlderFailed(result.error);
-        return;
-      }
-      setOlderFailed(null);
-      setItems((current) => mergeHistoryRows(current ?? [], result.items));
-      setNext(result.next);
-    });
-  }, [kind, loadHistory, next, range]);
-
-  useFocusEffect(load);
+      list.load();
+    }, [filterKey, list.clear, list.load]),
+  );
 
   const back = () => goBackOr(navigation, "/settings");
 
@@ -199,7 +139,7 @@ export default function HistoryScreen() {
         { paddingTop: insets.top + 28, paddingBottom: insets.bottom + 28 },
       ]}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.inkFaint} />}
+      refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={list.refresh} tintColor={colors.inkFaint} />}
     >
       <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={back} style={styles.back}>
         <BackMark color={colors.inkSoft} />
@@ -233,37 +173,38 @@ export default function HistoryScreen() {
       </ScrollView>
       <DayRange value={range} onChange={setRange} />
       </View>
-      {showListSkeleton ? <SkeletonRows count={4} kind="row" /> : null}
-      {failed && (items === null || items.length === 0) ? (
-        <ListError message="History didn't load" onRetry={load} />
-      ) : null}
-      {failed && items !== null && items.length > 0 ? (
-        <ListError message="History didn't load" onRetry={refresh} />
-      ) : null}
-      {!showListSkeleton && items !== null && items.length === 0 && !failed ? <EmptyState message="No history" /> : null}
-      {!showListSkeleton && items !== null && items.length > 0 ? (
+      <PagedList
+        rows={list.rows}
+        error={list.error}
+        pageError={list.pageError}
+        showListSkeleton={list.showListSkeleton}
+        showPageSkeleton={list.showPageSkeleton}
+        onRetry={list.rows && list.rows.length > 0 ? list.refresh : list.retry}
+        onRetryPage={() => list.loadNext(true)}
+        empty="No history"
+        footer={
+          list.hasMore && !list.showPageSkeleton ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Show older"
+              onPress={() => list.loadNext()}
+              hitSlop={12}
+              style={styles.older}
+            >
+              <Text style={[text.button, { color: colors.forest }]}>Show older</Text>
+            </Pressable>
+          ) : null
+        }
+      >
         <View>
-          {items.map((item, index) => (
+          {(list.rows ?? []).map((item, index) => (
             <View key={item.id}>
               {index > 0 ? <View style={[styles.hairline, { backgroundColor: colors.line }]} /> : null}
               <HistoryRow item={item} />
             </View>
           ))}
         </View>
-      ) : null}
-      {showOlderSkeleton ? <SkeletonRows count={1} kind="row" /> : null}
-      {olderFailed ? <RetryRow message={olderFailed} onRetry={older} /> : null}
-      {next && !olderFailed && !showOlderSkeleton ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Show older"
-          onPress={older}
-          hitSlop={12}
-          style={styles.older}
-        >
-          <Text style={[text.button, { color: colors.forest }]}>Show older</Text>
-        </Pressable>
-      ) : null}
+      </PagedList>
     </ScrollView>
   );
 }

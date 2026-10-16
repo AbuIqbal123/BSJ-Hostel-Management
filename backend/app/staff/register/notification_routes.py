@@ -8,6 +8,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Body, Query
 from pydantic import BaseModel, ConfigDict
 
+from app.shared.page import PageDep
 from app.shared import clock
 from app.shared.auth.routes import ConnectionDep
 from app.shared.errors import ApiError
@@ -56,14 +57,15 @@ class StaffNotificationPage(BaseModel):
 def list_staff_notifications(
     account: RegisterDep,
     connection: ConnectionDep,
+    page: PageDep,
     cursor: Annotated[str | None, Query(max_length=200)] = None,
-    limit: Annotated[int, Query(ge=1, le=100)] = 30,
     filter: Annotated[InboxFilter, Query()] = "all",
     q: Annotated[str | None, Query(max_length=80)] = None,
     from_day: Annotated[date | None, Query(alias="from")] = None,
     to_day: Annotated[date | None, Query(alias="to")] = None,
     block_id: Annotated[str | None, Query(max_length=80)] = None,
 ) -> StaffNotificationPage:
+    limit = page.limit
     now_text = clock.format_instant(clock.utc_now())
     filters: list[str] = []
     extra: dict[str, object] = {}
