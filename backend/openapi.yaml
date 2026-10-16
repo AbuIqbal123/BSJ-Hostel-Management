@@ -1425,9 +1425,20 @@ paths:
       description: |
         Caller: resident. Stays this resident is hosting. Newest first. Each
         item is a GuestStaySummary card; open GET by id for the full GuestStay.
+        With `when=upcoming` the list holds only stays that are pending or
+        approved, whose guest has not left, and whose end date is today or
+        later (hall date), soonest start first. With `when=past` it holds every
+        other stay, latest end date first. Leave `when` out for all stays.
       parameters:
         - $ref: "#/components/parameters/Limit"
         - $ref: "#/components/parameters/Offset"
+        - name: when
+          in: query
+          required: false
+          description: Which stays to list. Omit for all.
+          schema:
+            type: string
+            enum: [upcoming, past]
       responses:
         "200":
           description: Guest stay page of GuestStaySummary cards.

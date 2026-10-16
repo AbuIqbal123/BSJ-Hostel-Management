@@ -183,6 +183,24 @@ def _bucket_sql(
     raise AssertionError(f"unexpected guest bucket: {bucket}")
 
 
+GuestPhase = Literal["upcoming", "past"]
+
+# A stay is still ahead of the resident while it is waiting or approved, has not
+# ended, and the guest has not left. Everything else (decided no, cancelled,
+# finished, left, or past its end date) is past.
+_OPEN_STAY_SQL = (
+    "guest_stays.status IN ('pending', 'approved') "
+    "AND guest_stays.departed_at IS NULL "
+    "AND guest_stays.guest_end_date >= ?"
+)
+
+
+def _phase_sql(phase: GuestPhase, today: str) -> tuple[str, list[object]]:
+    if phase == "upcoming":
+        return _OPEN_STAY_SQL, [today]
+    return f"NOT ({_OPEN_STAY_SQL})", [today]
+
+
 def _list_filter_sql(
     *,
     host_resident_id: str | None,
@@ -191,9 +209,14 @@ def _list_filter_sql(
     today: str,
     q: str | None = None,
     block_id: str | None = None,
+    phase: GuestPhase | None = None,
 ) -> tuple[str, list[object]]:
     clauses: list[str] = []
     params: list[object] = []
+    if phase is not None:
+        clause, phase_params = _phase_sql(phase, today)
+        clauses.append(clause)
+        params.extend(phase_params)
     if host_resident_id is not None:
         clauses.append("guest_stays.host_resident_id = ?")
         params.append(host_resident_id)
@@ -349,6 +372,7 @@ def list_guest_stays(
     include_terminal: bool = True,
     q: str | None = None,
     block_id: str | None = None,
+    phase: GuestPhase | None = None,
 ) -> GuestStayPageBody:
     where, params = _list_filter_sql(
         host_resident_id=host_resident_id,
@@ -357,7 +381,14 @@ def list_guest_stays(
         today=today,
         q=q,
         block_id=block_id,
+        phase=phase,
     )
+    if phase == "upcoming":
+        order = "guest_stays.guest_start_date ASC, guest_stays.id ASC"
+    elif phase == "past":
+        order = "guest_stays.guest_end_date DESC, guest_stays.id DESC"
+    else:
+        order = "guest_stays.created_at DESC, guest_stays.id DESC"
     total = connection.execute(
         f"SELECT COUNT(*) AS n {_STAY_FROM} {where}",
         params,
@@ -366,7 +397,7 @@ def list_guest_stays(
         f"""
         {_STAY_SELECT}
         {where}
-        ORDER BY guest_stays.created_at DESC, guest_stays.id DESC
+        ORDER BY {order}
         LIMIT ? OFFSET ?
         """,
         [*params, limit, offset],

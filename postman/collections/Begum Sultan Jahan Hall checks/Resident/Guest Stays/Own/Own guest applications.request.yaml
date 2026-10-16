@@ -1,11 +1,13 @@
 $kind: http-request
 method: GET
-url: '{{baseUrl}}/api/v1/me/guest-stays?limit=50&offset=0'
+url: '{{baseUrl}}/api/v1/me/guest-stays?limit=50&offset=0&when=upcoming'
 order: 1000
 queryParams:
   - key: limit
     value: '50'
   - key: offset
     value: '0'
+  - key: when
+    value: upcoming
 description: |-
-  Caller: resident. Stays this resident is hosting. Newest first.
+  Caller: resident. Stays this resident is hosting. Newest first. `when=upcoming` lists pending or approved stays that have not ended, soonest start first; `when=past` lists the rest, latest end first. Omit `when` for all.
