@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     push_driver: str = "mock"
     expo_access_token: str = ""
     app_secret_key: str = ""
+    # Set only by e2e/scripts/serve-api.sh. Production refuses to start with it.
+    e2e_scratch: bool = False
     # Local `python -m app.dev_seed` only.
     bsj_seed_password: str = ""
     bsj_seed_password_gate: str = ""
@@ -37,6 +39,13 @@ class Settings(BaseSettings):
     bsj_seed_password_suspended: str = ""
     bsj_seed_password_warden: str = ""
     bsj_seed_password_provost: str = ""
+
+    def reject_e2e_scratch(self) -> None:
+        if self.environment == "production" and self.e2e_scratch:
+            raise RuntimeError(
+                "E2E_SCRATCH must not be set when ENVIRONMENT is production. "
+                "Refusing to start."
+            )
 
     def reject_unsafe_sms(self) -> None:
         if self.sms_driver not in {"mock", "dlt"}:
@@ -122,6 +131,7 @@ def get_settings() -> Settings:
     settings = Settings()
     if settings.docs_enabled is None:
         settings.docs_enabled = settings.environment != "production"
+    settings.reject_e2e_scratch()
     settings.reject_unsafe_sms()
     settings.reject_unsafe_push()
     settings.reject_missing_secret()

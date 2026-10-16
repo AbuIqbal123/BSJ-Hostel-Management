@@ -89,7 +89,11 @@ paths:
       tags: [Operations]
       operationId: health
       summary: Process health
-      description: Reports that the API process is up. It does not check the database.
+      description: |
+        Reports that the API process is up. It does not check the database.
+        `e2e_scratch` is present and true only when this process was started
+        with `E2E_SCRATCH=1` by the throwaway end-to-end server. Production
+        refuses to start when that variable is set.
       security: []
       responses:
         "200":
@@ -3694,6 +3698,12 @@ components:
         status:
           type: string
           enum: [ok]
+        e2e_scratch:
+          type: boolean
+          enum: [true]
+          description: |
+            Present only on the throwaway end-to-end server (`E2E_SCRATCH=1`).
+            Production refuses to start with that variable set.
     Ready:
       type: object
       additionalProperties: false

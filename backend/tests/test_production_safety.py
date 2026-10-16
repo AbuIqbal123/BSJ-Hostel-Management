@@ -130,6 +130,7 @@ def test_production_boot_refuses_each_unsafe_setting(
             "TURSO_AUTH_TOKEN",
         ),
         ("wildcard-cors", {"CORS_ORIGINS": "*"}, "wildcard"),
+        ("e2e-scratch", {"E2E_SCRATCH": "1"}, "E2E_SCRATCH"),
     )
     for name, overrides, match in cases:
         monkeypatch.setenv("ENVIRONMENT", "production")
@@ -142,6 +143,7 @@ def test_production_boot_refuses_each_unsafe_setting(
         monkeypatch.delenv("TURSO_DATABASE_URL", raising=False)
         monkeypatch.delenv("TURSO_AUTH_TOKEN", raising=False)
         monkeypatch.delenv("DOCS_ENABLED", raising=False)
+        monkeypatch.delenv("E2E_SCRATCH", raising=False)
         for key, value in overrides.items():
             if value is None:
                 monkeypatch.delenv(key, raising=False)

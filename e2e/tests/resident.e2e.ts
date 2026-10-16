@@ -1,10 +1,14 @@
-import { beforeEach, describe, test } from '@e2e-dev/mobile';
+import { afterAll, beforeEach, describe, test } from '@e2e-dev/mobile';
 import { credentials, expect, secrets, type Screen } from 'e2e';
 
 import { freshLaunch, ordinaryOuting, signIn, signInWith, tab } from '../support/flows.ts';
-import { holdHallDatabase, seedGuestTabs, seedHistoryPages } from '../support/hall.ts';
+import { holdHallDatabase, removeSeededHall, seedGuestTabs, seedHistoryPages } from '../support/hall.ts';
 
 describe('resident', { tags: ['resident'] }, () => {
+  afterAll(async () => {
+    await removeSeededHall();
+  });
+
   beforeEach(async ({ app, device, screen }) => {
     await freshLaunch(app, device, screen);
     await signIn(screen, 'resident');

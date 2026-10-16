@@ -14,7 +14,7 @@ if [ ! -x "$state/venv/bin/uvicorn" ]; then
   "$state/venv/bin/pip" install -q -r "$backend/requirements.txt"
 fi
 rm -f "$state"/hostel.db*
-export ENVIRONMENT=development SMS_DRIVER=mock DATABASE_PATH="$state/hostel.db"
+export ENVIRONMENT=development SMS_DRIVER=mock E2E_SCRATCH=1 DATABASE_PATH="$state/hostel.db"
 APP_SECRET_KEY="$(head -c 48 /dev/urandom | base64)"
 export APP_SECRET_KEY
 cd "$backend"
