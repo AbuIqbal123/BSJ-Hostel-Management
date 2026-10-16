@@ -30,6 +30,25 @@ export function shouldRequestNext(loaded: number, total: number, busy: boolean, 
   return hasMore(loaded, total) && !busy && !pageFailed;
 }
 
+/**
+ * A filtered tab can be shorter than the screen, so the scroll never reaches the next page.
+ * Keep loading until the list can scroll, it ends, a page fails, or a page adds nothing.
+ */
+export function shouldKeepPaging(
+  loaded: number,
+  total: number,
+  busy: boolean,
+  pageFailed: boolean,
+  contentHeight: number,
+  viewportHeight: number,
+  stalled: boolean,
+): boolean {
+  if (stalled || viewportHeight <= 0 || contentHeight <= 0 || contentHeight > viewportHeight) {
+    return false;
+  }
+  return shouldRequestNext(loaded, total, busy, pageFailed);
+}
+
 export type Listed<T> = {
   rows: T[] | null;
   total: number;

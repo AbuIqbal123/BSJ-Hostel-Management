@@ -254,6 +254,31 @@ def _block_labels(client: TestClient, name: str) -> set[str]:
     return {room["label"] for room in block["rooms"]}
 
 
+def test_onboard_options_are_closed_with_signup(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.main import app
+    from app.shared.config import get_settings
+
+    message = "Ask the hall office to create your account."
+    monkeypatch.setenv("ONBOARD_ENABLED", "false")
+    get_settings.cache_clear()
+    try:
+        with TestClient(app) as client:
+            closed = client.get("/api/v1/auth/onboard/options")
+            assert_error(closed, 403, "onboard_closed", message)
+            assert "Block-A" not in closed.text
+            assert "rooms" not in closed.text
+    finally:
+        monkeypatch.setenv("ONBOARD_ENABLED", "true")
+        get_settings.cache_clear()
+
+    with TestClient(app) as client:
+        opened = client.get("/api/v1/auth/onboard/options")
+        assert opened.status_code == 200
+        assert any(block["name"] == "Block-A" and block["rooms"] for block in opened.json())
+
+
 def test_onboard_options_follow_bed_count(database_path: Path) -> None:
     from app.main import app
 

@@ -757,13 +757,15 @@ Each block is `id` and `name` only. Each room is `id` and `label` only.
 Rooms inside a block are ordered by door number. This is not the
 provost block or room record.
 
+When `ONBOARD_ENABLED` is false, this call returns 403 `onboard_closed`
+and does not list rooms. The message asks her to go to the hall office.
 Rate-limited like sign-in.
 
 **Responses**
 
 #### 200
 
-Blocks and rooms the onboard form may offer.
+Blocks and rooms the onboard form may offer. Public signup is on.
 
 Body: list of [OnboardBlockOption](#schema-onboardblockoption).
 
@@ -809,6 +811,24 @@ No fields.
     ]
   }
 ]
+```
+
+#### 403
+
+Public signup is off. The message asks her to go to the hall office
+and does not list rooms. Code `onboard_closed`.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+**Example**
+
+```json
+{
+  "error": {
+    "code": "onboard_closed",
+    "message": "Ask the hall office to create your account."
+  }
+}
 ```
 
 #### 429

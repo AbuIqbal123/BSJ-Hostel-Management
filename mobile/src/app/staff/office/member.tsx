@@ -3,7 +3,9 @@ import { Alert, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 
 import { HallButton } from "@/components/hall-button";
+import { ListError } from "@/components/list-state";
 import { ChoiceLine, OfficeError, OfficeFrame, replyError } from "@/components/office-frame";
+import { SkeletonRows } from "@/components/skeleton";
 import { TextField } from "@/components/text-field";
 import { RESET_CONFIRM, passwordBody, readPage, readStaffAccount, staffCreate, staffPatch, type OfficeStaff, type StaffDraft } from "@/office";
 import { PASSWORD_RULES } from "@/password-rules";
@@ -40,6 +42,7 @@ export default function OfficeMember() {
   const [reset, setReset] = useState("");
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState<"save" | "reset" | null>(null);
 
   const fill = (key: "fullName" | "username" | "jobTitle" | "temporaryPassword") => (value: string) => {
@@ -51,10 +54,11 @@ export default function OfficeMember() {
     if (!id) {
       return;
     }
+    setLoadError(null);
     void staffRequest("/admin/staff?limit=50&offset=0").then(async (reply) => {
       const first = reply.ok ? readPage(reply.data, readStaffAccount) : null;
       if (!first) {
-        setError(replyError(reply) ?? "This account didn't load");
+        setLoadError(replyError(reply) ?? "This account didn't load");
         return;
       }
       let found = first.items.find((item) => item.id === id) ?? null;
@@ -63,7 +67,7 @@ export default function OfficeMember() {
         const nextReply = await staffRequest(`/admin/staff?limit=50&offset=${offset}`);
         const next = nextReply.ok ? readPage(nextReply.data, readStaffAccount) : null;
         if (!next) {
-          setError(replyError(nextReply) ?? "This account didn't load");
+          setLoadError(replyError(nextReply) ?? "This account didn't load");
           return;
         }
         found = next.items.find((item) => item.id === id) ?? null;
@@ -73,9 +77,10 @@ export default function OfficeMember() {
         }
       }
       if (!found) {
-        setError("This account didn't load");
+        setLoadError("This account didn't load");
         return;
       }
+      setLoadError(null);
       setAccount(found);
       setDraft(fromAccount(found));
     });
@@ -153,6 +158,14 @@ export default function OfficeMember() {
       },
     ]);
   };
+
+  if (id && !account) {
+    return (
+      <OfficeFrame title="Staff">
+        {loadError ? <ListError message={loadError} onRetry={load} /> : <SkeletonRows count={4} kind="row" />}
+      </OfficeFrame>
+    );
+  }
 
   return (
     <OfficeFrame title={account?.fullName ?? "New staff"}>

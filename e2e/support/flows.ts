@@ -19,6 +19,12 @@ export async function signIn(screen: Screen, who: Who) {
   await screen.getByRole('button', 'Sign in').tap();
 }
 
+/**
+ * Ordinary hours end at 6:30 PM in summer and 5:30 PM in winter.
+ * 10:00 AM to 4:00 PM is inside both, so the plan does not depend on the date.
+ */
+export const ordinaryOuting = { leave: "10:00 AM", back: "4:00 PM" };
+
 /** Tabs carry `tab-<route>` test ids (resident: home, pass, permissions, settings; staff: index, scan, requests, settings). */
 export function tab(screen: Screen, route: string) {
   return screen.getByTestId(`tab-${route}`);

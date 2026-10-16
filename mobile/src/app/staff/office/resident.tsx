@@ -4,6 +4,7 @@ import { useLocalSearchParams } from "expo-router";
 
 import { DenseRow } from "@/components/dense-row";
 import { HallButton } from "@/components/hall-button";
+import { ListError } from "@/components/list-state";
 import { ChoiceLine, OfficeError, OfficeFrame, replyError } from "@/components/office-frame";
 import { SearchField } from "@/components/search-field";
 import { TextField } from "@/components/text-field";
@@ -65,6 +66,7 @@ export default function OfficeResident() {
   const [reset, setReset] = useState("");
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [roomsError, setRoomsError] = useState<string | null>(null);
   const [busy, setBusy] = useState<"save" | "reissue" | "reset" | null>(null);
 
   const fill = (key: keyof ResidentDraft) => (value: string) => {
@@ -76,9 +78,12 @@ export default function OfficeResident() {
   const loadRooms = useCallback(() => {
     void staffRequest("/admin/rooms").then((reply) => {
       const next = reply.ok ? readRooms(reply.data) : null;
-      if (next) {
-        setRooms(next);
+      if (!next) {
+        setRoomsError(replyError(reply) ?? "Rooms didn't load");
+        return;
       }
+      setRooms(next);
+      setRoomsError(null);
     });
   }, [staffRequest]);
 
@@ -241,6 +246,7 @@ export default function OfficeResident() {
       <TextField label="Guardian" value={draft.guardianName} onChangeText={fill("guardianName")} autoCapitalize="sentences" maxLength={120} />
       <TextField label="Guardian phone" value={draft.guardianPhone} onChangeText={fill("guardianPhone")} maxLength={16} />
       <SearchField value={roomQuery} placeholder="Room" onChange={setRoomQuery} />
+      {roomsError ? <ListError message={roomsError} onRetry={loadRooms} /> : null}
       <View>
         {roomChoices.map((room, index, all) => (
           <DenseRow

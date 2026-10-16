@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyState, ListError, RetryRow } from "@/components/list-state";
 import { SkeletonRows } from "@/components/skeleton";
 import { formatHallDate, formatWhenParts } from "@/format-when";
-import { acceptFailure, acceptPage, olderAvailable, shouldRequestNext, type Listed } from "@/list-page";
+import { acceptFailure, acceptPage, olderAvailable, shouldKeepPaging, shouldRequestNext, type Listed } from "@/list-page";
 import { guestLine, kindLabel, statusSentence, statusTone } from "@/requests";
 import { useSession, type GuestStayCard, type HallPermission, type PermissionKind } from "@/session";
 import { useHallColors } from "@/theme/colors";
@@ -165,6 +165,9 @@ export default function PermissionsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [paging, setPaging] = useState(false);
   const pagingRef = useRef(false);
+  const stallRef = useRef<number | null>(null);
+  const [contentH, setContentH] = useState(0);
+  const [viewH, setViewH] = useState(0);
   const loadPermissionsRef = useRef(loadPermissions);
   const loadGuestStaysRef = useRef(loadGuestStays);
   loadPermissionsRef.current = loadPermissions;
@@ -174,6 +177,7 @@ export default function PermissionsScreen() {
 
   const load = useCallback(() => {
     let active = true;
+    stallRef.current = null;
     void loadPermissionsRef.current(0).then((result) => {
       if (!active) {
         return;
@@ -219,6 +223,7 @@ export default function PermissionsScreen() {
         done();
       });
     }
+    stallRef.current = null;
     void loadPermissionsRef.current(0).then((result) => {
       setPermissions((state) =>
         result.error !== null
@@ -267,18 +272,47 @@ export default function PermissionsScreen() {
     if (force && offset >= permissions.total) {
       return;
     }
+    if (force) {
+      stallRef.current = null;
+    }
     pagingRef.current = true;
     setPaging(true);
     void loadPermissionsRef.current(offset).then((result) => {
       pagingRef.current = false;
       setPaging(false);
-      setPermissions((state) =>
-        result.error !== null
-          ? acceptFailure(state, offset, result.error)
-          : acceptPage(state, offset, result.items, result.total, (item) => item.id),
-      );
+      setPermissions((state) => {
+        if (result.error !== null) {
+          return acceptFailure(state, offset, result.error);
+        }
+        const before = state.rows?.length ?? 0;
+        const next = acceptPage(state, offset, result.items, result.total, (item) => item.id);
+        const after = next.rows?.length ?? 0;
+        if (offset > 0 && after <= before) {
+          stallRef.current = offset;
+        } else if (offset === 0 && after === 0 && result.total > 0) {
+          stallRef.current = 0;
+        }
+        return next;
+      });
     });
   };
+
+  const stalled = stallRef.current === loadedCount;
+  const keepPaging = tab !== "guest" && shouldKeepPaging(
+    loadedCount,
+    permissions.total,
+    paging,
+    permissions.pageError !== null,
+    contentH,
+    viewH,
+    stalled,
+  );
+
+  useEffect(() => {
+    if (tab !== "guest" && keepPaging) {
+      more();
+    }
+  });
 
   // Older stays load only when she asks, so the tab opens on what is still ahead.
   const showOlder = () => {
@@ -309,6 +343,8 @@ export default function PermissionsScreen() {
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.inkFaint} />}
       scrollEventThrottle={200}
+      onLayout={(event) => setViewH(event.nativeEvent.layout.height)}
+      onContentSizeChange={(_width, height) => setContentH(height)}
       onScroll={(event) => {
         const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
         if (tab !== "guest" && contentSize.height - (contentOffset.y + layoutMeasurement.height) < 280) {
@@ -384,7 +420,7 @@ export default function PermissionsScreen() {
           </View>
         </View>
       ) : null}
-      {!waiting && !firstFailure && shownPermissions.length === 0 && shownStays.length === 0 && (tab === "guest" || !shouldRequestNext(loadedCount, active.total, paging, active.pageError !== null)) ? (
+      {!waiting && !firstFailure && !keepPaging && shownPermissions.length === 0 && shownStays.length === 0 && (tab === "guest" || stalled || !shouldRequestNext(loadedCount, active.total, paging, active.pageError !== null)) ? (
         <EmptyState
           message={emptyCopy}
           actionLabel={emptyAction}

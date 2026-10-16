@@ -1,7 +1,7 @@
 import { beforeEach, describe, test } from '@e2e-dev/mobile';
 import { credentials, expect, secrets } from 'e2e';
 
-import { freshLaunch, signIn, tab } from '../support/flows.ts';
+import { freshLaunch, ordinaryOuting, signIn, tab } from '../support/flows.ts';
 
 describe('resident', { tags: ['resident'] }, () => {
   beforeEach(async ({ app, device, screen }) => {
@@ -34,7 +34,7 @@ describe('resident', { tags: ['resident'] }, () => {
     await screen.getByText('Choose a place').tap();
     await screen.getByRole('button', 'Maulana Azad Library').tap();
     // The iOS date and time chips open the system picker; the agent sets them, the cache replays it.
-    await agent.act('In Plan an outing, set Leave at to tomorrow at 10:00 AM and Back by to tomorrow at 6:00 PM, then close any open picker');
+    await agent.act(`In Plan an outing, set Leave at to tomorrow at ${ordinaryOuting.leave} and Back by to tomorrow at ${ordinaryOuting.back}, then close any open picker`);
     await expect(screen.getByRole('button', 'Confirm')).toBeEnabled();
     await screen.getByRole('button', 'Confirm').tap();
     await expect(screen.getByText('Upcoming outings')).toBeVisible({ timeout: 15_000 });

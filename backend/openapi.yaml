@@ -460,11 +460,13 @@ paths:
         Rooms inside a block are ordered by door number. This is not the
         provost block or room record.
 
+        When `ONBOARD_ENABLED` is false, this call returns 403 `onboard_closed`
+        and does not list rooms. The message asks her to go to the hall office.
         Rate-limited like sign-in.
       security: []
       responses:
         "200":
-          description: Blocks and rooms the onboard form may offer.
+          description: Blocks and rooms the onboard form may offer. Public signup is on.
           content:
             application/json:
               schema:
@@ -490,6 +492,18 @@ paths:
                   rooms:
                     - id: df9f29b7-4c46-5373-9de0-36cfcf8b9338
                       label: D-40
+        "403":
+          description: |
+            Public signup is off. The message asks her to go to the hall office
+            and does not list rooms. Code `onboard_closed`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: onboard_closed
+                  message: Ask the hall office to create your account.
         "429":
           description: |
             Too many onboard-options attempts from this client in a short window.

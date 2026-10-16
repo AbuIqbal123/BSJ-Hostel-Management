@@ -7,6 +7,7 @@ import {
   mergeById,
   olderAvailable,
   placeholderMotion,
+  shouldKeepPaging,
   shouldRequestNext,
   type Listed,
 } from "@/list-page";
@@ -59,5 +60,15 @@ describe("list pages", () => {
     expect(olderAvailable(acceptFailure(first, 1, "The hall could not be reached"))).toBe(false);
     expect(olderAvailable(acceptPage(first, 1, [{ id: "b" }], 2, idOf))).toBe(false);
     expect(olderAvailable(acceptPage(empty, 0, [], 0, idOf))).toBe(false);
+  });
+
+  it("keeps asking for the next page while a short list cannot scroll", () => {
+    expect(shouldKeepPaging(3, 90, false, false, 200, 800, false)).toBe(true);
+    expect(shouldKeepPaging(3, 90, false, false, 900, 800, false)).toBe(false);
+    expect(shouldKeepPaging(90, 90, false, false, 200, 800, false)).toBe(false);
+    expect(shouldKeepPaging(3, 90, true, false, 200, 800, false)).toBe(false);
+    expect(shouldKeepPaging(3, 90, false, true, 200, 800, false)).toBe(false);
+    expect(shouldKeepPaging(3, 90, false, false, 200, 800, true)).toBe(false);
+    expect(shouldKeepPaging(3, 90, false, false, 0, 0, false)).toBe(false);
   });
 });
