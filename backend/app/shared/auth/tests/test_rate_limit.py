@@ -69,6 +69,8 @@ def test_forwarded_clients_do_not_share_a_limit(
             headers=first,
         )
         assert refused.status_code == 401
+    # The bucket is the last hop only. The earlier address never opens its own.
+    assert set(login_limiter._hits) == {"203.0.113.10"}
     blocked = proxy.post(
         "/api/v1/auth/login",
         json=_login_body("gate.fatima", role_credential("wrong")),

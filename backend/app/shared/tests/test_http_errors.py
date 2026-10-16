@@ -70,6 +70,7 @@ def test_http_errors_share_one_shape(database_path, monkeypatch: pytest.MonkeyPa
 
         monkeypatch.setenv("ENVIRONMENT", "production")
         monkeypatch.setenv("APP_SECRET_KEY", "production-test-signing-key-0123456789ab")
+        monkeypatch.setenv("SMS_DRIVER", "dlt")
         monkeypatch.setenv("DEBUG", "false")
         monkeypatch.setenv("CORS_ORIGINS", "")
         get_settings.cache_clear()

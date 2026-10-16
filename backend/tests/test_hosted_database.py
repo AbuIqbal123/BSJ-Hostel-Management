@@ -29,7 +29,7 @@ def hosted_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path
     database = tmp_path / "must-not-exist" / "hostel.db"
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.setenv("RENDER", "true")
-    monkeypatch.setenv("SMS_DRIVER", "mock")
+    monkeypatch.setenv("SMS_DRIVER", "dlt")
     monkeypatch.setenv("DEBUG", "false")
     monkeypatch.setenv("CORS_ORIGINS", "")
     monkeypatch.setenv("APP_SECRET_KEY", production_signing_key_for_tests())
@@ -128,7 +128,7 @@ def test_a_laptop_ignores_turso_and_opens_the_file(
     monkeypatch.setenv("DATABASE_PATH", str(database))
     monkeypatch.setenv("TURSO_DATABASE_URL", TURSO_URL)
     monkeypatch.setenv("TURSO_AUTH_TOKEN", TURSO_TOKEN)
-    monkeypatch.setenv("SMS_DRIVER", "mock")
+    monkeypatch.setenv("SMS_DRIVER", "dlt")
     monkeypatch.setenv("DEBUG", "false")
     monkeypatch.setenv("CORS_ORIGINS", "")
     monkeypatch.setenv("APP_SECRET_KEY", production_signing_key_for_tests())

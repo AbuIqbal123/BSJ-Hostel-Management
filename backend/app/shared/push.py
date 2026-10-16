@@ -15,12 +15,12 @@ from dataclasses import dataclass, field
 
 import httpx
 
+from app.shared.auth.roles import REGISTER
 from app.shared.config import get_settings
 
 EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
 TIMEOUT_SECONDS = 5.0
 CHUNK = 100
-STAFF_ROLES = ("warden", "provost")
 
 log = logging.getLogger("bsj.push")
 
@@ -75,9 +75,9 @@ def _messages(connection, job: PushJob) -> list[dict]:
             f"""
             SELECT push_tokens.token, users.id AS user_id, users.role
             FROM push_tokens JOIN users ON users.id = push_tokens.user_id
-            WHERE users.status = 'active' AND users.role IN ({",".join("?" * len(STAFF_ROLES))})
+            WHERE users.status = 'active' AND users.role IN ({",".join("?" * len(REGISTER))})
             """,
-            STAFF_ROLES,
+            tuple(sorted(REGISTER)),
         ).fetchall()
     else:
         rows = connection.execute(

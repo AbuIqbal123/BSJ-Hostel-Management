@@ -46,6 +46,11 @@ class Settings(BaseSettings):
                 "SMS_DRIVER must be mock when ENVIRONMENT is not production. "
                 "Refusing to start so this process cannot send parent SMS."
             )
+        if self.environment == "production" and self.sms_driver == "mock":
+            raise RuntimeError(
+                "SMS_DRIVER must not be mock when ENVIRONMENT is production. "
+                "Refusing to start so parent notices are not only recorded."
+            )
 
     def reject_unsafe_push(self) -> None:
         if self.push_driver not in {"mock", "expo"}:

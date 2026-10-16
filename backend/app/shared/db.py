@@ -22,9 +22,15 @@ from fastapi import Request
 
 from app.shared.config import Settings, get_settings, is_hosted
 
-# Plain SQLite (laptop) and Turso (Render) raise different IntegrityError classes,
-# and Turso's is not a subclass of sqlite3's. Catch this tuple, never one of them.
+# Plain SQLite (laptop) and Turso (Render) raise different error classes,
+# and Turso's are not subclasses of sqlite3's. Catch these tuples, never one class.
 INTEGRITY_ERRORS = (sqlite3.IntegrityError, turso_serverless.IntegrityError)
+DB_ERRORS = (
+    sqlite3.OperationalError,
+    sqlite3.DatabaseError,
+    turso_serverless.OperationalError,
+    turso_serverless.DatabaseError,
+)
 
 
 def _named_row(cursor: object, row: object) -> object:

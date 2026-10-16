@@ -25,6 +25,7 @@ def test_production_hides_docs_unless_enabled(
         assert client.get("/docs").status_code == 200
         monkeypatch.setenv("ENVIRONMENT", "production")
         monkeypatch.setenv("APP_SECRET_KEY", production_signing_key_for_tests())
+        monkeypatch.setenv("SMS_DRIVER", "dlt")
         monkeypatch.setenv("DEBUG", "false")
         monkeypatch.setenv("CORS_ORIGINS", "")
         monkeypatch.delenv("DOCS_ENABLED", raising=False)
@@ -61,6 +62,7 @@ def test_startup_refuses_unsafe_production(monkeypatch: pytest.MonkeyPatch, tmp_
         get_settings()
 
     monkeypatch.setenv("TURSO_TIMEOUT_SECONDS", "5")
+    monkeypatch.setenv("SMS_DRIVER", "dlt")
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.setenv("APP_SECRET_KEY", signing_key_for_tests())
     _clear()
@@ -94,16 +96,62 @@ def test_startup_refuses_unsafe_production(monkeypatch: pytest.MonkeyPatch, tmp_
 
     monkeypatch.delenv("RENDER", raising=False)
     monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("SMS_DRIVER", "mock")
     monkeypatch.setenv("APP_SECRET_KEY", signing_key_for_tests())
     monkeypatch.setenv("DATABASE_PATH", str(tmp_path / "hostel.db"))
     _clear()
     settings = get_settings()
     assert settings.docs_enabled is True
     monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("SMS_DRIVER", "dlt")
     monkeypatch.setenv("APP_SECRET_KEY", production_signing_key_for_tests())
     monkeypatch.delenv("DATABASE_PATH", raising=False)
     _clear()
     assert get_settings().docs_enabled is False
+
+
+def test_production_boot_refuses_each_unsafe_setting(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Starting the process, not only reading settings, refuses each unsafe production value."""
+    from app.main import app
+
+    cases = (
+        ("short", {"APP_SECRET_KEY": "too-short"}, "32 bytes"),
+        ("mock-sms", {"SMS_DRIVER": "mock"}, "must not be mock"),
+        (
+            "turso-without-token",
+            {
+                "RENDER": "true",
+                "TURSO_DATABASE_URL": "libsql://bsj-hall.turso.io",
+                "DATABASE_PATH": None,
+                "TURSO_AUTH_TOKEN": None,
+            },
+            "TURSO_AUTH_TOKEN",
+        ),
+        ("wildcard-cors", {"CORS_ORIGINS": "*"}, "wildcard"),
+    )
+    for name, overrides, match in cases:
+        monkeypatch.setenv("ENVIRONMENT", "production")
+        monkeypatch.setenv("DEBUG", "false")
+        monkeypatch.setenv("CORS_ORIGINS", "")
+        monkeypatch.setenv("SMS_DRIVER", "dlt")
+        monkeypatch.setenv("APP_SECRET_KEY", production_signing_key_for_tests())
+        monkeypatch.setenv("DATABASE_PATH", str(tmp_path / f"{name}.db"))
+        monkeypatch.delenv("RENDER", raising=False)
+        monkeypatch.delenv("TURSO_DATABASE_URL", raising=False)
+        monkeypatch.delenv("TURSO_AUTH_TOKEN", raising=False)
+        monkeypatch.delenv("DOCS_ENABLED", raising=False)
+        for key, value in overrides.items():
+            if value is None:
+                monkeypatch.delenv(key, raising=False)
+            else:
+                monkeypatch.setenv(key, value)
+        _clear()
+        with pytest.raises(RuntimeError, match=match):
+            with TestClient(app):
+                pass
+        _clear()
 
 
 def test_turso_request_uses_the_configured_timeout(monkeypatch: pytest.MonkeyPatch) -> None:

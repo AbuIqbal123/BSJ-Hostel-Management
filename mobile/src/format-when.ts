@@ -28,6 +28,11 @@ const MONTHS = [
 
 const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+/** The phone's current instant. Screens call this instead of `new Date()`. */
+export function hallNow(): Date {
+  return new Date();
+}
+
 function part(parts: Intl.DateTimeFormatPart[], type: Intl.DateTimeFormatPartTypes): string {
   return (parts.find((item) => item.type === type)?.value ?? "").replace(/\D/g, "");
 }
