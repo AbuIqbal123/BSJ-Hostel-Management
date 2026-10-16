@@ -1,6 +1,15 @@
 import { describe, expect, it } from "@jest/globals";
 
-import { acceptFailure, acceptPage, hasMore, mergeById, placeholderMotion, shouldRequestNext, type Listed } from "@/list-page";
+import {
+  acceptFailure,
+  acceptPage,
+  hasMore,
+  mergeById,
+  olderAvailable,
+  placeholderMotion,
+  shouldRequestNext,
+  type Listed,
+} from "@/list-page";
 
 const idOf = (item: { id: string }) => item.id;
 const empty: Listed<{ id: string }> = { rows: null, total: 0, error: null, pageError: null };
@@ -40,5 +49,15 @@ describe("list pages", () => {
     const refreshed = acceptFailure(ready, 0, "History didn't load");
     expect(refreshed.rows?.map(idOf)).toEqual(["a"]);
     expect(refreshed.error).toBe("History didn't load");
+  });
+
+  it("offers Show older until the older stays are all loaded, and not while one is failing", () => {
+    expect(olderAvailable(empty)).toBe(true);
+    expect(olderAvailable({ ...empty, error: "The hall could not be reached" })).toBe(false);
+    const first = acceptPage(empty, 0, [{ id: "a" }], 2, idOf);
+    expect(olderAvailable(first)).toBe(true);
+    expect(olderAvailable(acceptFailure(first, 1, "The hall could not be reached"))).toBe(false);
+    expect(olderAvailable(acceptPage(first, 1, [{ id: "b" }], 2, idOf))).toBe(false);
+    expect(olderAvailable(acceptPage(empty, 0, [], 0, idOf))).toBe(false);
   });
 });

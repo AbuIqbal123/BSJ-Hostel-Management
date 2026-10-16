@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyState, ListError, RetryRow } from "@/components/list-state";
 import { SkeletonRows } from "@/components/skeleton";
 import { formatHallDate, formatWhenParts } from "@/format-when";
-import { acceptFailure, acceptPage, shouldRequestNext, type Listed } from "@/list-page";
+import { acceptFailure, acceptPage, olderAvailable, shouldRequestNext, type Listed } from "@/list-page";
 import { guestLine, kindLabel, statusSentence, statusTone } from "@/requests";
 import { useSession, type GuestStayCard, type HallPermission, type PermissionKind } from "@/session";
 import { useHallColors } from "@/theme/colors";
@@ -158,6 +158,9 @@ export default function PermissionsScreen() {
     pageError: null,
   });
   const [stays, setStays] = useState<Listed<GuestStayCard>>({ rows: null, total: 0, error: null, pageError: null });
+  const [older, setOlder] = useState<Listed<GuestStayCard>>({ rows: null, total: 0, error: null, pageError: null });
+  const [olderBusy, setOlderBusy] = useState(false);
+  const olderRef = useRef(false);
   const [tab, setTab] = useState<RequestTab>("late_night");
   const [refreshing, setRefreshing] = useState(false);
   const [paging, setPaging] = useState(false);
@@ -166,6 +169,8 @@ export default function PermissionsScreen() {
   const loadGuestStaysRef = useRef(loadGuestStays);
   loadPermissionsRef.current = loadPermissions;
   loadGuestStaysRef.current = loadGuestStays;
+  const olderLoadedRef = useRef(false);
+  olderLoadedRef.current = older.rows !== null;
 
   const load = useCallback(() => {
     let active = true;
@@ -179,7 +184,7 @@ export default function PermissionsScreen() {
           : acceptPage(state, 0, result.items, result.total, (item) => item.id),
       );
     });
-    void loadGuestStaysRef.current(0).then((result) => {
+    void loadGuestStaysRef.current("upcoming", 0).then((result) => {
       if (!active) {
         return;
       }
@@ -203,6 +208,17 @@ export default function PermissionsScreen() {
         setRefreshing(false);
       }
     };
+    if (olderLoadedRef.current) {
+      pending += 1;
+      void loadGuestStaysRef.current("past", 0).then((result) => {
+        setOlder((state) =>
+          result.error !== null
+            ? acceptFailure(state, 0, result.error)
+            : acceptPage(state, 0, result.items, result.total, (item) => item.id),
+        );
+        done();
+      });
+    }
     void loadPermissionsRef.current(0).then((result) => {
       setPermissions((state) =>
         result.error !== null
@@ -211,7 +227,7 @@ export default function PermissionsScreen() {
       );
       done();
     });
-    void loadGuestStaysRef.current(0).then((result) => {
+    void loadGuestStaysRef.current("upcoming", 0).then((result) => {
       setStays((state) =>
         result.error !== null
           ? acceptFailure(state, 0, result.error)
@@ -230,51 +246,57 @@ export default function PermissionsScreen() {
   const stayRows = stays.rows ?? [];
   const shownPermissions =
     tab === "guest" ? [] : soonestFirst(permissionRows.filter((item) => item.permissionType === tab));
-  const shownStays =
-    tab !== "guest" ? [] : [...stayRows].sort((left, right) => left.startDate.localeCompare(right.startDate));
+  const shownStays = tab !== "guest" ? [] : stayRows;
+  const olderRows = tab === "guest" ? (older.rows ?? []) : [];
   const active = tab === "guest" ? stays : permissions;
   const loadedCount = tab === "guest" ? stayRows.length : permissionRows.length;
   const waiting = active.rows === null && active.error === null;
   const firstFailure = active.error !== null && loadedCount === 0;
   const emptyCopy =
-    tab === "guest" ? "No guest stays" : tab === "home_going" ? "No home-going requests" : "No late-night requests";
+    tab === "guest" ? "No upcoming guests" : tab === "home_going" ? "No home-going requests" : "No late-night requests";
   const emptyAction = tab === "guest" ? "Request guest stay" : tab === "home_going" ? "Request home going" : "Request late-night";
 
   const more = (force = false) => {
-    if (pagingRef.current) {
+    if (pagingRef.current || tab === "guest") {
       return;
     }
     const offset = loadedCount;
-    if (!force && !shouldRequestNext(offset, active.total, false, active.pageError !== null)) {
+    if (!force && !shouldRequestNext(offset, permissions.total, false, permissions.pageError !== null)) {
       return;
     }
-    if (force && offset >= active.total) {
+    if (force && offset >= permissions.total) {
       return;
     }
     pagingRef.current = true;
     setPaging(true);
-    const finish = (result: { error: string } | { error: null; items: HallPermission[] | GuestStayCard[]; total: number }) => {
+    void loadPermissionsRef.current(offset).then((result) => {
       pagingRef.current = false;
       setPaging(false);
-      if (tab === "guest") {
-        setStays((state) =>
-          result.error !== null
-            ? acceptFailure(state, offset, result.error)
-            : acceptPage(state, offset, result.items as GuestStayCard[], result.total, (item) => item.id),
-        );
-        return;
-      }
       setPermissions((state) =>
         result.error !== null
           ? acceptFailure(state, offset, result.error)
-          : acceptPage(state, offset, result.items as HallPermission[], result.total, (item) => item.id),
+          : acceptPage(state, offset, result.items, result.total, (item) => item.id),
       );
-    };
-    if (tab === "guest") {
-      void loadGuestStaysRef.current(offset).then(finish);
+    });
+  };
+
+  // Older stays load only when she asks, so the tab opens on what is still ahead.
+  const showOlder = () => {
+    if (olderRef.current) {
       return;
     }
-    void loadPermissionsRef.current(offset).then(finish);
+    const offset = older.rows?.length ?? 0;
+    olderRef.current = true;
+    setOlderBusy(true);
+    void loadGuestStaysRef.current("past", offset).then((result) => {
+      olderRef.current = false;
+      setOlderBusy(false);
+      setOlder((state) =>
+        result.error !== null
+          ? acceptFailure(state, offset, result.error)
+          : acceptPage(state, offset, result.items, result.total, (item) => item.id),
+      );
+    });
   };
 
   return (
@@ -289,7 +311,7 @@ export default function PermissionsScreen() {
       scrollEventThrottle={200}
       onScroll={(event) => {
         const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-        if (contentSize.height - (contentOffset.y + layoutMeasurement.height) < 280) {
+        if (tab !== "guest" && contentSize.height - (contentOffset.y + layoutMeasurement.height) < 280) {
           more();
         }
       }}
@@ -362,7 +384,7 @@ export default function PermissionsScreen() {
           </View>
         </View>
       ) : null}
-      {!waiting && !firstFailure && shownPermissions.length === 0 && shownStays.length === 0 && !shouldRequestNext(loadedCount, active.total, paging, active.pageError !== null) ? (
+      {!waiting && !firstFailure && shownPermissions.length === 0 && shownStays.length === 0 && (tab === "guest" || !shouldRequestNext(loadedCount, active.total, paging, active.pageError !== null)) ? (
         <EmptyState
           message={emptyCopy}
           actionLabel={emptyAction}
@@ -375,9 +397,38 @@ export default function PermissionsScreen() {
           }}
         />
       ) : null}
-      {paging ? <SkeletonRows count={1} kind="card" /> : null}
-      {active.pageError ? (
-        <RetryRow message={active.pageError} onRetry={() => more(true)} />
+      {tab === "guest" && olderRows.length > 0 ? (
+        <View style={[styles.requests, { borderTopColor: colors.line }]}>
+          <Text style={[text.button, { color: colors.ink }]}>Older</Text>
+          <View style={styles.list}>
+            {olderRows.map((item) => (
+              <GuestStayRow key={item.id} item={item} />
+            ))}
+          </View>
+        </View>
+      ) : null}
+      {tab === "guest" && stays.rows !== null && older.error !== null && older.rows === null ? (
+        <ListError message="Older guest stays didn't load" onRetry={showOlder} />
+      ) : null}
+      {tab === "guest" && older.rows !== null && older.error !== null ? (
+        <ListError message={older.error} onRetry={showOlder} />
+      ) : null}
+      {tab === "guest" && olderBusy ? <SkeletonRows count={1} kind="card" /> : null}
+      {tab === "guest" && older.pageError ? <RetryRow message={older.pageError} onRetry={showOlder} /> : null}
+      {tab === "guest" && stays.rows !== null && !olderBusy && olderAvailable(older) ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Show older"
+          onPress={showOlder}
+          hitSlop={12}
+          style={styles.older}
+        >
+          <Text style={[text.button, { color: colors.forest }]}>Show older</Text>
+        </Pressable>
+      ) : null}
+      {tab !== "guest" && paging ? <SkeletonRows count={1} kind="card" /> : null}
+      {tab !== "guest" && permissions.pageError ? (
+        <RetryRow message={permissions.pageError} onRetry={() => more(true)} />
       ) : null}
     </ScrollView>
   );
@@ -441,4 +492,5 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   pressed: { opacity: 0.6 },
+  older: { alignSelf: "center", minHeight: 44, justifyContent: "center" },
 });

@@ -63,3 +63,11 @@ export function acceptFailure<T>(state: Listed<T>, offset: number, message: stri
   }
   return { ...state, pageError: message };
 }
+
+/** Whether a "Show older" button belongs under a list that loads only on request. */
+export function olderAvailable<T>(state: Listed<T>): boolean {
+  if (state.rows === null) {
+    return state.error === null;
+  }
+  return hasMore(state.rows.length, state.total) && state.pageError === null;
+}
