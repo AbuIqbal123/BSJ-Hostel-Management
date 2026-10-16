@@ -52,3 +52,5 @@ jobs:
         run: npx tsc --noEmit
       - name: Tests
         run: npm test -- --ci
+      - name: Expo doctor
+        run: npx expo-doctor
