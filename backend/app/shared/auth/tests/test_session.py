@@ -110,7 +110,9 @@ def issue_accounts(path: Path) -> None:
 def assert_error(response, status: int, code: str, message: str, field: str | None = None) -> None:
     assert response.status_code == status
     body = response.json()
-    assert set(body) == {"error"}
+    assert set(body) == {"detail", "error"}
+    assert body["detail"] == body["error"]["message"]
+    assert isinstance(body["error"].get("request_id"), str) and body["error"]["request_id"]
     error = body["error"]
     assert error["code"] == code
     assert error["message"] == message

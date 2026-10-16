@@ -717,10 +717,11 @@ in that order. Utility and any other non-resident block are never
 included. A block stays in the list even when every room is taken; its
 `rooms` array may be empty.
 
-Each room entry comes from a stored room row. Only active rooms with no
-resident assigned are listed. A room that already has a resident is
-omitted, even when a bed remains. Inactive rooms are omitted. The
-response does not invent room rows.
+Each room entry comes from a stored room row. Only active rooms with a
+free bed are listed: the resident count is below `rooms.bed_count`, the
+same check signup uses. A 2-bed room with one resident stays listed. A
+room with no free bed is omitted. Inactive rooms are omitted. The
+response does not invent room rows. There is no paging.
 
 Each block is `id` and `name` only. Each room is `id` and `label` only.
 Rooms inside a block are ordered by door number. This is not the
@@ -5388,7 +5389,8 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** provost. Bearer access token.
 
-Caller: provost.
+Caller: provost. The response is the room array itself. There is no
+paging, because the phone picker reads the whole list.
 
 **Parameters**
 
@@ -6071,6 +6073,7 @@ Each JSON object used above. An operation section already shows the fields for i
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
+| `detail` | yes | string | The same sentence as `error.message`. Kept so a client that still reads `detail` does not break. |
 | `error` | yes | [Error](#schema-error) |  |
 
 ### <a id="schema-error"></a>Error
@@ -6079,6 +6082,7 @@ Each JSON object used above. An operation section already shows the fields for i
 |---|---|---|---|
 | `code` | yes | string | Stable machine code. Known codes: `unauthenticated`, `rate_limited`, `not_ready`, `forbidden`, `not_found`, `validation_error`, `duplicate_username`, `duplicate_block`, `duplicate_room`, `duplicate_destination`, `room_in_use`, `room_inactive`, `other_exists`, `already_outside`, `return_already_planned`, `open_outing_exists`, `outside_ordinary_hours`, `permission_required`, `no_outing_planned`, `permission_not_yet_valid`, `outing_not_yet_open`, `permission_overlap`, `duplicate_scan`, `resident_suspended`, `unknown_hall_pass`, `not_pending`, `permission_in_use`, `not_cancellable`, `not_editable`, `guest_not_expected`, `guest_not_in_hall`, `payment_required`, `payment_locked`, `account_in_use`. |
 | `message` | yes | string | Sentence the phone can show. Not a stack trace. |
+| `request_id` | no | string | The X-Request-ID echoed on this response. Always present. The same value is on the response header. |
 | `details` | no | object |  |
 
 ### <a id="schema-listmeta"></a>ListMeta
@@ -6143,7 +6147,7 @@ Each JSON object used above. An operation section already shows the fields for i
 |---|---|---|---|
 | `id` | yes | uuid |  |
 | `name` | yes | string |  |
-| `rooms` | yes | list of [OnboardRoomOption](#schema-onboardroomoption) | Active unassigned rooms in this block. May be empty when every room is taken or inactive. |
+| `rooms` | yes | list of [OnboardRoomOption](#schema-onboardroomoption) | Active rooms in this block that still have a free bed. May be empty when every room is full or inactive. |
 
 ### <a id="schema-onboardroomoption"></a>OnboardRoomOption
 

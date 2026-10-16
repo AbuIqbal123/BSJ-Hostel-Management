@@ -46,8 +46,11 @@ class FrozenClock:
 def assert_error(response, status: int, code: str, message: str) -> None:
     assert response.status_code == status
     body = response.json()
-    assert set(body) == {"error"}
-    assert body["error"] == {"code": code, "message": message}
+    assert set(body) == {"detail", "error"}
+    assert body["detail"] == body["error"]["message"]
+    assert isinstance(body["error"].get("request_id"), str) and body["error"]["request_id"]
+    assert {key: value for key, value in body["error"].items() if key != "request_id"} == {"code": code, "message": message}
+    assert isinstance(body["error"].get("request_id"), str) and body["error"]["request_id"]
 
 
 def sign_in(client: TestClient, username: str, password: str) -> str:

@@ -993,6 +993,10 @@
       "name": "Block-B",
       "rooms": [
         {
+          "id": "b9d8a3e2-9c67-50e2-a1a4-8f241f823ab1",
+          "label": "B-1"
+        },
+        {
           "id": "54fd29d4-3738-5e3f-bd7c-33bba2afe41c",
           "label": "B-2"
         },
