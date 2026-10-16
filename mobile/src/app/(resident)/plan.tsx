@@ -267,7 +267,7 @@ export default function PlanScreen() {
         <BackMark color={colors.inkSoft} />
       </Pressable>
       {loadError ? (
-        <Text
+        <Text accessibilityLiveRegion="polite"
           selectable
           style={[
             text.error,
@@ -354,7 +354,7 @@ export default function PlanScreen() {
               <Text style={[text.button, { color: colors.danger }]}>Cancel outing</Text>
             </Pressable>
             {error ? (
-              <Text
+              <Text accessibilityLiveRegion="polite"
                 selectable
                 style={[
                   text.error,

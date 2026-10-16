@@ -100,7 +100,7 @@ export function ReviewSheet({ title, subtitle, facts, error, busy, onDecide, onC
             </View>
           ))}
         </View>
-        {error ? <Text style={[text.error, { color: colors.danger }]}>{error}</Text> : null}
+        {error ? <Text accessibilityLiveRegion="polite" style={[text.error, { color: colors.danger }]}>{error}</Text> : null}
         {actions}
       </View>
     </Modal>

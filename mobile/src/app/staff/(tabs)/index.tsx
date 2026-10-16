@@ -149,7 +149,7 @@ export default function StaffHomeScreen() {
       ) : null}
       <View style={[styles.section, { borderTopColor: colors.line }]}>
         <SectionHead title="Recent at the gate" />
-        {error ? <Text style={[text.error, { color: colors.danger }]}>{error}</Text> : null}
+        {error ? <Text accessibilityLiveRegion="polite" style={[text.error, { color: colors.danger }]}>{error}</Text> : null}
         {activity && activity.length === 0 ? (
           <Text style={[text.body, { color: colors.inkSoft }]}>No one has passed the gate yet</Text>
         ) : null}

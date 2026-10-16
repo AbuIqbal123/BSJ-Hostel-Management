@@ -26,6 +26,8 @@ const MONTHS = [
   "December",
 ];
 
+const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
 function part(parts: Intl.DateTimeFormatPart[], type: Intl.DateTimeFormatPartTypes): string {
   return (parts.find((item) => item.type === type)?.value ?? "").replace(/\D/g, "");
 }
@@ -72,6 +74,20 @@ export function formatWhen(iso: string): string {
 
 export function formatWhenParts(iso: string): { day: string; clock: string } | null {
   return whenPieces(iso);
+}
+
+/** Date chip: `05 Oct 2026` on the hall clock. */
+export function formatChipDay(date: Date): string {
+  const pieces = whenPieces(date.toISOString());
+  if (!pieces) {
+    return "";
+  }
+  const [day, month, year] = pieces.day.split(" ");
+  const index = MONTHS.indexOf(month ?? "");
+  if (!day || index < 0 || !year) {
+    return "";
+  }
+  return `${day} ${SHORT_MONTHS[index]} ${year}`;
 }
 
 /** `7:00 PM, 05 September 2026`. */

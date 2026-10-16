@@ -105,7 +105,7 @@ export default function ChangePasswordScreen() {
           {newPassword.length > 0 && PASSWORD_RULES.some((rule) => !rule.test(newPassword)) ? (
             <View style={styles.rules}>
               {PASSWORD_RULES.filter((rule) => !rule.test(newPassword)).map((rule) => (
-                <Text key={rule.label} style={[text.error, { color: colors.inkSoft }]}>
+                <Text accessibilityLiveRegion="polite" key={rule.label} style={[text.error, { color: colors.inkSoft }]}>
                   {rule.label}
                 </Text>
               ))}
@@ -119,7 +119,7 @@ export default function ChangePasswordScreen() {
             accessibilityElementsHidden={error === null}
             style={styles.errorSlot}
           >
-            <Text
+            <Text accessibilityLiveRegion="polite"
               selectable={error !== null}
               style={[
                 text.error,

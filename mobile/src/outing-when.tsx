@@ -4,7 +4,7 @@ import DateTimePicker, {
 import { useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { HALL_ZONE, formatWhenParts, utcInstant } from "@/format-when";
+import { HALL_ZONE, formatChipDay, formatWhenParts, utcInstant } from "@/format-when";
 import { useDark } from "@/theme/appearance";
 import { useHallColors, type HallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
@@ -282,14 +282,7 @@ function IosWhen({
   const [datePickerKey, setDatePickerKey] = useState(0);
   const ignoreClockUntil = useRef(0);
   const when = formatWhenParts(shown.toISOString());
-  const dayLabel = when
-    ? new Intl.DateTimeFormat("en-GB", {
-        timeZone: HALL_ZONE,
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      }).format(shown)
-    : "";
+  const dayLabel = formatChipDay(shown);
   const dateChip = (
     <View style={[styles.chip, { backgroundColor: colors.chip }]}>
       <Text style={[styles.chipText, { color: colors.ink }]}>{dayLabel}</Text>
@@ -387,7 +380,7 @@ export function WhenField({
           onChange={change}
         />
       )}
-      {note ? <Text style={[text.error, { color: colors.danger }]}>{note}</Text> : null}
+      {note ? <Text accessibilityLiveRegion="polite" style={[text.error, { color: colors.danger }]}>{note}</Text> : null}
     </View>
   );
 }

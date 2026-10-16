@@ -414,7 +414,7 @@ export default function SignInScreen() {
                 accessibilityElementsHidden={error === null}
                 style={styles.errorSlot}
               >
-                <Text
+                <Text accessibilityLiveRegion="polite"
                   selectable={error !== null}
                   style={[
                     text.error,

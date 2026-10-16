@@ -465,7 +465,7 @@ function PermissionForm({
               }}
             />
             {leaveProblem || backProblem ? (
-              <Text style={[text.error, { color: colors.danger }]}>{leaveProblem ?? backProblem}</Text>
+              <Text accessibilityLiveRegion="polite" style={[text.error, { color: colors.danger }]}>{leaveProblem ?? backProblem}</Text>
             ) : null}
           </>
         ) : (
@@ -545,7 +545,7 @@ function PermissionForm({
           </Pressable>
         ) : null}
         {error ? (
-          <Text selectable style={[text.error, { color: colors.danger }]}>
+          <Text accessibilityLiveRegion="polite" selectable style={[text.error, { color: colors.danger }]}>
             {error}
           </Text>
         ) : null}
@@ -751,13 +751,13 @@ function PermissionDetail({ id }: { id: string }) {
             </Pressable>
           ) : null}
           {error ? (
-            <Text selectable style={[text.error, { color: colors.danger }]}>
+            <Text accessibilityLiveRegion="polite" selectable style={[text.error, { color: colors.danger }]}>
               {error}
             </Text>
           ) : null}
         </View>
       ) : error ? (
-        <Text selectable style={[text.error, { color: colors.danger }]}>
+        <Text accessibilityLiveRegion="polite" selectable style={[text.error, { color: colors.danger }]}>
           {error}
         </Text>
       ) : null}

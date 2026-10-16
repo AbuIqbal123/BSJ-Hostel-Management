@@ -105,7 +105,7 @@ export default function DeleteAccountScreen() {
         onPress={ask}
       />
       {error ? (
-        <Text selectable style={[text.error, { color: colors.danger }]}>
+        <Text accessibilityLiveRegion="polite" selectable style={[text.error, { color: colors.danger }]}>
           {error}
         </Text>
       ) : null}

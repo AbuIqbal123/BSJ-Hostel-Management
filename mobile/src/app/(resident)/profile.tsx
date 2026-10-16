@@ -86,7 +86,9 @@ export default function ProfileScreen() {
       </Pressable>
       <Text style={[text.hallName, styles.title, { color: colors.ink }]}>Profile</Text>
       {failed ? (
-        <Text style={[text.body, { color: colors.inkSoft }]}>Your profile could not be loaded.</Text>
+        <Text accessibilityLiveRegion="polite" style={[text.body, { color: colors.inkSoft }]}>
+          Your profile could not be loaded
+        </Text>
       ) : home ? (
         <View style={styles.lines}>
           <Text selectable style={[text.name, { color: colors.ink }]}>
@@ -109,7 +111,7 @@ export default function ProfileScreen() {
           </View>
         </View>
       ) : (
-        <Text style={[text.body, { color: colors.inkSoft }]}>Loading your profile.</Text>
+        <Text style={[text.body, { color: colors.inkSoft }]}>Loading your profile</Text>
       )}
       {failed ? (
         <Pressable accessibilityRole="button" onPress={() => setAttempt((value) => value + 1)}>
