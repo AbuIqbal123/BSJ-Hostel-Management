@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from collections.abc import Iterator
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -12,10 +11,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.shared.testing_env import role_credential
-from app.shared.auth.rate_limit import login_limiter, refresh_limiter
+from app.shared.auth.rate_limit import login_limiter
 from app.shared.auth.security import password_matches
 from app.shared.auth.tests.test_session import assert_error
-from app.shared.testing_env import signing_key_for_tests
 
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "auth-resident-onboard.json"
 BLOCK_A = "01b885ad-e40d-56a4-81ab-2371f654f558"
@@ -28,24 +26,6 @@ NOW = datetime(2026, 9, 30, 12, 0, tzinfo=timezone.utc)
 class FrozenClock:
     def utc_now(self) -> datetime:
         return NOW
-
-
-@pytest.fixture
-def database_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
-    path = tmp_path / "hostel.db"
-    monkeypatch.setenv("DATABASE_PATH", str(path))
-    monkeypatch.setenv("ENVIRONMENT", "development")
-    monkeypatch.setenv("SMS_DRIVER", "mock")
-    monkeypatch.setenv("APP_SECRET_KEY", signing_key_for_tests())
-    from app.shared.config import get_settings
-
-    get_settings.cache_clear()
-    login_limiter.reset()
-    refresh_limiter.reset()
-    yield path
-    login_limiter.reset()
-    refresh_limiter.reset()
-    get_settings.cache_clear()
 
 
 def issue_rooms(path: Path) -> None:

@@ -4,16 +4,14 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
-from app.shared.auth.rate_limit import login_limiter, options_limiter, refresh_limiter
+from app.shared.auth.rate_limit import login_limiter, options_limiter
 from app.shared.auth.security import hash_password
 from app.shared.auth.tests.test_session import assert_error
-from app.shared.testing_env import signing_key_for_tests
 from app.shared.testing_env import role_credential
 
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "auth-onboard-options.json"
@@ -24,26 +22,6 @@ BLOCK_D = "f75a0c4d-cf9e-5b03-9ba5-13f77337453d"
 BLOCK_UTILITY = "916c689d-598e-55b4-b3dc-fcf7120ca3b1"
 RESIDENT_TAKEN = "b22de000-0000-4000-8000-000000000205"
 CREATED = "2026-09-30T00:00:00Z"
-
-
-@pytest.fixture
-def database_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
-    path = tmp_path / "hostel.db"
-    monkeypatch.setenv("DATABASE_PATH", str(path))
-    monkeypatch.setenv("ENVIRONMENT", "development")
-    monkeypatch.setenv("SMS_DRIVER", "mock")
-    monkeypatch.setenv("APP_SECRET_KEY", signing_key_for_tests())
-    from app.shared.config import get_settings
-
-    get_settings.cache_clear()
-    login_limiter.reset()
-    options_limiter.reset()
-    refresh_limiter.reset()
-    yield path
-    login_limiter.reset()
-    options_limiter.reset()
-    refresh_limiter.reset()
-    get_settings.cache_clear()
 
 
 def room_id_for(path: Path, label: str) -> str:
