@@ -164,7 +164,7 @@ Provost may also export CSV via `GET /api/v1/admin/register/export`.
 
 **Staff steps:** queue → Decide → Payment. A warden or the provost opens Guest payments from Home, or Payment on a guest request. They mark the stay paid (a note is required) or unpaid. Payment cannot change after arrival. A receipt is optional: take a photo, choose a photo, or choose a PDF. The phone turns other images into a JPEG before upload. Gate staff do not see this screen.
 
-**Gate steps:** expected list → Record arrival → In-hall list → Record departure.
+**Gate steps:** expected list → Record arrival → In-hall list → Record departure. The lists page and can be searched. The screen shows how many guests are in the hall and how many should have left. If arrival is refused because payment is still due, the gate is told to send the guest to the warden to pay. A guest who is not expected, or who has already arrived, is named as such. Departure does not check payment. Gate, warden, and provost can open this screen. Gate accounts are still not asked to turn on push.
 
 **Critical states:** waiting; approved unpaid (gate must not admit: approved **and** paid); in hall; should-have-left; departed.
 
