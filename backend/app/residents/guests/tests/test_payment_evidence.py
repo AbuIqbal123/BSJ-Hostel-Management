@@ -43,10 +43,7 @@ class FrozenClock:
 @pytest.fixture
 def database_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     path = tmp_path / "hostel.db"
-    evidence_dir = tmp_path / "payment-evidence"
-    evidence_dir.mkdir()
     monkeypatch.setenv("DATABASE_PATH", str(path))
-    monkeypatch.setenv("PAYMENT_EVIDENCE_DIR", str(evidence_dir))
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("SMS_DRIVER", "mock")
     monkeypatch.setenv("APP_SECRET_KEY", signing_key_for_tests())
@@ -248,6 +245,12 @@ def test_optional_payment_evidence_upload(
         assert downloaded.status_code == 200
         assert downloaded.content == PNG_BYTES
         assert downloaded.headers["content-type"].startswith("image/png")
+        assert downloaded.headers["cache-control"] == "private, no-store"
+        assert downloaded.headers["x-content-type-options"] == "nosniff"
+        assert (
+            downloaded.headers["content-disposition"]
+            == f'attachment; filename="payment-evidence-{UPCOMING}.png"'
+        )
 
         # Replace with a tiny PDF-labelled file (content type allowlist; bytes arbitrary for test)
         pdf_bytes = b"%PDF-1.4 minimal"
@@ -294,6 +297,15 @@ def test_optional_payment_evidence_upload(
         assert unpaid2.status_code == 200
         for key, value in expected["after_unpaid_clears"].items():
             assert unpaid2.json()[key] == value
+        gone = sqlite3.connect(database_path)
+        try:
+            left = gone.execute(
+                "SELECT COUNT(*) FROM guest_stay_payment_evidence WHERE guest_stay_id = ?",
+                (UPCOMING,),
+            ).fetchone()[0]
+        finally:
+            gone.close()
+        assert left == 0
 
         # Locked after arrival
         assert_error(
@@ -306,15 +318,15 @@ def test_optional_payment_evidence_upload(
             "payment_locked",
         )
 
-        # Validation: bad type / exe / oversized
         assert_error(
             client.post(
                 evidence_url,
                 headers=headers,
                 files={"evidence": ("note.txt", b"hello", "text/plain")},
             ),
-            422,
-            "validation_error",
+            415,
+            "unsupported_media_type",
+            "Evidence must be a JPEG, PNG, or PDF.",
         )
         assert_error(
             client.post(
@@ -322,18 +334,19 @@ def test_optional_payment_evidence_upload(
                 headers=headers,
                 files={"evidence": ("evil.exe", b"MZ", "application/pdf")},
             ),
-            422,
-            "validation_error",
+            415,
+            "unsupported_media_type",
         )
-        oversized = b"x" * (5 * 1024 * 1024 + 1)
+        oversized = b"\xff\xd8\xff" + (b"x" * (2 * 1024 * 1024))
         assert_error(
             client.post(
                 evidence_url,
                 headers=headers,
-                files={"evidence": ("big.png", oversized, "image/png")},
+                files={"evidence": ("big.jpg", oversized, "image/jpeg")},
             ),
-            422,
-            "validation_error",
+            413,
+            "payload_too_large",
+            "Evidence file must be at most 2 MiB.",
         )
 
         connection = sqlite3.connect(database_path)
@@ -348,3 +361,257 @@ def test_optional_payment_evidence_upload(
             connection.close()
         assert "guest_stay.payment_evidence_uploaded" in actions
         assert "guest_stay.payment_evidence_cleared" in actions
+
+
+JPEG_BYTES = b"\xff\xd8\xff" + b"\x00" * 32
+PDF_BYTES = b"%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF"
+
+
+def _open(path: Path) -> sqlite3.Connection:
+    connection = sqlite3.connect(path)
+    connection.row_factory = sqlite3.Row
+    return connection
+
+
+def test_evidence_bytes_round_trip_and_limits(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.residents.guests import records
+    from app.shared import clock
+    from app.shared.migrate import migrate
+    from app.staff.gate import guest_routes
+
+    monkeypatch.setattr(clock, "utc_now", FrozenClock().utc_now)
+    migrate()
+    issue_people(database_path)
+    seed_stays(database_path)
+    evidence_url = f"/api/v1/guest-stays/{UPCOMING}/payment/evidence"
+    from app.main import app
+
+    with TestClient(app) as client:
+        warden = sign_in(client, "warden.sara", role_credential("warden"))
+        provost = sign_in(client, "provost.halima", role_credential("provost"))
+        headers = {"Authorization": f"Bearer {warden}"}
+        provost_headers = {"Authorization": f"Bearer {provost}"}
+
+        for name, payload, sent_type, stored_type, ext in (
+            ("photo.jpg", JPEG_BYTES, "image/jpeg", "image/jpeg", "jpg"),
+            ("shot.png", PNG_BYTES, "image/jpeg", "image/png", "png"),
+            ("receipt.pdf", PDF_BYTES, "application/octet-stream", "application/pdf", "pdf"),
+        ):
+            uploaded = client.post(
+                evidence_url,
+                headers=headers,
+                files={"evidence": (name, payload, sent_type)},
+            )
+            assert uploaded.status_code == 200
+            assert uploaded.json()["payment_evidence_content_type"] == stored_type
+            downloaded = client.get(evidence_url, headers=provost_headers)
+            assert downloaded.status_code == 200
+            assert downloaded.content == payload
+            assert downloaded.headers["content-type"].startswith(stored_type)
+            assert downloaded.headers["cache-control"] == "private, no-store"
+            assert downloaded.headers["x-content-type-options"] == "nosniff"
+            assert (
+                downloaded.headers["content-disposition"]
+                == f'attachment; filename="payment-evidence-{UPCOMING}.{ext}"'
+            )
+
+        hidden = client.post(
+            evidence_url,
+            headers=headers,
+            files={"evidence": ("../../receipt.png", PNG_BYTES, "image/png")},
+        )
+        assert hidden.status_code == 200
+        assert hidden.json()["payment_evidence_original_name"] == "receipt.png"
+
+        assert_error(
+            client.post(evidence_url, headers=headers, files={"evidence": ("empty.png", b"", "image/png")}),
+            422,
+            "validation_error",
+            "Evidence file is empty.",
+        )
+        assert_error(
+            client.post(
+                evidence_url,
+                headers=headers,
+                files={"evidence": ("cut.jpg", b"\xff\xd8", "image/jpeg")},
+            ),
+            422,
+            "validation_error",
+            "Evidence file is incomplete.",
+        )
+
+        exact = b"\xff\xd8\xff" + (b"\x00" * (2 * 1024 * 1024 - 3))
+        assert len(exact) == 2 * 1024 * 1024
+        stored = client.post(
+            evidence_url,
+            headers=headers,
+            files={"evidence": ("full.jpg", exact, "image/jpeg")},
+        )
+        assert stored.status_code == 200
+        fetched = client.get(evidence_url, headers=headers)
+        assert fetched.content == exact
+        connection = _open(database_path)
+        try:
+            row = connection.execute(
+                "SELECT content, size_bytes, length(content) AS n FROM guest_stay_payment_evidence WHERE guest_stay_id = ?",
+                (UPCOMING,),
+            ).fetchone()
+            assert row["n"] == 2 * 1024 * 1024
+            assert row["size_bytes"] == row["n"]
+            assert bytes(row["content"]) == exact
+            assert connection.execute(
+                "SELECT COUNT(*) FROM guest_stay_payment_evidence"
+            ).fetchone()[0] == 1
+        finally:
+            connection.close()
+
+        listed = client.get("/api/v1/guest-stays", headers=headers)
+        assert listed.status_code == 200
+        assert exact[:20] not in listed.content
+        assert b"guest_stay_payment_evidence" not in listed.content
+        resident = sign_in(client, "24-GLLB-118", role_credential("resident"))
+        own = client.get(
+            "/api/v1/me/guest-stays",
+            headers={"Authorization": f"Bearer {resident}"},
+        )
+        assert own.status_code == 200
+        assert exact[:20] not in own.content
+
+    assert "guest_stay_payment_evidence" not in Path(records.__file__).read_text(encoding="utf-8")
+    assert "guest_stay_payment_evidence" not in Path(guest_routes.__file__).read_text(encoding="utf-8")
+
+
+def test_metadata_without_a_blob_is_not_a_file(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.shared import clock
+    from app.shared.migrate import migrate
+
+    monkeypatch.setattr(clock, "utc_now", FrozenClock().utc_now)
+    migrate()
+    issue_people(database_path)
+    seed_stays(database_path)
+    connection = _open(database_path)
+    try:
+        connection.execute("PRAGMA foreign_keys=ON;")
+        connection.execute(
+            """
+            UPDATE guest_stays
+            SET
+              payment_evidence_original_name = 'receipt.png',
+              payment_evidence_content_type = 'image/png',
+              payment_evidence_uploaded_at = '2026-09-29T12:00:00Z',
+              payment_evidence_uploaded_by = ?
+            WHERE id = ?
+            """,
+            (WARDEN_ID, UPCOMING),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    from app.main import app
+
+    with TestClient(app) as client:
+        warden = sign_in(client, "warden.sara", role_credential("warden"))
+        assert_error(
+            client.get(
+                f"/api/v1/guest-stays/{UPCOMING}/payment/evidence",
+                headers={"Authorization": f"Bearer {warden}"},
+            ),
+            404,
+            "not_found",
+            "No payment evidence is stored for this stay.",
+        )
+
+
+def test_migration_0019_clears_legacy_evidence_metadata(database_path: Path) -> None:
+    from app.shared.migrate import MIGRATIONS, _apply, _BOOKKEEPING
+
+    connection = sqlite3.connect(database_path)
+    connection.row_factory = sqlite3.Row
+    try:
+        connection.execute(_BOOKKEEPING)
+        connection.commit()
+        connection.execute("PRAGMA foreign_keys=OFF")
+        pending = [path for path in MIGRATIONS if path.name != "0019_guest_stay_payment_evidence_blob.sql"]
+        for path in pending:
+            _apply(connection, path)
+        connection.execute("PRAGMA foreign_keys=ON")
+    finally:
+        connection.close()
+
+    issue_people(database_path)
+    seed_stays(database_path)
+    connection = _open(database_path)
+    try:
+        connection.execute("PRAGMA foreign_keys=ON;")
+        connection.execute(
+            """
+            UPDATE guest_stays
+            SET
+              payment_evidence_path = 'lost/on-render/receipt.png',
+              payment_evidence_original_name = 'receipt.png',
+              payment_evidence_content_type = 'image/png',
+              payment_evidence_uploaded_at = '2026-09-29T12:00:00Z',
+              payment_evidence_uploaded_by = ?
+            WHERE id = ?
+            """,
+            (WARDEN_ID, UPCOMING),
+        )
+        connection.execute(
+            """
+            INSERT INTO audit_log (
+              id, occurred_at, actor_user_id, action, entity_type, entity_id, summary
+            ) VALUES (
+              'aa100000-0000-4000-8000-0000000000a1',
+              '2026-09-29T12:00:00Z',
+              ?,
+              'guest_stay.payment_evidence_uploaded',
+              'guest_stay',
+              ?,
+              'Sara Malik uploaded payment evidence for Upcoming Guest.'
+            )
+            """,
+            (WARDEN_ID, UPCOMING),
+        )
+        connection.commit()
+        blob_migration = next(
+            path for path in MIGRATIONS if path.name == "0019_guest_stay_payment_evidence_blob.sql"
+        )
+        _apply(connection, blob_migration)
+        row = connection.execute(
+            """
+            SELECT
+              payment_status,
+              payment_evidence_path,
+              payment_evidence_original_name,
+              payment_evidence_content_type,
+              payment_evidence_uploaded_at,
+              payment_evidence_uploaded_by
+            FROM guest_stays
+            WHERE id = ?
+            """,
+            (UPCOMING,),
+        ).fetchone()
+        assert row["payment_status"] == "unpaid"
+        assert row["payment_evidence_path"] is None
+        assert row["payment_evidence_original_name"] is None
+        assert row["payment_evidence_content_type"] is None
+        assert row["payment_evidence_uploaded_at"] is None
+        assert row["payment_evidence_uploaded_by"] is None
+        columns = [info[1] for info in connection.execute("PRAGMA table_info(guest_stays)")]
+        assert "payment_evidence_path" in columns
+        kept = connection.execute(
+            "SELECT summary FROM audit_log WHERE id = 'aa100000-0000-4000-8000-0000000000a1'"
+        ).fetchone()
+        assert kept["summary"].startswith("Sara Malik uploaded")
+        paid = connection.execute(
+            "SELECT payment_status FROM guest_stays WHERE id = ?",
+            (IN_HALL,),
+        ).fetchone()
+        assert paid["payment_status"] == "paid"
+    finally:
+        connection.close()

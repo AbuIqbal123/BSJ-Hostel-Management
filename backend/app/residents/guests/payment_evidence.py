@@ -1,133 +1,138 @@
-"""Local-disk storage for optional guest-stay payment evidence files."""
+"""Guest-stay payment evidence kept as a blob in the hall database.
+
+The server stores the bytes it was given. It does not convert them.
+The type comes from the file header, not from the client's Content-Type.
+"""
 
 from __future__ import annotations
 
-import re
-import uuid
-from pathlib import Path
+import sqlite3
 
-from app.shared.config import get_settings
 from app.shared.errors import ApiError
 
-ALLOWED_CONTENT_TYPES = {
-    "image/jpeg": ".jpg",
-    "image/png": ".png",
-    "application/pdf": ".pdf",
-}
-ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".pdf"}
-MAX_EVIDENCE_BYTES = 5 * 1024 * 1024
+MAX_EVIDENCE_BYTES = 2 * 1024 * 1024
 
-_SAFE_ORIGINAL_NAME = re.compile(r"^[^/\\\\]+$")
+_JPEG = b"\xff\xd8\xff"
+_PNG = b"\x89PNG\r\n\x1a\n"
+_PDF = b"%PDF-"
 
+_TYPES = (
+    (_JPEG, "image/jpeg", "jpg"),
+    (_PNG, "image/png", "png"),
+    (_PDF, "application/pdf", "pdf"),
+)
 
-def evidence_root() -> Path:
-    root = get_settings().payment_evidence_dir
-    root.mkdir(parents=True, exist_ok=True)
-    return root.resolve()
-
-
-def resolve_stored_path(relative: str) -> Path:
-    """Map a stored relative path to an absolute file under the evidence root."""
-    root = evidence_root()
-    if not relative or relative.startswith("/") or ".." in Path(relative).parts:
-        raise ApiError(500, "not_ready", "Stored evidence path is invalid.")
-    candidate = (root / relative).resolve()
-    try:
-        candidate.relative_to(root)
-    except ValueError as exc:
-        raise ApiError(500, "not_ready", "Stored evidence path is invalid.") from exc
-    return candidate
+_EMPTY = "Evidence file is empty."
+_TRUNCATED = "Evidence file is incomplete."
+_UNSUPPORTED = "Evidence must be a JPEG, PNG, or PDF."
+_TOO_LARGE = "Evidence file must be at most 2 MiB."
 
 
-def validate_upload(
-    *,
-    filename: str | None,
-    content_type: str | None,
-    size: int,
-) -> tuple[str, str]:
-    """Return (original_name, content_type)."""
-    if not filename or not filename.strip():
-        raise ApiError(
-            422,
-            "validation_error",
-            "Evidence file is required.",
-            field="evidence",
-        )
-    original = Path(filename).name
-    if not original or not _SAFE_ORIGINAL_NAME.match(original):
-        raise ApiError(
-            422,
-            "validation_error",
-            "Evidence filename is not valid.",
-            field="evidence",
-        )
-    suffix = Path(original).suffix.lower()
-    if suffix not in ALLOWED_EXTENSIONS:
-        raise ApiError(
-            422,
-            "validation_error",
-            "Evidence must be a JPEG, PNG, or PDF file.",
-            field="evidence",
-        )
-    normalized_type = (content_type or "").split(";")[0].strip().lower()
-    if normalized_type not in ALLOWED_CONTENT_TYPES:
-        raise ApiError(
-            422,
-            "validation_error",
-            "Evidence must be image/jpeg, image/png, or application/pdf.",
-            field="evidence",
-        )
-    expected_exts = {ALLOWED_CONTENT_TYPES[normalized_type]}
-    if normalized_type == "image/jpeg":
-        expected_exts = {".jpg", ".jpeg"}
-    if suffix not in expected_exts:
-        raise ApiError(
-            422,
-            "validation_error",
-            "Evidence file extension does not match its content type.",
-            field="evidence",
-        )
-    if size <= 0:
-        raise ApiError(
-            422,
-            "validation_error",
-            "Evidence file is empty.",
-            field="evidence",
-        )
-    if size > MAX_EVIDENCE_BYTES:
-        raise ApiError(
-            422,
-            "validation_error",
-            "Evidence file must be at most 5 MiB.",
-            field="evidence",
-        )
-    return original, normalized_type
+def sniff_content_type(content: bytes) -> str:
+    """Return the stored type, or raise 413, 415, or 422."""
+    if len(content) > MAX_EVIDENCE_BYTES:
+        raise ApiError(413, "payload_too_large", _TOO_LARGE, field="evidence")
+    if not content:
+        raise ApiError(422, "validation_error", _EMPTY, field="evidence")
+    for magic, content_type, _ext in _TYPES:
+        if content.startswith(magic):
+            return content_type
+    for magic, _content_type, _ext in _TYPES:
+        if magic.startswith(content):
+            raise ApiError(422, "validation_error", _TRUNCATED, field="evidence")
+    raise ApiError(415, "unsupported_media_type", _UNSUPPORTED, field="evidence")
 
 
-def store_evidence_file(
+def display_filename(filename: str | None) -> str:
+    """A name for the screen. Path characters are removed. At most 255 characters."""
+    raw = (filename or "").replace("\\", "/").split("/")[-1]
+    raw = raw.replace("\x00", "").strip()
+    if not raw:
+        raw = "evidence"
+    return raw[:255]
+
+
+def extension_for(content_type: str) -> str:
+    for _magic, stored, ext in _TYPES:
+        if stored == content_type:
+            return ext
+    return "bin"
+
+
+def save_evidence(
+    connection: sqlite3.Connection,
     *,
     guest_stay_id: str,
     content: bytes,
     content_type: str,
-    previous_relative: str | None,
-) -> str:
-    """Write bytes under a UUID name; return relative path. Removes previous file."""
-    ext = ALLOWED_CONTENT_TYPES[content_type]
-    relative = f"{guest_stay_id}/{uuid.uuid4().hex}{ext}"
-    absolute = resolve_stored_path(relative)
-    absolute.parent.mkdir(parents=True, exist_ok=True)
-    absolute.write_bytes(content)
-    if previous_relative:
-        delete_evidence_file(previous_relative)
-    return relative
+    original_name: str,
+    uploaded_by: str,
+    now_text: str,
+) -> None:
+    """Upsert the blob and the stay metadata on the caller's transaction."""
+    connection.execute(
+        """
+        INSERT INTO guest_stay_payment_evidence (guest_stay_id, content, size_bytes)
+        VALUES (?, ?, ?)
+        ON CONFLICT(guest_stay_id) DO UPDATE SET
+          content = excluded.content,
+          size_bytes = excluded.size_bytes
+        """,
+        (guest_stay_id, content, len(content)),
+    )
+    connection.execute(
+        """
+        UPDATE guest_stays
+        SET
+          payment_evidence_path = NULL,
+          payment_evidence_original_name = ?,
+          payment_evidence_content_type = ?,
+          payment_evidence_uploaded_at = ?,
+          payment_evidence_uploaded_by = ?,
+          updated_at = ?
+        WHERE id = ?
+        """,
+        (original_name, content_type, now_text, uploaded_by, now_text, guest_stay_id),
+    )
 
 
-def delete_evidence_file(relative: str | None) -> None:
-    if not relative:
-        return
-    try:
-        path = resolve_stored_path(relative)
-    except ApiError:
-        return
-    if path.is_file():
-        path.unlink()
+def load_evidence(
+    connection: sqlite3.Connection, guest_stay_id: str
+) -> tuple[bytes, str] | None:
+    """Return the blob and the stored type. None when the blob row is missing."""
+    blob = connection.execute(
+        """
+        SELECT content
+        FROM guest_stay_payment_evidence
+        WHERE guest_stay_id = ?
+        """,
+        (guest_stay_id,),
+    ).fetchone()
+    if blob is None:
+        return None
+    meta = connection.execute(
+        """
+        SELECT payment_evidence_content_type
+        FROM guest_stays
+        WHERE id = ?
+        """,
+        (guest_stay_id,),
+    ).fetchone()
+    content_type = None if meta is None else meta["payment_evidence_content_type"]
+    if content_type not in {item[1] for item in _TYPES}:
+        return None
+    content = blob["content"]
+    if isinstance(content, memoryview):
+        content = content.tobytes()
+    return bytes(content), content_type
+
+
+def clear_evidence(connection: sqlite3.Connection, guest_stay_id: str) -> None:
+    connection.execute(
+        "DELETE FROM guest_stay_payment_evidence WHERE guest_stay_id = ?",
+        (guest_stay_id,),
+    )
+
+
+def download_name(guest_stay_id: str, content_type: str) -> str:
+    return f"payment-evidence-{guest_stay_id}.{extension_for(content_type)}"

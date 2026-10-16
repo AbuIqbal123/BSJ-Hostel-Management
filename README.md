@@ -19,7 +19,6 @@ flowchart TB
   browser["Browser"]
   api["Hall API"]
   records[("Hall records")]
-  files["Payment evidence"]
   sms["Guardian notices"]
   push["Expo push"]
 
@@ -30,8 +29,7 @@ flowchart TB
   provost --> browser
   phone -->|"sign-in, home, outings, permissions, guests, hall pass, history, inbox, scan, register"| api
   browser -->|"Swagger, register, gate, hall office"| api
-  api -->|"Turso when hosted, SQLite file on a laptop"| records
-  api -->|"optional receipt, JPEG PNG or PDF"| files
+  api -->|"Turso when hosted, SQLite file on a laptop, receipt bytes included"| records
   api -->|"mock driver, no phone network"| sms
   api -->|"after the record is saved"| push
   push -->|"production driver only"| phone
@@ -43,7 +41,7 @@ flowchart TB
   class resident,gate,warden,provost person
   class phone,browser client
   class api core
-  class records,files,sms,push store
+  class records,sms,push store
 ```
 
 The same data model is applied at startup. Hosted hall records live in Turso. A laptop and the checks use `backend/data/hostel.db`. The arrow-by-arrow account is [`docs/architecture/system-architecture.md`](docs/architecture/system-architecture.md).
@@ -113,7 +111,7 @@ flowchart LR
   class ask,decide,paid,arrive,leave step
 ```
 
-Payment is a mark on the stay, not a card charge. Evidence is a file the hall stores. The client never sees the file path.
+Payment is a mark on the stay, not a card charge. A receipt is optional bytes kept with the hall records. The client never sees a file path.
 
 ## Run it
 

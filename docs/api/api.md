@@ -3287,10 +3287,13 @@ Caller: warden or provost. Optional file proof that payment was taken
 off-system (receipt photo or PDF). Uploading is never required to mark
 a stay paid. Allowed while payment is still mutable (pending or approved,
 before arrival), whether the stay is unpaid or already paid. Replaces any
-previous evidence file. Multipart field name is `evidence`. Allowed types:
-`image/jpeg`, `image/png`, `application/pdf`. Maximum size 5 MiB. Stored
-name is UUID-based under the hall payment-evidence directory; clients
-never receive filesystem absolute paths.
+previous evidence. Multipart field name is `evidence`. The hall reads the
+file header and ignores the client's content type. JPEG starts `FF D8 FF`,
+PNG starts `89 50 4E 47 0D 0A 1A 0A`, and PDF starts `%PDF-`. Anything
+else is 415. Maximum size is 2 MiB; a larger file is 413. An empty or
+truncated file is 422. The bytes are stored as given, in the hall
+database. The download name is `payment-evidence-<stay id>.<ext>`.
+The original filename is display only. Clients never receive a file path.
 
 **Parameters**
 
@@ -3304,7 +3307,7 @@ Body: object.
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `evidence` | yes | binary | Receipt image (JPEG/PNG) or PDF, at most 5 MiB. |
+| `evidence` | yes | binary | Receipt image (JPEG/PNG) or PDF, at most 2 MiB. The type is taken from the file header. |
 
 **Responses**
 
@@ -3366,9 +3369,21 @@ The guest has already arrived or the stay is closed. Code `payment_locked`.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
+#### 413
+
+The file is larger than 2 MiB. Code `payload_too_large`.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 415
+
+The file header is not JPEG, PNG, or PDF. Code `unsupported_media_type`.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
 #### 422
 
-Missing file, disallowed type/extension, or over size limit. Code `validation_error`.
+The file is empty or truncated. Code `validation_error`.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
@@ -3379,8 +3394,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** warden or provost. Bearer access token.
 
-Caller: warden or provost. Returns the stored evidence file when one
-exists. Auth required; absolute paths are never exposed.
+Caller: warden or provost. Returns the stored evidence bytes when a blob
+row exists. The response type is the sniffed type. `Cache-Control` is
+`private, no-store`. The download name is `payment-evidence-<stay id>.<ext>`.
 
 **Parameters**
 
