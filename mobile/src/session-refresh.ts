@@ -1,3 +1,5 @@
+import { ignore } from "@/safe";
+
 /** What one refresh response does to the session that sent it. */
 
 export type RefreshEffect = "apply" | "keep" | "end";
@@ -44,6 +46,7 @@ export async function runEach(steps: Array<() => unknown>): Promise<void> {
       await step();
     } catch {
       // The next step still runs.
+      ignore();
     }
   }
 }

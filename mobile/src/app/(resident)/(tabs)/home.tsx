@@ -8,7 +8,7 @@ import { Bell } from "@/components/bell";
 import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { ListError } from "@/components/list-state";
 import { TextField } from "@/components/text-field";
-import { formatWhenParts, utcInstant } from "@/format-when";
+import { formatWhenParts, hallNow, utcInstant } from "@/format-when";
 import { onHallRefresh } from "@/hall-refresh";
 import { setBadge } from "@/push";
 import { syncResidentReminders } from "@/return-reminders";
@@ -60,7 +60,7 @@ function leaveIsToday(item: UpcomingOuting): boolean {
   if (Number.isNaN(leave.getTime())) {
     return false;
   }
-  return hallDay(leave) === hallDay(new Date());
+  return hallDay(leave) === hallDay(hallNow());
 }
 
 function OutingRow({ item }: { item: UpcomingOuting }) {

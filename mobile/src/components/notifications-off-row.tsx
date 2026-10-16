@@ -4,6 +4,7 @@ import { useFocusEffect } from "expo-router";
 import { Linking, Platform, Pressable, StyleSheet, Text } from "react-native";
 
 import { notificationRowVisible } from "@/notification-settings";
+import { ignore } from "@/safe";
 import { useSession } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
@@ -47,7 +48,7 @@ export function NotificationsOffRow() {
       accessibilityRole="button"
       accessibilityLabel="Notifications are off, Turn on in Settings"
       onPress={() => {
-        void Linking.openSettings().catch(() => undefined);
+        void Linking.openSettings().catch(ignore);
       }}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
     >

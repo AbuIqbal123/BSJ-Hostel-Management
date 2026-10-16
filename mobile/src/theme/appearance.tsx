@@ -10,6 +10,8 @@ import {
 import * as SecureStore from "expo-secure-store";
 import { useColorScheme } from "react-native";
 
+import { ignore } from "@/safe";
+
 const APPEARANCE_KEY = "bsj.appearance";
 
 type Choice = "dark" | "light";
@@ -36,9 +38,7 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
           setChoice(stored);
         }
       })
-      .catch(() => {
-        // A missing preference follows the phone.
-      });
+      .catch(ignore);
     return () => {
       active = false;
     };
@@ -47,9 +47,8 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
   const setDark = useCallback((value: boolean) => {
     const next: Choice = value ? "dark" : "light";
     setChoice(next);
-    SecureStore.setItemAsync(APPEARANCE_KEY, next).catch(() => {
-      // The screen still changes for this visit.
-    });
+    // The screen still changes for this visit.
+    SecureStore.setItemAsync(APPEARANCE_KEY, next).catch(ignore);
   }, []);
 
   const dark = choice === null ? system === "dark" : choice === "dark";

@@ -17,7 +17,7 @@ import { goBackOr } from "@/back";
 import { BackMark } from "@/components/back-mark";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
-import { HALL_ZONE, formatClockDay, formatWhenParts, utcInstant } from "@/format-when";
+import { HALL_ZONE, formatClockDay, formatWhenParts, hallNow, utcInstant } from "@/format-when";
 import { WhenField, hallAt, hallDay, isNextHallMidnight, sameNight } from "@/outing-when";
 import { kindLabel, statusSentence, statusTone } from "@/requests";
 import { syncResidentReminders } from "@/return-reminders";
@@ -59,7 +59,7 @@ function hallDayLabel(iso: string): string {
 
 function homeDeparture(day: string): Date {
   const start = hallAt(day, 0, 0);
-  const now = new Date();
+  const now = hallNow();
   return start.getTime() < now.getTime() ? now : start;
 }
 
@@ -79,7 +79,7 @@ function DateField({
   const dark = useDark();
   const colors = useHallColors();
   const [pickerKey, setPickerKey] = useState(0);
-  const shown = value ?? new Date();
+  const shown = value ?? hallNow();
   const dayLabel = value ? hallDayLabel(shown.toISOString()) : "Choose a date";
   const open = () => {
     DateTimePickerAndroid.open({
@@ -233,7 +233,7 @@ function PermissionForm({
   const alertAt = useRef(0);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const today = hallDay(new Date());
+  const today = hallDay(hallNow());
   const leaveDay = leaveOn ? hallDay(leaveOn) : "";
   const backDay = backOn ? hallDay(backOn) : "";
   const homeDatesReady = leaveDay.length > 0 && backDay.length > 0 && leaveDay >= today && backDay >= leaveDay;

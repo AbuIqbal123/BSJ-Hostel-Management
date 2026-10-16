@@ -1,5 +1,5 @@
 import type { HallRole, PermissionKind } from "@/session";
-import { formatHallDate, formatWhen, formatWhenParts } from "@/format-when";
+import { formatHallDate, formatWhen, formatWhenParts, hallNow } from "@/format-when";
 
 export function homePath(role: HallRole): "/home" | "/staff" {
   return role === "resident" ? "/home" : "/staff";
@@ -127,7 +127,7 @@ function backByLabel(iso: string | null, late: boolean): string {
   if (late) {
     return `Late, ${parts.clock}`;
   }
-  const today = formatWhenParts(new Date().toISOString())?.day;
+  const today = formatWhenParts(hallNow().toISOString())?.day;
   return parts.day === today ? parts.clock : shortDay(parts.day);
 }
 
@@ -265,7 +265,7 @@ export function guestTime(item: GuestReview): string {
 /** Section title for the hall day a request was submitted. */
 export function submittedDay(iso: string): string {
   const day = formatWhenParts(iso)?.day ?? "";
-  const now = new Date();
+  const now = hallNow();
   const today = formatWhenParts(now.toISOString())?.day;
   const yesterday = formatWhenParts(new Date(now.getTime() - 86_400_000).toISOString())?.day;
   if (day === today) {

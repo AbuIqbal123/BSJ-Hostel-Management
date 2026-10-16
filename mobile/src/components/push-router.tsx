@@ -3,6 +3,7 @@ import * as Notifications from "expo-notifications";
 import { router, type Href } from "expo-router";
 
 import { hallRefresh } from "@/hall-refresh";
+import { ignore } from "@/safe";
 import { readUnreadCount } from "@/notices";
 import { pushTarget, setBadge, type PushData } from "@/push";
 import { responseKey } from "@/reminder";
@@ -54,7 +55,7 @@ export function PushRouter({ settled }: { settled: boolean }) {
     if (target) {
       router.push(withTap(target, key) as Href);
     }
-    void Notifications.clearLastNotificationResponseAsync().catch(() => undefined);
+    void Notifications.clearLastNotificationResponseAsync().catch(ignore);
   }, [response, settled, staffRequest, user]);
 
   return null;

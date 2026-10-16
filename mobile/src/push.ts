@@ -4,6 +4,7 @@ import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
 import { endingReminderAt } from "@/reminder";
+import { ignore } from "@/safe";
 
 export { endingReminderAt, responseKey } from "@/reminder";
 export { pushTarget, type PushData } from "@/push-target";
@@ -92,6 +93,7 @@ export async function clearNotificationSurface(): Promise<void> {
       await step();
     } catch {
       // A missing notification permission must not stop the session from ending.
+      ignore();
     }
   }
 }
@@ -144,12 +146,13 @@ export async function syncReturnReminders(
     }
   } catch {
     // Missing permission or a push service must not surface an error.
+    ignore();
   }
 }
 
 /** Keeps the app icon badge in step with the inbox after a read. */
 export function setBadge(count: number) {
   if (pushSupported && returnRemindersOpen) {
-    void Notifications.setBadgeCountAsync(count).catch(() => undefined);
+    void Notifications.setBadgeCountAsync(count).catch(ignore);
   }
 }
