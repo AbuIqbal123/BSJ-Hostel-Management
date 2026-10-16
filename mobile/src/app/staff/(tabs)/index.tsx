@@ -9,6 +9,7 @@ import { DenseRow } from "@/components/dense-row";
 import { HallButton } from "@/components/hall-button";
 import { SectionHead } from "@/components/section-head";
 import { setBadge } from "@/push";
+import { runsOffice } from "@/office";
 import { roleLabel, useSession } from "@/session";
 import { readActivity, readSummary, readsRegister, trimStop, type GateEvent, type RegisterSummary } from "@/staff";
 import { useHallColors } from "@/theme/colors";
@@ -131,6 +132,21 @@ export default function StaffHomeScreen() {
       ) : (
         <HallButton label="Scan a hall pass" onPress={() => router.push("/staff/scan")} />
       )}
+      {runsOffice(user.role) ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Office. People, places, and hall settings"
+          onPress={() => router.push("/staff/office")}
+          style={({ pressed }) => [
+            styles.office,
+            { backgroundColor: colors.surface, borderColor: colors.line },
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text style={[text.button, { color: colors.ink }]}>Office</Text>
+          <Text style={[text.error, { color: colors.inkSoft }]}>People, places, and hall settings</Text>
+        </Pressable>
+      ) : null}
       <View style={[styles.section, { borderTopColor: colors.line }]}>
         <SectionHead title="Recent at the gate" />
         {error ? <Text style={[text.error, { color: colors.danger }]}>{error}</Text> : null}
@@ -174,6 +190,14 @@ const styles = StyleSheet.create({
   count: { fontFamily: "SourceSerif4_600SemiBold", fontSize: 34, lineHeight: 42, letterSpacing: -0.6 },
   label: { fontFamily: "SourceSans3_600SemiBold", fontSize: 15, lineHeight: 20, marginTop: 2 },
   note: { fontFamily: "SourceSans3_400Regular", fontSize: 13, lineHeight: 18 },
+  office: {
+    borderWidth: 1,
+    borderRadius: 16,
+    borderCurve: "continuous",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 4,
+  },
   section: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 2 },
   pressed: { opacity: 0.6 },
 });

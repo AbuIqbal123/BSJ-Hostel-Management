@@ -5,6 +5,7 @@ import { router, useFocusEffect } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { NotificationsOffRow } from "@/components/notifications-off-row";
 import { useSession } from "@/session";
 import { useAppearance } from "@/theme/appearance";
 import { useHallColors } from "@/theme/colors";
@@ -85,6 +86,7 @@ export default function SettingsScreen() {
           value={dark ? "Dark" : "Light"}
           onPress={() => setDark(!dark)}
         />
+        <NotificationsOffRow />
         <Row
           label="Profile"
           color={colors.ink}

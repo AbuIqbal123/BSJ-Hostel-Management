@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { NotificationsOffRow } from "@/components/notifications-off-row";
 import { roleLabel, useSession } from "@/session";
 import { useAppearance } from "@/theme/appearance";
 import { useHallColors } from "@/theme/colors";
@@ -62,6 +63,7 @@ export default function StaffSettingsScreen() {
       ) : null}
       <View style={styles.rows}>
         <Row label="Appearance" color={colors.ink} value={dark ? "Dark" : "Light"} onPress={() => setDark(!dark)} />
+        <NotificationsOffRow />
         <Row label="Change password" color={colors.ink} chevron onPress={() => router.push("/change-password")} />
         <Row
           label="Sign out"
