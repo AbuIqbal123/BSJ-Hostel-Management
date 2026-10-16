@@ -224,7 +224,7 @@ class CommitBeforeResponse:
             if message["type"] == "http.response.start" and not started:
                 try:
                     commit_request(scope)
-                except Exception:
+                except Exception:  # noqa: BLE001 - a failed commit is always a 500, whatever raised it
                     failed = True
                     started = True
                     encoded = json.dumps(

@@ -5,12 +5,23 @@ select = [
   "E9",    # syntax errors
   "B006",  # mutable default arguments shared across calls
   "TID251",  # banned APIs (see below)
+  "BLE001",  # blind except Exception
+  "S110",    # try-except-pass
+  "SIM105",  # try-except-pass that contextlib.suppress can replace
 ]
 
 [lint.flake8-tidy-imports.banned-api]
 "sqlite3.IntegrityError".msg = "Turso raises its own IntegrityError, so `except sqlite3.IntegrityError` misses it in production. Use `except INTEGRITY_ERRORS` from app.shared.db."
-
+"sqlite3.OperationalError".msg = "Turso raises its own OperationalError, so `except sqlite3.OperationalError` misses it in production. Use `except DB_ERRORS` from app.shared.db."
+"sqlite3.DatabaseError".msg = "Turso raises its own DatabaseError, so `except sqlite3.DatabaseError` misses it in production. Use `except DB_ERRORS` from app.shared.db."
+"datetime.datetime.now".msg = "datetime.now follows the machine clock. Use app.shared.clock.utc_now."
+"datetime.date.today".msg = "date.today is the machine's local date, not the hall date. Use app.shared.clock."
 
 [lint.per-file-ignores]
-"app/shared/db.py" = ["TID251"]  # defines INTEGRITY_ERRORS
-"tests/test_integrity_errors.py" = ["TID251"]  # proves both classes are caught
+"app/shared/db.py" = ["TID251"]  # defines INTEGRITY_ERRORS and DB_ERRORS
+"app/shared/clock.py" = ["TID251"]  # utc_now is the one allowed datetime.now
+"tests/test_integrity_errors.py" = ["TID251"]  # proves both drivers' classes are caught
+"tests/test_migrate.py" = ["TID251"]  # a broken migration raises sqlite3.OperationalError
+"tests/test_create_provost.py" = ["TID251"]  # an unmigrated file raises sqlite3.OperationalError
+"app/shared/auth/tests/test_session.py" = ["TID251"]  # raises sqlite3.OperationalError to simulate a failed commit
+"app/shared/tests/test_http_errors.py" = ["TID251"]  # raises sqlite3.OperationalError to simulate a locked database
