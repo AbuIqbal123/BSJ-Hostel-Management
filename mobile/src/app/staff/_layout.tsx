@@ -29,6 +29,7 @@ export default function StaffLayout() {
       <Stack.Screen name="out" />
       <Stack.Screen name="notifications" />
       <Stack.Screen name="office" />
+      <Stack.Screen name="payments" />
     </Stack>
   );
 }

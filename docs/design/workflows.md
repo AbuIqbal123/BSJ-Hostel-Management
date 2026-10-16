@@ -158,11 +158,11 @@ Provost may also export CSV via `GET /api/v1/admin/register/export`.
 |---|---|
 | **Actors** | Resident hosts; warden/provost review + payment mark; gate arrival/departure |
 | **Goal** | Paid guest in hall for dining/register without a hall pass |
-| **API** | Resident `GET` and `POST /api/v1/me/guest-stays`, `GET` and `PATCH /api/v1/me/guest-stays/{guest_stay_id}`, `POST /api/v1/me/guest-stays/{guest_stay_id}/cancel`. Staff `GET /api/v1/guest-stays`, `GET /api/v1/guest-stays/{guest_stay_id}`, `POST /api/v1/guest-stays/{guest_stay_id}/decision`, `POST /api/v1/guest-stays/{guest_stay_id}/payment`. Gate `GET /api/v1/gate/guests`, `POST /api/v1/gate/guests/{guest_stay_id}/arrival`, `POST /api/v1/gate/guests/{guest_stay_id}/departure` |
+| **API** | Resident `GET` and `POST /api/v1/me/guest-stays`, `GET` and `PATCH /api/v1/me/guest-stays/{guest_stay_id}`, `POST /api/v1/me/guest-stays/{guest_stay_id}/cancel`. Staff `GET /api/v1/guest-stays`, `GET /api/v1/guest-stays/{guest_stay_id}`, `POST /api/v1/guest-stays/{guest_stay_id}/decision`, `POST /api/v1/guest-stays/{guest_stay_id}/payment`, and optional `POST`, `GET`, and `DELETE /api/v1/guest-stays/{guest_stay_id}/payment/evidence`. Gate `GET /api/v1/gate/guests`, `POST /api/v1/gate/guests/{guest_stay_id}/arrival`, `POST /api/v1/gate/guests/{guest_stay_id}/departure` |
 
-**Resident steps:** apply (≥ `guest_min_lead_days`, ≤ `guest_max_inclusive_days`) → Pending. While it is pending and the guest has not arrived, she can change the name, relation, dates, and reason, and it stays pending. An approved stay cannot be changed. She can cancel before arrival, whether the stay is pending or approved.
+**Resident steps:** apply (≥ `guest_min_lead_days`, ≤ `guest_max_inclusive_days`) → Pending. While it is pending and the guest has not arrived, she can change the name, relation, dates, and reason, and it stays pending. An approved stay cannot be changed. She can cancel before arrival, whether the stay is pending or approved. The stay detail shows Paid or Not paid, and she cannot change it.
 
-**Staff steps:** queue → Decide → Mark paid / unpaid.
+**Staff steps:** queue → Decide → Payment. A warden or the provost opens Guest payments from Home, or Payment on a guest request. They mark the stay paid (a note is required) or unpaid. Payment cannot change after arrival. A receipt is optional: take a photo, choose a photo, or choose a PDF. The phone turns other images into a JPEG before upload. Gate staff do not see this screen.
 
 **Gate steps:** expected list → Record arrival → In-hall list → Record departure.
 

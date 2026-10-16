@@ -47,9 +47,16 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "The gate camera reads the code on a resident's hall pass",
+          "cameraPermission": "The camera reads a hall pass at the gate and can photograph a guest receipt",
           "microphonePermission": false,
           "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "A photo of a receipt can be attached to a guest payment",
+          "cameraPermission": "The camera reads a hall pass at the gate and can photograph a guest receipt"
         }
       ],
       [
