@@ -41,19 +41,7 @@ describe('resident', { tags: ['resident'] }, () => {
     await screen.tapAt({ x: 201, y: 293 });
     await screen.tapAt({ x: 201, y: 447 });
     await screen.tapAt({ x: 80, y: 381 });
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const day = tomorrow.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-    });
-    try {
-      await screen.getByRole('button', day).tap({ timeout: 4_000 });
-    } catch {
-      await screen.getByRole('button', 'Next Month').tap();
-      await screen.getByRole('button', day).tap();
-    }
+    await pickTomorrow(screen);
     await setClock(screen, { x: 183, y: 381 }, ordinaryOuting.leave);
     await expect(screen.getByText(new RegExp(ordinaryOuting.leave))).toBeVisible();
     await setClock(screen, { x: 183, y: 461 }, ordinaryOuting.back);
@@ -78,15 +66,25 @@ describe('resident', { tags: ['resident'] }, () => {
     await tab(screen, 'settings').tap();
     await screen.getByRole('button', /^History/).tap();
     await expect(screen.getByText('History')).toBeVisible();
-    await expect(screen.getByText('Page 51')).toBeVisible({ timeout: 20_000 });
-    await expect(screen.getByText('Page 01')).toHaveCount(0);
-    await screen.getByRole('button', 'Show older').tap();
-    await expect(screen.getByText('Page 01')).toBeVisible({ timeout: 20_000 });
+    // A row speaks the kind and the clock. Page 51 returns at 8:21 PM. Page 01 returns at 7:31 PM.
+    const newest = screen.getByRole('button', /7:00 PM to 8:21 PM/);
+    const oldest = screen.getByRole('button', /7:00 PM to 7:31 PM/);
+    const older = screen.getByRole('button', 'Show older');
+    await expect(newest).toBeVisible({ timeout: 20_000 });
+    await expect(oldest).toHaveCount(0);
+    // The first page is taller than the phone. Short swipes stop on Show older instead of passing it.
+    await bringIntoView(screen, older);
+    try {
+      await older.tap({ timeout: 3_000 });
+    } catch {
+      // The row can move under the tap after the press has already asked for the next page.
+    }
+    await bringIntoView(screen, oldest);
   });
 
   test('a failed history list retries', async ({ screen }) => {
     await tab(screen, 'settings').tap();
-    const held = await holdHallDatabase();
+    const held = holdHallDatabase();
     try {
       await screen.getByRole('button', /^History/).tap();
       await expect(screen.getByText("History didn't load")).toBeVisible({ timeout: 20_000 });
@@ -96,19 +94,25 @@ describe('resident', { tags: ['resident'] }, () => {
     }
     await screen.getByRole('button', 'Retry').tap();
     await expect(screen.getByText("History didn't load")).toBeHidden({ timeout: 20_000 });
-    await expect(screen.getByText(/No history|Page \d+/)).toBeVisible();
+    // A recovered list is either the newest seeded row or an empty hall.
+    try {
+      await expect(screen.getByRole('button', /7:00 PM to 8:21 PM/)).toBeVisible({ timeout: 5_000 });
+    } catch {
+      await expect(screen.getByText('No history')).toBeVisible();
+    }
   });
 
   test('guest stays show upcoming first, then older', async ({ screen }) => {
     const guests = await seedGuestTabs();
     await tab(screen, 'permissions').tap();
     await screen.getByText('Guest stays').tap();
-    await expect(screen.getByText(guests.upcoming)).toBeVisible({ timeout: 20_000 });
-    await expect(screen.getByText(guests.older)).toHaveCount(0);
+    // The stay row speaks the name, the status, and the dates as one button.
+    await expect(screen.getByRole('button', new RegExp(guests.upcoming))).toBeVisible({ timeout: 20_000 });
+    await expect(screen.getByRole('button', new RegExp(guests.older))).toHaveCount(0);
     await screen.getByRole('button', 'Show older').tap();
     await expect(screen.getByText('Older')).toBeVisible({ timeout: 20_000 });
-    await expect(screen.getByText(guests.older)).toBeVisible();
-    await expect(screen.getByText(guests.upcoming)).toBeVisible();
+    await expect(screen.getByRole('button', new RegExp(guests.older))).toBeVisible();
+    await expect(screen.getByRole('button', new RegExp(guests.upcoming))).toBeVisible();
   });
 
   // Last: it changes the resident's password. The next run reseeds a fresh hall.
@@ -127,6 +131,53 @@ describe('resident', { tags: ['resident'] }, () => {
     await expect(tab(screen, 'home')).toBeVisible({ timeout: 30_000 });
   });
 });
+
+/** Short swipes down the list until `target` is on screen. */
+async function bringIntoView(screen: Screen, target: ReturnType<Screen['getByRole']>) {
+  for (let attempt = 0; attempt < 24; attempt += 1) {
+    try {
+      await expect(target).toBeVisible({ timeout: 400 });
+      return;
+    } catch {
+      await screen.swipe({ from: { x: 201, y: 560 }, to: { x: 201, y: 420 } });
+    }
+  }
+  await expect(target).toBeVisible();
+}
+
+/** Tomorrow on the compact calendar. It opens on the right month and only speaks the weeks on screen. */
+async function pickTomorrow(screen: Screen) {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const month = tomorrow.toLocaleDateString('en-US', { month: 'long' });
+  const day = String(tomorrow.getDate());
+  const target = screen.getByRole('button', new RegExp(`${month}\\s+${day}\\b`));
+  await expect(screen.getByRole('button', 'Month')).toBeVisible();
+  try {
+    await target.tap({ timeout: 2_000 });
+    return;
+  } catch {
+    // The first weeks are in the tree. A short swipe brings a later week up.
+  }
+  const anchor = screen.getByRole('button', new RegExp(`${month}\\s+1\\b`));
+  const box = await anchor.boundingBox();
+  if (!box) {
+    throw new Error('the calendar has no frame');
+  }
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await screen.swipe({
+      from: { x: box.x + box.width / 2, y: box.y + 160 },
+      to: { x: box.x + box.width / 2, y: box.y + 40 },
+    });
+    try {
+      await target.tap({ timeout: 1_500 });
+      return;
+    } catch {
+      // The week is still below.
+    }
+  }
+  await target.tap();
+}
 
 /** The proposal clock is 7:00 AM. One short fling on a column moves it by one step. */
 async function setClock(screen: Screen, chip: { x: number; y: number }, clock: string) {

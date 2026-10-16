@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from 'node:child_process';
+import { chmodSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { seededPassword, stateDir } from './accounts.ts';
@@ -96,45 +96,26 @@ export async function seedGuestTabs(): Promise<{ upcoming: string; older: string
   return { upcoming, older };
 }
 
-const LOCK_SCRIPT = `
-import sqlite3, sys, time
-connection = sqlite3.connect(sys.argv[1], timeout=20)
-connection.execute("BEGIN EXCLUSIVE")
-print("locked", flush=True)
-time.sleep(120)
-`;
-
-/** Hold the scratch database so the next list read fails, then let it through again. */
-export function holdHallDatabase(): Promise<{ release(): void }> {
+/** The scratch hall is WAL, so a second connection's exclusive lock does not stop a reader. */
+function scratchDatabaseFiles(): string[] {
   const database = join(stateDir, 'hostel.db');
-  const child: ChildProcess = spawn('python3', ['-c', LOCK_SCRIPT, database], {
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      child.kill();
-      reject(new Error('could not lock the scratch hall'));
-    }, 20_000);
-    let stderr = '';
-    child.stderr?.on('data', (chunk: Buffer) => {
-      stderr += String(chunk);
-    });
-    child.on('exit', (code) => {
-      if (code !== null && code !== 0 && code !== 15) {
-        clearTimeout(timer);
-        reject(new Error(`hall lock exited ${code}: ${stderr.slice(0, 180)}`));
+  return [database, `${database}-wal`, `${database}-shm`].filter((path) => existsSync(path));
+}
+
+/** Make the scratch database unreadable so the next list read fails, then restore it. */
+export function holdHallDatabase(): { release(): void } {
+  const files = scratchDatabaseFiles();
+  if (!files.some((path) => path.endsWith('hostel.db'))) {
+    throw new Error('the scratch hall is not there');
+  }
+  for (const path of files) {
+    chmodSync(path, 0);
+  }
+  return {
+    release() {
+      for (const path of files) {
+        chmodSync(path, 0o600);
       }
-    });
-    child.stdout?.on('data', (chunk: Buffer) => {
-      if (!String(chunk).includes('locked')) {
-        return;
-      }
-      clearTimeout(timer);
-      resolve({
-        release() {
-          child.kill();
-        },
-      });
-    });
-  });
+    },
+  };
 }
