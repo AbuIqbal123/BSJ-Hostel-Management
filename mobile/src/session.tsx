@@ -280,8 +280,10 @@ type SessionValue = {
   submitGuestStay: (body: GuestStayCreate) => Promise<string | null>;
   updateGuestStay: (guestStayId: string, body: GuestStayCreate) => Promise<string | null>;
   cancelGuestStay: (guestStayId: string) => Promise<HallFailure | null>;
-  /** Reads and writes under /api/v1 for any signed-in role. A body makes it a POST. */
-  staffRequest: (path: string, body?: unknown) => Promise<StaffReply>;
+  /** Reads and writes under /api/v1 for any signed-in role. A body makes it a POST. Pass POST to write with no body, or PATCH to update. */
+  staffRequest: (path: string, body?: unknown, method?: "POST" | "PATCH") => Promise<StaffReply>;
+  /** GET that returns text, such as the register CSV. */
+  staffText: (path: string) => Promise<StaffReply>;
 };
 
 const SessionContext = createContext<SessionValue | null>(null);
@@ -1465,31 +1467,53 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [authorized, endSession],
   );
 
-  const staffRequest = useCallback(async (path: string, body?: unknown): Promise<StaffReply> => {
+  const staffFailure = (json: unknown): StaffReply => {
+    const error = (json as { error?: { message?: unknown; details?: unknown } } | null)?.error;
+    return {
+      ok: false,
+      message: typeof error?.message === "string" && error.message ? error.message : "The hall could not be reached",
+      details:
+        error?.details && typeof error.details === "object" ? (error.details as Record<string, unknown>) : null,
+    };
+  };
+
+  const staffRequest = useCallback(async (path: string, body?: unknown, method?: "POST" | "PATCH"): Promise<StaffReply> => {
+    const unreachable = { ok: false as const, message: "The hall could not be reached", details: null };
+    if (!sessionRef.current) {
+      return { ...unreachable, message: "Sign in again" };
+    }
+    const verb = method ?? (body === undefined ? "GET" : "POST");
+    try {
+      const response = await authorized(
+        `/api/v1${path}`,
+        body === undefined
+          ? { method: verb }
+          : { method: verb, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+      );
+      if (response.status === 204) {
+        return { ok: true, data: null };
+      }
+      const json: unknown = await response.json().catch(() => null);
+      if (response.ok) {
+        return { ok: true, data: json };
+      }
+      return staffFailure(json);
+    } catch {
+      return unreachable;
+    }
+  }, []);
+
+  const staffText = useCallback(async (path: string): Promise<StaffReply> => {
     const unreachable = { ok: false as const, message: "The hall could not be reached", details: null };
     if (!sessionRef.current) {
       return { ...unreachable, message: "Sign in again" };
     }
     try {
-      const response = await authorized(
-        `/api/v1${path}`,
-        body === undefined
-          ? { method: "GET" }
-          : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
-      );
-      const json: unknown = await response.json().catch(() => null);
-      if (response.ok) {
-        return { ok: true, data: json };
+      const response = await authorized(`/api/v1${path}`, { method: "GET" });
+      if (!response.ok) {
+        return staffFailure(await response.json().catch(() => null));
       }
-      const error = (json as { error?: { message?: unknown; details?: unknown } } | null)?.error;
-      return {
-        ok: false,
-        message: typeof error?.message === "string" && error.message ? error.message : unreachable.message,
-        details:
-          error?.details && typeof error.details === "object"
-            ? (error.details as Record<string, unknown>)
-            : null,
-      };
+      return { ok: true, data: await response.text() };
     } catch {
       return unreachable;
     }
@@ -1523,6 +1547,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       updateGuestStay,
       cancelGuestStay,
       staffRequest,
+      staffText,
     }),
     [
       ready,
@@ -1551,6 +1576,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       updateGuestStay,
       cancelGuestStay,
       staffRequest,
+      staffText,
     ],
   );
 

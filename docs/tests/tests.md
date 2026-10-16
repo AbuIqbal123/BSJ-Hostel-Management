@@ -870,6 +870,19 @@ Copy this block for each test and fill every field.
 | Failure cases | Isolated: the unit run has no Firebase and no hall. Retrying a 422, or letting the Firebase error escape, is the failure. |
 | Artifact | None. The test states each check. |
 
+### `mobile-hall-office` Provost office shows hall hours, keeps inactive places, and confirms the destructive actions
+
+| Field | Content |
+|---|---|
+| Test | `mobile/src/__tests__/office.test.ts` |
+| Purpose | The provost office shows outing hours on a 12-hour clock and season starts as a day and month, sends only the settings that changed, keeps inactive destinations on the office list and off the resident catalog, and confirms before a hall-pass reissue or a password reset. Account reads do not keep a password or a hall-pass token. |
+| Actor | Provost, in the phone office. |
+| Preconditions | None. The checks call pure functions in `mobile/src/office.ts`. |
+| Action | Format `06:30`, `18:30`, `17:30`, `04-01`, and `10-01`. Parse `6:30 PM` and `01 April`. Build a settings patch that changes grace only. Split an admin destination list that includes an inactive place. Build a resident create, a resident patch, a staff create, and a staff patch. Read an account that includes a hall-pass token, a staff row that includes a temporary password, and an audit row that includes a token. Check the register CSV header. Run with `npm test` in `mobile/`. |
+| Expected response | `6:30 AM`, `6:30 PM`, `5:30 PM`, `01 April`, and `01 October`. `6:30 PM` stores as `18:30` and `01 April` stores as `04-01`. The settings patch is `grace_minutes` only. The inactive place stays in the office list and is absent from the resident catalog. Create bodies use `temporary_password` and no `password` field. A staff patch does not change role or username. A token on an account, a staff row, or an audit row is refused. The CSV is accepted only when the header matches the contract. Reissue copy is "The old QR stops working". Reset copy is "Sessions end". |
+| Failure cases | Isolated: the office screens cannot be driven from the hall end-to-end path in this check. Showing an inactive place to residents, sending an unchanged setting, or skipping the reissue and reset warning is the failure. |
+| Artifact | None. The test states each check. |
+
 ### `integrity-errors` Plain SQLite and Turso uniqueness errors are both caught
 
 | Field | Content |
