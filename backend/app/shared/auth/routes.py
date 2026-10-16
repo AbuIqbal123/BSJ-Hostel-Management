@@ -505,20 +505,21 @@ def onboard_options(request: Request, connection: ConnectionDep) -> list[Onboard
             FROM rooms
             WHERE rooms.block_id = ?
               AND rooms.is_active = 1
-              AND NOT EXISTS (
-                SELECT 1 FROM residents WHERE residents.room_id = rooms.id
-              )
             ORDER BY CAST(rooms.number AS INTEGER), rooms.number
             """,
             (block["id"],),
         ).fetchall()
+        # Same check as signup. A 2-bed room with one resident still has a bed.
+        open_rooms = [
+            row for row in room_rows if room_has_capacity(connection, row["room_id"])
+        ]
         blocks.append(
             OnboardBlockOption(
                 id=block["id"],
                 name=block["name"],
                 rooms=[
                     OnboardRoomOption(id=row["room_id"], label=row["room_label"])
-                    for row in room_rows
+                    for row in open_rooms
                 ],
             )
         )

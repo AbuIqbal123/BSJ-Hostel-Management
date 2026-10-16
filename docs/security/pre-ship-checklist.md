@@ -23,14 +23,14 @@ Map each item to this hall before shipping. Prefer server-side enforcement over 
 | 9 | **Secure Firebase, Supabase, and storage.** | **N/A for core BSJ today** (no Firebase/Supabase). If any object storage or file host is added later, lock buckets, signed URLs, and public ACLs. Hall-pass QR is not a public file upload path. |
 | 10 | **Protect admin routes.** | `/api/v1/admin/*` is **provost only**, including settings, residents, staff, `POST /api/v1/admin/users/{user_id}/password`, `POST /api/v1/admin/residents/{resident_id}/hall-pass/reissue`, export, SMS, and audit. Verify on every call. |
 | 11 | **Disable production debug mode.** | `environment=production`: no dev seed, no debug tool surfaces, OpenAPI/docs exposure only if deliberately allowed. |
-| 12 | **Hide detailed errors.** | Clients get contract-shaped errors, not stack traces or SQL. Log detail server-side only. |
+| 12 | **Hide detailed errors.** | Clients get one JSON shape for 404, 405, 422, and 500: `detail` repeats `error.message`, and `error` carries `code`, `message`, and `request_id`. No stack trace, SQL, or exception text. The access log records the request id and the exception type, not the exception text. |
 | 13 | **Validate inputs server-side.** | OpenAPI + server validation for lengths, enums, dates, and roles. Client validation is UX only. |
 | 14 | **Sanitize user content.** | Treat names, reasons, destinations, SMS template text as untrusted when shown or exported. No HTML/script injection into web views. |
 | 15 | **Secure file uploads.** | Guest payment evidence: `POST /api/v1/guest-stays/{id}/payment/evidence` (warden/provost only). Multipart field `evidence`; allowlist `image/jpeg`, `image/png`, `application/pdf`; max 5 MiB; UUID stored names under `PAYMENT_EVIDENCE_DIR` (never user-controlled paths); no absolute paths in API responses. Optional — never required to mark paid. CSV export remains download-only. |
 | 16 | **Prevent SQL and NoSQL injection.** | Parameterized queries / ORM only. No string-built SQL from user input. |
 | 17 | **Rate-limit login and signup.** | Rate-limit `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, `POST /api/v1/auth/onboard/enrolment`, `GET /api/v1/auth/onboard/options`, and dev public `POST /api/v1/auth/onboard`. A bad username and a wrong password use one generic sentence. A taken enrolment is named on purpose (`That enrolment number is already an account.`); the attempt limit is what keeps enumeration slow. |
 | 18 | **Check Git history for secrets.** | Run Gitleaks / pre-commit (`docs/engineering/dev-pre-commit.md`) before release. Scrub history if anything slipped. |
-| 19 | **Add security headers and restrict CORS.** | Production CORS allowlist (Expo / hall origins only). Sensible headers on the API host (e.g. no wide `*`). TLS everywhere. |
+| 19 | **Add security headers and restrict CORS.** | Every response sends `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, and `X-Request-ID`. Production also sends `Strict-Transport-Security`. CORS is still open until the production startup check refuses a wildcard. TLS is the host's job. |
 | 20 | **Test as an untrusted user.** | Manual or automated: suspended resident, wrong role calling admin, forged IDs, replayed refresh tokens, gate scan without auth. Expect 401/403, never data. |
 
 ---

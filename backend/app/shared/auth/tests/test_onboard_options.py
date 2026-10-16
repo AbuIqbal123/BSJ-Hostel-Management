@@ -102,30 +102,33 @@ def assign_every_room_in_block(path: Path, block_id: str) -> None:
     try:
         connection.execute("PRAGMA foreign_keys=ON;")
         rooms = connection.execute(
-            "SELECT id, label FROM rooms WHERE block_id = ? ORDER BY CAST(number AS INTEGER)",
+            "SELECT id, label, bed_count FROM rooms WHERE block_id = ? ORDER BY CAST(number AS INTEGER)",
             (block_id,),
         ).fetchall()
         phrase = hash_password(role_credential("resident-full-10"))
-        for index, (room_id, label) in enumerate(rooms):
-            user_id = f"b22de000-0000-4000-8000-{index + 1:012d}"
-            username = f"24-FULL-{index + 1:03d}"
-            connection.execute(
-                """
-                INSERT INTO users (
-                  id, role, username, full_name, password_hash, status, created_at, updated_at
-                ) VALUES (?, 'resident', ?, ?, ?, 'active', ?, ?)
-                """,
-                (user_id, username, f"Resident {label}", phrase, CREATED, CREATED),
-            )
-            connection.execute(
-                """
-                INSERT INTO residents (
-                  user_id, enrolment_number, course, room_id, guardian_name, guardian_phone,
-                  qr_token, presence, created_at, updated_at
-                ) VALUES (?, ?, NULL, ?, 'Rashid Khan', '+919876543210', ?, 'inside', ?, ?)
-                """,
-                (user_id, username, room_id, f"bsj:v1:{username}", CREATED, CREATED),
-            )
+        seat = 0
+        for room_id, label, bed_count in rooms:
+            for _bed in range(int(bed_count)):
+                seat += 1
+                user_id = f"b22de000-0000-4000-8000-{seat:012d}"
+                username = f"24-FULL-{seat:03d}"
+                connection.execute(
+                    """
+                    INSERT INTO users (
+                      id, role, username, full_name, password_hash, status, created_at, updated_at
+                    ) VALUES (?, 'resident', ?, ?, ?, 'active', ?, ?)
+                    """,
+                    (user_id, username, f"Resident {label}", phrase, CREATED, CREATED),
+                )
+                connection.execute(
+                    """
+                    INSERT INTO residents (
+                      user_id, enrolment_number, course, room_id, guardian_name, guardian_phone,
+                      qr_token, presence, created_at, updated_at
+                    ) VALUES (?, ?, NULL, ?, 'Rashid Khan', '+919876543210', ?, 'inside', ?, ?)
+                    """,
+                    (user_id, username, room_id, f"bsj:v1:{username}", CREATED, CREATED),
+                )
         connection.commit()
     finally:
         connection.close()
@@ -180,8 +183,8 @@ def test_onboard_options(database_path: Path, monkeypatch: pytest.MonkeyPatch) -
         by_name = {block["name"]: block for block in filtered_body}
         assert "A-1" not in {room["label"] for room in by_name["Block-A"]["rooms"]}
         assert len(by_name["Block-A"]["rooms"]) == counts["Block-A"] - 1
-        assert "B-1" not in {room["label"] for room in by_name["Block-B"]["rooms"]}
-        assert len(by_name["Block-B"]["rooms"]) == counts["Block-B"] - 1
+        assert "B-1" in {room["label"] for room in by_name["Block-B"]["rooms"]}
+        assert len(by_name["Block-B"]["rooms"]) == counts["Block-B"]
         assert by_name["Block-C"]["rooms"] == []
         assert len(by_name["Block-D"]["rooms"]) == counts["Block-D"]
         assert filtered_body == expected["filtered"]
@@ -205,3 +208,61 @@ def test_onboard_options(database_path: Path, monkeypatch: pytest.MonkeyPatch) -
             json={"enrolment_number": "24-NEW-001"},
         )
         assert sign_in_budget.status_code == 204
+
+
+def _seat(path: Path, room_label: str, username: str, bed_count: int | None = None) -> None:
+    connection = sqlite3.connect(path)
+    try:
+        connection.execute("PRAGMA foreign_keys=ON;")
+        room_id = connection.execute(
+            "SELECT id FROM rooms WHERE label = ?",
+            (room_label,),
+        ).fetchone()[0]
+        if bed_count is not None:
+            connection.execute(
+                "UPDATE rooms SET bed_count = ? WHERE id = ?",
+                (bed_count, room_id),
+            )
+        user_id = f"b22de100-0000-4000-8000-{int(username.rsplit('-', 1)[-1]):012d}"
+        phrase = hash_password(role_credential("resident-options-10"))
+        connection.execute(
+            """
+            INSERT INTO users (
+              id, role, username, full_name, password_hash, status, created_at, updated_at
+            ) VALUES (?, 'resident', ?, 'Aisha Khan', ?, 'active', ?, ?)
+            """,
+            (user_id, username, phrase, CREATED, CREATED),
+        )
+        connection.execute(
+            """
+            INSERT INTO residents (
+              user_id, enrolment_number, course, room_id, guardian_name, guardian_phone,
+              qr_token, presence, created_at, updated_at
+            ) VALUES (?, ?, NULL, ?, 'Rashid Khan', '+919876543210', ?, 'inside', ?, ?)
+            """,
+            (user_id, username, room_id, f"bsj:v1:{username}", CREATED, CREATED),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+
+def _block_labels(client: TestClient, name: str) -> set[str]:
+    listed = client.get("/api/v1/auth/onboard/options")
+    assert listed.status_code == 200
+    block = next(item for item in listed.json() if item["name"] == name)
+    return {room["label"] for room in block["rooms"]}
+
+
+def test_onboard_options_follow_bed_count(database_path: Path) -> None:
+    from app.main import app
+
+    with TestClient(app) as client:
+        _seat(database_path, "A-2", "24-BED-001")
+        assert "A-2" in _block_labels(client, "Block-A")
+
+        _seat(database_path, "A-2", "24-BED-002")
+        assert "A-2" not in _block_labels(client, "Block-A")
+
+        _seat(database_path, "A-3", "24-BED-003", bed_count=1)
+        assert "A-3" not in _block_labels(client, "Block-A")

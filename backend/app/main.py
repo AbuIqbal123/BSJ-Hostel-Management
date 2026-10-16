@@ -8,6 +8,7 @@ Paths in the file may exist before they are implemented.
 
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
 
@@ -18,11 +19,21 @@ from pathlib import Path
 import yaml
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException
 from pydantic import BaseModel
 
 from app.shared.config import get_settings, is_hosted
 from app.shared.db import commit_request
-from app.shared.errors import ApiError, api_error_handler, validation_error_handler
+from app.shared.errors import (
+    INTERNAL,
+    ApiError,
+    api_error_handler,
+    error_content,
+    http_exception_handler,
+    unhandled_exception_handler,
+    validation_error_handler,
+)
+from app.shared.request_context import RequestContext, current_request_id
 from app.shared.migrate import MIGRATIONS, SCHEMA_VERSION, applied_migrations, migrate
 from app.shared.auth.routes import router as auth_router
 from app.shared.devices.routes import router as devices_router
@@ -129,6 +140,8 @@ for router in ROUTERS:
     app.include_router(router)
 app.add_exception_handler(ApiError, api_error_handler)
 app.add_exception_handler(RequestValidationError, validation_error_handler)
+app.add_exception_handler(HTTPException, http_exception_handler)
+app.add_exception_handler(Exception, unhandled_exception_handler)
 
 
 @app.get("/health", response_model=Health)
@@ -213,18 +226,20 @@ class CommitBeforeResponse:
                 except Exception:
                     failed = True
                     started = True
-                    body = b"Internal Server Error"
+                    encoded = json.dumps(
+                        error_content("internal_error", INTERNAL, request_id=current_request_id())
+                    ).encode()
                     await send(  # type: ignore[misc]
                         {
                             "type": "http.response.start",
                             "status": 500,
                             "headers": [
-                                (b"content-type", b"text/plain; charset=utf-8"),
-                                (b"content-length", str(len(body)).encode()),
+                                (b"content-type", b"application/json"),
+                                (b"content-length", str(len(encoded)).encode()),
                             ],
                         }
                     )
-                    await send({"type": "http.response.body", "body": body})  # type: ignore[misc]
+                    await send({"type": "http.response.body", "body": encoded})  # type: ignore[misc]
                     return
                 started = True
             await send(message)  # type: ignore[misc]
@@ -253,6 +268,7 @@ class ForwardedClient:
         await self.asgi_app(scope, receive, send)  # type: ignore[misc]
 
 
-# Inner middleware commits. Outer middleware sets the client from the proxy hop.
+# Inner middleware commits. Outer middleware sets the client and the request id.
 app.add_middleware(CommitBeforeResponse)
 app.add_middleware(ForwardedClient)
+app.add_middleware(RequestContext)

@@ -425,10 +425,11 @@ paths:
         included. A block stays in the list even when every room is taken; its
         `rooms` array may be empty.
 
-        Each room entry comes from a stored room row. Only active rooms with no
-        resident assigned are listed. A room that already has a resident is
-        omitted, even when a bed remains. Inactive rooms are omitted. The
-        response does not invent room rows.
+        Each room entry comes from a stored room row. Only active rooms with a
+        free bed are listed: the resident count is below `rooms.bed_count`, the
+        same check signup uses. A 2-bed room with one resident stays listed. A
+        room with no free bed is omitted. Inactive rooms are omitted. The
+        response does not invent room rows. There is no paging.
 
         Each block is `id` and `name` only. Each room is `id` and `label` only.
         Rooms inside a block are ordered by door number. This is not the
@@ -3144,7 +3145,9 @@ paths:
       tags: [Hall office]
       operationId: list_rooms
       summary: List rooms
-      description: "Caller: provost."
+      description: |
+        Caller: provost. The response is the room array itself. There is no
+        paging, because the phone picker reads the whole list.
       parameters:
         - name: block_id
           in: query
@@ -3650,8 +3653,13 @@ components:
     ErrorResponse:
       type: object
       additionalProperties: false
-      required: [error]
+      required: [detail, error]
       properties:
+        detail:
+          type: string
+          description: |
+            The same sentence as `error.message`. Kept so a client that still
+            reads `detail` does not break.
         error:
           $ref: "#/components/schemas/Error"
 
@@ -3676,6 +3684,11 @@ components:
         message:
           type: string
           description: Sentence the phone can show. Not a stack trace.
+        request_id:
+          type: string
+          description: |
+            The X-Request-ID echoed on this response. Always present. The same
+            value is on the response header.
         details:
           type: object
           additionalProperties: true
@@ -3845,8 +3858,8 @@ components:
         rooms:
           type: array
           description: >
-            Active unassigned rooms in this block. May be empty when every room
-            is taken or inactive.
+            Active rooms in this block that still have a free bed. May be empty
+            when every room is full or inactive.
           items:
             $ref: "#/components/schemas/OnboardRoomOption"
     OnboardRoomOption:

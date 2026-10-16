@@ -38,7 +38,9 @@ def assert_error(
 ) -> None:
     assert response.status_code == status
     body = response.json()
-    assert set(body) == {"error"}
+    assert set(body) == {"detail", "error"}
+    assert body["detail"] == body["error"]["message"]
+    assert isinstance(body["error"].get("request_id"), str) and body["error"]["request_id"]
     assert body["error"]["code"] == code
     if message is not None:
         assert body["error"]["message"] == message

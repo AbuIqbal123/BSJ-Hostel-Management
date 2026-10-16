@@ -20,6 +20,7 @@ import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
 import { PASSWORD_RULES, passwordRulesMet } from "@/password-rules";
+import { signupRecovery } from "@/onboard-room";
 import { errorMessage, hallFetch, isRecord, useSession } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
@@ -255,6 +256,7 @@ export default function OnboardScreen() {
   const [course, setCourse] = useState<string | null>(signupDraft.course);
   const [blocks, setBlocks] = useState<BlockOption[]>([]);
   const [listNote, setListNote] = useState<string | null>(null);
+  const [roomFull, setRoomFull] = useState<string | null>(null);
   const [blockId, setBlockId] = useState<string | null>(
     signupDraft.blockTouched ? signupDraft.blockId : null,
   );
@@ -324,45 +326,38 @@ export default function OnboardScreen() {
     step,
   ]);
 
-  useEffect(() => {
-    let active = true;
-    hallFetch("/api/v1/auth/onboard/options", { method: "GET" })
-      .then(async (response) => {
-        if (!active) {
-          return;
-        }
-        if (!response.ok) {
-          const message = await errorMessage(response);
-          if (!active) {
-            return;
-          }
-          setBlocks([]);
-          setListNote(message);
-          return;
-        }
-        const parsed = readOptions((await response.json()) as unknown);
-        if (!active) {
-          return;
-        }
-        if (!parsed) {
-          setBlocks([]);
-          setListNote(HALL_UNREACHABLE);
-          return;
-        }
-        setBlocks(parsed);
-        setListNote(parsed.length === 0 ? EMPTY_ROOMS : null);
-      })
-      .catch(() => {
-        if (!active) {
-          return;
-        }
+  const loadOptions = useCallback(async () => {
+    try {
+      const response = await hallFetch("/api/v1/auth/onboard/options", { method: "GET" });
+      if (!response.ok) {
+        setBlocks([]);
+        setListNote(await errorMessage(response));
+        return;
+      }
+      const parsed = readOptions((await response.json()) as unknown);
+      if (!parsed) {
         setBlocks([]);
         setListNote(HALL_UNREACHABLE);
+        return;
+      }
+      setBlocks(parsed);
+      setListNote(parsed.length === 0 ? EMPTY_ROOMS : null);
+      setRoomId((current) => {
+        if (current === null) {
+          return current;
+        }
+        const stillOpen = parsed.some((item) => item.rooms.some((room) => room.id === current));
+        return stillOpen ? current : null;
       });
-    return () => {
-      active = false;
-    };
+    } catch {
+      setBlocks([]);
+      setListNote(HALL_UNREACHABLE);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadOptions();
+  }, [loadOptions]);
 
   const showStep = useCallback(
     (next: number) => {
@@ -433,6 +428,7 @@ export default function OnboardScreen() {
         setRoomId(null);
       }
       setBlockId(id);
+      setRoomFull(null);
       setError(null);
     },
     [blockId, blocks],
@@ -444,6 +440,7 @@ export default function OnboardScreen() {
         return;
       }
       setRoomId(id);
+      setRoomFull(null);
       setError(null);
     },
     [rooms],
@@ -561,10 +558,17 @@ export default function OnboardScreen() {
           room_id: selectedRoom.id,
         });
         if (message) {
-          if (message === "That enrolment number is already an account") {
+          const recovery = signupRecovery(message);
+          if (recovery?.step === 0) {
             setEnrolmentTaken(message);
             enrolmentField.reveal();
             showStep(0);
+            return;
+          }
+          if (recovery?.refetchRooms) {
+            setRoomFull(message);
+            showStep(2);
+            await loadOptions();
             return;
           }
           setError(message);
@@ -595,6 +599,7 @@ export default function OnboardScreen() {
     guardianName,
     guardianPhone,
     enrolmentField,
+    loadOptions,
     onboard,
     password,
     signIn,
@@ -714,7 +719,7 @@ export default function OnboardScreen() {
   );
   const guardianPhoneNote = shown(guardianPhoneField.visible, phoneError(guardianPhone));
   const blockNote = choiceAttempt && block === null ? "Choose a block" : null;
-  const roomNote = choiceAttempt && room === null ? "Choose a room" : null;
+  const roomNote = roomFull ?? (choiceAttempt && room === null ? "Choose a room" : null);
   const courseNote = choiceAttempt && !isCourse(course) ? "Choose a course" : null;
   const action = step < 2 ? "Continue" : "Sign up";
 

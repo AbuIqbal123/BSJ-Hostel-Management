@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 
 from app.shared.testing_env import role_credential
 from app.shared.auth.rate_limit import login_limiter
-from app.shared.auth.security import password_matches
+from app.shared.auth.security import hash_password, password_matches
 from app.shared.auth.tests.test_session import assert_error
 
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "auth-resident-onboard.json"
@@ -296,3 +296,70 @@ def test_taken_enrolment_is_not_a_password_error(
             "enrolment_number",
         )
         assert old_message not in json.dumps(finished.json())
+
+
+def _fill_room(path: Path, room_id: str, count: int) -> None:
+    connection = sqlite3.connect(path)
+    try:
+        connection.execute("PRAGMA foreign_keys=ON;")
+        phrase = hash_password(role_credential("resident-options-10"))
+        for index in range(count):
+            user_id = f"b22de200-0000-4000-8000-{index + 1:012d}"
+            username = f"24-FULL-{index + 1:03d}"
+            connection.execute(
+                """
+                INSERT INTO users (
+                  id, role, username, full_name, password_hash, status, created_at, updated_at
+                ) VALUES (?, 'resident', ?, 'Aisha Khan', ?, 'active', ?, ?)
+                """,
+                (user_id, username, phrase, "2026-09-30T00:00:00Z", "2026-09-30T00:00:00Z"),
+            )
+            connection.execute(
+                """
+                INSERT INTO residents (
+                  user_id, enrolment_number, course, room_id, guardian_name, guardian_phone,
+                  qr_token, presence, created_at, updated_at
+                ) VALUES (?, ?, NULL, ?, 'Rashid Khan', '+919876543210', ?, 'inside', ?, ?)
+                """,
+                (
+                    user_id,
+                    username,
+                    room_id,
+                    f"bsj:v1:{username}",
+                    "2026-09-30T00:00:00Z",
+                    "2026-09-30T00:00:00Z",
+                ),
+            )
+        connection.commit()
+    finally:
+        connection.close()
+
+
+def test_signup_race_returns_room_full(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The bed check and the insert can disagree for one moment. The insert still refuses."""
+    from app.main import app
+    from app.shared import clock
+    from app.shared.auth import routes as auth_routes
+
+    monkeypatch.setattr(clock, "utc_now", FrozenClock().utc_now)
+    monkeypatch.setattr(auth_routes, "room_has_capacity", lambda *_args, **_kwargs: True)
+    with TestClient(app) as client:
+        issue_rooms(database_path)
+        _fill_room(database_path, ROOM_B, 2)
+        refused = client.post("/api/v1/auth/onboard", json=_body())
+        assert_error(
+            refused,
+            422,
+            "validation_error",
+            "This room already has as many residents as it has beds.",
+            "room_id",
+        )
+        connection = sqlite3.connect(database_path)
+        try:
+            taken = connection.execute(
+                "SELECT COUNT(*) FROM residents WHERE room_id = ?",
+                (ROOM_B,),
+            ).fetchone()[0]
+        finally:
+            connection.close()
+        assert taken == 2
