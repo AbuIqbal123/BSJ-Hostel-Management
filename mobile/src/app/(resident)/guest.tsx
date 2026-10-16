@@ -18,7 +18,7 @@ import { BackMark } from "@/components/back-mark";
 import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
-import { HALL_ZONE, formatChipDay, formatHallDate } from "@/format-when";
+import { HALL_ZONE, formatChipDay, formatHallDate, hallNow } from "@/format-when";
 import { hallDay } from "@/outing-when";
 import { paymentLabel } from "@/payment-file";
 import { guestLine } from "@/requests";
@@ -61,7 +61,7 @@ function HallDate({
   const dark = useDark();
   const colors = useHallColors();
   const [pickerKey, setPickerKey] = useState(0);
-  const shown = value ?? new Date();
+  const shown = value ?? hallNow();
   const dayLabel = formatChipDay(shown);
   const open = () => {
     DateTimePickerAndroid.open({
@@ -299,7 +299,7 @@ function GuestForm({ existing }: { existing?: GuestStay }) {
           onChange={(date) => {
             setStart(date);
             setEnd((current) => {
-              const shown = current ?? new Date();
+              const shown = current ?? hallNow();
               if (hallDay(shown) >= hallDay(date)) {
                 return current;
               }

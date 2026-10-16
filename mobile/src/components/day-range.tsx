@@ -2,7 +2,7 @@ import { useState } from "react";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { HALL_ZONE, formatHallDate } from "@/format-when";
+import { HALL_ZONE, formatHallDate, hallNow } from "@/format-when";
 import { hallDay } from "@/outing-when";
 import { useDark } from "@/theme/appearance";
 import { useHallColors } from "@/theme/colors";
@@ -35,7 +35,7 @@ function DayChip({
   const shown = value ? formatHallDate(value) : empty;
   const openAndroid = () =>
     DateTimePickerAndroid.open({
-      value: value ? dayFromHall(value) : new Date(),
+      value: value ? dayFromHall(value) : hallNow(),
       mode: "date",
       timeZoneName: HALL_ZONE,
       onChange: (event, date) => {
@@ -55,7 +55,7 @@ function DayChip({
         <DateTimePicker
           key={pickerKey}
           style={styles.chipHit}
-          value={value ? dayFromHall(value) : new Date()}
+          value={value ? dayFromHall(value) : hallNow()}
           mode="date"
           display="compact"
           accentColor={colors.forest}

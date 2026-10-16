@@ -4,7 +4,7 @@ import DateTimePicker, {
 import { useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { HALL_ZONE, formatChipDay, formatWhenParts, utcInstant } from "@/format-when";
+import { HALL_ZONE, formatChipDay, formatWhenParts, hallNow, utcInstant } from "@/format-when";
 import { useDark } from "@/theme/appearance";
 import { useHallColors, type HallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
@@ -78,7 +78,7 @@ function withHallDay(daySource: Date, timeSource: Date): Date {
 }
 
 function proposalWhen(): Date {
-  return hallInstant(new Date(), Number(DAY_START.slice(0, 2)) + 1, 0);
+  return hallInstant(hallNow(), Number(DAY_START.slice(0, 2)) + 1, 0);
 }
 
 function seasonEnd(date: Date): string {

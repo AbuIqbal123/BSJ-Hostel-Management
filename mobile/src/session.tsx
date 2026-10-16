@@ -15,6 +15,7 @@ import { AppState, Platform } from "react-native";
 
 import { allowReturnReminders, clearNotificationSurface, PUSH_TOKEN_KEY, pushToken } from "@/push";
 import { refreshEffect, registerPushToken, singleFlight } from "@/session-refresh";
+import { ignore, readJson } from "@/safe";
 import { trimStop } from "@/staff";
 
 const SESSION_KEY = "bsj.session";
@@ -925,6 +926,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       await SecureStore.deleteItemAsync(PUSH_TOKEN_KEY);
     } catch {
       // The key may already be gone.
+      ignore();
     }
     sessionRef.current = null;
     setSession(null);
@@ -932,6 +934,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       await SecureStore.deleteItemAsync(SESSION_KEY);
     } catch {
       // The key may already be gone.
+      ignore();
     }
   }, []);
 
@@ -1058,6 +1061,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         await hallFetch("/api/v1/auth/logout", { method: "POST", headers });
       } catch {
         // The phone still signs out when the hall cannot be reached.
+        ignore();
       }
     }
     await endSession();
@@ -1109,6 +1113,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         await SecureStore.setItemAsync(PUSH_TOKEN_KEY, token);
       } catch {
         // The next foreground tries the save again.
+        ignore();
       }
     };
 
@@ -1122,6 +1127,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       removeListener = Notifications.addPushTokenListener(onToken).remove;
     } catch {
       // No push service on this phone.
+      ignore();
     }
 
     void pushToken()
@@ -1130,7 +1136,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           return attempt(token);
         }
       })
-      .catch(() => undefined);
+      .catch(ignore);
 
     const foreground = AppState.addEventListener("change", (state) => {
       if (state !== "active" || saved || refused) {
@@ -1142,7 +1148,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             return attempt(token);
           }
         })
-        .catch(() => undefined);
+        .catch(ignore);
     });
 
     return () => {
@@ -1562,7 +1568,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (response.status === 204) {
         return { ok: true, data: null };
       }
-      const json: unknown = await response.json().catch(() => null);
+      const json: unknown = await readJson(response);
       if (response.ok) {
         return { ok: true, data: json };
       }
@@ -1580,7 +1586,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     try {
       const response = await authorized(`/api/v1${path}`, { method: "GET" });
       if (!response.ok) {
-        return staffFailure(await response.json().catch(() => null));
+        return staffFailure(await readJson(response));
       }
       return { ok: true, data: await response.text() };
     } catch {
@@ -1598,7 +1604,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // React Native fetch reads this shape. The hall sniffs the bytes and ignores the type.
       form.append("evidence", { uri: file.uri, name: file.name, type: file.type } as unknown as Blob);
       const response = await authorized(`/api/v1${path}`, { method: "POST", body: form });
-      const json: unknown = await response.json().catch(() => null);
+      const json: unknown = await readJson(response);
       if (response.ok) {
         return { ok: true, data: json };
       }
@@ -1616,7 +1622,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     try {
       const response = await authorized(`/api/v1${path}`, { method: "GET" });
       if (!response.ok) {
-        const failure = staffFailure(await response.json().catch(() => null));
+        const failure = staffFailure(await readJson(response));
         return { ok: false, message: failure.message, code: failure.code };
       }
       const contentType = response.headers.get("content-type")?.split(";")[0]?.trim() || "application/octet-stream";

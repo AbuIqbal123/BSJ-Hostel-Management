@@ -7,6 +7,7 @@ import { Animated, Linking, Pressable, StyleSheet, Text, TextInput, useWindowDim
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HallButton } from "@/components/hall-button";
+import { ignore } from "@/safe";
 import { useSession } from "@/session";
 import { readScan, scanRefusal, type ScanResult } from "@/staff";
 import { useHallColors } from "@/theme/colors";
@@ -18,7 +19,7 @@ const LIGHT = "#F2F4F0";
 
 function buzz(ok: boolean) {
   const type = ok ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error;
-  Haptics.notificationAsync(type).catch(() => undefined);
+  Haptics.notificationAsync(type).catch(ignore);
 }
 
 function Corner({ color, at }: { color: string; at: "tl" | "tr" | "bl" | "br" }) {
@@ -232,7 +233,7 @@ export default function ScanScreen() {
       last.current = { code: data, at: now };
       const id = ++seq.current;
       shown.current = true;
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(ignore);
       setCard({ id, result: null });
       const reply = await staffRequest("/gate/scans", { qr_payload: data });
       const result = reply.ok

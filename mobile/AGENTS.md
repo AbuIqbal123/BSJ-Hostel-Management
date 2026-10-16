@@ -16,6 +16,7 @@ This app uses npm (`package-lock.json`).
 npx expo install <package>  # ALWAYS use instead of npm add — resolves SDK-compatible versions
 npx expo start              # start the dev server
 npx tsc --noEmit            # typecheck
+npm run lint                # eslint, warnings for empty blocks, silent catches, and new Date()
 npx expo-doctor             # diagnose dependency and config issues
 npx expo install --fix      # fix incompatible package versions
 ```
