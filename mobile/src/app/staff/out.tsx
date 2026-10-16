@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocalSearchParams, useNavigation } from "expo-router";
-import { Pressable, ScrollView, SectionList, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, SectionList, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
@@ -8,8 +8,11 @@ import { BackMark } from "@/components/back-mark";
 import { DayRange, type DayRangeValue } from "@/components/day-range";
 import { DenseRow } from "@/components/dense-row";
 import { FilterChip } from "@/components/filter-chip";
+import { ListError, RetryRow } from "@/components/list-state";
 import { SearchField } from "@/components/search-field";
 import { SectionHead } from "@/components/section-head";
+import { SkeletonRows } from "@/components/skeleton";
+import { acceptFailure, acceptPage, PAGE, shouldKeepPaging, shouldRequestNext, type Listed } from "@/list-page";
 import { useSession } from "@/session";
 import {
   lateDetail,
@@ -27,7 +30,8 @@ import {
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
-const PAGE = 50;
+const EMPTY_OUT: Listed<OutRow> = { rows: null, total: 0, error: null, pageError: null };
+const EMPTY_LATE: Listed<LateReturn> = { rows: null, total: 0, error: null, pageError: null };
 
 type Tab = "ordinary" | "permission" | "late";
 type LateState = "now" | "past";
@@ -47,8 +51,13 @@ const TABS: { value: Tab; label: string }[] = [
   { value: "late", label: "Late" },
 ];
 
-function outPath(q: string, blockId: string | null): string {
-  const search = new URLSearchParams({ state: "outside", order: "back_by", limit: "500" });
+function outPath(q: string, blockId: string | null, offset: number): string {
+  const search = new URLSearchParams({
+    state: "outside",
+    order: "back_by",
+    limit: String(PAGE),
+    offset: String(offset),
+  });
   if (q.trim()) {
     search.set("q", q.trim());
   }
@@ -92,14 +101,23 @@ export default function OutNowScreen() {
   const [blockId, setBlockId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<Tab>(params.tab === "late" ? "late" : "ordinary");
-  const [outRows, setOutRows] = useState<OutRow[] | null>(null);
+  const [outList, setOutList] = useState<Listed<OutRow>>(EMPTY_OUT);
   const [lateState, setLateState] = useState<LateState>("now");
   const [source, setSource] = useState<OutingKind | null>(null);
   const [range, setRange] = useState<DayRangeValue>({ from: null, to: null });
-  const [late, setLate] = useState<LateReturn[] | null>(null);
-  const [lateTotal, setLateTotal] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const [lateList, setLateList] = useState<Listed<LateReturn>>(EMPTY_LATE);
+  const [outPaging, setOutPaging] = useState(false);
+  const [latePaging, setLatePaging] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [contentH, setContentH] = useState(0);
+  const [viewH, setViewH] = useState(0);
   const outGen = useRef(0);
+  const outPagingRef = useRef(false);
+  const latePagingRef = useRef(false);
+  const outStall = useRef<number | null>(null);
+  const lateStall = useRef<number | null>(null);
+  const seenOut = useRef<{ q: string; block: string | null } | null>(null);
+  const seenLate = useRef<string | null>(null);
 
   useEffect(() => {
     if (params.tab === "late") {
@@ -107,7 +125,6 @@ export default function OutNowScreen() {
     }
   }, [params.tab]);
   const lateGen = useRef(0);
-  const lateLoading = useRef(false);
 
   useEffect(() => {
     void staffRequest("/register/summary").then((reply) => {
@@ -120,66 +137,142 @@ export default function OutNowScreen() {
   }, [staffRequest]);
 
   const loadOut = useCallback(
-    async (q: string, block: string | null) => {
-      const run = ++outGen.current;
-      const reply = await staffRequest(outPath(q, block));
+    async (q: string, block: string | null, offset: number, fromPull = false) => {
+      if (offset > 0) {
+        if (outPagingRef.current) {
+          return;
+        }
+        outPagingRef.current = true;
+        setOutPaging(true);
+      } else if (fromPull) {
+        setRefreshing(true);
+      }
+      const run = offset === 0 ? ++outGen.current : outGen.current;
+      const reply = await staffRequest(outPath(q, block, offset));
+      if (offset > 0) {
+        outPagingRef.current = false;
+        setOutPaging(false);
+      }
+      if (fromPull) {
+        setRefreshing(false);
+      }
       if (run !== outGen.current) {
         return;
       }
       if (!reply.ok) {
-        setError(trimStop(reply.message));
+        setOutList((state) => acceptFailure(state, offset, trimStop(reply.message)));
         return;
       }
-      setError(null);
-      setOutRows(readOutRows(reply.data));
+      const page = readOutRows(reply.data);
+      const total = readTotal(reply.data);
+      setOutList((state) => {
+        const before = state.rows?.length ?? 0;
+        const next = acceptPage(state, offset, page, total, (item) => item.id);
+        const after = next.rows?.length ?? 0;
+        if (offset > 0) {
+          outStall.current = after <= before ? offset : null;
+        } else if (after === 0 && total > 0) {
+          outStall.current = 0;
+        } else {
+          outStall.current = null;
+        }
+        return next;
+      });
     },
     [staffRequest],
   );
 
   const loadLate = useCallback(
-    async (offset: number) => {
-      if (offset > 0 && lateLoading.current) {
-        return;
+    async (offset: number, fromPull = false) => {
+      if (offset > 0) {
+        if (latePagingRef.current) {
+          return;
+        }
+        latePagingRef.current = true;
+        setLatePaging(true);
+      } else if (fromPull) {
+        setRefreshing(true);
       }
-      lateLoading.current = true;
       const run = offset === 0 ? ++lateGen.current : lateGen.current;
       const reply = await staffRequest(latePath(lateState, source, range, offset));
-      lateLoading.current = false;
+      if (offset > 0) {
+        latePagingRef.current = false;
+        setLatePaging(false);
+      }
+      if (fromPull) {
+        setRefreshing(false);
+      }
       if (run !== lateGen.current) {
         return;
       }
       if (!reply.ok) {
-        setError(trimStop(reply.message));
+        setLateList((state) => acceptFailure(state, offset, trimStop(reply.message)));
         return;
       }
-      setError(null);
       const page = readLateReturns(reply.data);
-      setLateTotal(readTotal(reply.data));
-      setLate((current) => (offset === 0 || !current ? page : [...current, ...page]));
+      const total = readTotal(reply.data);
+      setLateList((state) => {
+        const before = state.rows?.length ?? 0;
+        const next = acceptPage(state, offset, page, total, (item) => item.id);
+        const after = next.rows?.length ?? 0;
+        if (offset > 0) {
+          lateStall.current = after <= before ? offset : null;
+        } else if (after === 0 && total > 0) {
+          lateStall.current = 0;
+        } else {
+          lateStall.current = null;
+        }
+        return next;
+      });
     },
     [lateState, range, source, staffRequest],
   );
 
   useEffect(() => {
-    const timer = setTimeout(() => void loadOut(query, blockId), query ? 300 : 0);
+    const same = seenOut.current?.q === query && seenOut.current?.block === blockId;
+    if (!same) {
+      const first = seenOut.current === null;
+      seenOut.current = { q: query, block: blockId };
+      if (!first) {
+        outGen.current += 1;
+        outPagingRef.current = false;
+        outStall.current = null;
+        setOutList(EMPTY_OUT);
+      }
+    }
+    const timer = setTimeout(() => void loadOut(query, blockId, 0), query ? 300 : 0);
     return () => clearTimeout(timer);
   }, [blockId, loadOut, query]);
 
+  const lateKey = `${lateState}|${source ?? ""}|${range.from ?? ""}|${range.to ?? ""}`;
   useEffect(() => {
-    if (tab === "late") {
-      void loadLate(0);
+    if (tab !== "late") {
+      return;
     }
-  }, [loadLate, tab]);
+    if (seenLate.current !== lateKey) {
+      const first = seenLate.current === null;
+      seenLate.current = lateKey;
+      if (!first) {
+        lateGen.current += 1;
+        latePagingRef.current = false;
+        lateStall.current = null;
+        setLateList(EMPTY_LATE);
+      }
+    }
+    void loadLate(0);
+  }, [lateKey, loadLate, tab]);
 
+  const outRows = outList.rows;
+  const lateRows = lateList.rows;
   const sections = useMemo((): OutSection[] => {
     if (tab === "late") {
-      const data = (late ?? []).map((row): Row => ({ tab: "late", row }));
+      const data = (lateRows ?? []).map((row): Row => ({ tab: "late", row }));
       const title = lateState === "now" ? "Still out" : "Came back late";
-      return data.length > 0 ? [{ key: "late", title, note: String(lateTotal), data }] : [];
+      return data.length > 0 ? [{ key: "late", title, note: String(lateList.total), data }] : [];
     }
     const wanted = (outRows ?? []).filter((row) => (tab === "ordinary") === (row.kind === "ordinary"));
     return blockSections(wanted, blocks);
-  }, [blocks, late, lateState, lateTotal, outRows, tab]);
+  }, [blocks, lateList.total, lateRows, lateState, outRows, tab]);
 
   const count = (value: Tab): number | null => {
     if (value === "late") {
@@ -187,9 +280,48 @@ export default function OutNowScreen() {
     }
     return outRows ? outRows.filter((row) => (value === "ordinary") === (row.kind === "ordinary")).length : null;
   };
+  const active = tab === "late" ? lateList : outList;
+  const activeRows = active.rows;
+  const loadedCount = activeRows?.length ?? 0;
+  const pagingUi = tab === "late" ? latePaging : outPaging;
+  const stalled = (tab === "late" ? lateStall.current : outStall.current) === loadedCount;
+  const keepPaging =
+    activeRows !== null &&
+    shouldKeepPaging(loadedCount, active.total, pagingUi, active.pageError !== null, contentH, viewH, stalled);
+
+  const askNext = (force = false) => {
+    if (force) {
+      if (tab === "late") {
+        lateStall.current = null;
+      } else {
+        outStall.current = null;
+      }
+    } else if (stalled || !shouldRequestNext(loadedCount, active.total, pagingUi, active.pageError !== null)) {
+      return;
+    }
+    if (tab === "late") {
+      void loadLate(loadedCount);
+      return;
+    }
+    void loadOut(query, blockId, loadedCount);
+  };
+
+  useEffect(() => {
+    if (keepPaging) {
+      askNext();
+    }
+  });
   const filtered = tab === "late" ? source !== null || range.from !== null || range.to !== null : query !== "" || blockId !== null;
   const blockName = blocks.find((block) => block.id === blockId)?.name;
-  const loaded = tab === "late" ? late !== null : outRows !== null;
+  const reload = (fromPull = false) => {
+    if (tab === "late") {
+      lateStall.current = null;
+      void loadLate(0, fromPull);
+      return;
+    }
+    outStall.current = null;
+    void loadOut(query, blockId, 0, fromPull);
+  };
 
   const header = (
     <View style={styles.header}>
@@ -244,7 +376,8 @@ export default function OutNowScreen() {
           </ScrollView>
         </>
       )}
-      {error ? <Text accessibilityLiveRegion="polite" style={[text.error, { color: colors.danger }]}>{error}</Text> : null}
+      {activeRows === null && !active.error ? <SkeletonRows count={4} kind="row" /> : null}
+      {active.error ? <ListError message={active.error} onRetry={() => reload(loadedCount > 0)} /> : null}
     </View>
   );
 
@@ -268,12 +401,17 @@ export default function OutNowScreen() {
       windowSize={9}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
+      onLayout={(event) => setViewH(event.nativeEvent.layout.height)}
+      onContentSizeChange={(_width, height) => setContentH(height)}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => reload(true)} tintColor={colors.inkFaint} />}
       onEndReachedThreshold={0.5}
-      onEndReached={() => {
-        if (tab === "late" && late && late.length < lateTotal) {
-          void loadLate(late.length);
-        }
-      }}
+      onEndReached={() => askNext()}
+      ListFooterComponent={
+        <>
+          {pagingUi ? <SkeletonRows count={1} kind="row" /> : null}
+          {active.pageError ? <RetryRow message={active.pageError} onRetry={() => askNext(true)} /> : null}
+        </>
+      }
       renderSectionHeader={({ section }) => <SectionHead title={section.title} count={section.note} />}
       renderItem={({ item, index, section }) => (
         <DenseRow
@@ -286,7 +424,7 @@ export default function OutNowScreen() {
         />
       )}
       ListEmptyComponent={
-        loaded && !error ? (
+        activeRows !== null && !active.error && !pagingUi && !keepPaging ? (
           <View style={styles.empty}>
             <Text style={[styles.place, { color: colors.ink }]}>{emptyTitle}</Text>
             {filtered && tab !== "late" ? (

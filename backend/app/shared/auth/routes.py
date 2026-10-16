@@ -501,6 +501,7 @@ def check_enrolment(
 @router.get("/onboard/options")
 def onboard_options(request: Request, connection: ConnectionDep) -> list[OnboardBlockOption]:
     options_limiter.check(client_key(request.client.host if request.client else None))
+    _refuse_when_onboard_closed()
     placeholders = ", ".join("?" for _ in RESIDENT_BLOCK_CODES)
     block_rows = connection.execute(
         f"""

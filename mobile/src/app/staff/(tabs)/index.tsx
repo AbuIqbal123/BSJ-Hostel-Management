@@ -7,7 +7,9 @@ import { Bell } from "@/components/bell";
 import { onHallRefresh } from "@/hall-refresh";
 import { DenseRow } from "@/components/dense-row";
 import { HallButton } from "@/components/hall-button";
+import { ListError } from "@/components/list-state";
 import { SectionHead } from "@/components/section-head";
+import { SkeletonRows } from "@/components/skeleton";
 import { setBadge } from "@/push";
 import { runsOffice } from "@/office";
 import { roleLabel, useSession } from "@/session";
@@ -58,6 +60,7 @@ export default function StaffHomeScreen() {
       }
       if (reply.ok) {
         setActivity(readActivity(reply.data));
+        setError(null);
       } else {
         setError(trimStop(reply.message));
       }
@@ -177,8 +180,9 @@ export default function StaffHomeScreen() {
       ) : null}
       <View style={[styles.section, { borderTopColor: colors.line }]}>
         <SectionHead title="Recent at the gate" />
-        {error ? <Text accessibilityLiveRegion="polite" style={[text.error, { color: colors.danger }]}>{error}</Text> : null}
-        {activity && activity.length === 0 ? (
+        {activity === null && !error ? <SkeletonRows count={3} kind="row" /> : null}
+        {error ? <ListError message={error} onRetry={() => { reload(); }} /> : null}
+        {activity && activity.length === 0 && !error ? (
           <Text style={[text.body, { color: colors.inkSoft }]}>No one has passed the gate yet</Text>
         ) : null}
         <View>

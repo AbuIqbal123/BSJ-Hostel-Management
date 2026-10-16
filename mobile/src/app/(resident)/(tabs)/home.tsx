@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Bell } from "@/components/bell";
 import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
+import { ListError } from "@/components/list-state";
 import { TextField } from "@/components/text-field";
 import { formatWhenParts, utcInstant } from "@/format-when";
 import { onHallRefresh } from "@/hall-refresh";
@@ -115,6 +116,7 @@ export default function HomeScreen() {
   const [backBy, setBackBy] = useState<Date | null>(null);
   const [where, setWhere] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [homeError, setHomeError] = useState<string | null>(null);
   const pending = useRef(false);
   const holdConfirm = useRef(0);
 
@@ -129,10 +131,11 @@ export default function HomeScreen() {
         return;
       }
       if (result.error !== null) {
-        setError(result.error);
+        setHomeError(result.error);
         setLoaded(true);
         return;
       }
+      setHomeError(null);
       setFullName(result.home.fullName);
       setRoomLabel(result.home.roomLabel);
       setOut(result.home.out);
@@ -384,9 +387,7 @@ export default function HomeScreen() {
               </Text>
             ) : null}
           </View>
-          {error && !planCard ? (
-            <Text accessibilityLiveRegion="polite" style={[text.error, { color: colors.danger }]}>{error}</Text>
-          ) : null}
+          {homeError ? <ListError message={homeError} onRetry={() => { refresh(); }} /> : null}
           {loaded && out ? (
             <Text style={[text.body, { color: colors.ink }]}>You are out</Text>
           ) : null}
