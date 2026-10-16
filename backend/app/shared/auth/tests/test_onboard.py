@@ -363,3 +363,66 @@ def test_signup_race_returns_room_full(database_path: Path, monkeypatch: pytest.
         finally:
             connection.close()
         assert taken == 2
+
+
+def test_closed_signup_asks_for_the_hall_office(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.main import app
+    from app.shared import clock
+    from app.shared.config import get_settings
+
+    monkeypatch.setenv("ONBOARD_ENABLED", "false")
+    get_settings.cache_clear()
+    monkeypatch.setattr(clock, "utc_now", FrozenClock().utc_now)
+    message = "Ask the hall office to create your account."
+    try:
+        with TestClient(app) as client:
+            issue_rooms(database_path)
+            _fill_room(database_path, ROOM_A, 1)
+            counted = sqlite3.connect(database_path)
+            try:
+                before = counted.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+            finally:
+                counted.close()
+            fresh = client.post("/api/v1/auth/onboard", json=_body())
+            taken = client.post(
+                "/api/v1/auth/onboard",
+                json=_body(enrolment_number="24-FULL-001"),
+            )
+            fresh_check = client.post(
+                "/api/v1/auth/onboard/enrolment",
+                json={"enrolment_number": "24-NEW-001"},
+            )
+            taken_check = client.post(
+                "/api/v1/auth/onboard/enrolment",
+                json={"enrolment_number": "24-FULL-001"},
+            )
+            for response in (fresh, taken, fresh_check, taken_check):
+                assert_error(response, 403, "onboard_closed", message)
+                assert "24-FULL-001" not in response.text
+                assert "already" not in response.text.lower()
+            assert fresh.json()["error"]["message"] == taken.json()["error"]["message"]
+            counted = sqlite3.connect(database_path)
+            try:
+                after = counted.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+            finally:
+                counted.close()
+            assert after == before
+
+            office = client.post(
+                "/api/v1/auth/login",
+                json={"username": "24-FULL-001", "password": role_credential("resident-options-10")},
+            )
+            assert office.status_code == 200
+            assert office.json()["user"]["role"] == "resident"
+    finally:
+        monkeypatch.setenv("ONBOARD_ENABLED", "true")
+        get_settings.cache_clear()
+
+    with TestClient(app) as client:
+        opened = client.post(
+            "/api/v1/auth/onboard/enrolment",
+            json={"enrolment_number": "24-NEW-009"},
+        )
+        assert opened.status_code == 204

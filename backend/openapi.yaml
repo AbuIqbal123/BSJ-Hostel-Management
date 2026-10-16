@@ -306,6 +306,10 @@ paths:
         username. Staff cannot use this path. Rate-limited like sign-in. A taken
         enrolment is refused on `enrolment_number` before the rest of the form
         is needed, and again if signup is sent with that number.
+
+        Set `ONBOARD_ENABLED` to false at launch. Signup and the enrolment
+        check then return the same 403 and do not say whether the number is
+        already an account. The hall office creates residents instead.
       security: []
       requestBody:
         required: true
@@ -349,6 +353,18 @@ paths:
                   message: That enrolment number is already an account.
                   details:
                     field: enrolment_number
+        "403":
+          description: |
+            Public signup is off. The message asks her to go to the hall office
+            and does not say whether an account exists. Code `onboard_closed`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: onboard_closed
+                  message: Ask the hall office to create your account.
         "429":
           description: |
             Too many onboard attempts from this client in a short window.
@@ -370,7 +386,8 @@ paths:
         Caller: anyone (no token). Used on the enrolment field before the rest
         of signup. A free number returns no body. A number that is already an
         account, ignoring capitals, names `enrolment_number`. Rate-limited like
-        sign-in.
+        sign-in. When `ONBOARD_ENABLED` is false, this check returns the same
+        403 as signup and does not say whether the number is taken.
       security: []
       requestBody:
         required: true
@@ -390,6 +407,14 @@ paths:
       responses:
         "204":
           description: That enrolment number is free.
+        "403":
+          description: |
+            Public signup is off. Code `onboard_closed`. The message does not
+            say whether the enrolment number is already an account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "422":
           description: The enrolment number is already an account, or it is missing.
           content:
