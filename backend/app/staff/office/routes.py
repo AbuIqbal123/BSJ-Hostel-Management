@@ -29,8 +29,12 @@ from app.staff.office.records import (
 router = APIRouter(prefix="/api/v1/admin", tags=["Hall office"])
 
 
+# The hall office. Add "warden" here when wardens should open these routes.
+_ADMIN_ROLES = frozenset({"provost"})
+
+
 def provost_account(account: AccountDep) -> Account:
-    if account.role != "provost":
+    if account.role not in _ADMIN_ROLES:
         raise ApiError(403, "forbidden", "This account cannot do that.")
     return account
 

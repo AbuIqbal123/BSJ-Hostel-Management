@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     debug: bool = False
     # None means on in development and off in production. Set DOCS_ENABLED to override.
     docs_enabled: bool | None = None
+    # Public signup. Turn this off at launch so only the hall office creates residents.
+    onboard_enabled: bool = True
     cors_origins: str = ""
     database_path: Path = BACKEND_ROOT / "data" / "hostel.db"
     turso_database_url: str = ""

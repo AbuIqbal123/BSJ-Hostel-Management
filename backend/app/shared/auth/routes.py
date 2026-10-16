@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, Header, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.shared import clock
+from app.shared.config import get_settings
 from app.shared.audit import record_audit
 from app.shared.db import INTEGRITY_ERRORS, get_connection
 from app.shared.errors import ApiError
@@ -334,6 +335,14 @@ def change_password(
 
 
 _ONBOARD_READY = "Your account is ready. Sign in with your enrolment number and password."
+_ONBOARD_CLOSED = "Ask the hall office to create your account."
+
+
+def _refuse_when_onboard_closed() -> None:
+    if not get_settings().onboard_enabled:
+        raise ApiError(403, "onboard_closed", _ONBOARD_CLOSED)
+
+
 _ROOM_BLOCK = "That room is not in the selected block."
 _ROOM_INACTIVE = "That room is not in use."
 _ROOM_FULL = "This room already has as many residents as it has beds."
@@ -367,6 +376,7 @@ def onboard_resident(
     connection: ConnectionDep,
 ) -> ResidentOnboardResponse:
     login_limiter.check(client_key(request.client.host if request.client else None))
+    _refuse_when_onboard_closed()
     full_name = body.full_name.strip()
     enrolment = body.enrolment_number.strip()
     guardian_name = body.guardian_name.strip()
@@ -475,6 +485,7 @@ def check_enrolment(
     connection: ConnectionDep,
 ) -> Response:
     login_limiter.check(client_key(request.client.host if request.client else None))
+    _refuse_when_onboard_closed()
     enrolment = body.enrolment_number.strip()
     if not enrolment:
         raise ApiError(422, "validation_error", "Enter your enrolment number.", field="enrolment_number")

@@ -537,6 +537,10 @@ username. Staff cannot use this path. Rate-limited like sign-in. A taken
 enrolment is refused on `enrolment_number` before the rest of the form
 is needed, and again if signup is sent with that number.
 
+Set `ONBOARD_ENABLED` to false at launch. Signup and the enrolment
+check then return the same 403 and do not say whether the number is
+already an account. The hall office creates residents instead.
+
 **Request.** Required.
 
 Body: [ResidentOnboardRequest](#schema-residentonboardrequest).
@@ -614,6 +618,24 @@ Body: [ErrorResponse](#schema-errorresponse).
 }
 ```
 
+#### 403
+
+Public signup is off. The message asks her to go to the hall office
+and does not say whether an account exists. Code `onboard_closed`.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+**Example**
+
+```json
+{
+  "error": {
+    "code": "onboard_closed",
+    "message": "Ask the hall office to create your account."
+  }
+}
+```
+
 #### 429
 
 Too many onboard attempts from this client in a short window.
@@ -641,7 +663,8 @@ Body: [ErrorResponse](#schema-errorresponse).
 Caller: anyone (no token). Used on the enrolment field before the rest
 of signup. A free number returns no body. A number that is already an
 account, ignoring capitals, names `enrolment_number`. Rate-limited like
-sign-in.
+sign-in. When `ONBOARD_ENABLED` is false, this check returns the same
+403 as signup and does not say whether the number is taken.
 
 **Request.** Required.
 
@@ -666,6 +689,13 @@ Body: object.
 That enrolment number is free.
 
 No body.
+
+#### 403
+
+Public signup is off. Code `onboard_closed`. The message does not
+say whether the enrolment number is already an account.
+
+Body: [ErrorResponse](#schema-errorresponse).
 
 #### 422
 

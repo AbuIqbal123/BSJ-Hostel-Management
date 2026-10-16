@@ -125,7 +125,7 @@ cp .env.example .env
 uvicorn app.main:app --reload
 ```
 
-Set `APP_SECRET_KEY` to at least 32 bytes. Keep `SMS_DRIVER=mock` unless `ENVIRONMENT` is `production`.
+Set `APP_SECRET_KEY` to at least 32 bytes. Keep `SMS_DRIVER=mock` unless `ENVIRONMENT` is `production`. Leave `ONBOARD_ENABLED=true` while residents sign themselves up. Set it to false at launch so a new resident is asked to go to the hall office, and only an account the office created can sign in.
 
 | | |
 |---|---|
