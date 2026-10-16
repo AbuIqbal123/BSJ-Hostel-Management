@@ -64,3 +64,15 @@ def test_ready_refuses_a_database_it_cannot_open(
         assert refused_junk.status_code == 503
         assert refused_junk.json()["error"]["code"] == "not_ready"
         assert junk.read_text(encoding="utf-8") == "not a database"
+
+        def timed_out(_connection: object) -> int:
+            raise TimeoutError("timed out talking to the database")
+
+        _point_at(monkeypatch, database_path)
+        monkeypatch.setattr("app.main._schema_version", timed_out)
+        refused_timeout = client.get("/ready")
+        assert refused_timeout.status_code == 503
+        assert refused_timeout.json()["error"]["code"] == "not_ready"
+        assert refused_timeout.json()["error"]["message"] == "The hall database could not be opened."
+        assert "timed out" not in refused_timeout.text
+        assert "TimeoutError" not in refused_timeout.text

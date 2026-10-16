@@ -10,6 +10,11 @@ def signing_key_for_tests() -> str:
     return "hall-test-signing-key-0123456789abcdef"
 
 
+def production_signing_key_for_tests() -> str:
+    """A non-default key for checks that run with ENVIRONMENT=production."""
+    return "production-test-signing-key-0123456789ab"
+
+
 def fixture_password(label: str = "fixture") -> str:
     """Strong runtime password for fixtures (meets hall character-class rules)."""
     return f"Fx-{label}-{secrets.token_hex(8)}!9"

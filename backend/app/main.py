@@ -26,6 +26,7 @@ from app.shared.config import get_settings, is_hosted
 from app.shared.db import commit_request
 from app.shared.errors import (
     INTERNAL,
+    NOT_FOUND,
     ApiError,
     api_error_handler,
     error_content,
@@ -168,7 +169,7 @@ def ready() -> Ready:
                 user_version = _schema_version(connection)
             finally:
                 connection.close()
-        except (RuntimeError, OSError, sqlite3.Error, turso_serverless.Error) as exc:
+        except (RuntimeError, OSError, TimeoutError, sqlite3.Error, turso_serverless.Error) as exc:
             raise ApiError(503, "not_ready", "The hall database could not be opened.") from exc
         return Ready(status="ready", user_version=user_version)
     path = settings.database_path
@@ -184,7 +185,7 @@ def ready() -> Ready:
             user_version = _schema_version(connection)
         finally:
             connection.close()
-    except sqlite3.Error as exc:
+    except (sqlite3.Error, TimeoutError) as exc:
         raise ApiError(503, "not_ready", "The hall database could not be opened.") from exc
     return Ready(status="ready", user_version=user_version)
 
@@ -268,7 +269,38 @@ class ForwardedClient:
         await self.asgi_app(scope, receive, send)  # type: ignore[misc]
 
 
+_DOC_PATHS = {"/docs", "/docs/", "/redoc", "/redoc/", "/openapi.json", "/docs/oauth2-redirect"}
+
+
+class DocsGate:
+    """Production hides the contract pages unless DOCS_ENABLED is set."""
+
+    def __init__(self, asgi_app: object) -> None:
+        self.asgi_app = asgi_app
+
+    async def __call__(self, scope: dict, receive: object, send: object) -> None:
+        if scope["type"] == "http" and scope.get("path") in _DOC_PATHS:
+            if not get_settings().docs_enabled:
+                encoded = json.dumps(
+                    error_content("not_found", NOT_FOUND, request_id=current_request_id())
+                ).encode()
+                await send(  # type: ignore[misc]
+                    {
+                        "type": "http.response.start",
+                        "status": 404,
+                        "headers": [
+                            (b"content-type", b"application/json"),
+                            (b"content-length", str(len(encoded)).encode()),
+                        ],
+                    }
+                )
+                await send({"type": "http.response.body", "body": encoded})  # type: ignore[misc]
+                return
+        await self.asgi_app(scope, receive, send)  # type: ignore[misc]
+
+
 # Inner middleware commits. Outer middleware sets the client and the request id.
 app.add_middleware(CommitBeforeResponse)
 app.add_middleware(ForwardedClient)
+app.add_middleware(DocsGate)
 app.add_middleware(RequestContext)

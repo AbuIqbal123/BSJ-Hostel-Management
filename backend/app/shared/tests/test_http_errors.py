@@ -69,6 +69,9 @@ def test_http_errors_share_one_shape(database_path, monkeypatch: pytest.MonkeyPa
         assert rejected.headers["x-request-id"]
 
         monkeypatch.setenv("ENVIRONMENT", "production")
+        monkeypatch.setenv("APP_SECRET_KEY", "production-test-signing-key-0123456789ab")
+        monkeypatch.setenv("DEBUG", "false")
+        monkeypatch.setenv("CORS_ORIGINS", "")
         get_settings.cache_clear()
         secured = client.get("/health")
         assert secured.headers["strict-transport-security"] == "max-age=31536000; includeSubDomains"

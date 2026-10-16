@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.shared.migrate import MIGRATIONS
-from app.shared.testing_env import signing_key_for_tests
+from app.shared.testing_env import production_signing_key_for_tests
 
 TURSO_URL = "libsql://bsj-hall.turso.io"
 TURSO_TOKEN = "hosted-token-not-a-secret"
@@ -30,7 +30,9 @@ def hosted_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.setenv("RENDER", "true")
     monkeypatch.setenv("SMS_DRIVER", "mock")
-    monkeypatch.setenv("APP_SECRET_KEY", signing_key_for_tests())
+    monkeypatch.setenv("DEBUG", "false")
+    monkeypatch.setenv("CORS_ORIGINS", "")
+    monkeypatch.setenv("APP_SECRET_KEY", production_signing_key_for_tests())
     monkeypatch.setenv("DATABASE_PATH", str(database))
     monkeypatch.delenv("TURSO_DATABASE_URL", raising=False)
     monkeypatch.delenv("TURSO_AUTH_TOKEN", raising=False)
@@ -127,7 +129,9 @@ def test_a_laptop_ignores_turso_and_opens_the_file(
     monkeypatch.setenv("TURSO_DATABASE_URL", TURSO_URL)
     monkeypatch.setenv("TURSO_AUTH_TOKEN", TURSO_TOKEN)
     monkeypatch.setenv("SMS_DRIVER", "mock")
-    monkeypatch.setenv("APP_SECRET_KEY", signing_key_for_tests())
+    monkeypatch.setenv("DEBUG", "false")
+    monkeypatch.setenv("CORS_ORIGINS", "")
+    monkeypatch.setenv("APP_SECRET_KEY", production_signing_key_for_tests())
     monkeypatch.delenv("RENDER", raising=False)
     called: list[str] = []
 

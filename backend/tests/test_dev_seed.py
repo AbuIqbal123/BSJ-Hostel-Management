@@ -347,6 +347,9 @@ def test_dev_seed_refuses_outside_development(
     database_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("DEBUG", "false")
+    monkeypatch.setenv("CORS_ORIGINS", "")
+    monkeypatch.setenv("APP_SECRET_KEY", "production-test-signing-key-0123456789ab")
     from app.shared.config import get_settings
 
     get_settings.cache_clear()

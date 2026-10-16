@@ -3837,7 +3837,10 @@ approved, not yet arrived, and the hall date is inside the stay.
 `in_hall` includes guests who should already have left, because departure
 is still recorded here. Optional `payment_status` is a separate axis
 (`paid` or `unpaid`); omit it to return every guest that matches the
-bucket.
+bucket. `limit` and `offset` page that list. The default page is 50
+guests. That number is a page size, not a cap on how many guests the
+hall can have. `q` matches the guest name, the host name, or the room
+label.
 
 **Parameters**
 
@@ -3845,6 +3848,9 @@ bucket.
 |---|---|---|---|---|
 | `bucket` | query | yes | `expected` or `in_hall` |  |
 | `payment_status` | query | no | `paid` or `unpaid` | When set, keep only guests with that payment status. Omit to include both paid and unpaid for the chosen bucket. |
+| `limit` | query | no | integer | 1–50. default `50`. |
+| `offset` | query | no | integer | minimum 0. default `0`. |
+| `q` | query | no | string | at most 80 characters. |
 
 **Responses**
 
@@ -3857,6 +3863,9 @@ Body: [GateGuestList](#schema-gateguestlist).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `items` | yes | list of [GateGuestCard](#schema-gateguestcard) |  |
+| `total` | yes | integer | Guests that match the bucket, payment filter, and search. Not the page length. minimum 0. |
+| `limit` | yes | integer | 1–50. |
+| `offset` | yes | integer | minimum 0. |
 
 #### 401
 
@@ -3867,6 +3876,12 @@ Body: [ErrorResponse](#schema-errorresponse).
 #### 403
 
 The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 422
+
+The JSON is the wrong shape, or a field fails a constraint that does not depend on existing rows.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
@@ -6890,6 +6905,9 @@ are null.
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `items` | yes | list of [GateGuestCard](#schema-gateguestcard) |  |
+| `total` | yes | integer | Guests that match the bucket, payment filter, and search. Not the page length. minimum 0. |
+| `limit` | yes | integer | 1–50. |
+| `offset` | yes | integer | minimum 0. |
 
 ### <a id="schema-guestarrivalresult"></a>GuestArrivalResult
 

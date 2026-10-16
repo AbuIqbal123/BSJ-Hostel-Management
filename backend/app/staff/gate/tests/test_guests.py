@@ -272,6 +272,9 @@ def test_gate_guests(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
 
         listed = client.get("/api/v1/gate/guests?bucket=expected", headers=headers)
         assert listed.status_code == 200
+        assert listed.json()["total"] == len(expected["expected_ids"])
+        assert listed.json()["limit"] == 50
+        assert listed.json()["offset"] == 0
         assert [item["id"] for item in listed.json()["items"]] == expected["expected_ids"]
         assert listed.json()["items"][0]["bucket"] == "expected"
         assert listed.json()["items"][0]["payment_status"] == "paid"
@@ -395,3 +398,46 @@ def test_gate_guests(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
             connection.close()
         assert actions == ["guest_stay.arrived", "guest_stay.departed"]
         assert status == ("departed", 1)
+
+
+def test_gate_guest_list_pages_and_searches(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.main import app
+    from app.shared import clock
+
+    monkeypatch.setattr(clock, "utc_now", FrozenClock().utc_now)
+    with TestClient(app) as client:
+        issue_people(database_path)
+        seed_stays(database_path)
+        gate = sign_in(client, "gate.fatima", role_credential("gate"))
+        headers = {"Authorization": f"Bearer {gate}"}
+
+        page = client.get(
+            "/api/v1/gate/guests?bucket=expected&limit=1&offset=1",
+            headers=headers,
+        )
+        assert page.status_code == 200
+        body = page.json()
+        assert body["total"] == 2
+        assert body["limit"] == 1
+        assert body["offset"] == 1
+        assert [item["id"] for item in body["items"]] == [UNPAID]
+
+        by_guest = client.get("/api/v1/gate/guests?bucket=expected&q=Unpaid", headers=headers)
+        assert [item["id"] for item in by_guest.json()["items"]] == [UNPAID]
+        assert by_guest.json()["total"] == 1
+
+        by_host = client.get("/api/v1/gate/guests?bucket=expected&q=Aisha", headers=headers)
+        assert by_host.json()["total"] == 2
+
+        by_room = client.get("/api/v1/gate/guests?bucket=in_hall&q=B-205", headers=headers)
+        assert [item["id"] for item in by_room.json()["items"]] == [SHOULD_LEFT]
+
+        wildcard = client.get("/api/v1/gate/guests?bucket=expected&q=%", headers=headers)
+        assert wildcard.json()["items"] == []
+        assert wildcard.json()["total"] == 0
+
+        too_wide = client.get("/api/v1/gate/guests?bucket=expected&limit=51", headers=headers)
+        assert too_wide.status_code == 422
+        assert too_wide.json()["error"]["code"] == "validation_error"

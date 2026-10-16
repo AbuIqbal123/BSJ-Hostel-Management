@@ -21,6 +21,8 @@ from app.shared.auth.rate_limit import (
     login_limiter,
     options_limiter,
     refresh_limiter,
+    username_key,
+    username_login_limiter,
 )
 from app.staff.office.records import new_hall_pass_token, revoke_live_sessions, room_has_capacity
 from app.shared.auth.password_rules import IndianMobile, StrongPassword
@@ -220,6 +222,7 @@ def _start_session(connection: sqlite3.Connection, account: Account, now: dateti
 @router.post("/login")
 def login(body: LoginRequest, request: Request, connection: ConnectionDep) -> TokenResponse:
     login_limiter.check(client_key(request.client.host if request.client else None))
+    username_login_limiter.check(username_key(body.username))
     row = connection.execute(
         """
         SELECT id

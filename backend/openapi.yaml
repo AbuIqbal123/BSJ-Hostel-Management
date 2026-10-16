@@ -1780,7 +1780,10 @@ paths:
         `in_hall` includes guests who should already have left, because departure
         is still recorded here. Optional `payment_status` is a separate axis
         (`paid` or `unpaid`); omit it to return every guest that matches the
-        bucket.
+        bucket. `limit` and `offset` page that list. The default page is 50
+        guests. That number is a page size, not a cap on how many guests the
+        hall can have. `q` matches the guest name, the host name, or the room
+        label.
       parameters:
         - name: bucket
           in: query
@@ -1797,6 +1800,27 @@ paths:
           schema:
             type: string
             enum: [paid, unpaid]
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 50
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 80
       responses:
         "200":
           description: Guest cards for the gate.
@@ -1808,6 +1832,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
 
   /api/v1/gate/guests/{guest_stay_id}/arrival:
     post:
@@ -5573,12 +5599,23 @@ components:
     GateGuestList:
       type: object
       additionalProperties: false
-      required: [items]
+      required: [items, total, limit, offset]
       properties:
         items:
           type: array
           items:
             $ref: "#/components/schemas/GateGuestCard"
+        total:
+          type: integer
+          minimum: 0
+          description: Guests that match the bucket, payment filter, and search. Not the page length.
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 50
+        offset:
+          type: integer
+          minimum: 0
 
     GuestArrivalResult:
       type: object
