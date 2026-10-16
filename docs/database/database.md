@@ -470,11 +470,11 @@ Guests are not accounts and have no hall pass.
 | payment_marked_by | Identifier | Yes when paid. Empty when unpaid. | The warden or provost who marked it | Required together with the time when the stay is paid. |
 | payment_marked_at | Instant | Yes when paid. Empty when unpaid. | System, when payment is marked | |
 | payment_note | Text | Yes when paid. Empty when unpaid. | The warden or provost types it when marking paid | Off-system payment proof (transaction reference, who collected cash, screenshot mention, and similar). At most 500 characters. Cleared when marked unpaid. |
-| payment_evidence_path | Text | Empty when no file. | System, relative path under the hall payment-evidence directory | Optional receipt file (JPEG, PNG, or PDF). Never required to mark paid. Cleared when payment is marked unpaid, or when staff clear evidence. |
-| payment_evidence_original_name | Text | Empty when no file. | The original client filename | For display only. Empty together with the path. |
-| payment_evidence_content_type | Text | Empty when no file. | System, from the allowlist | `image/jpeg`, `image/png`, or `application/pdf`. |
-| payment_evidence_uploaded_at | Instant | Empty when no file. | System, when the file is stored | |
-| payment_evidence_uploaded_by | Identifier | Empty when no file. | The warden or provost who uploaded it | Required together with the path when evidence exists. |
+| payment_evidence_path | Text | Empty. | Left empty | The column remains. New evidence does not store a file path. |
+| payment_evidence_original_name | Text | Empty when no file. | The original client filename, with path characters removed, at most 255 characters | Display only. Not the download name. |
+| payment_evidence_content_type | Text | Empty when no file. | System, from the file header | `image/jpeg`, `image/png`, or `application/pdf`. |
+| payment_evidence_uploaded_at | Instant | Empty when no file. | System, when the bytes are stored | |
+| payment_evidence_uploaded_by | Identifier | Empty when no file. | The warden or provost who uploaded it | |
 | decided_by | Identifier | Empty while waiting, and empty if the resident cancels. Yes once approved or rejected. | The warden or provost who decided | The audit of the decision. A waiting stay has no decision yet. A resident edit is allowed only while waiting and before arrival, and it leaves this field empty. |
 | decided_at | Instant | Empty in the same cases as decided_by. Yes once approved or rejected. | System, at the decision | |
 | decision_note | Text | Empty if they write nothing | The warden or provost may type it | Optional. |
@@ -502,7 +502,17 @@ The state and the times agree:
 - Approved is the stay that can be in the hall. Arrival is a time on that stay, not a new state.
 - Departure moves an approved stay to departed. Gate may also record departure while a stay is waiting and the guest has already arrived, so the guest is not trapped in the hall. That departure leaves the decision empty.
 
-Payment is a separate act by a warden or the provost. It can be marked before or after approval, and not after departure. Marking it unpaid again is allowed only before arrival. Marking it paid requires a payment note (off-system proof) and does not require a file. Marking it unpaid clears the payment staff member, the payment time, the payment note, and any optional payment evidence file. Optional payment evidence (a JPEG, PNG, or PDF under 5 MiB) may be uploaded before or after marking paid, while the stay is still pending or approved and the guest has not arrived. Uploading evidence never marks the stay paid and is never required to mark paid. Clearing evidence leaves payment_status unchanged.
+Payment is a separate act by a warden or the provost. It can be marked before or after approval, and not after departure. Marking it unpaid again is allowed only before arrival. Marking it paid requires a payment note (off-system proof) and does not require a file. Marking it unpaid clears the payment staff member, the payment time, the payment note, and any optional payment evidence. Optional payment evidence (a JPEG, PNG, or PDF of at most 2 MiB) may be uploaded before or after marking paid, while the stay is still pending or approved and the guest has not arrived. The type is read from the file header. The bytes are stored as given in `guest_stay_payment_evidence`. Lists use the metadata columns on this stay and do not read the blob. Uploading evidence never marks the stay paid and is never required to mark paid. Clearing evidence leaves payment_status unchanged.
+
+### Guest stay payment evidence
+
+One row per stay. The blob is the receipt. The metadata columns on `guest_stays` say whether evidence is present, who uploaded it, and what type it is. A list does not join this table.
+
+| Detail | Kept as | Required | Where it comes from | Rule |
+|---|---|---|---|---|
+| guest_stay_id | Identifier | Yes | The stay | Primary key. References that stay. |
+| content | Blob | Yes | The uploaded file | Between 1 byte and 2 MiB. Not converted. |
+| size_bytes | Number | Yes | System | Equal to the length of `content`. |
 
 Arrival is allowed only when the stay is approved, payment is paid, arrival is still empty, and today's hall date falls on the start date, the end date, or a day between them.
 
@@ -663,7 +673,7 @@ The home screen's recent lines are still those exits and returns for that reside
 - Emergency alerts, duty phone numbers, or a second emergency contact besides the guardian.
 - Whether a push reached the phone. Expo push receipts are not stored; a send is logged only.
 - Archived or cold-stored history. Every record stays in the hall database; at this hall's size (tens of MB a year) archiving is not needed.
-- A payment amount or card collection. The office marks a guest stay paid or unpaid, may type a free-text payment note, and may optionally keep a JPEG, PNG, or PDF receipt file as payment evidence. Amounts and card rails are not kept.
+- A payment amount or card collection. The office marks a guest stay paid or unpaid, may type a free-text payment note, and may optionally keep a JPEG, PNG, or PDF receipt, at most 2 MiB, as payment evidence in the hall database. Amounts and card rails are not kept.
 - Parent or guardian accounts.
 - More than one outside outing, or two planned or outside outings with the same expected return.
 - A second role on one person.

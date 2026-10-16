@@ -5,15 +5,17 @@ from __future__ import annotations
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, BackgroundTasks, File, Query, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.residents.guests.payment_evidence import (
     MAX_EVIDENCE_BYTES,
-    delete_evidence_file,
-    resolve_stored_path,
-    store_evidence_file,
-    validate_upload,
+    clear_evidence,
+    display_filename,
+    download_name,
+    load_evidence,
+    save_evidence,
+    sniff_content_type,
 )
 from app.residents.guests.records import (
     GuestBucket,
@@ -51,7 +53,7 @@ def _require_mutable_stay(connection, guest_stay_id: str):
     existing = connection.execute(
         """
         SELECT id, status, guest_name, arrived_at, departed_at,
-               payment_evidence_path
+               payment_evidence_uploaded_at
         FROM guest_stays
         WHERE id = ?
         """,
@@ -196,8 +198,7 @@ def mark_guest_payment(
     connection: ConnectionDep,
 ) -> GuestStayBody:
     now_text = clock.format_instant(clock.utc_now())
-    existing = _require_mutable_stay(connection, guest_stay_id)
-    previous_evidence = existing["payment_evidence_path"]
+    _require_mutable_stay(connection, guest_stay_id)
     note = None if body.payment_note is None else body.payment_note.strip() or None
     if body.payment_status == "paid":
         if note is None:
@@ -254,7 +255,7 @@ def mark_guest_payment(
             "Payment cannot be changed after the guest has arrived or the stay is closed.",
         )
     if body.payment_status == "unpaid":
-        delete_evidence_file(previous_evidence)
+        clear_evidence(connection, guest_stay_id)
     record_guest_stay(
         connection,
         now_text,
@@ -281,42 +282,16 @@ async def upload_guest_payment_evidence(
 ) -> GuestStayBody:
     existing = _require_mutable_stay(connection, guest_stay_id)
     raw = await evidence.read(MAX_EVIDENCE_BYTES + 1)
-    original_name, content_type = validate_upload(
-        filename=evidence.filename,
-        content_type=evidence.content_type,
-        size=len(raw),
-    )
-    relative = store_evidence_file(
+    content_type = sniff_content_type(raw)
+    now_text = clock.format_instant(clock.utc_now())
+    save_evidence(
+        connection,
         guest_stay_id=guest_stay_id,
         content=raw,
         content_type=content_type,
-        previous_relative=existing["payment_evidence_path"],
-    )
-    now_text = clock.format_instant(clock.utc_now())
-    connection.execute(
-        """
-        UPDATE guest_stays
-        SET
-          payment_evidence_path = ?,
-          payment_evidence_original_name = ?,
-          payment_evidence_content_type = ?,
-          payment_evidence_uploaded_at = ?,
-          payment_evidence_uploaded_by = ?,
-          updated_at = ?
-        WHERE id = ?
-          AND status IN ('pending', 'approved')
-          AND arrived_at IS NULL
-          AND departed_at IS NULL
-        """,
-        (
-            relative,
-            original_name,
-            content_type,
-            now_text,
-            account.id,
-            now_text,
-            guest_stay_id,
-        ),
+        original_name=display_filename(evidence.filename),
+        uploaded_by=account.id,
+        now_text=now_text,
     )
     record_guest_stay(
         connection,
@@ -337,31 +312,25 @@ def download_guest_payment_evidence(
     guest_stay_id: str,
     _account: RegisterDep,
     connection: ConnectionDep,
-) -> FileResponse:
-    row = connection.execute(
-        """
-        SELECT
-          payment_evidence_path,
-          payment_evidence_original_name,
-          payment_evidence_content_type
-        FROM guest_stays
-        WHERE id = ?
-        """,
+) -> Response:
+    stay = connection.execute(
+        "SELECT id FROM guest_stays WHERE id = ?",
         (guest_stay_id,),
     ).fetchone()
-    if row is None:
+    if stay is None:
         raise ApiError(404, "not_found", "That record was not found.")
-    if row["payment_evidence_path"] is None:
+    loaded = load_evidence(connection, guest_stay_id)
+    if loaded is None:
         raise ApiError(404, "not_found", "No payment evidence is stored for this stay.")
-    path = resolve_stored_path(row["payment_evidence_path"])
-    if not path.is_file():
-        raise ApiError(404, "not_found", "No payment evidence is stored for this stay.")
-    filename = row["payment_evidence_original_name"] or path.name
-    return FileResponse(
-        path,
-        media_type=row["payment_evidence_content_type"] or "application/octet-stream",
-        filename=filename,
-        content_disposition_type="attachment",
+    content, content_type = loaded
+    filename = download_name(guest_stay_id, content_type)
+    return Response(
+        content=content,
+        media_type=content_type,
+        headers={
+            "Cache-Control": "private, no-store",
+            "Content-Disposition": f'attachment; filename="{filename}"',
+        },
     )
 
 
@@ -375,7 +344,10 @@ def clear_guest_payment_evidence(
     connection: ConnectionDep,
 ) -> GuestStayBody:
     existing = _require_mutable_stay(connection, guest_stay_id)
-    previous = existing["payment_evidence_path"]
+    had_evidence = existing["payment_evidence_uploaded_at"] is not None or connection.execute(
+        "SELECT 1 FROM guest_stay_payment_evidence WHERE guest_stay_id = ?",
+        (guest_stay_id,),
+    ).fetchone() is not None
     now_text = clock.format_instant(clock.utc_now())
     connection.execute(
         """
@@ -394,8 +366,8 @@ def clear_guest_payment_evidence(
         """,
         (now_text, guest_stay_id),
     )
-    delete_evidence_file(previous)
-    if previous is not None:
+    clear_evidence(connection, guest_stay_id)
+    if had_evidence:
         record_guest_stay(
             connection,
             now_text,

@@ -23,7 +23,6 @@ class Settings(BaseSettings):
     turso_database_url: str = ""
     turso_auth_token: str = ""
     turso_timeout_seconds: float = 5
-    payment_evidence_dir: Path = BACKEND_ROOT / "data" / "payment-evidence"
     sqlite_busy_timeout_ms: int = 5000
     sms_driver: str = "mock"
     push_driver: str = "mock"
