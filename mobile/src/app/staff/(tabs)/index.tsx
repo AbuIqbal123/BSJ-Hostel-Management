@@ -132,6 +132,19 @@ export default function StaffHomeScreen() {
       ) : (
         <HallButton label="Scan a hall pass" onPress={() => router.push("/staff/scan")} />
       )}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Guests. Expected and in the hall"
+        onPress={() => router.push("/staff/guests")}
+        style={({ pressed }) => [
+          styles.office,
+          { backgroundColor: colors.surface, borderColor: colors.line },
+          pressed && styles.pressed,
+        ]}
+      >
+        <Text style={[text.button, { color: colors.ink }]}>Guests</Text>
+        <Text style={[text.error, { color: colors.inkSoft }]}>Expected and in the hall</Text>
+      </Pressable>
       {register ? (
         <Pressable
           accessibilityRole="button"
