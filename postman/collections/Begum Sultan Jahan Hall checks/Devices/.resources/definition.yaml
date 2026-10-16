@@ -1,0 +1,12 @@
+$kind: collection
+name: Devices
+order: 1500
+description: |-
+  Push token for the signed-in phone. Any role may register or delete. Default
+  Bearer is {{token_resident}}; Sign in as that role first, or switch the
+  Authorization token to token_gate, token_warden, or token_provost.
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{token_resident}}'

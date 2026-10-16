@@ -1,0 +1,9 @@
+$kind: http-request
+method: POST
+url: '{{baseUrl}}/api/v1/register/notifications/{{notificationId}}/read'
+order: 7000
+description: |-
+  Caller: warden or provost. Marks one event read for the caller only.
+  notificationId is the item id (`<kind>:<record_id>`). Idempotent. An id
+  that names no event is 404. Set collection variable notificationId from
+  Staff inbox.

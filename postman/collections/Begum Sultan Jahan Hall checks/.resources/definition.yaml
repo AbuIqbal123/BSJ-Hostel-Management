@@ -29,6 +29,8 @@ variables:
     value: ''
   - key: guestStayId
     value: ''
+  - key: notificationId
+    value: ''
   - key: token_resident
     value: ''
   - key: token_warden
