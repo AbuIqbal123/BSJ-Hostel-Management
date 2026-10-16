@@ -148,6 +148,8 @@ export type GuestStayCreate = {
   reason: string;
 };
 
+export type GuestWhen = "upcoming" | "past";
+
 export type GuestListResult =
   | { error: string; items?: undefined; total?: undefined }
   | { error: null; items: GuestStayCard[]; total: number };
@@ -292,7 +294,7 @@ type SessionValue = {
     to?: string | null;
     cursor?: string | null;
   }) => Promise<HistoryResult>;
-  loadGuestStays: (offset?: number) => Promise<GuestListResult>;
+  loadGuestStays: (when: GuestWhen, offset?: number) => Promise<GuestListResult>;
   loadGuestStay: (guestStayId: string) => Promise<GuestResult>;
   submitGuestStay: (body: GuestStayCreate) => Promise<string | null>;
   updateGuestStay: (guestStayId: string, body: GuestStayCreate) => Promise<string | null>;
@@ -631,6 +633,11 @@ function readGuestCard(item: Record<string, unknown>): GuestStayCard | null {
     paymentStatus: item.payment_status,
     bucket: item.bucket,
   };
+}
+
+// Upcoming stays are few, so one request holds them all. Older stays come a page at a time.
+function guestListQuery(when: GuestWhen, offset: number): string {
+  return `when=${when}&limit=${when === "upcoming" ? 500 : 50}&offset=${offset}`;
 }
 
 function readTotal(value: unknown): number | null {
@@ -1221,12 +1228,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const loadGuestStays = useCallback(async (offset = 0): Promise<GuestListResult> => {
+  const loadGuestStays = useCallback(async (when: GuestWhen, offset = 0): Promise<GuestListResult> => {
     if (!sessionRef.current) {
       return { error: "Sign in again" };
     }
     try {
-      const response = await authorized(`/api/v1/me/guest-stays?limit=50&offset=${offset}`, { method: "GET" });
+      const response = await authorized(`/api/v1/me/guest-stays?${guestListQuery(when, offset)}`, { method: "GET" });
       if (!response.ok) {
         return { error: await errorMessage(response) };
       }

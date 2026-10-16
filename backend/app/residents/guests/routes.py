@@ -15,6 +15,7 @@ from app.residents.guests.records import (
     GuestStayPageBody,
     earliest_start_date,
     inclusive_days,
+    GuestPhase,
     list_guest_stays,
     load_guest_stay,
     record_guest_stay,
@@ -104,6 +105,7 @@ def list_own_guest_stays(
     connection: ConnectionDep,
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
+    when: GuestPhase | None = None,
 ) -> GuestStayPageBody:
     today = clock.hall_local_date(clock.utc_now())
     return list_guest_stays(
@@ -112,6 +114,7 @@ def list_own_guest_stays(
         limit=limit,
         offset=offset,
         today=today,
+        phase=when,
     )
 
 

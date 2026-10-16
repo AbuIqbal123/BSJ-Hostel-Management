@@ -2601,6 +2601,10 @@ Guest applications. Resident applies and edits under /api/v1/me/guest-stays; war
 
 Caller: resident. Stays this resident is hosting. Newest first. Each
 item is a GuestStaySummary card; open GET by id for the full GuestStay.
+With `when=upcoming` the list holds only stays that are pending or
+approved, whose guest has not left, and whose end date is today or
+later (hall date), soonest start first. With `when=past` it holds every
+other stay, latest end date first. Leave `when` out for all stays.
 
 **Parameters**
 
@@ -2608,6 +2612,7 @@ item is a GuestStaySummary card; open GET by id for the full GuestStay.
 |---|---|---|---|---|
 | `limit` | query | no | integer | 1–500. default `50`. |
 | `offset` | query | no | integer | minimum 0. default `0`. |
+| `when` | query | no | `upcoming` or `past` | Which stays to list. Omit for all. |
 
 **Responses**
 
