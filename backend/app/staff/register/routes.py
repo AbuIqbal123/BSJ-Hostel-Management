@@ -8,7 +8,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 
 from app.shared import clock
-from app.shared.auth.routes import Account, AccountDep, ConnectionDep
+from app.shared.auth.roles import REGISTER, require_roles
+from app.shared.auth.routes import Account, ConnectionDep
 from app.shared.errors import ApiError
 from app.residents.notifications.records import record_late_outings
 from app.shared import push
@@ -32,10 +33,7 @@ from app.staff.register.records import (
 router = APIRouter(prefix="/api/v1/register", tags=["Register"])
 
 
-def staff_register_account(account: AccountDep) -> Account:
-    if account.role not in {"warden", "provost"}:
-        raise ApiError(403, "forbidden", "This account cannot do that.")
-    return account
+staff_register_account = require_roles(REGISTER)
 
 
 RegisterDep = Annotated[Account, Depends(staff_register_account)]

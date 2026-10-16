@@ -10,9 +10,9 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict
 
 from app.shared import clock
-from app.shared.auth.routes import Account, AccountDep, ConnectionDep
+from app.shared.auth.roles import RESIDENT, require_roles
+from app.shared.auth.routes import Account, ConnectionDep
 from app.shared.db import hall_settings
-from app.shared.errors import ApiError
 from app.residents.outings.usable import find_usable_outing
 from app.shared.inbox import decode_cursor, encode_cursor
 from app.residents.outings.records import OutingBody, UpcomingOuting, expire_passed_plans, load_current_outing, load_upcoming_outings, ordinary_window_is_open
@@ -83,10 +83,7 @@ class ResidentHome(BaseModel):
     notifications_unread_count: int
 
 
-def resident_account(account: AccountDep) -> Account:
-    if account.role != "resident":
-        raise ApiError(403, "forbidden", "This account cannot do that.")
-    return account
+resident_account = require_roles(RESIDENT)
 
 
 ResidentDep = Annotated[Account, Depends(resident_account)]

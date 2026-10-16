@@ -11,7 +11,8 @@ from pydantic import BaseModel
 
 from app.shared import clock
 from app.shared.audit import record_audit
-from app.shared.auth.routes import Account, AccountDep, ConnectionDep
+from app.shared.auth.roles import ADMIN, require_roles
+from app.shared.auth.routes import Account, ConnectionDep
 from app.shared.errors import ApiError
 from app.staff.office.records import (
     LATE_PLACEHOLDERS,
@@ -29,14 +30,8 @@ from app.staff.office.records import (
 router = APIRouter(prefix="/api/v1/admin", tags=["Hall office"])
 
 
-# The hall office. Add "warden" here when wardens should open these routes.
-_ADMIN_ROLES = frozenset({"provost"})
-
-
-def provost_account(account: AccountDep) -> Account:
-    if account.role not in _ADMIN_ROLES:
-        raise ApiError(403, "forbidden", "This account cannot do that.")
-    return account
+# The hall office. Add "warden" to ADMIN in app.shared.auth.roles when wardens should open these routes.
+provost_account = require_roles(ADMIN)
 
 
 ProvostDep = Annotated[Account, Depends(provost_account)]

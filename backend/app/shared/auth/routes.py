@@ -17,6 +17,7 @@ from app.shared.config import get_settings
 from app.shared.audit import record_audit
 from app.shared.db import INTEGRITY_ERRORS, get_connection
 from app.shared.errors import ApiError
+from app.shared.auth.roles import RESIDENT, Role
 from app.shared.auth.rate_limit import (
     client_key,
     login_limiter,
@@ -69,7 +70,7 @@ class ChangePasswordRequest(BaseModel):
 class UserSummary(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: str
-    role: Literal["resident", "gate", "warden", "provost"]
+    role: Role
     full_name: str
     username: str
     status: Literal["active", "suspended"]
@@ -106,7 +107,7 @@ class TokenResponse(BaseModel):
 @dataclass(frozen=True)
 class Account:
     id: str
-    role: str
+    role: Role
     username: str
     full_name: str
     status: str
@@ -298,7 +299,7 @@ def logout(account: AccountDep, connection: ConnectionDep) -> Response:
 @router.get("/me")
 def me(account: AccountDep) -> CurrentUser:
     body = account.summary().model_dump()
-    if account.role == "resident":
+    if account.role in RESIDENT:
         body["resident"] = {
             "enrolment_number": account.enrolment_number,
             "course": account.course,

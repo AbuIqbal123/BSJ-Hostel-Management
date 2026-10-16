@@ -23,7 +23,8 @@ from app.shared import clock
 from app.residents.notifications.records import record_late_outings
 from app.shared import push
 from app.shared.sms import consider_late_notices, send_return_notice_if_due
-from app.shared.auth.routes import Account, AccountDep, ConnectionDep
+from app.shared.auth.roles import GATE, require_roles
+from app.shared.auth.routes import Account, ConnectionDep
 from app.shared.db import hall_settings
 from app.shared.errors import ApiError
 from app.staff.gate.records import (
@@ -118,10 +119,7 @@ def _exit_outing(outing: OutingBody, recorded_at: str) -> ScanExitOuting:
     return ScanExitOuting(**kept, recorded_at=recorded_at)
 
 
-def gate_account(account: AccountDep) -> Account:
-    if account.role not in {"gate", "warden", "provost"}:
-        raise ApiError(403, "forbidden", "This account cannot do that.")
-    return account
+gate_account = require_roles(GATE)
 
 
 GateDep = Annotated[Account, Depends(gate_account)]
