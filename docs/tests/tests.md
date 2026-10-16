@@ -713,10 +713,10 @@ Copy this block for each test and fill every field.
 | Purpose | The real app signs a resident in and her main screens work end to end: Home, hall pass tab, Permissions, planning an ordinary outing, Settings, and changing the password. History pages a long list. A locked scratch database shows Retry and recovers when it is released. Guest stays list what is upcoming, then Show older. |
 | Actor | Resident. |
 | Preconditions | macOS with Xcode, an iOS simulator, the release app built against the throwaway API from `e2e/scripts/serve-api.sh` (fresh SQLite hall, dev-seed accounts, mock SMS). Passwords from `E2E_*_PASSWORD` or the seed output. Never Render or Turso. |
-| Action | Sign in as `24-GLLB-118`. Open Home, Pass, Permissions (open late-night and go back), plan an outing to Maulana Azad Library tomorrow, leaving at 10:00 AM and back by 4:00 PM (inside ordinary hours in both seasons; the date and time pickers use the one agent step). Open History after 51 cancelled late-night permissions and tap Show older. Lock the scratch database, open History, tap Retry after the lock is released. Open Guest stays with one upcoming stay and one cancelled stay, then tap Show older. Open Settings and Change password, then change the password and sign in with the new one. |
+| Action | Sign in as `24-GLLB-118`. Open Home, Pass, Permissions (open late-night and go back), plan an outing to Maulana Azad Library tomorrow, leaving at 10:00 AM and back by 4:00 PM (inside ordinary hours in both seasons; Home is one control, so the place and the clocks are set on the iPhone 17 layout). Open History after 51 cancelled late-night permissions and tap Show older. Lock the scratch database, open History, tap Retry after the lock is released. Open Guest stays with one upcoming stay and one cancelled stay, then tap Show older. Open Settings and Change password, then change the password and sign in with the new one. |
 | Expected response | Home shows Plan an outing and Notifications. Pass shows no pass or a planned outing. Permissions lists late-night, home going and guest stay. The planned outing appears under Upcoming outings. History shows the newest place on the first page and the oldest only after Show older. The locked read shows History didn't load and Retry, then the list after Retry. Guest stays shows the upcoming name first, and the cancelled name under Older after Show older. Change password stays disabled until filled, then returns to Sign in and the new password signs in. |
 | Failure cases | E2E; failure cases are covered by the expected response. |
-| Artifact | Report under `e2e/.e2e/` (gitignored) and the replay cache `e2e/.e2e/cache/` for the one agent step. |
+| Artifact | Report under `e2e/.e2e/` (gitignored). |
 
 ### `e2e-staff` Staff app flows on an iOS simulator
 
@@ -729,7 +729,7 @@ Copy this block for each test and fill every field.
 | Action | Sign in as `warden.sara`; open Out now, open Ordinary, Permission, and Late (Still out, then Came back late), go back, open Requests. Relaunch fresh and sign in as `gate.fatima`, check there is no Requests tab, type the dev resident pass code in Scan and submit it. |
 | Expected response | The warden sees Home, Out now, an empty Ordinary list, an empty Permission list, no one late, no late returns, and Requests. The gate has no Requests tab. The scan shows Aisha Khan and either no planned outing or that the pass opens 30 minutes before its start. |
 | Failure cases | E2E; failure cases are covered by the expected response. |
-| Artifact | Report under `e2e/.e2e/` (gitignored) and the replay cache `e2e/.e2e/cache/` for the one agent step. |
+| Artifact | Report under `e2e/.e2e/` (gitignored). |
 
 ### `admin-residents` Resident accounts and hall-pass reissue
 

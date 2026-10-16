@@ -15,11 +15,12 @@ describe('staff', { tags: ['staff'] }, () => {
 
     await screen.getByRole('button', /Out now/).tap();
     await expect(screen.getByText('Out now')).toBeVisible();
-    await screen.getByRole('button', 'Ordinary').tap();
+    // Each tab's name includes its count, and the runner does not treat it as a button.
+    await screen.getByText(/^Ordinary/).tap();
     await expect(screen.getByText('No one is out')).toBeVisible();
-    await screen.getByRole('button', 'Permission').tap();
+    await screen.getByText(/^Permission/).tap();
     await expect(screen.getByText('No one is out')).toBeVisible();
-    await screen.getByRole('button', 'Late').tap();
+    await screen.getByText(/^Late/).tap();
     await expect(screen.getByRole('button', 'Still out')).toBeVisible();
     await expect(screen.getByText('No one is late')).toBeVisible();
     await screen.getByRole('button', 'Came back late').tap();

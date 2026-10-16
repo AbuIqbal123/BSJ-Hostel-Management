@@ -5,7 +5,7 @@ Drives the real app on an iOS simulator with [TesterArmy e2e](https://e2e.tester
 - `tests/resident.e2e.ts`: sign in, Home, Pass, Permissions, plan an ordinary outing, Settings, change password, a History list that pages, a History failure that retries, and Guest stays (upcoming, then Show older).
 - `tests/staff.e2e.ts`: warden Home, Out now (Ordinary, Permission, and Late), Requests; gate Scan by pass code.
 - The runner starts `scripts/serve-api.sh`, a throwaway API on `127.0.0.1:8010` with a fresh SQLite hall, the dev accounts and mock SMS. Passwords are read from its seed output at fill time, never from the repo or the environment.
-- Every step is a plain locator except one, tagged `agent`: the iOS date and time pickers in "plan an ordinary outing". That step uses your SuperGrok login or a local Ollama model, never an API key. Once it passes, it's recorded in `.e2e/cache/` and replays with no model call. Commit the cache.
+- Every step is a plain locator. Planning an ordinary outing taps the iPhone 17 Home layout and the system clock wheels, because Home speaks Place, the chips, and Confirm as one name.
 - No hosted devices (Limrun, EAS, Kernel). Telemetry is off.
 
 ## One-time Mac setup
@@ -42,13 +42,9 @@ EXPO_PUBLIC_API_URL=http://127.0.0.1:8010 npx expo run:ios --configuration Relea
 # 2. Tests
 cd ../e2e && npm ci
 npx agent-device doctor                  # the iOS rows must be green
-npm run test:no-ai                       # every test except the one agent step
-npx e2e login spacexai                   # once: SuperGrok device code
-npm test                                 # the full suite; records the agent step on its first pass
+npm test
 ```
 
-To use Ollama instead of SuperGrok, run `brew install ollama && ollama pull qwen3:8b`, then `BSJ_E2E_MODEL=ollama:qwen3:8b npm test`.
-
-Rebuild the app (step 1) after mobile changes. Reports go to `.e2e/` (gitignored, apart from `.e2e/cache/`). If the iOS runner wedges, run `npx agent-device daemon stop` and reboot the simulator.
+Rebuild the app (step 1) after mobile changes. Reports go to `.e2e/` (gitignored). If the iOS runner wedges, run `npx agent-device daemon stop` and reboot the simulator.
 
 Selectors are React Native `testID`s (`tab-<route>`, `scan-code`) and accessibility labels the app already has.
