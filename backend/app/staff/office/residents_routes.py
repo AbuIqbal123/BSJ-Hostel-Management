@@ -8,6 +8,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query
 
+from app.shared.page import PageDep
 from app.shared import clock
 from app.shared.audit import record_audit
 from app.shared.auth.routes import ConnectionDep
@@ -50,10 +51,11 @@ _NOT_CLEARABLE = {
 def admin_list_residents(
     _account: ProvostDep,
     connection: ConnectionDep,
+    page: PageDep,
     q: Annotated[str | None, Query(max_length=80)] = None,
-    limit: Annotated[int, Query(ge=1, le=500)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> ResidentAccountPage:
+    limit = page.limit
+    offset = page.offset
     return list_resident_accounts(connection, q=q, limit=limit, offset=offset)
 
 

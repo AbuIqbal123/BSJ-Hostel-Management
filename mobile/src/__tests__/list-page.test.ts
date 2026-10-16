@@ -6,6 +6,7 @@ import {
   hasMore,
   mergeById,
   olderAvailable,
+  pageQuery,
   placeholderMotion,
   shouldKeepPaging,
   shouldRequestNext,
@@ -16,6 +17,11 @@ const idOf = (item: { id: string }) => item.id;
 const empty: Listed<{ id: string }> = { rows: null, total: 0, error: null, pageError: null };
 
 describe("list pages", () => {
+  it("names the shared page on every list request", () => {
+    expect(pageQuery(0)).toBe("limit=50&offset=0");
+    expect(pageQuery(50)).toBe("limit=50&offset=50");
+  });
+
   it("shows a still placeholder when motion is reduced", () => {
     expect(placeholderMotion(true)).toBe("still");
     expect(placeholderMotion(false)).toBe("shimmer");

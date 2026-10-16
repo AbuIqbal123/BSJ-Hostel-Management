@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Literal
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict
 
+from app.shared.page import PageDep
 from app.shared.auth.routes import ConnectionDep
 from app.staff.office.routes import ProvostDep
 
@@ -38,9 +39,10 @@ class SmsPage(BaseModel):
 def list_sms(
     _account: ProvostDep,
     connection: ConnectionDep,
-    limit: Annotated[int, Query(ge=1, le=500)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    page: PageDep,
 ) -> SmsPage:
+    limit = page.limit
+    offset = page.offset
     total = connection.execute("SELECT COUNT(*) AS n FROM guardian_messages").fetchone()["n"]
     rows = connection.execute(
         """

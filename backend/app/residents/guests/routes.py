@@ -5,11 +5,11 @@ from __future__ import annotations
 import re
 import uuid
 from datetime import date
-from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Query
+from fastapi import APIRouter, BackgroundTasks
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.shared.page import PageDep
 from app.residents.guests.records import (
     GuestStayBody,
     GuestStayPageBody,
@@ -103,10 +103,11 @@ def _validate_stay_window(
 def list_own_guest_stays(
     account: ResidentDep,
     connection: ConnectionDep,
-    limit: Annotated[int, Query(ge=1, le=500)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    page: PageDep,
     when: GuestPhase | None = None,
 ) -> GuestStayPageBody:
+    limit = page.limit
+    offset = page.offset
     today = clock.hall_local_date(clock.utc_now())
     return list_guest_stays(
         connection,

@@ -438,6 +438,6 @@ def test_gate_guest_list_pages_and_searches(
         assert wildcard.json()["items"] == []
         assert wildcard.json()["total"] == 0
 
-        too_wide = client.get("/api/v1/gate/guests?bucket=expected&limit=51", headers=headers)
+        too_wide = client.get("/api/v1/gate/guests?bucket=expected&limit=501", headers=headers)
         assert too_wide.status_code == 422
         assert too_wide.json()["error"]["code"] == "validation_error"

@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { type ReactNode, useRef } from "react";
 import { Redirect, useNavigation } from "expo-router";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -27,6 +27,7 @@ export function OfficeFrame({
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { user } = useSession();
+  const viewport = useRef(0);
 
   if (!user) {
     return <Redirect href="/sign-in" />;
@@ -50,6 +51,22 @@ export function OfficeFrame({
         onRefresh ? (
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.inkFaint} />
         ) : undefined
+      }
+      onLayout={
+        onNearEnd
+          ? (event) => {
+              viewport.current = event.nativeEvent.layout.height;
+            }
+          : undefined
+      }
+      onContentSizeChange={
+        onNearEnd
+          ? (_width, height) => {
+              if (viewport.current > 0 && height > 0 && height <= viewport.current) {
+                onNearEnd();
+              }
+            }
+          : undefined
       }
       onScroll={
         onNearEnd

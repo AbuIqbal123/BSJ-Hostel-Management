@@ -613,14 +613,7 @@ paths:
           schema:
             type: string
             maxLength: 200
-        - name: limit
-          in: query
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 30
+        - $ref: "#/components/parameters/Limit"
         - name: filter
           in: query
           required: false
@@ -928,14 +921,7 @@ paths:
           schema:
             type: string
             maxLength: 200
-        - name: limit
-          in: query
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 200
-            default: 50
+        - $ref: "#/components/parameters/Limit"
       responses:
         "200":
           description: One page of history rows, newest ended_at first.
@@ -1850,21 +1836,8 @@ paths:
           schema:
             type: string
             enum: [paid, unpaid]
-        - name: limit
-          in: query
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 50
-            default: 50
-        - name: offset
-          in: query
-          required: false
-          schema:
-            type: integer
-            minimum: 0
-            default: 0
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
         - name: q
           in: query
           required: false
@@ -2214,14 +2187,7 @@ paths:
           schema:
             type: string
             maxLength: 200
-        - name: limit
-          in: query
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 30
+        - $ref: "#/components/parameters/Limit"
         - name: filter
           in: query
           required: false
@@ -5678,7 +5644,7 @@ components:
         limit:
           type: integer
           minimum: 1
-          maximum: 50
+          maximum: 500
         offset:
           type: integer
           minimum: 0

@@ -1,15 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { router, useFocusEffect, useNavigation, type Href } from "expo-router";
-import { AppState, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { AppState, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
 import { onHallRefresh } from "@/hall-refresh";
 import { BackMark } from "@/components/back-mark";
-import { EmptyState, ListError, RetryRow } from "@/components/list-state";
-import { SkeletonRows } from "@/components/skeleton";
-import { useDelayedLoading } from "@/use-delayed-loading";
-import { mergeById } from "@/list-page";
+import { EmptyState } from "@/components/list-state";
+import { PagedList } from "@/components/paged-list";
+import { useListPage } from "@/use-list-page";
 import { DayRange, type DayRangeValue } from "@/components/day-range";
 import { FilterChip } from "@/components/filter-chip";
 import { SearchField } from "@/components/search-field";
@@ -73,19 +72,11 @@ export function NoticeList({ base, role, back, staff }: { base: string; role: Ha
   const [query, setQuery] = useState("");
   const [q, setQ] = useState("");
   const [range, setRange] = useState<DayRangeValue>({ from: null, to: null });
-  const [items, setItems] = useState<Notice[] | null>(null);
-  const [next, setNext] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [pageError, setPageError] = useState<string | null>(null);
-  const [pagingUi, setPagingUi] = useState(false);
-  const generation = useRef(0);
-  const paging = useRef(false);
-  const showListSkeleton = useDelayedLoading((items === null || refreshing) && error === null) && error === null;
-  const showPageSkeleton = useDelayedLoading(pagingUi) && pageError === null;
-
-  const load = useCallback(
-    async (cursor: string | null) => {
+  const list = useListPage<Notice>({
+    mode: "cursor",
+    auto: false,
+    idOf: (item) => item.id,
+    loadPage: async (cursor) => {
       const search = new URLSearchParams({ filter });
       if (staff && q.trim()) {
         search.set("q", q.trim());
@@ -99,28 +90,14 @@ export function NoticeList({ base, role, back, staff }: { base: string; role: Ha
       if (cursor) {
         search.set("cursor", cursor);
       }
-      const run = cursor ? generation.current : ++generation.current;
       const reply = await staffRequest(`${base}?${search.toString()}`);
-      if (run !== generation.current) {
-        return;
-      }
       if (!reply.ok) {
-        const message = trimStop(reply.message);
-        if (cursor) {
-          setPageError(message);
-        } else {
-          setError(message);
-        }
-        return;
+        return { error: trimStop(reply.message) };
       }
-      setError(null);
-      setPageError(null);
       const page = readNoticePage(reply.data, role);
-      setItems((current) => (cursor && current ? mergeById(current, page.items, 1, (item) => item.id) : page.items));
-      setNext(page.next);
+      return { items: page.items, next: page.next };
     },
-    [base, filter, q, range.from, range.to, role, staff, staffRequest],
-  );
+  });
 
   useEffect(() => {
     const timer = setTimeout(() => setQ(query), 300);
@@ -129,48 +106,31 @@ export function NoticeList({ base, role, back, staff }: { base: string; role: Ha
 
   useFocusEffect(
     useCallback(() => {
-      void load(null);
-    }, [load]),
+      list.load();
+    }, [filter, q, range.from, range.to, list.load]),
   );
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") {
-        void load(null);
+        list.load();
       }
     });
     return () => subscription.remove();
-  }, [load]);
+  }, [list.load]);
 
-  useEffect(() => onHallRefresh(() => void load(null)), [load]);
-
-  const refresh = useCallback(async () => {
-    setRefreshing(true);
-    await load(null);
-    setRefreshing(false);
-  }, [load]);
-
-  const more = useCallback(async () => {
-    if (!next || paging.current) {
-      return;
-    }
-    paging.current = true;
-    setPagingUi(true);
-    await load(next);
-    paging.current = false;
-    setPagingUi(false);
-  }, [load, next]);
+  useEffect(() => onHallRefresh(() => list.load()), [list.load]);
 
   const open = useCallback(
     (item: Notice) => {
       if (item.unread) {
-        setItems((current) => current?.map((row) => (row.id === item.id ? { ...row, unread: false } : row)) ?? null);
+        list.replaceRows((current) => current?.map((row) => (row.id === item.id ? { ...row, unread: false } : row)) ?? null);
         void staffRequest(`${base}/${encodeURIComponent(item.id)}/read`, {}).then((reply) => {
           const count = reply.ok ? readUnreadCount(reply.data) : null;
           if (count !== null) {
             setBadge(count);
           } else {
-            void load(null);
+            list.load();
           }
         });
       }
@@ -178,9 +138,10 @@ export function NoticeList({ base, role, back, staff }: { base: string; role: Ha
         router.push(item.target as Href);
       }
     },
-    [base, load, staffRequest],
+    [base, list.load, list.replaceRows, staffRequest],
   );
 
+  const items = list.rows;
   const newest = items?.[0]?.at ?? null;
   const anyUnread = items?.some((item) => item.unread) ?? false;
 
@@ -188,17 +149,17 @@ export function NoticeList({ base, role, back, staff }: { base: string; role: Ha
     if (!newest) {
       return;
     }
-    setItems((current) => current?.map((row) => (row.at <= newest ? { ...row, unread: false } : row)) ?? null);
+    list.replaceRows((current) => current?.map((row) => (row.at <= newest ? { ...row, unread: false } : row)) ?? null);
     void staffRequest(`${base}/read`, { up_to: newest }).then((reply) => {
       const count = reply.ok ? readUnreadCount(reply.data) : null;
       if (count !== null) {
         setBadge(count);
       }
       if (count === null || filter === "unread") {
-        void load(null);
+        list.load();
       }
     });
-  }, [base, filter, load, newest, staffRequest]);
+  }, [base, filter, list.load, list.replaceRows, newest, staffRequest]);
 
   const filtered = filter !== "all" || q.trim().length > 0 || range.from !== null || range.to !== null;
 
@@ -236,47 +197,38 @@ export function NoticeList({ base, role, back, staff }: { base: string; role: Ha
         ))}
       </ScrollView>
       {staff ? <DayRange value={range} onChange={setRange} /> : null}
-      {error && items !== null && items.length > 0 ? <ListError message={error} onRetry={() => void refresh()} /> : null}
     </View>
   );
 
   return (
-    <FlatList
+    <PagedList
+      kind="flat"
       style={[styles.screen, { backgroundColor: colors.paper }]}
       contentContainerStyle={[styles.content, { paddingTop: insets.top + 28, paddingBottom: insets.bottom + 28 }]}
-      data={showListSkeleton ? [] : (items ?? [])}
+      rows={list.rows}
+      data={list.showListSkeleton ? [] : (items ?? [])}
+      error={list.error}
+      pageError={list.pageError}
+      showListSkeleton={list.showListSkeleton}
+      showPageSkeleton={list.showPageSkeleton}
+      onRetry={list.retry}
+      onRetryPage={() => list.loadNext(true)}
+      skeletonKind="card"
+      header={header}
+      empty={<EmptyState message={filtered ? "Nothing matches" : "No notifications in the last 90 days"} />}
+      footer={
+        !list.hasMore && items !== null && items.length > 0 && !staff ? (
+          <Text style={[text.label, styles.footer, { color: colors.inkFaint }]}>Older history is under Settings</Text>
+        ) : null
+      }
       keyExtractor={(item) => item.id}
-      ListHeaderComponent={header}
       renderItem={({ item }) => <NoticeCard item={item} onPress={() => open(item)} />}
       ItemSeparatorComponent={() => <View style={styles.gap} />}
-      onEndReachedThreshold={0.5}
-      onEndReached={() => {
-        if (!pageError) {
-          void more();
-        }
-      }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={colors.inkFaint} />}
+      onEndReached={() => list.loadNext()}
+      refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={list.refresh} tintColor={colors.inkFaint} />}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
       showsVerticalScrollIndicator={false}
-      ListEmptyComponent={
-        showListSkeleton ? (
-          <SkeletonRows count={4} kind="card" />
-        ) : items === null && error ? (
-          <ListError message={error} onRetry={() => void load(null)} />
-        ) : items !== null && !error ? (
-          <EmptyState message={filtered ? "Nothing matches" : "No notifications in the last 90 days"} />
-        ) : null
-      }
-      ListFooterComponent={
-        <>
-          {showPageSkeleton ? <SkeletonRows count={1} kind="card" /> : null}
-          {pageError ? <RetryRow message={pageError} onRetry={() => void more()} /> : null}
-          {next === null && items !== null && items.length > 0 && !staff ? (
-            <Text style={[text.label, styles.footer, { color: colors.inkFaint }]}>Older history is under Settings</Text>
-          ) : null}
-        </>
-      }
     />
   );
 }
