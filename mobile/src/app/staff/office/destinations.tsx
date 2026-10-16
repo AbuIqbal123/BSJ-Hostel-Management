@@ -8,6 +8,7 @@ import { EmptyState, ListError } from "@/components/list-state";
 import { ChoiceLine, OfficeError, OfficeFrame, replyError } from "@/components/office-frame";
 import { SkeletonRows } from "@/components/skeleton";
 import { TextField } from "@/components/text-field";
+import { useDelayedLoading } from "@/use-delayed-loading";
 import { hiddenFromResidents, readPlace, readPlaces, type OfficePlace } from "@/office";
 import { useSession } from "@/session";
 import { useHallColors } from "@/theme/colors";
@@ -108,6 +109,7 @@ export default function OfficeDestinations() {
 
   const rows = places ?? [];
   const held = busy !== null;
+  const showListSkeleton = useDelayedLoading((places === null || refreshing) && listError === null) && listError === null;
 
   return (
     <OfficeFrame title="Destinations" refreshing={refreshing} onRefresh={() => load(true)}>
@@ -118,11 +120,11 @@ export default function OfficeDestinations() {
       <HallButton label="Add place" busy={busy === "preset"} disabled={held} onPress={() => void create("preset")} />
       <HallButton label="Add free-text place" busy={busy === "custom"} disabled={held} onPress={() => void create("custom")} />
       <OfficeError message={formError} />
-      {places === null && !listError ? <SkeletonRows count={4} kind="row" /> : null}
+      {showListSkeleton ? <SkeletonRows count={4} kind="row" /> : null}
       {listError && rows.length === 0 ? <ListError message={listError} onRetry={() => load()} /> : null}
       {listError && rows.length > 0 ? <ListError message={listError} onRetry={() => load(true)} /> : null}
       <View>
-        {rows.map((place, index, all) => (
+        {(showListSkeleton ? [] : rows).map((place, index, all) => (
           <View key={place.id}>
             <DenseRow
               title={place.name}
@@ -161,7 +163,7 @@ export default function OfficeDestinations() {
           </View>
         ))}
       </View>
-      {places && rows.length === 0 && !listError ? (
+      {!showListSkeleton && places && rows.length === 0 && !listError ? (
         <EmptyState message="No places yet. Add one with the form above." />
       ) : null}
     </OfficeFrame>

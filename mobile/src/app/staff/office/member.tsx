@@ -6,6 +6,7 @@ import { HallButton } from "@/components/hall-button";
 import { ListError } from "@/components/list-state";
 import { ChoiceLine, OfficeError, OfficeFrame, replyError } from "@/components/office-frame";
 import { SkeletonRows } from "@/components/skeleton";
+import { useDelayedLoading } from "@/use-delayed-loading";
 import { TextField } from "@/components/text-field";
 import { RESET_CONFIRM, passwordBody, readPage, readStaffAccount, staffCreate, staffPatch, type OfficeStaff, type StaffDraft } from "@/office";
 import { PASSWORD_RULES } from "@/password-rules";
@@ -159,10 +160,12 @@ export default function OfficeMember() {
     ]);
   };
 
+  const showAccountSkeleton = useDelayedLoading(Boolean(id) && account === null && loadError === null) && loadError === null;
+
   if (id && !account) {
     return (
       <OfficeFrame title="Staff">
-        {loadError ? <ListError message={loadError} onRetry={load} /> : <SkeletonRows count={4} kind="row" />}
+        {loadError ? <ListError message={loadError} onRetry={load} /> : showAccountSkeleton ? <SkeletonRows count={4} kind="row" /> : null}
       </OfficeFrame>
     );
   }

@@ -10,6 +10,7 @@ import { SectionHead } from "@/components/section-head";
 import { EmptyState, ListError, RetryRow } from "@/components/list-state";
 import { ReviewSheet, type Fact } from "@/components/review-sheet";
 import { SkeletonRows } from "@/components/skeleton";
+import { useDelayedLoading } from "@/use-delayed-loading";
 import { acceptFailure, acceptPage, shouldRequestNext, type Listed } from "@/list-page";
 import { formatHallDate, formatSpan, formatWhen } from "@/format-when";
 import { kindLabel } from "@/requests";
@@ -270,6 +271,8 @@ export default function RequestsScreen() {
   );
 
   const rows = list.rows ?? [];
+  const showListSkeleton = useDelayedLoading((list.rows === null || refreshing) && list.error === null) && list.error === null;
+  const showPageSkeleton = useDelayedLoading(pagingUi) && list.pageError === null;
   const sections = useMemo(() => daySections(rows), [rows]);
 
   const header = (
@@ -327,7 +330,7 @@ export default function RequestsScreen() {
       <SectionList
         style={[styles.screen, { backgroundColor: colors.paper }]}
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 28, paddingBottom: 28 }]}
-        sections={sections}
+        sections={showListSkeleton ? [] : sections}
         keyExtractor={(item) => item.row.id}
         ListHeaderComponent={header}
         stickySectionHeadersEnabled
@@ -360,7 +363,7 @@ export default function RequestsScreen() {
           />
         )}
         ListEmptyComponent={
-          list.rows === null && !list.error ? (
+          showListSkeleton ? (
             <SkeletonRows count={4} kind="row" />
           ) : list.error && rows.length === 0 ? (
             <ListError message={list.error} onRetry={() => void loadPage(0)} />
@@ -369,7 +372,7 @@ export default function RequestsScreen() {
           ) : null
         }
         ListFooterComponent={
-          pagingUi ? (
+          showPageSkeleton ? (
             <SkeletonRows count={1} kind="row" />
           ) : list.pageError ? (
             <RetryRow message={list.pageError} onRetry={() => void loadPage(rows.length)} />

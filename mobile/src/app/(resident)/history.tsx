@@ -7,6 +7,7 @@ import { goBackOr } from "@/back";
 import { BackMark } from "@/components/back-mark";
 import { EmptyState, ListError, RetryRow } from "@/components/list-state";
 import { SkeletonRows } from "@/components/skeleton";
+import { useDelayedLoading } from "@/use-delayed-loading";
 import { DayRange, type DayRangeValue } from "@/components/day-range";
 import { formatSpan } from "@/format-when";
 import { mergeHistoryRows } from "@/history-rows";
@@ -108,8 +109,11 @@ export default function HistoryScreen() {
   const [olderFailed, setOlderFailed] = useState<string | null>(null);
   const [next, setNext] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [olderBusy, setOlderBusy] = useState(false);
   const requestId = useRef(0);
   const paging = useRef(false);
+  const showListSkeleton = useDelayedLoading((items === null || refreshing) && !failed) && !failed;
+  const showOlderSkeleton = useDelayedLoading(olderBusy) && olderFailed === null;
   const queryKey = useRef("");
 
   const load = useCallback(() => {
@@ -165,9 +169,11 @@ export default function HistoryScreen() {
       return;
     }
     paging.current = true;
+    setOlderBusy(true);
     const id = requestId.current;
     void loadHistory({ kind, from: range.from, to: range.to, cursor: next }).then((result) => {
       paging.current = false;
+      setOlderBusy(false);
       if (id !== requestId.current) {
         return;
       }
@@ -227,15 +233,15 @@ export default function HistoryScreen() {
       </ScrollView>
       <DayRange value={range} onChange={setRange} />
       </View>
-      {items === null && !failed ? <SkeletonRows count={4} kind="row" /> : null}
+      {showListSkeleton ? <SkeletonRows count={4} kind="row" /> : null}
       {failed && (items === null || items.length === 0) ? (
         <ListError message="History didn't load" onRetry={load} />
       ) : null}
       {failed && items !== null && items.length > 0 ? (
         <ListError message="History didn't load" onRetry={refresh} />
       ) : null}
-      {items !== null && items.length === 0 && !failed ? <EmptyState message="No history" /> : null}
-      {items !== null && items.length > 0 ? (
+      {!showListSkeleton && items !== null && items.length === 0 && !failed ? <EmptyState message="No history" /> : null}
+      {!showListSkeleton && items !== null && items.length > 0 ? (
         <View>
           {items.map((item, index) => (
             <View key={item.id}>
@@ -245,8 +251,9 @@ export default function HistoryScreen() {
           ))}
         </View>
       ) : null}
+      {showOlderSkeleton ? <SkeletonRows count={1} kind="row" /> : null}
       {olderFailed ? <RetryRow message={olderFailed} onRetry={older} /> : null}
-      {next && !olderFailed ? (
+      {next && !olderFailed && !showOlderSkeleton ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Show older"

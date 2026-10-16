@@ -12,6 +12,7 @@ import { ListError, RetryRow } from "@/components/list-state";
 import { SearchField } from "@/components/search-field";
 import { SectionHead } from "@/components/section-head";
 import { SkeletonRows } from "@/components/skeleton";
+import { useDelayedLoading } from "@/use-delayed-loading";
 import { acceptFailure, acceptPage, PAGE, shouldKeepPaging, shouldRequestNext, type Listed } from "@/list-page";
 import { useSession } from "@/session";
 import {
@@ -284,6 +285,8 @@ export default function OutNowScreen() {
   const activeRows = active.rows;
   const loadedCount = activeRows?.length ?? 0;
   const pagingUi = tab === "late" ? latePaging : outPaging;
+  const showListSkeleton = useDelayedLoading((activeRows === null || refreshing) && active.error === null) && active.error === null;
+  const showPageSkeleton = useDelayedLoading(pagingUi) && active.pageError === null;
   const stalled = (tab === "late" ? lateStall.current : outStall.current) === loadedCount;
   const keepPaging =
     activeRows !== null &&
@@ -376,7 +379,7 @@ export default function OutNowScreen() {
           </ScrollView>
         </>
       )}
-      {activeRows === null && !active.error ? <SkeletonRows count={4} kind="row" /> : null}
+      {showListSkeleton ? <SkeletonRows count={4} kind="row" /> : null}
       {active.error ? <ListError message={active.error} onRetry={() => reload(loadedCount > 0)} /> : null}
     </View>
   );
@@ -393,7 +396,7 @@ export default function OutNowScreen() {
     <SectionList
       style={[styles.screen, { backgroundColor: colors.paper }]}
       contentContainerStyle={[styles.content, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 28 }]}
-      sections={sections}
+      sections={showListSkeleton ? [] : sections}
       keyExtractor={(item) => item.row.id}
       ListHeaderComponent={header}
       stickySectionHeadersEnabled
@@ -408,7 +411,7 @@ export default function OutNowScreen() {
       onEndReached={() => askNext()}
       ListFooterComponent={
         <>
-          {pagingUi ? <SkeletonRows count={1} kind="row" /> : null}
+          {showPageSkeleton ? <SkeletonRows count={1} kind="row" /> : null}
           {active.pageError ? <RetryRow message={active.pageError} onRetry={() => askNext(true)} /> : null}
         </>
       }
@@ -424,7 +427,7 @@ export default function OutNowScreen() {
         />
       )}
       ListEmptyComponent={
-        activeRows !== null && !active.error && !pagingUi && !keepPaging ? (
+        activeRows !== null && !active.error && !pagingUi && !keepPaging && !showListSkeleton ? (
           <View style={styles.empty}>
             <Text style={[styles.place, { color: colors.ink }]}>{emptyTitle}</Text>
             {filtered && tab !== "late" ? (

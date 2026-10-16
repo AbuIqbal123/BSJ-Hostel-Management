@@ -9,6 +9,7 @@ import { OfficeFrame, replyError } from "@/components/office-frame";
 import { SearchField } from "@/components/search-field";
 import { SkeletonRows } from "@/components/skeleton";
 import { acceptFailure, acceptPage, shouldRequestNext, type Listed } from "@/list-page";
+import { useDelayedLoading } from "@/use-delayed-loading";
 import { readPage, readResident, type OfficeResident } from "@/office";
 import { useSession } from "@/session";
 
@@ -78,6 +79,8 @@ export default function OfficeResidents() {
   );
 
   const rows = list.rows ?? [];
+  const showListSkeleton = useDelayedLoading((list.rows === null || refreshing) && list.error === null) && list.error === null;
+  const showPageSkeleton = useDelayedLoading(pagingUi) && list.pageError === null;
   const near = () => {
     if (!shouldRequestNext(rows.length, list.total, paging.current, list.pageError !== null)) {
       return;
@@ -94,11 +97,11 @@ export default function OfficeResidents() {
     >
       <SearchField value={query} placeholder="Name, enrolment, or room" onChange={setQuery} />
       <HallButton label="Add a resident" onPress={() => router.push("/staff/office/resident")} />
-      {list.rows === null && !list.error ? <SkeletonRows count={4} kind="row" /> : null}
+      {showListSkeleton ? <SkeletonRows count={4} kind="row" /> : null}
       {list.error && rows.length === 0 ? <ListError message={list.error} onRetry={() => load(query, 0)} /> : null}
       {list.error && rows.length > 0 ? <ListError message={list.error} onRetry={() => load(query, 0, true)} /> : null}
       <View>
-        {rows.map((resident, index, all) => (
+        {(showListSkeleton ? [] : rows).map((resident, index, all) => (
           <DenseRow
             key={resident.id}
             title={resident.fullName}
@@ -111,14 +114,14 @@ export default function OfficeResidents() {
           />
         ))}
       </View>
-      {list.rows && rows.length === 0 && !list.error ? (
+      {!showListSkeleton && list.rows && rows.length === 0 && !list.error ? (
         <EmptyState
           message={query.trim() ? "No one matches" : "No residents yet"}
           actionLabel={query.trim() ? undefined : "Add a resident"}
           onAction={query.trim() ? undefined : () => router.push("/staff/office/resident")}
         />
       ) : null}
-      {pagingUi ? <SkeletonRows count={1} kind="row" /> : null}
+      {showPageSkeleton ? <SkeletonRows count={1} kind="row" /> : null}
       {list.pageError ? <RetryRow message={list.pageError} onRetry={() => load(query, rows.length)} /> : null}
     </OfficeFrame>
   );
