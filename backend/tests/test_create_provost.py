@@ -204,6 +204,7 @@ def test_dev_defaults_refuses_production_and_a_turso_url(
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.setenv("DEBUG", "false")
     monkeypatch.setenv("CORS_ORIGINS", "")
+    monkeypatch.setenv("SMS_DRIVER", "dlt")
     monkeypatch.setenv("APP_SECRET_KEY", production_signing_key_for_tests())
     get_settings.cache_clear()
     assert module.main(["--dev-defaults"]) == 2
@@ -237,6 +238,7 @@ def test_normal_path_rejects_the_dev_password(
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.setenv("DEBUG", "false")
     monkeypatch.setenv("CORS_ORIGINS", "")
+    monkeypatch.setenv("SMS_DRIVER", "dlt")
     monkeypatch.setenv("APP_SECRET_KEY", production_signing_key_for_tests())
     get_settings.cache_clear()
     answers = iter(("provost123", "provost123"))

@@ -71,11 +71,11 @@ Copy this block for each test and fill every field.
 | Field | Content |
 |---|---|
 | Test | `backend/tests/test_production_safety.py` |
-| Purpose | Production hides `/docs`, `/redoc`, and `/openapi.json` unless docs are turned on, and the process refuses to start with debug on, a wildcard CORS origin, a known signing key, a zero Turso timeout, a local database path on Render, or a file URL. |
+| Purpose | Production hides `/docs`, `/redoc`, and `/openapi.json` unless docs are turned on, and the process refuses to start with debug on, a wildcard CORS origin, a known or short signing key, mock SMS, a Turso URL without a token, a zero Turso timeout, a local database path on Render, or a file URL. |
 | Actor | System job. Service startup and a browser opening the contract pages. |
 | Preconditions | The hall from startup exists for the docs check. Settings are switched to production with a non-default signing key. A separate check uses the test signing key, debug, a wildcard origin, Render, a database path, and a file URL. |
-| Action | `GET /docs` in development, then the same call and `GET /redoc` and `GET /openapi.json` in production, then `GET /health`, then `GET /docs` with docs enabled. Load settings for each unsafe combination. Post one Turso request through the timeout wrapper. |
-| Expected response | Development `/docs` is 200. Production docs paths are 404 `not_found` in the shared JSON shape, with the request id echoed, and `/health` stays 200. Turning docs on restores `/docs`. A zero timeout, debug, a wildcard, the test signing key, `DATABASE_PATH` on Render, and a file URL each raise before the process serves traffic. A Turso post uses the configured timeout and turns a timeout into a protocol error. |
+| Action | `GET /docs` in development, then the same call and `GET /redoc` and `GET /openapi.json` in production, then `GET /health`, then `GET /docs` with docs enabled. Load settings for each unsafe combination. Boot the app with `ENVIRONMENT=production` and, one at a time, a short signing key, `SMS_DRIVER=mock`, a Turso URL with no token, and a wildcard CORS origin. Post one Turso request through the timeout wrapper. |
+| Expected response | Development `/docs` is 200. Production docs paths are 404 `not_found` in the shared JSON shape, with the request id echoed, and `/health` stays 200. Turning docs on restores `/docs`. A zero timeout, debug, a wildcard, the test signing key, a short key, mock SMS, a Turso URL without a token, `DATABASE_PATH` on Render, and a file URL each raise before the process serves traffic. A Turso post uses the configured timeout and turns a timeout into a protocol error. |
 | Failure cases | E2E for the docs pages. The startup refusals are isolated because the process must not start. |
 | Artifact | none |
 
@@ -179,7 +179,7 @@ Copy this block for each test and fill every field.
 | Actor | Anyone calling login or refresh. |
 | Preconditions | The hall from `hall-created` exists. One active gate account exists. The in-process limit is set low for the check. |
 | Action | Call `POST /api/v1/auth/login` with a wrong password until the limit is exceeded, then once more. Separately, after a successful sign-in, call `POST /api/v1/auth/refresh` with a bad token until the limit is exceeded, then once more. With `TRUST_FORWARDED_FOR=1`, from `127.0.0.1`, one client (`198.51.100.1, 203.0.113.10`) signs in with a wrong password up to a limit of 2, then retries with a faked first entry (`198.51.100.99, 203.0.113.10`). A second client (`203.0.113.20`) then tries once. With the address limit high and the username limit at 2, sign in twice as the same gate username in different case, then once more, then twice as a missing username and once more, then once as a different username. |
-| Expected response | Calls within the limit return 401 `unauthenticated`. The next call returns 429 `rate_limited` and says too many attempts. The faked first entry is still 429. The second client is still 401. The third try for one username is 429 and the body does not contain that username. A missing username reaches the same 429 sentence. A different username is still 401. |
+| Expected response | Calls within the limit return 401 `unauthenticated`. The next call returns 429 `rate_limited` and says too many attempts. The limit bucket is only the last hop, `203.0.113.10`. The faked first entry is still 429. The second client is still 401. The third try for one username is 429 and the body does not contain that username. A missing username reaches the same 429 sentence. A different username is still 401. |
 | Failure cases | E2E; failure cases are covered by the expected response. |
 | Artifact | none |
 
@@ -1044,11 +1044,11 @@ Copy this block for each test and fill every field.
 | Field | Content |
 |---|---|
 | Test | `backend/tests/test_integrity_errors.py` |
-| Purpose | Turso's `IntegrityError` is not a `sqlite3.IntegrityError`, so `except sqlite3.IntegrityError` misses it in production and a duplicate create returns 500. `INTEGRITY_ERRORS` in `backend/app/shared/db.py` covers both, and ruff bans the old pattern. |
+| Purpose | Turso's `IntegrityError` is not a `sqlite3.IntegrityError`, so `except sqlite3.IntegrityError` misses it in production and a duplicate create returns 500. `INTEGRITY_ERRORS` in `backend/app/shared/db.py` covers both, and ruff bans the old pattern. `DB_ERRORS` covers both drivers' `OperationalError` and `DatabaseError` the same way. |
 | Actor | System. |
 | Preconditions | None. No database. |
-| Action | Raise each driver's `IntegrityError` with a UNIQUE message inside `try ... except INTEGRITY_ERRORS`. Check the Turso class is not a subclass of the SQLite class. |
-| Expected response | Both errors are caught and the message is intact. The Turso class is not a `sqlite3.IntegrityError` subclass. |
+| Action | Raise each driver's `IntegrityError` with a UNIQUE message inside `try ... except INTEGRITY_ERRORS`. Raise each driver's `OperationalError` and `DatabaseError` inside `try ... except DB_ERRORS`. Check the Turso class is not a subclass of the SQLite class. |
+| Expected response | Both integrity errors are caught and the message is intact. Both drivers' operational and database errors are caught. The Turso class is not a `sqlite3.IntegrityError` subclass. |
 | Failure cases | Isolated: tests run on plain SQLite, so the end-to-end path cannot raise Turso's error. Catching only `sqlite3.IntegrityError` lets Turso's error escape as a 500. |
 | Artifact | None. The test states each check. |
 
