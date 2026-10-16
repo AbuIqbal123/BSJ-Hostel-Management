@@ -50,6 +50,8 @@ type TextFieldProps = {
   maxLength?: number;
   /** Locked leading content inside the field. */
   prefix?: ReactNode;
+  /** Taller field for a message the provost edits. */
+  multiline?: boolean;
 };
 
 export const TextField = memo(function TextField({
@@ -70,6 +72,7 @@ export const TextField = memo(function TextField({
   keyboardType,
   maxLength,
   prefix,
+  multiline = false,
 }: TextFieldProps) {
   const colors = useHallColors();
   const [focused, setFocused] = useState(false);
@@ -80,19 +83,21 @@ export const TextField = memo(function TextField({
     () => [
       styles.input,
       prefix ? styles.inputFill : styles.inputPad,
+      multiline ? styles.inputMulti : null,
       text.field,
       { color: colors.ink },
     ],
-    [colors, prefix],
+    [colors, multiline, prefix],
   );
   const painted = focused && showOutline;
   const shellStyle = useMemo(
     () => [
       styles.shell,
+      multiline ? styles.shellMulti : null,
       prefix ? styles.shellRow : null,
       { backgroundColor: colors.surface, borderColor: painted ? colors.forest : colors.line },
     ],
-    [colors, painted, prefix],
+    [colors, multiline, painted, prefix],
   );
   const changeText = useCallback(
     (incoming: string) => {
@@ -141,6 +146,8 @@ export const TextField = memo(function TextField({
           onSubmitEditing={onSubmitEditing}
           keyboardType={keyboardType}
           maxLength={maxLength}
+          multiline={multiline}
+          textAlignVertical={multiline ? "top" : "auto"}
           placeholder={label}
           placeholderTextColor={colors.inkFaint}
           selectionColor={colors.forest}
@@ -161,6 +168,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderCurve: "continuous",
   },
+  shellMulti: {
+    height: undefined,
+    minHeight: 120,
+  },
   shellRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -168,6 +179,12 @@ const styles = StyleSheet.create({
   input: {
     height: "100%",
     paddingVertical: 0,
+  },
+  inputMulti: {
+    height: undefined,
+    minHeight: 96,
+    paddingTop: 12,
+    paddingBottom: 12,
   },
   inputPad: {
     paddingHorizontal: 14,
