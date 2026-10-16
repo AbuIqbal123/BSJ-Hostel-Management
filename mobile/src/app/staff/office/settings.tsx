@@ -183,7 +183,7 @@ export default function OfficeSettings() {
         <Text style={[text.error, { color: colors.inkFaint }]}>{RETURN_PLACEHOLDERS.join("  ")}</Text>
         <TextField label="Return message" value={back} onChangeText={(value) => { setBack(value); setError(null); }} multiline />
       </View>
-      <HallButton label="Save settings" disabled={busy || !savedHours} onPress={() => void save()} />
+      <HallButton label="Save settings" busy={busy} disabled={!savedHours} onPress={() => void save()} />
       <OfficeError message={error} />
     </OfficeFrame>
   );

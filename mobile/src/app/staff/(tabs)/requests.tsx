@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, SectionList, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, SectionList, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -7,7 +7,10 @@ import { DenseRow } from "@/components/dense-row";
 import { FilterChip } from "@/components/filter-chip";
 import { SearchField } from "@/components/search-field";
 import { SectionHead } from "@/components/section-head";
+import { EmptyState, ListError, RetryRow } from "@/components/list-state";
 import { ReviewSheet, type Fact } from "@/components/review-sheet";
+import { SkeletonRows } from "@/components/skeleton";
+import { acceptFailure, acceptPage, shouldRequestNext, type Listed } from "@/list-page";
 import { formatHallDate, formatSpan, formatWhen } from "@/format-when";
 import { kindLabel } from "@/requests";
 import { useSession, type PermissionKind } from "@/session";
@@ -100,16 +103,15 @@ export default function RequestsScreen() {
   const [query, setQuery] = useState("");
   const [q, setQ] = useState("");
   const [counts, setCounts] = useState<Counts | null>(null);
-  const [items, setItems] = useState<Item[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loaded, setLoaded] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [list, setList] = useState<Listed<Item>>({ rows: null, total: 0, error: null, pageError: null });
+  const [refreshing, setRefreshing] = useState(false);
+  const [pagingUi, setPagingUi] = useState(false);
   const [open, setOpen] = useState<Item | null>(null);
   const [guestFacts, setGuestFacts] = useState<Fact[] | null>(null);
   const [sheetError, setSheetError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [decidedNote, setDecidedNote] = useState<string | null>(null);
-  const loading = useRef(false);
+  const paging = useRef(false);
   const generation = useRef(0);
 
   const loadCounts = useCallback(async () => {
@@ -134,31 +136,42 @@ export default function RequestsScreen() {
   }, [blockId, staffRequest]);
 
   const loadPage = useCallback(
-    async (offset: number) => {
-      if (loading.current) {
-        return;
+    async (offset: number, fromPull = false) => {
+      if (offset > 0) {
+        if (paging.current) {
+          return;
+        }
+        paging.current = true;
+        setPagingUi(true);
       }
-      loading.current = true;
+      if (fromPull) {
+        setRefreshing(true);
+      }
       const run = generation.current;
       const reply = await staffRequest(
         tab === "permissions" ? permissionPath(kind, blockId, PAGE, offset, q) : guestPath(blockId, PAGE, offset, q),
       );
-      loading.current = false;
+      if (offset > 0) {
+        paging.current = false;
+        setPagingUi(false);
+      }
+      if (fromPull) {
+        setRefreshing(false);
+      }
       if (run !== generation.current) {
         return;
       }
-      setLoaded(true);
       if (!reply.ok) {
-        setError(trimStop(reply.message));
+        const message = trimStop(reply.message);
+        setList((state) => acceptFailure(state, offset, message));
         return;
       }
-      setError(null);
       const page: Item[] =
         tab === "permissions"
           ? readPermissionReviews(reply.data).map((row) => ({ tab: "permissions", row }))
           : readGuestReviews(reply.data).map((row) => ({ tab: "guests", row }));
-      setTotal(readTotal(reply.data));
-      setItems((current) => (offset === 0 ? page : [...current, ...page]));
+      const total = readTotal(reply.data);
+      setList((state) => acceptPage(state, offset, page, total, (item) => item.row.id));
     },
     [blockId, kind, q, staffRequest, tab],
   );
@@ -170,9 +183,9 @@ export default function RequestsScreen() {
 
   useEffect(() => {
     generation.current += 1;
-    loading.current = false;
-    setItems([]);
-    setLoaded(false);
+    paging.current = false;
+    setPagingUi(false);
+    setList({ rows: null, total: 0, error: null, pageError: null });
     void loadPage(0);
   }, [loadPage]);
 
@@ -245,15 +258,19 @@ export default function RequestsScreen() {
         setSheetError(trimStop(reply.message));
         return;
       }
-      setItems((current) => current.filter((item) => item.row.id !== open.row.id));
-      setTotal((current) => Math.max(0, current - 1));
+      setList((state) => ({
+        ...state,
+        rows: (state.rows ?? []).filter((item) => item.row.id !== open.row.id),
+        total: Math.max(0, state.total - 1),
+      }));
       setOpen(null);
       void loadCounts();
     },
     [loadCounts, open, staffRequest],
   );
 
-  const sections = useMemo(() => daySections(items), [items]);
+  const rows = list.rows ?? [];
+  const sections = useMemo(() => daySections(rows), [rows]);
 
   const header = (
     <View style={styles.header}>
@@ -301,7 +318,7 @@ export default function RequestsScreen() {
           <FilterChip key={block.id} label={block.name} on={blockId === block.id} onPress={() => setBlockId(block.id)} />
         ))}
       </ScrollView>
-      {error ? <Text accessibilityLiveRegion="polite" style={[text.error, { color: colors.danger }]}>{error}</Text> : null}
+      {list.error && rows.length > 0 ? <ListError message={list.error} onRetry={() => void loadPage(0, true)} /> : null}
     </View>
   );
 
@@ -318,10 +335,13 @@ export default function RequestsScreen() {
         keyboardDismissMode="on-drag"
         initialNumToRender={20}
         windowSize={9}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={() => void loadPage(0, true)} tintColor={colors.inkFaint} />
+        }
         onEndReachedThreshold={0.5}
         onEndReached={() => {
-          if (items.length < total) {
-            void loadPage(items.length);
+          if (shouldRequestNext(rows.length, list.total, paging.current, list.pageError !== null)) {
+            void loadPage(rows.length);
           }
         }}
         renderSectionHeader={({ section }) => <SectionHead title={section.title} count={String(section.data.length)} />}
@@ -340,10 +360,19 @@ export default function RequestsScreen() {
           />
         )}
         ListEmptyComponent={
-          loaded && !error ? (
-            <Text style={[text.body, styles.empty, { color: colors.inkSoft }]}>
-              {q.trim() ? `Nothing matches ${q.trim()}` : "Nothing is waiting"}
-            </Text>
+          list.rows === null && !list.error ? (
+            <SkeletonRows count={4} kind="row" />
+          ) : list.error && rows.length === 0 ? (
+            <ListError message={list.error} onRetry={() => void loadPage(0)} />
+          ) : list.rows && rows.length === 0 ? (
+            <EmptyState message={q.trim() ? `Nothing matches ${q.trim()}` : "Nothing is waiting"} />
+          ) : null
+        }
+        ListFooterComponent={
+          pagingUi ? (
+            <SkeletonRows count={1} kind="row" />
+          ) : list.pageError ? (
+            <RetryRow message={list.pageError} onRetry={() => void loadPage(rows.length)} />
           ) : null
         }
       />

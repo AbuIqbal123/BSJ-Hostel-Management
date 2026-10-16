@@ -1,10 +1,12 @@
 import { useCallback, useRef, useState } from "react";
 import { router, useFocusEffect, useNavigation } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
 import { BackMark } from "@/components/back-mark";
+import { EmptyState, ListError, RetryRow } from "@/components/list-state";
+import { SkeletonRows } from "@/components/skeleton";
 import { DayRange, type DayRangeValue } from "@/components/day-range";
 import { formatSpan } from "@/format-when";
 import { mergeHistoryRows } from "@/history-rows";
@@ -103,25 +105,55 @@ export default function HistoryScreen() {
   const [range, setRange] = useState<DayRangeValue>({ from: null, to: null });
   const [items, setItems] = useState<HistoryItem[] | null>(null);
   const [failed, setFailed] = useState(false);
-  const [olderFailed, setOlderFailed] = useState(false);
+  const [olderFailed, setOlderFailed] = useState<string | null>(null);
   const [next, setNext] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const requestId = useRef(0);
   const paging = useRef(false);
+  const queryKey = useRef("");
 
   const load = useCallback(() => {
+    const key = `${kind}|${range.from ?? ""}|${range.to ?? ""}`;
+    const changed = queryKey.current !== key;
+    queryKey.current = key;
+    if (changed) {
+      setItems(null);
+    }
+    setRefreshing(false);
     const id = ++requestId.current;
     void loadHistory({ kind, from: range.from, to: range.to }).then((result) => {
       if (id !== requestId.current) {
         return;
       }
       if (result.error !== null) {
-        setItems(null);
         setFailed(true);
-        setNext(null);
+        if (changed) {
+          setItems(null);
+          setNext(null);
+        }
         return;
       }
       setFailed(false);
-      setOlderFailed(false);
+      setOlderFailed(null);
+      setItems(result.items);
+      setNext(result.next);
+    });
+  }, [kind, loadHistory, range]);
+
+  const refresh = useCallback(() => {
+    setRefreshing(true);
+    const id = ++requestId.current;
+    void loadHistory({ kind, from: range.from, to: range.to }).then((result) => {
+      if (id !== requestId.current) {
+        return;
+      }
+      setRefreshing(false);
+      if (result.error !== null) {
+        setFailed(true);
+        return;
+      }
+      setFailed(false);
+      setOlderFailed(null);
       setItems(result.items);
       setNext(result.next);
     });
@@ -140,10 +172,10 @@ export default function HistoryScreen() {
         return;
       }
       if (result.error !== null) {
-        setOlderFailed(true);
+        setOlderFailed(result.error);
         return;
       }
-      setOlderFailed(false);
+      setOlderFailed(null);
       setItems((current) => mergeHistoryRows(current ?? [], result.items));
       setNext(result.next);
     });
@@ -161,6 +193,7 @@ export default function HistoryScreen() {
         { paddingTop: insets.top + 28, paddingBottom: insets.bottom + 28 },
       ]}
       showsVerticalScrollIndicator={false}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.inkFaint} />}
     >
       <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={back} style={styles.back}>
         <BackMark color={colors.inkSoft} />
@@ -194,19 +227,14 @@ export default function HistoryScreen() {
       </ScrollView>
       <DayRange value={range} onChange={setRange} />
       </View>
-      {failed ? (
-        <View style={styles.failed}>
-          <Text accessibilityLiveRegion="polite" style={[text.error, { color: colors.danger }]}>
-            History didn't load
-          </Text>
-          <Pressable accessibilityRole="button" accessibilityLabel="Try again" onPress={load} hitSlop={12}>
-            <Text style={[text.button, { color: colors.forest }]}>Try again</Text>
-          </Pressable>
-        </View>
+      {items === null && !failed ? <SkeletonRows count={4} kind="row" /> : null}
+      {failed && (items === null || items.length === 0) ? (
+        <ListError message="History didn't load" onRetry={load} />
       ) : null}
-      {items !== null && items.length === 0 && !failed ? (
-        <Text style={[text.body, { color: colors.inkFaint }]}>No history</Text>
+      {failed && items !== null && items.length > 0 ? (
+        <ListError message="History didn't load" onRetry={refresh} />
       ) : null}
+      {items !== null && items.length === 0 && !failed ? <EmptyState message="No history" /> : null}
       {items !== null && items.length > 0 ? (
         <View>
           {items.map((item, index) => (
@@ -217,12 +245,8 @@ export default function HistoryScreen() {
           ))}
         </View>
       ) : null}
-      {olderFailed ? (
-        <Text accessibilityLiveRegion="polite" style={[text.error, { color: colors.danger }]}>
-          Older entries didn't load
-        </Text>
-      ) : null}
-      {next ? (
+      {olderFailed ? <RetryRow message={olderFailed} onRetry={older} /> : null}
+      {next && !olderFailed ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Show older"

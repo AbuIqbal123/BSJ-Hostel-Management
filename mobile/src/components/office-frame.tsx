@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
 import { Redirect, useNavigation } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
@@ -10,7 +10,19 @@ import { useSession, type StaffReply } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
-export function OfficeFrame({ title, children }: { title: string; children: ReactNode }) {
+export function OfficeFrame({
+  title,
+  children,
+  refreshing = false,
+  onRefresh,
+  onNearEnd,
+}: {
+  title: string;
+  children: ReactNode;
+  refreshing?: boolean;
+  onRefresh?: () => void;
+  onNearEnd?: () => void;
+}) {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
@@ -33,6 +45,22 @@ export function OfficeFrame({ title, children }: { title: string; children: Reac
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="interactive"
       showsVerticalScrollIndicator={false}
+      scrollEventThrottle={200}
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.inkFaint} />
+        ) : undefined
+      }
+      onScroll={
+        onNearEnd
+          ? (event) => {
+              const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+              if (contentSize.height - (contentOffset.y + layoutMeasurement.height) < 280) {
+                onNearEnd();
+              }
+            }
+          : undefined
+      }
     >
       <Pressable
         accessibilityRole="button"

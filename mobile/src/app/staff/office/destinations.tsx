@@ -4,7 +4,9 @@ import { Text, View } from "react-native";
 
 import { DenseRow } from "@/components/dense-row";
 import { HallButton } from "@/components/hall-button";
+import { EmptyState, ListError } from "@/components/list-state";
 import { ChoiceLine, OfficeError, OfficeFrame, replyError } from "@/components/office-frame";
+import { SkeletonRows } from "@/components/skeleton";
 import { TextField } from "@/components/text-field";
 import { hiddenFromResidents, readPlace, readPlaces, type OfficePlace } from "@/office";
 import { useSession } from "@/session";
@@ -15,23 +17,35 @@ export default function OfficeDestinations() {
   const colors = useHallColors();
   const { staffRequest } = useSession();
   const [places, setPlaces] = useState<OfficePlace[] | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [name, setName] = useState("");
   const [editing, setEditing] = useState<OfficePlace | null>(null);
   const [editName, setEditName] = useState("");
   const [status, setStatus] = useState<"active" | "inactive">("active");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<"preset" | "custom" | "save" | null>(null);
 
-  const load = useCallback(() => {
-    void staffRequest("/admin/destinations").then((reply) => {
-      const next = reply.ok ? readPlaces(reply.data) : null;
-      if (!next) {
-        setError(replyError(reply) ?? "Destinations didn't load");
-        return;
+  const load = useCallback(
+    (fromPull = false) => {
+      if (fromPull) {
+        setRefreshing(true);
       }
-      setPlaces(next);
-    });
-  }, [staffRequest]);
+      void staffRequest("/admin/destinations").then((reply) => {
+        if (fromPull) {
+          setRefreshing(false);
+        }
+        const next = reply.ok ? readPlaces(reply.data) : null;
+        if (!next) {
+          setListError(replyError(reply) ?? "Destinations didn't load");
+          return;
+        }
+        setPlaces(next);
+        setListError(null);
+      });
+    },
+    [staffRequest],
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -45,18 +59,18 @@ export default function OfficeDestinations() {
     }
     const place = name.trim();
     if (place.length < 1 || place.length > 80) {
-      setError("Enter the place");
+      setFormError("Enter the place");
       return;
     }
-    setBusy(true);
+    setBusy(source);
     const reply = await staffRequest("/admin/destinations", { name: place, source });
-    setBusy(false);
+    setBusy(null);
     if (!reply.ok || !readPlace(reply.data)) {
-      setError(replyError(reply) ?? "The place didn't save");
+      setFormError(replyError(reply) ?? "The place didn't save");
       return;
     }
     setName("");
-    setError(null);
+    setFormError(null);
     load();
   };
 
@@ -66,7 +80,7 @@ export default function OfficeDestinations() {
     }
     const place = editName.trim();
     if (place.length < 1 || place.length > 80) {
-      setError("Enter the place");
+      setFormError("Enter the place");
       return;
     }
     const body: Record<string, unknown> = {};
@@ -80,29 +94,35 @@ export default function OfficeDestinations() {
       setEditing(null);
       return;
     }
-    setBusy(true);
+    setBusy("save");
     const reply = await staffRequest(`/admin/destinations/${encodeURIComponent(editing.id)}`, body, "PATCH");
-    setBusy(false);
+    setBusy(null);
     if (!reply.ok || !readPlace(reply.data)) {
-      setError(replyError(reply) ?? "The place didn't save");
+      setFormError(replyError(reply) ?? "The place didn't save");
       return;
     }
     setEditing(null);
-    setError(null);
+    setFormError(null);
     load();
   };
 
+  const rows = places ?? [];
+  const held = busy !== null;
+
   return (
-    <OfficeFrame title="Destinations">
+    <OfficeFrame title="Destinations" refreshing={refreshing} onRefresh={() => load(true)}>
       <Text style={[text.body, { color: colors.inkSoft }]}>
         An inactive place stays on this list. Residents only see active places
       </Text>
       <TextField label="Place" value={name} onChangeText={setName} maxLength={80} autoCapitalize="sentences" />
-      <HallButton label="Add place" disabled={busy} onPress={() => void create("preset")} />
-      <HallButton label="Add free-text place" disabled={busy} onPress={() => void create("custom")} />
-      <OfficeError message={error} />
+      <HallButton label="Add place" busy={busy === "preset"} disabled={held} onPress={() => void create("preset")} />
+      <HallButton label="Add free-text place" busy={busy === "custom"} disabled={held} onPress={() => void create("custom")} />
+      <OfficeError message={formError} />
+      {places === null && !listError ? <SkeletonRows count={4} kind="row" /> : null}
+      {listError && rows.length === 0 ? <ListError message={listError} onRetry={() => load()} /> : null}
+      {listError && rows.length > 0 ? <ListError message={listError} onRetry={() => load(true)} /> : null}
       <View>
-        {(places ?? []).map((place, index, all) => (
+        {rows.map((place, index, all) => (
           <View key={place.id}>
             <DenseRow
               title={place.name}
@@ -120,7 +140,7 @@ export default function OfficeDestinations() {
                 setEditing(place);
                 setEditName(place.name);
                 setStatus(place.status);
-                setError(null);
+                setFormError(null);
               }}
             />
             {editing?.id === place.id ? (
@@ -135,12 +155,15 @@ export default function OfficeDestinations() {
                   ]}
                   onChange={(value) => setStatus(value === "inactive" ? "inactive" : "active")}
                 />
-                <HallButton label="Save place" disabled={busy} onPress={() => void save()} />
+                <HallButton label="Save place" busy={busy === "save"} disabled={held} onPress={() => void save()} />
               </View>
             ) : null}
           </View>
         ))}
       </View>
+      {places && rows.length === 0 && !listError ? (
+        <EmptyState message="No places yet. Add one with the form above." />
+      ) : null}
     </OfficeFrame>
   );
 }

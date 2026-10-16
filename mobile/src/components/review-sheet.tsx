@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HallButton } from "@/components/hall-button";
@@ -45,11 +45,16 @@ export function ReviewSheet({ title, subtitle, facts, error, busy, onDecide, onC
           </Pressable>
           <Pressable
             accessibilityRole="button"
+            accessibilityState={{ disabled: busy, busy }}
             disabled={busy}
             onPress={() => onDecide("rejected", note.trim())}
             style={({ pressed }) => [styles.button, { backgroundColor: colors.danger, opacity: busy || pressed ? 0.7 : 1 }]}
           >
-            <Text style={[text.button, { color: colors.onForest }]}>Reject</Text>
+            {busy ? (
+              <ActivityIndicator color={colors.onForest} />
+            ) : (
+              <Text style={[text.button, { color: colors.onForest }]}>Reject</Text>
+            )}
           </Pressable>
         </View>
       </>
@@ -58,7 +63,7 @@ export function ReviewSheet({ title, subtitle, facts, error, busy, onDecide, onC
     actions = (
       <View style={styles.buttons}>
         <View style={styles.half}>
-          <HallButton label="Approve" disabled={busy} onPress={() => onDecide("approved", "")} />
+          <HallButton label="Approve" busy={busy} onPress={() => onDecide("approved", "")} />
         </View>
         <Pressable
           accessibilityRole="button"
