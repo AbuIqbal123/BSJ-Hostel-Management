@@ -173,6 +173,9 @@ Process health. No hall data.
 **Who.** Anyone. No token.
 
 Reports that the API process is up. It does not check the database.
+`e2e_scratch` is present and true only when this process was started
+with `E2E_SCRATCH=1` by the throwaway end-to-end server. Production
+refuses to start when that variable is set.
 
 **Responses**
 
@@ -185,6 +188,7 @@ Body: [Health](#schema-health).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `status` | yes | `ok` |  |
+| `e2e_scratch` | no | `True` | Present only on the throwaway end-to-end server (`E2E_SCRATCH=1`). Production refuses to start with that variable set. |
 
 **Example**
 
@@ -6147,6 +6151,7 @@ Each JSON object used above. An operation section already shows the fields for i
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `status` | yes | `ok` |  |
+| `e2e_scratch` | no | `True` | Present only on the throwaway end-to-end server (`E2E_SCRATCH=1`). Production refuses to start with that variable set. |
 
 ### <a id="schema-ready"></a>Ready
 

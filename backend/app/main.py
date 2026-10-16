@@ -95,6 +95,7 @@ ROUTERS = (
 
 class Health(BaseModel):
     status: str
+    e2e_scratch: bool | None = None
 
 
 class Ready(BaseModel):
@@ -145,8 +146,10 @@ app.add_exception_handler(HTTPException, http_exception_handler)
 app.add_exception_handler(Exception, unhandled_exception_handler)
 
 
-@app.get("/health", response_model=Health)
+@app.get("/health", response_model=Health, response_model_exclude_none=True)
 def health() -> Health:
+    if get_settings().e2e_scratch:
+        return Health(status="ok", e2e_scratch=True)
     return Health(status="ok")
 
 

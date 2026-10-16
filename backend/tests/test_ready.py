@@ -10,6 +10,21 @@ from fastapi.testclient import TestClient
 from app.shared.migrate import SCHEMA_VERSION
 
 
+def test_health_names_a_scratch_server_only_when_asked(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.main import app
+    from app.shared.config import get_settings
+
+    monkeypatch.delenv("E2E_SCRATCH", raising=False)
+    get_settings.cache_clear()
+    with TestClient(app) as client:
+        assert client.get("/health").json() == {"status": "ok"}
+        monkeypatch.setenv("E2E_SCRATCH", "1")
+        get_settings.cache_clear()
+        assert client.get("/health").json() == {"status": "ok", "e2e_scratch": True}
+
+
 def test_ready_reports_user_version(database_path: Path) -> None:
     from app.main import app
 

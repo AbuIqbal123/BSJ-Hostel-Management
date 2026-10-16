@@ -4,7 +4,7 @@ Drives the real app on an iOS simulator with [TesterArmy e2e](https://e2e.tester
 
 - `tests/resident.e2e.ts`: sign in, Home, Pass, Permissions, plan an ordinary outing, Settings, change password, a History list that pages, a History failure that retries, and Guest stays (upcoming, then Show older).
 - `tests/staff.e2e.ts`: warden Home, Out now (Ordinary, Permission, and Late), Requests; gate Scan by pass code.
-- The runner starts `scripts/serve-api.sh`, a throwaway API on `127.0.0.1:8010` with a fresh SQLite hall, the dev accounts and mock SMS. Passwords are read from its seed output at fill time, never from the repo or the environment.
+- The runner starts `scripts/serve-api.sh`, a throwaway API on `127.0.0.1:8010` with a fresh SQLite hall, the dev accounts and mock SMS. That process sets `E2E_SCRATCH=1`, and `/health` then includes `e2e_scratch: true`. Seeding refuses any other server, and it refuses port 8000 even if that field is present. After the resident file, the Page NN permissions and the seeded guest stays are deleted from the scratch database. Passwords are read from its seed output at fill time, never from the repo or the environment.
 - Every step is a plain locator. Planning an ordinary outing taps the iPhone 17 Home layout and the system clock wheels, because Home speaks Place, the chips, and Confirm as one name.
 - No hosted devices (Limrun, EAS, Kernel). Telemetry is off.
 
