@@ -8,6 +8,7 @@ import { EmptyState, ListError } from "@/components/list-state";
 import { OfficeError, OfficeFrame, replyError } from "@/components/office-frame";
 import { SkeletonRows } from "@/components/skeleton";
 import { TextField } from "@/components/text-field";
+import { useDelayedLoading } from "@/use-delayed-loading";
 import { bounded, readBlock, readBlocks, type OfficeBlock } from "@/office";
 import { useSession } from "@/session";
 
@@ -105,6 +106,7 @@ export default function OfficeBlocks() {
   };
 
   const rows = blocks ?? [];
+  const showListSkeleton = useDelayedLoading((blocks === null || refreshing) && listError === null) && listError === null;
 
   return (
     <OfficeFrame title="Blocks and rooms" refreshing={refreshing} onRefresh={() => load(true)}>
@@ -115,11 +117,11 @@ export default function OfficeBlocks() {
       <TextField label="Beds per room" value={beds} onChangeText={setBeds} keyboardType="number-pad" />
       <HallButton label="Add block" busy={busy} onPress={() => void create()} />
       <OfficeError message={formError} />
-      {blocks === null && !listError ? <SkeletonRows count={4} kind="row" /> : null}
+      {showListSkeleton ? <SkeletonRows count={4} kind="row" /> : null}
       {listError && rows.length === 0 ? <ListError message={listError} onRetry={() => load()} /> : null}
       {listError && rows.length > 0 ? <ListError message={listError} onRetry={() => load(true)} /> : null}
       <View>
-        {rows.map((block, index, all) => (
+        {(showListSkeleton ? [] : rows).map((block, index, all) => (
           <DenseRow
             key={block.id}
             title={block.name}
@@ -131,7 +133,7 @@ export default function OfficeBlocks() {
           />
         ))}
       </View>
-      {blocks && rows.length === 0 && !listError ? <EmptyState message="No blocks yet. Add one with the form above." /> : null}
+      {!showListSkeleton && blocks && rows.length === 0 && !listError ? <EmptyState message="No blocks yet. Add one with the form above." /> : null}
     </OfficeFrame>
   );
 }

@@ -7,6 +7,7 @@ import { EmptyState, ListError, RetryRow } from "@/components/list-state";
 import { OfficeFrame, replyError } from "@/components/office-frame";
 import { SkeletonRows } from "@/components/skeleton";
 import { formatWhenParts } from "@/format-when";
+import { useDelayedLoading } from "@/use-delayed-loading";
 import { acceptFailure, acceptPage, shouldRequestNext, type Listed } from "@/list-page";
 import { noticeLabel, readPage, readSms, type SmsRow } from "@/office";
 import { useSession } from "@/session";
@@ -62,6 +63,8 @@ export default function OfficeSms() {
 
   const rows = list.rows ?? [];
   const selected = rows.find((row) => row.id === open) ?? null;
+  const showListSkeleton = useDelayedLoading((list.rows === null || refreshing) && list.error === null) && list.error === null;
+  const showPageSkeleton = useDelayedLoading(pagingUi) && list.pageError === null;
 
   return (
     <OfficeFrame
@@ -74,10 +77,10 @@ export default function OfficeSms() {
         }
       }}
     >
-      {list.rows === null && !list.error ? <SkeletonRows count={4} kind="row" /> : null}
+      {showListSkeleton ? <SkeletonRows count={4} kind="row" /> : null}
       {list.error && rows.length === 0 ? <ListError message={list.error} onRetry={() => load(0)} /> : null}
       {list.error && rows.length > 0 ? <ListError message={list.error} onRetry={() => load(0, true)} /> : null}
-      {selected ? (
+      {!showListSkeleton && selected ? (
         <View style={{ gap: 8 }}>
           <Text selectable style={[text.body, { color: colors.ink }]}>
             {selected.body}
@@ -86,7 +89,7 @@ export default function OfficeSms() {
         </View>
       ) : null}
       <View>
-        {rows.map((row, index, all) => {
+        {(showListSkeleton ? [] : rows).map((row, index, all) => {
           const when = formatWhenParts(row.at);
           return (
             <DenseRow
@@ -102,8 +105,8 @@ export default function OfficeSms() {
           );
         })}
       </View>
-      {list.rows && rows.length === 0 && !list.error ? <EmptyState message="No texts yet" /> : null}
-      {pagingUi ? <SkeletonRows count={1} kind="row" /> : null}
+      {!showListSkeleton && list.rows && rows.length === 0 && !list.error ? <EmptyState message="No texts yet" /> : null}
+      {showPageSkeleton ? <SkeletonRows count={1} kind="row" /> : null}
       {list.pageError ? <RetryRow message={list.pageError} onRetry={() => load(rows.length)} /> : null}
     </OfficeFrame>
   );

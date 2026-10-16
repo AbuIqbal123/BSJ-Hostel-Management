@@ -9,6 +9,7 @@ import { DenseRow } from "@/components/dense-row";
 import { HallButton } from "@/components/hall-button";
 import { EmptyState, ListError, RetryRow } from "@/components/list-state";
 import { SkeletonRows } from "@/components/skeleton";
+import { useDelayedLoading } from "@/use-delayed-loading";
 import { acceptFailure, acceptPage, shouldRequestNext, type Listed } from "@/list-page";
 import { formatHallDate } from "@/format-when";
 import {
@@ -130,6 +131,8 @@ export default function GateGuestsScreen() {
   };
 
   const rows = list.rows ?? [];
+  const showListSkeleton = useDelayedLoading((list.rows === null || refreshing) && list.error === null) && list.error === null;
+  const showPageSkeleton = useDelayedLoading(pagingUi) && list.pageError === null;
 
   const counts =
     occupancy === null ? "" : `${occupancy.inHall} in the hall, ${occupancy.shouldHaveLeft} should have left`;
@@ -186,7 +189,7 @@ export default function GateGuestsScreen() {
       </View>
       <FlatList
         style={styles.list}
-        data={rows}
+        data={showListSkeleton ? [] : rows}
         keyExtractor={(item) => item.id}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingBottom: insets.bottom + 28, paddingHorizontal: 28, flexGrow: 1 }}
@@ -200,7 +203,7 @@ export default function GateGuestsScreen() {
           }
         }}
         ListEmptyComponent={
-          list.rows === null && !list.error ? (
+          showListSkeleton ? (
             <SkeletonRows count={4} kind="row" />
           ) : list.error && rows.length === 0 ? (
             <ListError message={list.error} onRetry={() => void loadPage(0)} />
@@ -211,7 +214,7 @@ export default function GateGuestsScreen() {
           ) : null
         }
         ListFooterComponent={
-          pagingUi ? (
+          showPageSkeleton ? (
             <SkeletonRows count={1} kind="row" />
           ) : list.pageError ? (
             <RetryRow message={list.pageError} onRetry={() => void loadPage(rows.length)} />

@@ -8,6 +8,7 @@ import { onHallRefresh } from "@/hall-refresh";
 import { BackMark } from "@/components/back-mark";
 import { EmptyState, ListError, RetryRow } from "@/components/list-state";
 import { SkeletonRows } from "@/components/skeleton";
+import { useDelayedLoading } from "@/use-delayed-loading";
 import { mergeById } from "@/list-page";
 import { DayRange, type DayRangeValue } from "@/components/day-range";
 import { FilterChip } from "@/components/filter-chip";
@@ -80,6 +81,8 @@ export function NoticeList({ base, role, back, staff }: { base: string; role: Ha
   const [pagingUi, setPagingUi] = useState(false);
   const generation = useRef(0);
   const paging = useRef(false);
+  const showListSkeleton = useDelayedLoading((items === null || refreshing) && error === null) && error === null;
+  const showPageSkeleton = useDelayedLoading(pagingUi) && pageError === null;
 
   const load = useCallback(
     async (cursor: string | null) => {
@@ -241,7 +244,7 @@ export function NoticeList({ base, role, back, staff }: { base: string; role: Ha
     <FlatList
       style={[styles.screen, { backgroundColor: colors.paper }]}
       contentContainerStyle={[styles.content, { paddingTop: insets.top + 28, paddingBottom: insets.bottom + 28 }]}
-      data={items ?? []}
+      data={showListSkeleton ? [] : (items ?? [])}
       keyExtractor={(item) => item.id}
       ListHeaderComponent={header}
       renderItem={({ item }) => <NoticeCard item={item} onPress={() => open(item)} />}
@@ -257,7 +260,7 @@ export function NoticeList({ base, role, back, staff }: { base: string; role: Ha
       keyboardDismissMode="on-drag"
       showsVerticalScrollIndicator={false}
       ListEmptyComponent={
-        items === null && !error ? (
+        showListSkeleton ? (
           <SkeletonRows count={4} kind="card" />
         ) : items === null && error ? (
           <ListError message={error} onRetry={() => void load(null)} />
@@ -267,7 +270,7 @@ export function NoticeList({ base, role, back, staff }: { base: string; role: Ha
       }
       ListFooterComponent={
         <>
-          {pagingUi ? <SkeletonRows count={1} kind="card" /> : null}
+          {showPageSkeleton ? <SkeletonRows count={1} kind="card" /> : null}
           {pageError ? <RetryRow message={pageError} onRetry={() => void more()} /> : null}
           {next === null && items !== null && items.length > 0 && !staff ? (
             <Text style={[text.label, styles.footer, { color: colors.inkFaint }]}>Older history is under Settings</Text>

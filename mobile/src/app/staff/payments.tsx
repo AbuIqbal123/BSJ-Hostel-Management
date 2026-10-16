@@ -22,6 +22,7 @@ import { DenseRow } from "@/components/dense-row";
 import { HallButton } from "@/components/hall-button";
 import { EmptyState, ListError, RetryRow } from "@/components/list-state";
 import { SkeletonRows } from "@/components/skeleton";
+import { useDelayedLoading } from "@/use-delayed-loading";
 import { acceptFailure, acceptPage, shouldRequestNext, type Listed } from "@/list-page";
 import {
   CLOSED_STAY,
@@ -131,6 +132,8 @@ function PaymentList() {
   }, [loadPage]);
 
   const rows = list.rows ?? [];
+  const showListSkeleton = useDelayedLoading((list.rows === null || refreshing) && list.error === null) && list.error === null;
+  const showPageSkeleton = useDelayedLoading(pagingUi) && list.pageError === null;
 
   return (
     <PaymentsFrame title="Guest payments">
@@ -148,7 +151,7 @@ function PaymentList() {
       </View>
       <FlatList
         style={styles.list}
-        data={rows}
+        data={showListSkeleton ? [] : rows}
         keyExtractor={(item) => item.id}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingBottom: insets.bottom + 28, paddingHorizontal: 28, flexGrow: 1 }}
@@ -162,7 +165,7 @@ function PaymentList() {
           }
         }}
         ListEmptyComponent={
-          list.rows === null && !list.error ? (
+          showListSkeleton ? (
             <SkeletonRows count={4} kind="row" />
           ) : list.error && rows.length === 0 ? (
             <ListError message={list.error} onRetry={() => void loadPage(0)} />
@@ -171,7 +174,7 @@ function PaymentList() {
           ) : null
         }
         ListFooterComponent={
-          pagingUi ? (
+          showPageSkeleton ? (
             <SkeletonRows count={1} kind="row" />
           ) : list.pageError ? (
             <RetryRow message={list.pageError} onRetry={() => void loadPage(rows.length)} />
@@ -205,6 +208,7 @@ function PaymentDetail({ id }: { id: string }) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [action, setAction] = useState<"paid" | "unpaid" | "upload" | "remove" | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const showStaySkeleton = useDelayedLoading(!loaded && stay === null && loadError === null) && loadError === null;
 
   const apply = (reply: StaffReply) => {
     if (!reply.ok) {
@@ -404,7 +408,7 @@ function PaymentDetail({ id }: { id: string }) {
       >
         <BackMark color={colors.inkSoft} />
       </Pressable>
-      {!loaded && !stay ? <SkeletonRows count={3} kind="card" /> : null}
+      {showStaySkeleton ? <SkeletonRows count={3} kind="card" /> : null}
       {loaded && !stay && loadError ? <ListError message={loadError} onRetry={() => void load()} /> : null}
       {stay ? (
         <>

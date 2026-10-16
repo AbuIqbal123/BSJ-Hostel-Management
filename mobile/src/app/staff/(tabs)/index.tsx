@@ -10,6 +10,7 @@ import { HallButton } from "@/components/hall-button";
 import { ListError } from "@/components/list-state";
 import { SectionHead } from "@/components/section-head";
 import { SkeletonRows } from "@/components/skeleton";
+import { useDelayedLoading } from "@/use-delayed-loading";
 import { setBadge } from "@/push";
 import { runsOffice } from "@/office";
 import { roleLabel, useSession } from "@/session";
@@ -49,15 +50,19 @@ export default function StaffHomeScreen() {
   const { user, staffRequest } = useSession();
   const [summary, setSummary] = useState<RegisterSummary | null>(null);
   const [activity, setActivity] = useState<GateEvent[] | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const showActivitySkeleton = useDelayedLoading(loading && error === null) && error === null;
   const register = user ? readsRegister(user.role) : false;
 
   const reload = useCallback(() => {
     let active = true;
+    setLoading(true);
     void staffRequest("/gate/activity?limit=6").then((reply) => {
       if (!active) {
         return;
       }
+      setLoading(false);
       if (reply.ok) {
         setActivity(readActivity(reply.data));
         setError(null);
@@ -180,13 +185,13 @@ export default function StaffHomeScreen() {
       ) : null}
       <View style={[styles.section, { borderTopColor: colors.line }]}>
         <SectionHead title="Recent at the gate" />
-        {activity === null && !error ? <SkeletonRows count={3} kind="row" /> : null}
+        {showActivitySkeleton ? <SkeletonRows count={3} kind="row" /> : null}
         {error ? <ListError message={error} onRetry={() => { reload(); }} /> : null}
-        {activity && activity.length === 0 && !error ? (
+        {!showActivitySkeleton && activity && activity.length === 0 && !error ? (
           <Text style={[text.body, { color: colors.inkSoft }]}>No one has passed the gate yet</Text>
         ) : null}
         <View>
-          {(activity ?? []).map((item, index, all) => (
+          {(showActivitySkeleton ? [] : (activity ?? [])).map((item, index, all) => (
             <DenseRow
               key={item.key}
               title={item.title}

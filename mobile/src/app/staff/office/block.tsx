@@ -8,6 +8,7 @@ import { EmptyState, ListError } from "@/components/list-state";
 import { ChoiceLine, OfficeError, OfficeFrame, replyError } from "@/components/office-frame";
 import { SkeletonRows } from "@/components/skeleton";
 import { TextField } from "@/components/text-field";
+import { useDelayedLoading } from "@/use-delayed-loading";
 import { bounded, readBlock, readBlocks, readRoom, readRooms, type OfficeBlock, type OfficeRoom } from "@/office";
 import { useSession } from "@/session";
 
@@ -76,6 +77,14 @@ export default function OfficeBlock() {
       load();
     }, [load]),
   );
+
+  const showBlockSkeleton =
+    useDelayedLoading(block === null && rooms === null && blockError === null && roomsError === null) &&
+    blockError === null &&
+    roomsError === null;
+  const showRoomsSkeleton =
+    useDelayedLoading(((rooms === null && block !== null) || (refreshing && rooms !== null)) && roomsError === null) &&
+    roomsError === null;
 
   if (!id) {
     return <Redirect href="/staff/office/blocks" />;
@@ -198,11 +207,10 @@ export default function OfficeBlock() {
 
   const rows = rooms ?? [];
   const held = busy !== null;
-  const waiting = block === null && rooms === null && !blockError && !roomsError;
 
   return (
     <OfficeFrame title={block?.name ?? "Block"} refreshing={refreshing} onRefresh={() => load(true)}>
-      {waiting ? <SkeletonRows count={4} kind="row" /> : null}
+      {showBlockSkeleton ? <SkeletonRows count={4} kind="row" /> : null}
       {blockError && !block ? <ListError message={blockError} onRetry={() => load()} /> : null}
       {block ? (
         <>
@@ -228,9 +236,9 @@ export default function OfficeBlock() {
       {blockError && block ? <ListError message={blockError} onRetry={() => load(true)} /> : null}
       {roomsError && rows.length === 0 ? <ListError message={roomsError} onRetry={() => load()} /> : null}
       {roomsError && rows.length > 0 ? <ListError message={roomsError} onRetry={() => load(true)} /> : null}
-      {rooms === null && block && !roomsError ? <SkeletonRows count={3} kind="row" /> : null}
+      {showRoomsSkeleton ? <SkeletonRows count={3} kind="row" /> : null}
       <View>
-        {rows.map((room, index, all) => (
+        {(showRoomsSkeleton ? [] : rows).map((room, index, all) => (
           <View key={room.id}>
             <DenseRow
               title={room.label}
@@ -265,7 +273,7 @@ export default function OfficeBlock() {
           </View>
         ))}
       </View>
-      {rooms && rows.length === 0 && !roomsError ? <EmptyState message="No rooms in this block yet. Add one above." /> : null}
+      {!showRoomsSkeleton && rooms && rows.length === 0 && !roomsError ? <EmptyState message="No rooms in this block yet. Add one above." /> : null}
     </OfficeFrame>
   );
 }

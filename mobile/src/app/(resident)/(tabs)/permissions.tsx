@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { EmptyState, ListError, RetryRow } from "@/components/list-state";
 import { SkeletonRows } from "@/components/skeleton";
+import { useDelayedLoading } from "@/use-delayed-loading";
 import { formatHallDate, formatWhenParts } from "@/format-when";
 import { acceptFailure, acceptPage, olderAvailable, shouldKeepPaging, shouldRequestNext, type Listed } from "@/list-page";
 import { guestLine, kindLabel, statusSentence, statusTone } from "@/requests";
@@ -256,6 +257,10 @@ export default function PermissionsScreen() {
   const active = tab === "guest" ? stays : permissions;
   const loadedCount = tab === "guest" ? stayRows.length : permissionRows.length;
   const waiting = active.rows === null && active.error === null;
+  const showListSkeleton = useDelayedLoading((waiting || refreshing) && active.error === null) && active.error === null;
+  const showPagingSkeleton = useDelayedLoading(paging && tab !== "guest") && permissions.pageError === null;
+  const showOlderSkeleton =
+    useDelayedLoading(olderBusy && tab === "guest") && older.pageError === null && older.error === null;
   const firstFailure = active.error !== null && loadedCount === 0;
   const emptyCopy =
     tab === "guest" ? "No upcoming guests" : tab === "home_going" ? "No home-going requests" : "No late-night requests";
@@ -402,12 +407,12 @@ export default function PermissionsScreen() {
           );
         })}
       </View>
-      {waiting ? <SkeletonRows count={3} kind="card" /> : null}
+      {showListSkeleton ? <SkeletonRows count={3} kind="card" /> : null}
       {firstFailure ? (
         <ListError message={active.error ?? "This list didn't load"} onRetry={load} />
       ) : null}
       {active.error && loadedCount > 0 ? <ListError message={active.error} onRetry={refresh} /> : null}
-      {shownPermissions.length > 0 || shownStays.length > 0 ? (
+      {!showListSkeleton && (shownPermissions.length > 0 || shownStays.length > 0) ? (
         <View style={[styles.requests, { borderTopColor: colors.line }]}>
           <Text style={[text.button, { color: colors.ink }]}>Your requests</Text>
           <View style={styles.list}>
@@ -420,7 +425,7 @@ export default function PermissionsScreen() {
           </View>
         </View>
       ) : null}
-      {!waiting && !firstFailure && !keepPaging && shownPermissions.length === 0 && shownStays.length === 0 && (tab === "guest" || stalled || !shouldRequestNext(loadedCount, active.total, paging, active.pageError !== null)) ? (
+      {!showListSkeleton && !waiting && !firstFailure && !keepPaging && shownPermissions.length === 0 && shownStays.length === 0 && (tab === "guest" || stalled || !shouldRequestNext(loadedCount, active.total, paging, active.pageError !== null)) ? (
         <EmptyState
           message={emptyCopy}
           actionLabel={emptyAction}
@@ -449,9 +454,9 @@ export default function PermissionsScreen() {
       {tab === "guest" && older.rows !== null && older.error !== null ? (
         <ListError message={older.error} onRetry={showOlder} />
       ) : null}
-      {tab === "guest" && olderBusy ? <SkeletonRows count={1} kind="card" /> : null}
+      {showOlderSkeleton ? <SkeletonRows count={1} kind="card" /> : null}
       {tab === "guest" && older.pageError ? <RetryRow message={older.pageError} onRetry={showOlder} /> : null}
-      {tab === "guest" && stays.rows !== null && !olderBusy && olderAvailable(older) ? (
+      {tab === "guest" && stays.rows !== null && !showOlderSkeleton && olderAvailable(older) ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Show older"
@@ -462,7 +467,7 @@ export default function PermissionsScreen() {
           <Text style={[text.button, { color: colors.forest }]}>Show older</Text>
         </Pressable>
       ) : null}
-      {tab !== "guest" && paging ? <SkeletonRows count={1} kind="card" /> : null}
+      {showPagingSkeleton ? <SkeletonRows count={1} kind="card" /> : null}
       {tab !== "guest" && permissions.pageError ? (
         <RetryRow message={permissions.pageError} onRetry={() => more(true)} />
       ) : null}
