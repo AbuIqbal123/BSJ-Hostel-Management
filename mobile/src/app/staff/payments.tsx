@@ -4,7 +4,6 @@ import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import {
   ActivityIndicator,
-  FlatList,
   Image,
   Pressable,
   RefreshControl,
@@ -20,10 +19,12 @@ import { goBackOr } from "@/back";
 import { BackMark } from "@/components/back-mark";
 import { DenseRow } from "@/components/dense-row";
 import { HallButton } from "@/components/hall-button";
-import { EmptyState, ListError, RetryRow } from "@/components/list-state";
+import { EmptyState, ListError } from "@/components/list-state";
+import { PagedList } from "@/components/paged-list";
 import { SkeletonRows } from "@/components/skeleton";
 import { useDelayedLoading } from "@/use-delayed-loading";
-import { acceptFailure, acceptPage, shouldRequestNext, type Listed } from "@/list-page";
+import { pageQuery } from "@/list-page";
+import { useListPage } from "@/use-list-page";
 import {
   CLOSED_STAY,
   NOTE_REQUIRED,
@@ -78,62 +79,32 @@ function PaymentList() {
   const { staffRequest } = useSession();
   const [query, setQuery] = useState("");
   const [q, setQ] = useState("");
-  const [list, setList] = useState<Listed<PaymentCard>>({ rows: null, total: 0, error: null, pageError: null });
-  const [refreshing, setRefreshing] = useState(false);
-  const [pagingUi, setPagingUi] = useState(false);
-  const paging = useRef(false);
-  const generation = useRef(0);
+  const qRef = useRef(q);
+  qRef.current = q;
+  const list = useListPage<PaymentCard>({
+    idOf: (stay) => stay.id,
+    loadPage: async (offset) => {
+      const needle = qRef.current.trim();
+      const search = needle ? `&q=${encodeURIComponent(needle)}` : "";
+      const reply = await staffRequest(`/guest-stays?${pageQuery(offset)}${search}`);
+      const page = reply.ok ? readPaymentPage(reply.data) : null;
+      return page
+        ? { items: page.items, total: page.total }
+        : { error: !reply.ok ? trimStop(reply.message) : "The guest list could not be read" };
+    },
+  });
 
   useEffect(() => {
     const timer = setTimeout(() => setQ(query), 300);
     return () => clearTimeout(timer);
   }, [query]);
 
-  const loadPage = useCallback(
-    async (offset: number, fromPull = false) => {
-      if (offset > 0) {
-        if (paging.current) {
-          return;
-        }
-        paging.current = true;
-        setPagingUi(true);
-      }
-      if (fromPull) {
-        setRefreshing(true);
-      }
-      const run = generation.current;
-      const search = q.trim() ? `&q=${encodeURIComponent(q.trim())}` : "";
-      const reply = await staffRequest(`/guest-stays?limit=50&offset=${offset}${search}`);
-      if (offset > 0) {
-        paging.current = false;
-        setPagingUi(false);
-      }
-      if (fromPull) {
-        setRefreshing(false);
-      }
-      if (run !== generation.current) {
-        return;
-      }
-      const page = reply.ok ? readPaymentPage(reply.data) : null;
-      const message = !reply.ok ? trimStop(reply.message) : "The guest list could not be read";
-      setList((state) =>
-        page ? acceptPage(state, offset, page.items, page.total, (item) => item.id) : acceptFailure(state, offset, message),
-      );
-    },
-    [q, staffRequest],
-  );
-
   useEffect(() => {
-    generation.current += 1;
-    paging.current = false;
-    setPagingUi(false);
-    setList({ rows: null, total: 0, error: null, pageError: null });
-    void loadPage(0);
-  }, [loadPage]);
+    list.clear();
+    list.load();
+  }, [q, list.clear, list.load]);
 
   const rows = list.rows ?? [];
-  const showListSkeleton = useDelayedLoading((list.rows === null || refreshing) && list.error === null) && list.error === null;
-  const showPageSkeleton = useDelayedLoading(pagingUi) && list.pageError === null;
 
   return (
     <PaymentsFrame title="Guest payments">
@@ -147,39 +118,25 @@ function PaymentList() {
           autoCorrect={false}
           style={[text.field, styles.search, { backgroundColor: colors.surface, borderColor: colors.line, color: colors.ink }]}
         />
-        {list.error && rows.length > 0 ? <ListError message={list.error} onRetry={() => void loadPage(0, true)} /> : null}
+        {list.error && rows.length > 0 ? <ListError message={list.error} onRetry={list.refresh} /> : null}
       </View>
-      <FlatList
+      <PagedList
+        kind="flat"
         style={styles.list}
-        data={showListSkeleton ? [] : rows}
+        rows={list.rows}
+        data={rows}
+        error={rows.length > 0 ? null : list.error}
+        pageError={list.pageError}
+        showListSkeleton={list.showListSkeleton}
+        showPageSkeleton={list.showPageSkeleton}
+        onRetry={list.retry}
+        onRetryPage={() => list.loadNext(true)}
         keyExtractor={(item) => item.id}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingBottom: insets.bottom + 28, paddingHorizontal: 28, flexGrow: 1 }}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => void loadPage(0, true)} tintColor={colors.inkFaint} />
-        }
-        onEndReachedThreshold={0.5}
-        onEndReached={() => {
-          if (shouldRequestNext(rows.length, list.total, paging.current, list.pageError !== null)) {
-            void loadPage(rows.length);
-          }
-        }}
-        ListEmptyComponent={
-          showListSkeleton ? (
-            <SkeletonRows count={4} kind="row" />
-          ) : list.error && rows.length === 0 ? (
-            <ListError message={list.error} onRetry={() => void loadPage(0)} />
-          ) : list.rows && rows.length === 0 ? (
-            <EmptyState message={q.trim() ? `Nothing matches ${q.trim()}` : "No guest stays"} />
-          ) : null
-        }
-        ListFooterComponent={
-          showPageSkeleton ? (
-            <SkeletonRows count={1} kind="row" />
-          ) : list.pageError ? (
-            <RetryRow message={list.pageError} onRetry={() => void loadPage(rows.length)} />
-          ) : null
-        }
+        refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={list.refresh} tintColor={colors.inkFaint} />}
+        onEndReached={() => list.loadNext()}
+        empty={<EmptyState message={q.trim() ? `Nothing matches ${q.trim()}` : "No guest stays"} />}
         renderItem={({ item, index }) => (
           <DenseRow
             title={item.guestName}

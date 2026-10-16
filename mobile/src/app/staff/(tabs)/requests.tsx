@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, SectionList, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -7,11 +7,11 @@ import { DenseRow } from "@/components/dense-row";
 import { FilterChip } from "@/components/filter-chip";
 import { SearchField } from "@/components/search-field";
 import { SectionHead } from "@/components/section-head";
-import { EmptyState, ListError, RetryRow } from "@/components/list-state";
+import { EmptyState } from "@/components/list-state";
+import { PagedList } from "@/components/paged-list";
 import { ReviewSheet, type Fact } from "@/components/review-sheet";
-import { SkeletonRows } from "@/components/skeleton";
-import { useDelayedLoading } from "@/use-delayed-loading";
-import { acceptFailure, acceptPage, shouldRequestNext, type Listed } from "@/list-page";
+import { pageQuery } from "@/list-page";
+import { useListPage } from "@/use-list-page";
 import { formatHallDate, formatSpan, formatWhen } from "@/format-when";
 import { kindLabel } from "@/requests";
 import { useSession, type PermissionKind } from "@/session";
@@ -32,8 +32,6 @@ import {
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
-const PAGE = 50;
-
 type Tab = "permissions" | "guests";
 type Item = { tab: "permissions"; row: PermissionReview } | { tab: "guests"; row: GuestReview };
 type Section = { key: string; title: string; data: Item[] };
@@ -49,16 +47,18 @@ function filters(search: URLSearchParams, q: string, blockId: string | null): st
   return search.toString();
 }
 
-function permissionPath(kind: PermissionKind | null, blockId: string | null, limit: number, offset: number, q = "") {
-  const search = new URLSearchParams({ status: "pending", limit: String(limit), offset: String(offset) });
+function permissionPath(kind: PermissionKind | null, blockId: string | null, offset: number, q = "") {
+  const search = new URLSearchParams(pageQuery(offset));
+  search.set("status", "pending");
   if (kind) {
     search.set("permission_type", kind);
   }
   return `/permissions?${filters(search, q, blockId)}`;
 }
 
-function guestPath(blockId: string | null, limit: number, offset: number, q: string) {
-  const search = new URLSearchParams({ bucket: "pending", limit: String(limit), offset: String(offset) });
+function guestPath(blockId: string | null, offset: number, q: string) {
+  const search = new URLSearchParams(pageQuery(offset));
+  search.set("bucket", "pending");
   return `/guest-stays?${filters(search, q, blockId)}`;
 }
 
@@ -104,23 +104,34 @@ export default function RequestsScreen() {
   const [query, setQuery] = useState("");
   const [q, setQ] = useState("");
   const [counts, setCounts] = useState<Counts | null>(null);
-  const [list, setList] = useState<Listed<Item>>({ rows: null, total: 0, error: null, pageError: null });
-  const [refreshing, setRefreshing] = useState(false);
-  const [pagingUi, setPagingUi] = useState(false);
   const [open, setOpen] = useState<Item | null>(null);
   const [guestFacts, setGuestFacts] = useState<Fact[] | null>(null);
   const [sheetError, setSheetError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [decidedNote, setDecidedNote] = useState<string | null>(null);
-  const paging = useRef(false);
-  const generation = useRef(0);
+  const list = useListPage<Item>({
+    idOf: (item) => item.row.id,
+    loadPage: async (offset) => {
+      const reply = await staffRequest(
+        tab === "permissions" ? permissionPath(kind, blockId, offset, q) : guestPath(blockId, offset, q),
+      );
+      if (!reply.ok) {
+        return { error: trimStop(reply.message) };
+      }
+      const page: Item[] =
+        tab === "permissions"
+          ? readPermissionReviews(reply.data).map((row) => ({ tab: "permissions", row }))
+          : readGuestReviews(reply.data).map((row) => ({ tab: "guests", row }));
+      return { items: page, total: readTotal(reply.data) };
+    },
+  });
 
   const loadCounts = useCallback(async () => {
     const [summary, late, home, guests] = await Promise.all([
       staffRequest("/register/summary"),
-      staffRequest(permissionPath("late_night", blockId, 1, 0)),
-      staffRequest(permissionPath("home_going", blockId, 1, 0)),
-      staffRequest(guestPath(blockId, 1, 0, "")),
+      staffRequest(permissionPath("late_night", blockId, 0)),
+      staffRequest(permissionPath("home_going", blockId, 0)),
+      staffRequest(guestPath(blockId, 0, "")),
     ]);
     const parsed = summary.ok ? readSummary(summary.data) : null;
     if (parsed) {
@@ -136,59 +147,15 @@ export default function RequestsScreen() {
     });
   }, [blockId, staffRequest]);
 
-  const loadPage = useCallback(
-    async (offset: number, fromPull = false) => {
-      if (offset > 0) {
-        if (paging.current) {
-          return;
-        }
-        paging.current = true;
-        setPagingUi(true);
-      }
-      if (fromPull) {
-        setRefreshing(true);
-      }
-      const run = generation.current;
-      const reply = await staffRequest(
-        tab === "permissions" ? permissionPath(kind, blockId, PAGE, offset, q) : guestPath(blockId, PAGE, offset, q),
-      );
-      if (offset > 0) {
-        paging.current = false;
-        setPagingUi(false);
-      }
-      if (fromPull) {
-        setRefreshing(false);
-      }
-      if (run !== generation.current) {
-        return;
-      }
-      if (!reply.ok) {
-        const message = trimStop(reply.message);
-        setList((state) => acceptFailure(state, offset, message));
-        return;
-      }
-      const page: Item[] =
-        tab === "permissions"
-          ? readPermissionReviews(reply.data).map((row) => ({ tab: "permissions", row }))
-          : readGuestReviews(reply.data).map((row) => ({ tab: "guests", row }));
-      const total = readTotal(reply.data);
-      setList((state) => acceptPage(state, offset, page, total, (item) => item.row.id));
-    },
-    [blockId, kind, q, staffRequest, tab],
-  );
-
   useEffect(() => {
     const timer = setTimeout(() => setQ(query), 300);
     return () => clearTimeout(timer);
   }, [query]);
 
   useEffect(() => {
-    generation.current += 1;
-    paging.current = false;
-    setPagingUi(false);
-    setList({ rows: null, total: 0, error: null, pageError: null });
-    void loadPage(0);
-  }, [loadPage]);
+    list.clear();
+    list.load();
+  }, [blockId, kind, q, tab, list.clear, list.load]);
 
   useEffect(() => {
     void loadCounts();
@@ -259,7 +226,7 @@ export default function RequestsScreen() {
         setSheetError(trimStop(reply.message));
         return;
       }
-      setList((state) => ({
+      list.revise((state) => ({
         ...state,
         rows: (state.rows ?? []).filter((item) => item.row.id !== open.row.id),
         total: Math.max(0, state.total - 1),
@@ -267,13 +234,11 @@ export default function RequestsScreen() {
       setOpen(null);
       void loadCounts();
     },
-    [loadCounts, open, staffRequest],
+    [list.revise, loadCounts, open, staffRequest],
   );
 
   const rows = list.rows ?? [];
-  const showListSkeleton = useDelayedLoading((list.rows === null || refreshing) && list.error === null) && list.error === null;
-  const showPageSkeleton = useDelayedLoading(pagingUi) && list.pageError === null;
-  const sections = useMemo(() => daySections(rows), [rows]);
+  const sections = useMemo(() => daySections(list.showListSkeleton ? [] : rows), [list.showListSkeleton, rows]);
 
   const header = (
     <View style={styles.header}>
@@ -321,32 +286,33 @@ export default function RequestsScreen() {
           <FilterChip key={block.id} label={block.name} on={blockId === block.id} onPress={() => setBlockId(block.id)} />
         ))}
       </ScrollView>
-      {list.error && rows.length > 0 ? <ListError message={list.error} onRetry={() => void loadPage(0, true)} /> : null}
     </View>
   );
 
   return (
     <>
-      <SectionList
+      <PagedList<Item, Section>
+        kind="section"
         style={[styles.screen, { backgroundColor: colors.paper }]}
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 28, paddingBottom: 28 }]}
-        sections={showListSkeleton ? [] : sections}
+        rows={list.rows}
+        sections={sections}
+        error={list.error}
+        pageError={list.pageError}
+        showListSkeleton={list.showListSkeleton}
+        showPageSkeleton={list.showPageSkeleton}
+        onRetry={list.retry}
+        onRetryPage={() => list.loadNext(true)}
+        header={header}
+        empty={<EmptyState message={q.trim() ? `Nothing matches ${q.trim()}` : "Nothing is waiting"} />}
         keyExtractor={(item) => item.row.id}
-        ListHeaderComponent={header}
         stickySectionHeadersEnabled
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         initialNumToRender={20}
         windowSize={9}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => void loadPage(0, true)} tintColor={colors.inkFaint} />
-        }
-        onEndReachedThreshold={0.5}
-        onEndReached={() => {
-          if (shouldRequestNext(rows.length, list.total, paging.current, list.pageError !== null)) {
-            void loadPage(rows.length);
-          }
-        }}
+        refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={list.refresh} tintColor={colors.inkFaint} />}
+        onEndReached={() => list.loadNext()}
         renderSectionHeader={({ section }) => <SectionHead title={section.title} count={String(section.data.length)} />}
         renderItem={({ item, index, section }) => (
           <DenseRow
@@ -362,22 +328,6 @@ export default function RequestsScreen() {
             onPress={() => openItem(item)}
           />
         )}
-        ListEmptyComponent={
-          showListSkeleton ? (
-            <SkeletonRows count={4} kind="row" />
-          ) : list.error && rows.length === 0 ? (
-            <ListError message={list.error} onRetry={() => void loadPage(0)} />
-          ) : list.rows && rows.length === 0 ? (
-            <EmptyState message={q.trim() ? `Nothing matches ${q.trim()}` : "Nothing is waiting"} />
-          ) : null
-        }
-        ListFooterComponent={
-          showPageSkeleton ? (
-            <SkeletonRows count={1} kind="row" />
-          ) : list.pageError ? (
-            <RetryRow message={list.pageError} onRetry={() => void loadPage(rows.length)} />
-          ) : null
-        }
       />
       {open ? (
         <ReviewSheet

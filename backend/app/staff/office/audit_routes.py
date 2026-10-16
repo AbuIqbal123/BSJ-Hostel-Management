@@ -7,6 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, ConfigDict
 
+from app.shared.page import PageDep
 from app.shared.auth.routes import ConnectionDep
 from app.staff.office.routes import ProvostDep
 
@@ -37,11 +38,12 @@ class AuditPage(BaseModel):
 def list_audit(
     _account: ProvostDep,
     connection: ConnectionDep,
+    page: PageDep,
     entity_type: Annotated[str | None, Query()] = None,
     entity_id: Annotated[str | None, Query()] = None,
-    limit: Annotated[int, Query(ge=1, le=500)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> AuditPage:
+    limit = page.limit
+    offset = page.offset
     filters: list[str] = []
     params: list[object] = []
     if entity_type is not None and entity_type.strip():

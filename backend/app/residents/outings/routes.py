@@ -6,11 +6,11 @@ import sqlite3
 import uuid
 from datetime import datetime, timedelta
 
-from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.shared.page import PageDep
 from app.shared import clock
 from app.shared.schemas import Destination, DestinationList
 from app.shared.auth.routes import AccountDep, ConnectionDep
@@ -315,9 +315,10 @@ class OutingList(BaseModel):
 def list_outings(
     account: ResidentDep,
     connection: ConnectionDep,
-    limit: Annotated[int, Query(ge=1, le=500)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    page: PageDep,
 ) -> OutingList:
+    limit = page.limit
+    offset = page.offset
     total, items = list_upcoming_page(
         connection, account.id, limit=limit, offset=offset
     )

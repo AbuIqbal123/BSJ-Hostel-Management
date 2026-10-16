@@ -8,6 +8,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, BackgroundTasks, Query
 from pydantic import BaseModel, ConfigDict
 
+from app.shared.page import PageDep
 from app.shared.schemas import DecisionRequest
 from app.residents.permissions.records import (
     PermissionReviewBody,
@@ -46,6 +47,7 @@ def expire_passed_permissions_staff(
 def list_permissions(
     _account: RegisterDep,
     connection: ConnectionDep,
+    page: PageDep,
     status: Annotated[PermissionStatus | None, Query()] = None,
     permission_type: Annotated[Literal["late_night", "home_going"] | None, Query()] = None,
     block_id: Annotated[str | None, Query()] = None,
@@ -53,9 +55,9 @@ def list_permissions(
     created_to: Annotated[str | None, Query()] = None,
     order: Annotated[Literal["newest", "oldest", "departure"], Query()] = "newest",
     q: Annotated[str | None, Query(max_length=80)] = None,
-    limit: Annotated[int, Query(ge=1, le=500)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> PermissionReviewPageBody:
+    limit = page.limit
+    offset = page.offset
     filter_status = "pending" if status is None else status
     return list_reviews(
         connection,

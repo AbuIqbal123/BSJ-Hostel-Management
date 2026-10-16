@@ -8,9 +8,11 @@ import { ChoiceLine, OfficeError, OfficeFrame, replyError } from "@/components/o
 import { SkeletonRows } from "@/components/skeleton";
 import { useDelayedLoading } from "@/use-delayed-loading";
 import { TextField } from "@/components/text-field";
+import { pageQuery } from "@/list-page";
 import { RESET_CONFIRM, passwordBody, readPage, readStaffAccount, staffCreate, staffPatch, type OfficeStaff, type StaffDraft } from "@/office";
 import { PASSWORD_RULES } from "@/password-rules";
 import { roleLabel, useSession } from "@/session";
+import { collectPages } from "@/use-list-page";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
@@ -56,27 +58,18 @@ export default function OfficeMember() {
       return;
     }
     setLoadError(null);
-    void staffRequest("/admin/staff?limit=50&offset=0").then(async (reply) => {
-      const first = reply.ok ? readPage(reply.data, readStaffAccount) : null;
-      if (!first) {
-        setLoadError(replyError(reply) ?? "This account didn't load");
+    void collectPages(async (offset) => {
+      const reply = await staffRequest(`/admin/staff?${pageQuery(offset)}`);
+      const page = reply.ok ? readPage(reply.data, readStaffAccount) : null;
+      return page
+        ? { items: page.items, total: page.total }
+        : { error: replyError(reply) ?? "This account didn't load" };
+    }).then((result) => {
+      if (typeof result === "string") {
+        setLoadError(result);
         return;
       }
-      let found = first.items.find((item) => item.id === id) ?? null;
-      let offset = first.items.length;
-      while (!found && offset < first.total) {
-        const nextReply = await staffRequest(`/admin/staff?limit=50&offset=${offset}`);
-        const next = nextReply.ok ? readPage(nextReply.data, readStaffAccount) : null;
-        if (!next) {
-          setLoadError(replyError(nextReply) ?? "This account didn't load");
-          return;
-        }
-        found = next.items.find((item) => item.id === id) ?? null;
-        offset += next.items.length;
-        if (next.items.length === 0) {
-          break;
-        }
-      }
+      const found = result.find((item) => item.id === id) ?? null;
       if (!found) {
         setLoadError("This account didn't load");
         return;

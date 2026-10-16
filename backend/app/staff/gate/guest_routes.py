@@ -8,6 +8,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, ConfigDict
 
+from app.shared.page import PageDep
 from app.residents.guests.records import (
     derive_bucket,
     record_guest_stay,
@@ -141,11 +142,12 @@ def gate_guests(
     _account: GateDep,
     connection: ConnectionDep,
     bucket: Annotated[GateGuestBucket, Query()],
+    page: PageDep,
     payment_status: Annotated[Literal["paid", "unpaid"] | None, Query()] = None,
-    limit: Annotated[int, Query(ge=1, le=50)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
     q: Annotated[str | None, Query(max_length=80)] = None,
 ) -> GateGuestList:
+    limit = page.limit
+    offset = page.offset
     today = clock.hall_local_date(clock.utc_now())
     clauses = ["guest_stays.status = 'approved'"]
     params: list[object] = []

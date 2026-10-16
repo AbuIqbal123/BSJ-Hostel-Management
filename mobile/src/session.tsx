@@ -13,6 +13,7 @@ import * as SecureStore from "expo-secure-store";
 import * as Notifications from "expo-notifications";
 import { AppState, Platform } from "react-native";
 
+import { pageQuery } from "@/list-page";
 import { allowReturnReminders, clearNotificationSurface, PUSH_TOKEN_KEY, pushToken } from "@/push";
 import { refreshEffect, registerPushToken, singleFlight } from "@/session-refresh";
 import { ignore, readJson } from "@/safe";
@@ -636,9 +637,8 @@ function readGuestCard(item: Record<string, unknown>): GuestStayCard | null {
   };
 }
 
-// Upcoming stays are few, so one request holds them all. Older stays come a page at a time.
 function guestListQuery(when: GuestWhen, offset: number): string {
-  return `when=${when}&limit=${when === "upcoming" ? 500 : 50}&offset=${offset}`;
+  return `when=${when}&${pageQuery(offset)}`;
 }
 
 function readTotal(value: unknown): number | null {
@@ -1177,10 +1177,31 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
       let approvedPermissions: HallPermission[] | null = null;
       try {
-        const permissions = await authorized("/api/v1/me/permissions?status=approved&limit=500");
-        if (permissions.ok) {
-          approvedPermissions = readPermissionPage(await permissions.json());
-        }
+        const gathered: HallPermission[] = [];
+        let offset = 0;
+        let total = 0;
+        let failed = false;
+        do {
+          const permissions = await authorized(`/api/v1/me/permissions?status=approved&${pageQuery(offset)}`);
+          if (!permissions.ok) {
+            failed = true;
+            break;
+          }
+          const body: unknown = await permissions.json();
+          const page = readPermissionPage(body);
+          const pageTotal = readTotal(body);
+          if (!page || pageTotal === null) {
+            failed = true;
+            break;
+          }
+          gathered.push(...page);
+          total = pageTotal;
+          if (page.length === 0) {
+            break;
+          }
+          offset += page.length;
+        } while (offset < total);
+        approvedPermissions = failed ? null : gathered;
       } catch {
         approvedPermissions = null;
       }
@@ -1238,8 +1259,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (!sessionRef.current) {
       return { error: "Sign in again" };
     }
-    try {
-      const response = await authorized(`/api/v1/me/guest-stays?${guestListQuery(when, offset)}`, { method: "GET" });
+    const onePage = async (pageOffset: number): Promise<GuestListResult> => {
+      const response = await authorized(`/api/v1/me/guest-stays?${guestListQuery(when, pageOffset)}`, { method: "GET" });
       if (!response.ok) {
         return { error: await errorMessage(response) };
       }
@@ -1249,6 +1270,27 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (!items || total === null) {
         return { error: "The hall could not be reached" };
       }
+      return { error: null, items, total };
+    };
+    try {
+      if (when !== "upcoming") {
+        return await onePage(offset);
+      }
+      const items: GuestStayCard[] = [];
+      let pageOffset = offset;
+      let total = 0;
+      do {
+        const page = await onePage(pageOffset);
+        if (page.error !== null) {
+          return pageOffset === offset ? page : { error: page.error };
+        }
+        items.push(...page.items);
+        total = page.total;
+        if (page.items.length === 0) {
+          break;
+        }
+        pageOffset += page.items.length;
+      } while (pageOffset < total);
       return { error: null, items, total };
     } catch {
       return { error: "The hall could not be reached" };
@@ -1426,7 +1468,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (offset === 0) {
         await authorized("/api/v1/me/expire-passed", { method: "POST" });
       }
-      const response = await authorized(`/api/v1/me/permissions?limit=50&offset=${offset}`, { method: "GET" });
+      const response = await authorized(`/api/v1/me/permissions?${pageQuery(offset)}`, { method: "GET" });
       if (!response.ok) {
         return { error: await errorMessage(response) };
       }

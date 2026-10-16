@@ -7,9 +7,10 @@ import uuid
 from datetime import timedelta
 from typing import Annotated, Literal, NoReturn
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.shared.page import PageDep
 from app.residents.outings.records import (
     OutingBody,
     expire_passed_plans,
@@ -527,7 +528,8 @@ def scan_hall_pass(
 def gate_activity(
     _account: GateDep,
     connection: ConnectionDep,
-    limit: Annotated[int, Query(ge=1, le=500)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    page: PageDep,
 ) -> GateActivityPage:
+    limit = page.limit
+    offset = page.offset
     return list_gate_activity(connection, limit=limit, offset=offset)

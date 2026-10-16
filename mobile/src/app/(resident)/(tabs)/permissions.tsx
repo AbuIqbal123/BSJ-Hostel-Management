@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -6,9 +6,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { EmptyState, ListError, RetryRow } from "@/components/list-state";
 import { SkeletonRows } from "@/components/skeleton";
-import { useDelayedLoading } from "@/use-delayed-loading";
+import { PagedList } from "@/components/paged-list";
+import { useListPage } from "@/use-list-page";
 import { formatHallDate, formatWhenParts } from "@/format-when";
-import { acceptFailure, acceptPage, olderAvailable, shouldKeepPaging, shouldRequestNext, type Listed } from "@/list-page";
+import { olderAvailable } from "@/list-page";
 import { guestLine, kindLabel, statusSentence, statusTone } from "@/requests";
 import { useSession, type GuestStayCard, type HallPermission, type PermissionKind } from "@/session";
 import { useHallColors } from "@/theme/colors";
@@ -152,97 +153,43 @@ export default function PermissionsScreen() {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
   const { loadPermissions, loadGuestStays } = useSession();
-  const [permissions, setPermissions] = useState<Listed<HallPermission>>({
-    rows: null,
-    total: 0,
-    error: null,
-    pageError: null,
-  });
-  const [stays, setStays] = useState<Listed<GuestStayCard>>({ rows: null, total: 0, error: null, pageError: null });
-  const [older, setOlder] = useState<Listed<GuestStayCard>>({ rows: null, total: 0, error: null, pageError: null });
-  const [olderBusy, setOlderBusy] = useState(false);
-  const olderRef = useRef(false);
   const [tab, setTab] = useState<RequestTab>("late_night");
-  const [refreshing, setRefreshing] = useState(false);
-  const [paging, setPaging] = useState(false);
-  const pagingRef = useRef(false);
-  const stallRef = useRef<number | null>(null);
-  const [contentH, setContentH] = useState(0);
-  const [viewH, setViewH] = useState(0);
-  const loadPermissionsRef = useRef(loadPermissions);
-  const loadGuestStaysRef = useRef(loadGuestStays);
-  loadPermissionsRef.current = loadPermissions;
-  loadGuestStaysRef.current = loadGuestStays;
-  const olderLoadedRef = useRef(false);
-  olderLoadedRef.current = older.rows !== null;
+  const measured = useRef({ content: 0, view: 0 });
+  const permissions = useListPage<HallPermission>({
+    idOf: (item) => item.id,
+    loadPage: async (offset) => {
+      const result = await loadPermissions(offset);
+      return result.error !== null ? { error: result.error } : { items: result.items, total: result.total };
+    },
+  });
+  const stays = useListPage<GuestStayCard>({
+    auto: false,
+    idOf: (item) => item.id,
+    loadPage: async () => {
+      const result = await loadGuestStays("upcoming", 0);
+      return result.error !== null ? { error: result.error } : { items: result.items, total: result.total };
+    },
+  });
+  const older = useListPage<GuestStayCard>({
+    auto: false,
+    idOf: (item) => item.id,
+    loadPage: async (offset) => {
+      const result = await loadGuestStays("past", offset);
+      return result.error !== null ? { error: result.error } : { items: result.items, total: result.total };
+    },
+  });
 
   const load = useCallback(() => {
-    let active = true;
-    stallRef.current = null;
-    void loadPermissionsRef.current(0).then((result) => {
-      if (!active) {
-        return;
-      }
-      setPermissions((state) =>
-        result.error !== null
-          ? acceptFailure(state, 0, result.error)
-          : acceptPage(state, 0, result.items, result.total, (item) => item.id),
-      );
-    });
-    void loadGuestStaysRef.current("upcoming", 0).then((result) => {
-      if (!active) {
-        return;
-      }
-      setStays((state) =>
-        result.error !== null
-          ? acceptFailure(state, 0, result.error)
-          : acceptPage(state, 0, result.items, result.total, (item) => item.id),
-      );
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
-
+    permissions.load();
+    stays.load();
+  }, [permissions.load, stays.load]);
   const refresh = useCallback(() => {
-    setRefreshing(true);
-    let pending = 2;
-    const done = () => {
-      pending -= 1;
-      if (pending === 0) {
-        setRefreshing(false);
-      }
-    };
-    if (olderLoadedRef.current) {
-      pending += 1;
-      void loadGuestStaysRef.current("past", 0).then((result) => {
-        setOlder((state) =>
-          result.error !== null
-            ? acceptFailure(state, 0, result.error)
-            : acceptPage(state, 0, result.items, result.total, (item) => item.id),
-        );
-        done();
-      });
+    permissions.refresh();
+    stays.refresh();
+    if (older.rows !== null) {
+      older.refresh();
     }
-    stallRef.current = null;
-    void loadPermissionsRef.current(0).then((result) => {
-      setPermissions((state) =>
-        result.error !== null
-          ? acceptFailure(state, 0, result.error)
-          : acceptPage(state, 0, result.items, result.total, (item) => item.id),
-      );
-      done();
-    });
-    void loadGuestStaysRef.current("upcoming", 0).then((result) => {
-      setStays((state) =>
-        result.error !== null
-          ? acceptFailure(state, 0, result.error)
-          : acceptPage(state, 0, result.items, result.total, (item) => item.id),
-      );
-      done();
-    });
-  }, []);
-
+  }, [older.refresh, older.rows, permissions.refresh, stays.refresh]);
   useFocusEffect(load);
 
   const openForm = (kind: PermissionKind) => {
@@ -255,87 +202,16 @@ export default function PermissionsScreen() {
   const shownStays = tab !== "guest" ? [] : stayRows;
   const olderRows = tab === "guest" ? (older.rows ?? []) : [];
   const active = tab === "guest" ? stays : permissions;
-  const loadedCount = tab === "guest" ? stayRows.length : permissionRows.length;
-  const waiting = active.rows === null && active.error === null;
-  const showListSkeleton = useDelayedLoading((waiting || refreshing) && active.error === null) && active.error === null;
-  const showPagingSkeleton = useDelayedLoading(paging && tab !== "guest") && permissions.pageError === null;
-  const showOlderSkeleton =
-    useDelayedLoading(olderBusy && tab === "guest") && older.pageError === null && older.error === null;
-  const firstFailure = active.error !== null && loadedCount === 0;
+  const shown = tab === "guest" ? shownStays : shownPermissions;
+  const visible = active.rows === null ? null : shown;
+  const refreshing = permissions.refreshing || stays.refreshing || older.refreshing;
   const emptyCopy =
     tab === "guest" ? "No upcoming guests" : tab === "home_going" ? "No home-going requests" : "No late-night requests";
   const emptyAction = tab === "guest" ? "Request guest stay" : tab === "home_going" ? "Request home going" : "Request late-night";
 
-  const more = (force = false) => {
-    if (pagingRef.current || tab === "guest") {
-      return;
-    }
-    const offset = loadedCount;
-    if (!force && !shouldRequestNext(offset, permissions.total, false, permissions.pageError !== null)) {
-      return;
-    }
-    if (force && offset >= permissions.total) {
-      return;
-    }
-    if (force) {
-      stallRef.current = null;
-    }
-    pagingRef.current = true;
-    setPaging(true);
-    void loadPermissionsRef.current(offset).then((result) => {
-      pagingRef.current = false;
-      setPaging(false);
-      setPermissions((state) => {
-        if (result.error !== null) {
-          return acceptFailure(state, offset, result.error);
-        }
-        const before = state.rows?.length ?? 0;
-        const next = acceptPage(state, offset, result.items, result.total, (item) => item.id);
-        const after = next.rows?.length ?? 0;
-        if (offset > 0 && after <= before) {
-          stallRef.current = offset;
-        } else if (offset === 0 && after === 0 && result.total > 0) {
-          stallRef.current = 0;
-        }
-        return next;
-      });
-    });
-  };
-
-  const stalled = stallRef.current === loadedCount;
-  const keepPaging = tab !== "guest" && shouldKeepPaging(
-    loadedCount,
-    permissions.total,
-    paging,
-    permissions.pageError !== null,
-    contentH,
-    viewH,
-    stalled,
-  );
-
-  useEffect(() => {
-    if (tab !== "guest" && keepPaging) {
-      more();
-    }
-  });
-
   // Older stays load only when she asks, so the tab opens on what is still ahead.
   const showOlder = () => {
-    if (olderRef.current) {
-      return;
-    }
-    const offset = older.rows?.length ?? 0;
-    olderRef.current = true;
-    setOlderBusy(true);
-    void loadGuestStaysRef.current("past", offset).then((result) => {
-      olderRef.current = false;
-      setOlderBusy(false);
-      setOlder((state) =>
-        result.error !== null
-          ? acceptFailure(state, offset, result.error)
-          : acceptPage(state, offset, result.items, result.total, (item) => item.id),
-      );
-    });
+    older.loadNext(true);
   };
 
   return (
@@ -348,12 +224,18 @@ export default function PermissionsScreen() {
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.inkFaint} />}
       scrollEventThrottle={200}
-      onLayout={(event) => setViewH(event.nativeEvent.layout.height)}
-      onContentSizeChange={(_width, height) => setContentH(height)}
+      onLayout={(event) => {
+        measured.current.view = event.nativeEvent.layout.height;
+        permissions.noteSize(measured.current.content, measured.current.view);
+      }}
+      onContentSizeChange={(_width, height) => {
+        measured.current.content = height;
+        permissions.noteSize(measured.current.content, measured.current.view);
+      }}
       onScroll={(event) => {
         const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
         if (tab !== "guest" && contentSize.height - (contentOffset.y + layoutMeasurement.height) < 280) {
-          more();
+          permissions.loadNext();
         }
       }}
     >
@@ -407,70 +289,87 @@ export default function PermissionsScreen() {
           );
         })}
       </View>
-      {showListSkeleton ? <SkeletonRows count={3} kind="card" /> : null}
-      {firstFailure ? (
-        <ListError message={active.error ?? "This list didn't load"} onRetry={load} />
-      ) : null}
-      {active.error && loadedCount > 0 ? <ListError message={active.error} onRetry={refresh} /> : null}
-      {!showListSkeleton && (shownPermissions.length > 0 || shownStays.length > 0) ? (
-        <View style={[styles.requests, { borderTopColor: colors.line }]}>
-          <Text style={[text.button, { color: colors.ink }]}>Your requests</Text>
-          <View style={styles.list}>
-            {shownPermissions.map((item) => (
-              <PermissionRow key={item.id} item={item} />
-            ))}
-            {shownStays.map((item) => (
-              <GuestStayRow key={item.id} item={item} />
-            ))}
+      <PagedList
+        rows={visible}
+        error={active.error}
+        pageError={tab === "guest" ? null : permissions.pageError}
+        showListSkeleton={active.showListSkeleton}
+        showPageSkeleton={tab !== "guest" && permissions.showPageSkeleton}
+        filling={tab !== "guest" && permissions.filling}
+        onRetry={visible !== null && visible.length > 0 ? refresh : load}
+        onRetryPage={() => permissions.loadNext(true)}
+        skeletonCount={3}
+        skeletonKind="card"
+        empty={
+          <EmptyState
+            message={emptyCopy}
+            actionLabel={emptyAction}
+            onAction={() => {
+              if (tab === "guest") {
+                router.push("/guest");
+                return;
+              }
+              openForm(tab);
+            }}
+          />
+        }
+        footer={
+          tab === "guest" ? (
+            <>
+              {olderRows.length > 0 ? (
+                <View style={[styles.requests, { borderTopColor: colors.line }]}>
+                  <Text style={[text.button, { color: colors.ink }]}>Older</Text>
+                  <View style={styles.list}>
+                    {olderRows.map((item) => (
+                      <GuestStayRow key={item.id} item={item} />
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+              {stays.rows !== null && older.error !== null && older.rows === null ? (
+                <ListError message="Older guest stays didn't load" onRetry={showOlder} />
+              ) : null}
+              {older.rows !== null && older.error !== null ? (
+                <ListError message={older.error} onRetry={showOlder} />
+              ) : null}
+              {older.showPageSkeleton ? <SkeletonRows count={1} kind="card" /> : null}
+              {older.pageError ? <RetryRow message={older.pageError} onRetry={showOlder} /> : null}
+              {stays.rows !== null &&
+              !older.showPageSkeleton &&
+              olderAvailable({
+                rows: older.rows,
+                total: older.total,
+                error: older.error,
+                pageError: older.pageError,
+              }) ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Show older"
+                  onPress={showOlder}
+                  hitSlop={12}
+                  style={styles.older}
+                >
+                  <Text style={[text.button, { color: colors.forest }]}>Show older</Text>
+                </Pressable>
+              ) : null}
+            </>
+          ) : null
+        }
+      >
+        {shown.length > 0 ? (
+          <View style={[styles.requests, { borderTopColor: colors.line }]}>
+            <Text style={[text.button, { color: colors.ink }]}>Your requests</Text>
+            <View style={styles.list}>
+              {shownPermissions.map((item) => (
+                <PermissionRow key={item.id} item={item} />
+              ))}
+              {shownStays.map((item) => (
+                <GuestStayRow key={item.id} item={item} />
+              ))}
+            </View>
           </View>
-        </View>
-      ) : null}
-      {!showListSkeleton && !waiting && !firstFailure && !keepPaging && shownPermissions.length === 0 && shownStays.length === 0 && (tab === "guest" || stalled || !shouldRequestNext(loadedCount, active.total, paging, active.pageError !== null)) ? (
-        <EmptyState
-          message={emptyCopy}
-          actionLabel={emptyAction}
-          onAction={() => {
-            if (tab === "guest") {
-              router.push("/guest");
-              return;
-            }
-            openForm(tab);
-          }}
-        />
-      ) : null}
-      {tab === "guest" && olderRows.length > 0 ? (
-        <View style={[styles.requests, { borderTopColor: colors.line }]}>
-          <Text style={[text.button, { color: colors.ink }]}>Older</Text>
-          <View style={styles.list}>
-            {olderRows.map((item) => (
-              <GuestStayRow key={item.id} item={item} />
-            ))}
-          </View>
-        </View>
-      ) : null}
-      {tab === "guest" && stays.rows !== null && older.error !== null && older.rows === null ? (
-        <ListError message="Older guest stays didn't load" onRetry={showOlder} />
-      ) : null}
-      {tab === "guest" && older.rows !== null && older.error !== null ? (
-        <ListError message={older.error} onRetry={showOlder} />
-      ) : null}
-      {showOlderSkeleton ? <SkeletonRows count={1} kind="card" /> : null}
-      {tab === "guest" && older.pageError ? <RetryRow message={older.pageError} onRetry={showOlder} /> : null}
-      {tab === "guest" && stays.rows !== null && !showOlderSkeleton && olderAvailable(older) ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Show older"
-          onPress={showOlder}
-          hitSlop={12}
-          style={styles.older}
-        >
-          <Text style={[text.button, { color: colors.forest }]}>Show older</Text>
-        </Pressable>
-      ) : null}
-      {showPagingSkeleton ? <SkeletonRows count={1} kind="card" /> : null}
-      {tab !== "guest" && permissions.pageError ? (
-        <RetryRow message={permissions.pageError} onRetry={() => more(true)} />
-      ) : null}
+        ) : null}
+      </PagedList>
     </ScrollView>
   );
 }

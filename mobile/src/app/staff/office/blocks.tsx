@@ -4,20 +4,16 @@ import { View } from "react-native";
 
 import { DenseRow } from "@/components/dense-row";
 import { HallButton } from "@/components/hall-button";
-import { EmptyState, ListError } from "@/components/list-state";
 import { OfficeError, OfficeFrame, replyError } from "@/components/office-frame";
-import { SkeletonRows } from "@/components/skeleton";
+import { PagedList } from "@/components/paged-list";
 import { TextField } from "@/components/text-field";
-import { useDelayedLoading } from "@/use-delayed-loading";
 import { bounded, readBlock, readBlocks, type OfficeBlock } from "@/office";
 import { useSession } from "@/session";
+import { useListPage } from "@/use-list-page";
 
 export default function OfficeBlocks() {
   const { staffRequest } = useSession();
-  const [blocks, setBlocks] = useState<OfficeBlock[] | null>(null);
-  const [listError, setListError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [floors, setFloors] = useState("");
@@ -25,31 +21,20 @@ export default function OfficeBlocks() {
   const [beds, setBeds] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(
-    (fromPull = false) => {
-      if (fromPull) {
-        setRefreshing(true);
-      }
-      void staffRequest("/admin/blocks").then((reply) => {
-        if (fromPull) {
-          setRefreshing(false);
-        }
-        const next = reply.ok ? readBlocks(reply.data) : null;
-        if (!next) {
-          setListError(replyError(reply) ?? "Blocks didn't load");
-          return;
-        }
-        setBlocks(next);
-        setListError(null);
-      });
+  const list = useListPage<OfficeBlock>({
+    auto: false,
+    idOf: (block) => block.id,
+    loadPage: async () => {
+      const reply = await staffRequest("/admin/blocks");
+      const next = reply.ok ? readBlocks(reply.data) : null;
+      return next ? { items: next, total: next.length } : { error: replyError(reply) ?? "Blocks didn't load" };
     },
-    [staffRequest],
-  );
+  });
 
   useFocusEffect(
     useCallback(() => {
-      load();
-    }, [load]),
+      list.load();
+    }, [list.load]),
   );
 
   const create = async () => {
@@ -102,26 +87,36 @@ export default function OfficeBlocks() {
     setRooms("");
     setBeds("");
     setFormError(null);
-    load();
+    list.load();
   };
 
-  const rows = blocks ?? [];
-  const showListSkeleton = useDelayedLoading((blocks === null || refreshing) && listError === null) && listError === null;
+  const rows = list.rows ?? [];
 
   return (
-    <OfficeFrame title="Blocks and rooms" refreshing={refreshing} onRefresh={() => load(true)}>
-      <TextField label="Code" value={code} onChangeText={setCode} maxLength={16} autoCapitalize="sentences" />
-      <TextField label="Name" value={name} onChangeText={setName} maxLength={80} autoCapitalize="sentences" />
-      <TextField label="Floors" value={floors} onChangeText={setFloors} keyboardType="number-pad" />
-      <TextField label="Rooms" value={rooms} onChangeText={setRooms} keyboardType="number-pad" />
-      <TextField label="Beds per room" value={beds} onChangeText={setBeds} keyboardType="number-pad" />
-      <HallButton label="Add block" busy={busy} onPress={() => void create()} />
-      <OfficeError message={formError} />
-      {showListSkeleton ? <SkeletonRows count={4} kind="row" /> : null}
-      {listError && rows.length === 0 ? <ListError message={listError} onRetry={() => load()} /> : null}
-      {listError && rows.length > 0 ? <ListError message={listError} onRetry={() => load(true)} /> : null}
+    <OfficeFrame title="Blocks and rooms" refreshing={list.refreshing} onRefresh={list.refresh}>
+      <PagedList
+        rows={list.rows}
+        error={list.error}
+        pageError={list.pageError}
+        showListSkeleton={list.showListSkeleton}
+        showPageSkeleton={list.showPageSkeleton}
+        onRetry={list.retry}
+        onRetryPage={() => list.loadNext(true)}
+        empty="No blocks yet. Add one with the form above."
+        header={
+          <>
+            <TextField label="Code" value={code} onChangeText={setCode} maxLength={16} autoCapitalize="sentences" />
+            <TextField label="Name" value={name} onChangeText={setName} maxLength={80} autoCapitalize="sentences" />
+            <TextField label="Floors" value={floors} onChangeText={setFloors} keyboardType="number-pad" />
+            <TextField label="Rooms" value={rooms} onChangeText={setRooms} keyboardType="number-pad" />
+            <TextField label="Beds per room" value={beds} onChangeText={setBeds} keyboardType="number-pad" />
+            <HallButton label="Add block" busy={busy} onPress={() => void create()} />
+            <OfficeError message={formError} />
+          </>
+        }
+      >
       <View>
-        {(showListSkeleton ? [] : rows).map((block, index, all) => (
+        {rows.map((block, index, all) => (
           <DenseRow
             key={block.id}
             title={block.name}
@@ -133,7 +128,7 @@ export default function OfficeBlocks() {
           />
         ))}
       </View>
-      {!showListSkeleton && blocks && rows.length === 0 && !listError ? <EmptyState message="No blocks yet. Add one with the form above." /> : null}
+      </PagedList>
     </OfficeFrame>
   );
 }
