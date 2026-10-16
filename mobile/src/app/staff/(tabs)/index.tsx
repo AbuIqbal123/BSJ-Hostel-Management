@@ -1,9 +1,10 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { router, useFocusEffect } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Bell } from "@/components/bell";
+import { onHallRefresh } from "@/hall-refresh";
 import { DenseRow } from "@/components/dense-row";
 import { HallButton } from "@/components/hall-button";
 import { SectionHead } from "@/components/section-head";
@@ -49,35 +50,47 @@ export default function StaffHomeScreen() {
   const [error, setError] = useState<string | null>(null);
   const register = user ? readsRegister(user.role) : false;
 
-  useFocusEffect(
-    useCallback(() => {
-      let active = true;
-      void staffRequest("/gate/activity?limit=6").then((reply) => {
-        if (!active) {
-          return;
-        }
-        if (reply.ok) {
-          setActivity(readActivity(reply.data));
-        } else {
-          setError(trimStop(reply.message));
+  const reload = useCallback(() => {
+    let active = true;
+    void staffRequest("/gate/activity?limit=6").then((reply) => {
+      if (!active) {
+        return;
+      }
+      if (reply.ok) {
+        setActivity(readActivity(reply.data));
+      } else {
+        setError(trimStop(reply.message));
+      }
+    });
+    if (register) {
+      void staffRequest("/register/summary").then((reply) => {
+        if (active && reply.ok) {
+          const next = readSummary(reply.data);
+          setSummary(next);
+          if (next) {
+            setBadge(next.unread);
+          }
         }
       });
-      if (register) {
-        void staffRequest("/register/summary").then((reply) => {
-          if (active && reply.ok) {
-            const next = readSummary(reply.data);
-            setSummary(next);
-            if (next) {
-              setBadge(next.unread);
-            }
-          }
-        });
-      }
-      return () => {
-        active = false;
-      };
-    }, [register, staffRequest]),
-  );
+    }
+    return () => {
+      active = false;
+    };
+  }, [register, staffRequest]);
+
+  useFocusEffect(reload);
+
+  useEffect(() => {
+    let stop = () => {};
+    const off = onHallRefresh(() => {
+      stop();
+      stop = reload();
+    });
+    return () => {
+      off();
+      stop();
+    };
+  }, [reload]);
 
   if (!user) {
     return null;

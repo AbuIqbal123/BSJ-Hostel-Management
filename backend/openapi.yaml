@@ -491,9 +491,14 @@ paths:
         outings (`upcoming_outings`), the permission the resident is waiting
         on or cleared to use, the last ten exit and return lines, and
         `notifications_unread` and `notifications_unread_count` for her inbox.
-        `current_outing` carries `expected_return_at` and `grace_ends_at`; the
-        phone schedules its own local reminder before them (the server has
-        no scheduler and sends no "window ending" push).
+        `current_outing` carries `expected_return_at` and `grace_ends_at`.
+        The phone schedules its own return reminder 15 minutes before an
+        ordinary plan or an approved late-night permission is due back.
+        While she is outside, only that outing is reminded. Home-going has
+        no return reminder. The server has no scheduler and sends no
+        "window ending" push. A reminder can still fire if she returns
+        early or does not use the outing; the phone drops it on the next
+        Home load.
         `upcoming_outings` is soonest start first. It leaves off returned,
         cancelled, outside, and plans whose expected return has already
         passed. A plan inside its show window stays on the list with

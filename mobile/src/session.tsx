@@ -54,6 +54,14 @@ export type UpcomingOuting = {
   canModify: boolean;
 };
 
+export type CurrentOuting = {
+  id: string;
+  outingType: "ordinary" | "late_night" | "home_going";
+  status: "planned" | "outside";
+  permissionId: string | null;
+  expectedReturnAt: string;
+};
+
 export type ResidentHome = {
   fullName: string;
   enrolment: string | null;
@@ -71,7 +79,9 @@ export type ResidentHome = {
   windowOpen: boolean;
   upcoming: UpcomingOuting[];
   notificationsUnread: number;
-  currentOuting: { id: string; expectedReturnAt: string } | null;
+  currentOuting: CurrentOuting | null;
+  /** Approved permissions for return reminders. Null when that read failed. */
+  approvedPermissions: HallPermission[] | null;
 };
 
 export type ResidentHomeResult =
@@ -419,14 +429,31 @@ function readUpcoming(value: Record<string, unknown>): UpcomingOuting[] {
   return items;
 }
 
-function readCurrentOuting(value: unknown): ResidentHome["currentOuting"] {
-  if (!isRecord(value) || typeof value.id !== "string" || typeof value.expected_return_at !== "string") {
+function readCurrentOuting(value: unknown): CurrentOuting | null {
+  if (
+    !isRecord(value) ||
+    typeof value.id !== "string" ||
+    value.id.length === 0 ||
+    typeof value.expected_return_at !== "string"
+  ) {
     return null;
   }
   if (value.status !== "planned" && value.status !== "outside") {
     return null;
   }
-  return { id: value.id, expectedReturnAt: value.expected_return_at };
+  if (value.outing_type !== "ordinary" && value.outing_type !== "late_night" && value.outing_type !== "home_going") {
+    return null;
+  }
+  if (value.permission_id !== null && value.permission_id !== undefined && typeof value.permission_id !== "string") {
+    return null;
+  }
+  return {
+    id: value.id,
+    outingType: value.outing_type,
+    status: value.status,
+    permissionId: typeof value.permission_id === "string" ? value.permission_id : null,
+    expectedReturnAt: value.expected_return_at,
+  };
 }
 
 function readResidentHome(value: unknown): ResidentHome | null {
@@ -465,6 +492,7 @@ function readResidentHome(value: unknown): ResidentHome | null {
     upcoming: readUpcoming(value),
     notificationsUnread: count(value.notifications_unread_count),
     currentOuting: readCurrentOuting(value.current_outing),
+    approvedPermissions: null,
   };
 }
 
@@ -1116,7 +1144,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (!home) {
         return { error: "The hall could not be reached" };
       }
-      return { error: null, home };
+      let approvedPermissions: HallPermission[] | null = null;
+      try {
+        const permissions = await authorized("/api/v1/me/permissions?status=approved&limit=500");
+        if (permissions.ok) {
+          approvedPermissions = readPermissionPage(await permissions.json());
+        }
+      } catch {
+        approvedPermissions = null;
+      }
+      return { error: null, home: { ...home, approvedPermissions } };
     } catch {
       return { error: "The hall could not be reached" };
     }
