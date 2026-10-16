@@ -133,9 +133,13 @@ Set `APP_SECRET_KEY` to at least 32 bytes. Keep `SMS_DRIVER=mock` unless `ENVIRO
 | Health | http://localhost:8000/health |
 | Ready | http://localhost:8000/ready |
 
+### Local development
+
 Seed local accounts from `backend/` with `.venv/bin/python -m app.dev_seed`. It runs only in development and refuses Render. Passwords come from `BSJ_SEED_PASSWORD` or a per-role `BSJ_SEED_PASSWORD_*` value, in the shell or in `backend/.env`. A missing one is generated and printed once. A password from settings is not printed. An account that already exists is left as it is. `--reset-passwords` sets the seed accounts again. Room B-204 is created for the sample resident. Passwords that once appeared in this repository are burned. Do not reuse them.
 
 Create the first provost, from `backend/`, with `.venv/bin/python scripts/create_provost.py --username provost --full-name "Hall Provost"`. The password is typed at a hidden prompt and typed again. Do not pass it as an argument. A second run leaves the existing provost password unchanged. A laptop writes the local file. To write the hosted hall, run it where `RENDER=true` and the Turso URL and token are already in the environment.
+
+On a laptop, `.venv/bin/python scripts/create_provost.py --dev-defaults` creates the test provost `provost123` with password `provost123`. The command refuses when `ENVIRONMENT` is `production` or when the database is a Turso URL (`RENDER=true`). It does not change a provost that already exists, and it does not print the password. The hidden prompt is still how a real account is created, and that prompt does not accept `provost123`.
 
 Checks and lint, from `backend/`: `.venv/bin/pytest` and `.venv/bin/ruff check .`. A push to `dev`, and a pull request, runs both on GitHub, plus the phone typecheck and tests.
 
