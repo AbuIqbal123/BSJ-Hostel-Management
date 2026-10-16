@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { router, useFocusEffect } from "expo-router";
-import { BackHandler, InteractionManager, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { AppState, BackHandler, InteractionManager, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated, { Easing, FadeIn, FadeOut, LinearTransition, ReduceMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -8,7 +8,9 @@ import { Bell } from "@/components/bell";
 import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { TextField } from "@/components/text-field";
 import { formatWhenParts, utcInstant } from "@/format-when";
-import { scheduleOutingEnding, setBadge } from "@/push";
+import { onHallRefresh } from "@/hall-refresh";
+import { setBadge } from "@/push";
+import { syncResidentReminders } from "@/return-reminders";
 import { outingLocked, takeOutingLeft, useSession, type DestinationItem, type UpcomingOuting } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
@@ -138,13 +140,32 @@ export default function HomeScreen() {
       setUpcoming(result.home.upcoming);
       setNotificationsUnread(result.home.notificationsUnread);
       setBadge(result.home.notificationsUnread);
-      void scheduleOutingEnding(result.home.currentOuting);
+      syncResidentReminders(result.home);
       setLoaded(true);
     });
     return () => {
       active = false;
     };
   }, [loadResidentHome]);
+
+  useEffect(() => {
+    let stop = () => {};
+    const run = () => {
+      stop();
+      stop = refresh();
+    };
+    const app = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        run();
+      }
+    });
+    const off = onHallRefresh(run);
+    return () => {
+      app.remove();
+      off();
+      stop();
+    };
+  }, [refresh]);
 
   const opened = useRef(false);
 

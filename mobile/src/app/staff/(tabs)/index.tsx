@@ -1,13 +1,15 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { router, useFocusEffect } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Bell } from "@/components/bell";
+import { onHallRefresh } from "@/hall-refresh";
 import { DenseRow } from "@/components/dense-row";
 import { HallButton } from "@/components/hall-button";
 import { SectionHead } from "@/components/section-head";
 import { setBadge } from "@/push";
+import { runsOffice } from "@/office";
 import { roleLabel, useSession } from "@/session";
 import { readActivity, readSummary, readsRegister, trimStop, type GateEvent, type RegisterSummary } from "@/staff";
 import { useHallColors } from "@/theme/colors";
@@ -48,35 +50,47 @@ export default function StaffHomeScreen() {
   const [error, setError] = useState<string | null>(null);
   const register = user ? readsRegister(user.role) : false;
 
-  useFocusEffect(
-    useCallback(() => {
-      let active = true;
-      void staffRequest("/gate/activity?limit=6").then((reply) => {
-        if (!active) {
-          return;
-        }
-        if (reply.ok) {
-          setActivity(readActivity(reply.data));
-        } else {
-          setError(trimStop(reply.message));
+  const reload = useCallback(() => {
+    let active = true;
+    void staffRequest("/gate/activity?limit=6").then((reply) => {
+      if (!active) {
+        return;
+      }
+      if (reply.ok) {
+        setActivity(readActivity(reply.data));
+      } else {
+        setError(trimStop(reply.message));
+      }
+    });
+    if (register) {
+      void staffRequest("/register/summary").then((reply) => {
+        if (active && reply.ok) {
+          const next = readSummary(reply.data);
+          setSummary(next);
+          if (next) {
+            setBadge(next.unread);
+          }
         }
       });
-      if (register) {
-        void staffRequest("/register/summary").then((reply) => {
-          if (active && reply.ok) {
-            const next = readSummary(reply.data);
-            setSummary(next);
-            if (next) {
-              setBadge(next.unread);
-            }
-          }
-        });
-      }
-      return () => {
-        active = false;
-      };
-    }, [register, staffRequest]),
-  );
+    }
+    return () => {
+      active = false;
+    };
+  }, [register, staffRequest]);
+
+  useFocusEffect(reload);
+
+  useEffect(() => {
+    let stop = () => {};
+    const off = onHallRefresh(() => {
+      stop();
+      stop = reload();
+    });
+    return () => {
+      off();
+      stop();
+    };
+  }, [reload]);
 
   if (!user) {
     return null;
@@ -118,6 +132,21 @@ export default function StaffHomeScreen() {
       ) : (
         <HallButton label="Scan a hall pass" onPress={() => router.push("/staff/scan")} />
       )}
+      {runsOffice(user.role) ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Office. People, places, and hall settings"
+          onPress={() => router.push("/staff/office")}
+          style={({ pressed }) => [
+            styles.office,
+            { backgroundColor: colors.surface, borderColor: colors.line },
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text style={[text.button, { color: colors.ink }]}>Office</Text>
+          <Text style={[text.error, { color: colors.inkSoft }]}>People, places, and hall settings</Text>
+        </Pressable>
+      ) : null}
       <View style={[styles.section, { borderTopColor: colors.line }]}>
         <SectionHead title="Recent at the gate" />
         {error ? <Text accessibilityLiveRegion="polite" style={[text.error, { color: colors.danger }]}>{error}</Text> : null}
@@ -161,6 +190,14 @@ const styles = StyleSheet.create({
   count: { fontFamily: "SourceSerif4_600SemiBold", fontSize: 34, lineHeight: 42, letterSpacing: -0.6 },
   label: { fontFamily: "SourceSans3_600SemiBold", fontSize: 15, lineHeight: 20, marginTop: 2 },
   note: { fontFamily: "SourceSans3_400Regular", fontSize: 13, lineHeight: 18 },
+  office: {
+    borderWidth: 1,
+    borderRadius: 16,
+    borderCurve: "continuous",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 4,
+  },
   section: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 2 },
   pressed: { opacity: 0.6 },
 });

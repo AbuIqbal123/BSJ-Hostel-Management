@@ -20,15 +20,24 @@ import { TextField } from "@/components/text-field";
 import { HALL_ZONE, formatClockDay, formatWhenParts, utcInstant } from "@/format-when";
 import { WhenField, hallAt, hallDay, isNextHallMidnight, sameNight } from "@/outing-when";
 import { kindLabel, statusSentence, statusTone } from "@/requests";
+import { syncResidentReminders } from "@/return-reminders";
 import {
   useSession,
   type HallPermission,
   type PermissionKind,
   type PermissionStatus,
+  type ResidentHomeResult,
 } from "@/session";
 import { useDark } from "@/theme/appearance";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
+
+async function refreshReminders(loadResidentHome: () => Promise<ResidentHomeResult>) {
+  const result = await loadResidentHome();
+  if (result.error === null) {
+    syncResidentReminders(result.home);
+  }
+}
 
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 
@@ -193,7 +202,7 @@ function PermissionForm({
 }) {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
-  const { submitPermission, updatePermission, cancelPermission } = useSession();
+  const { submitPermission, updatePermission, cancelPermission, loadResidentHome } = useSession();
   const back = usePermissionBack();
   const reduced = useReducedMotion();
   const formOpacity = useSharedValue(1);
@@ -512,11 +521,12 @@ function PermissionForm({
                   style: "destructive",
                   onPress: () => {
                     alertAt.current = Date.now();
-                    void cancelPermission(existing.id).then((failure) => {
+                    void cancelPermission(existing.id).then(async (failure) => {
                       if (failure) {
                         setError(failure.message);
                         return;
                       }
+                      await refreshReminders(loadResidentHome);
                       const wait = Math.max(0, 250 - (Date.now() - alertAt.current));
                       if (leaveTimer.current) {
                         clearTimeout(leaveTimer.current);
@@ -566,7 +576,7 @@ function PermissionForm({
 function PermissionDetail({ id }: { id: string }) {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
-  const { loadPermission, cancelPermission } = useSession();
+  const { loadPermission, cancelPermission, loadResidentHome } = useSession();
   const back = usePermissionBack();
   const [permission, setPermission] = useState<HallPermission | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -631,8 +641,9 @@ function PermissionDetail({ id }: { id: string }) {
       }
       return;
     }
+    await refreshReminders(loadResidentHome);
     leaveWhenStill();
-  }, [cancelPermission, id, leaveWhenStill, loadPermission]);
+  }, [cancelPermission, id, leaveWhenStill, loadPermission, loadResidentHome]);
 
   const askCancel = useCallback(() => {
     Alert.alert("Cancel permission", undefined, [

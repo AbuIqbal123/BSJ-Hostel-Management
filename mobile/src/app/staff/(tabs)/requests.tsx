@@ -92,7 +92,7 @@ export default function RequestsScreen() {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
   const { staffRequest } = useSession();
-  const params = useLocalSearchParams<{ tab?: string; open?: string }>();
+  const params = useLocalSearchParams<{ tab?: string; open?: string; tap?: string }>();
   const [tab, setTab] = useState<Tab>("permissions");
   const [kind, setKind] = useState<PermissionKind | null>(null);
   const [blockId, setBlockId] = useState<string | null>(null);
@@ -108,6 +108,7 @@ export default function RequestsScreen() {
   const [guestFacts, setGuestFacts] = useState<Fact[] | null>(null);
   const [sheetError, setSheetError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [decidedNote, setDecidedNote] = useState<string | null>(null);
   const loading = useRef(false);
   const generation = useRef(0);
 
@@ -209,9 +210,15 @@ export default function RequestsScreen() {
     const guests = params.tab === "guests";
     setTab(guests ? "guests" : "permissions");
     void staffRequest(`${guests ? "/guest-stays" : "/permissions"}/${encodeURIComponent(id)}`).then((reply) => {
-      if (!reply.ok || (reply.data as { status?: unknown } | null)?.status !== "pending") {
+      if (!reply.ok) {
         return;
       }
+      if ((reply.data as { status?: unknown } | null)?.status !== "pending") {
+        setOpen(null);
+        setDecidedNote("That request has already been decided");
+        return;
+      }
+      setDecidedNote(null);
       const wrapped = { items: [reply.data] };
       const item: Item | undefined = guests
         ? readGuestReviews(wrapped).map((row) => ({ tab: "guests" as const, row }))[0]
@@ -220,7 +227,7 @@ export default function RequestsScreen() {
         openItem(item);
       }
     });
-  }, [openItem, params.open, params.tab, staffRequest]);
+  }, [openItem, params.open, params.tab, params.tap, staffRequest]);
 
   const decide = useCallback(
     async (decision: "approved" | "rejected", note: string) => {
@@ -251,6 +258,11 @@ export default function RequestsScreen() {
   const header = (
     <View style={styles.header}>
       <Text style={[text.hallName, styles.title, { color: colors.ink }]}>Requests</Text>
+      {decidedNote ? (
+        <Text accessibilityLiveRegion="polite" style={[text.body, { color: colors.inkSoft }]}>
+          {decidedNote}
+        </Text>
+      ) : null}
       <View style={[styles.segment, { backgroundColor: colors.line }]}>
         {(["permissions", "guests"] as const).map((value) => {
           const on = tab === value;

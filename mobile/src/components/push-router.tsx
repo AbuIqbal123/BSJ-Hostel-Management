@@ -2,9 +2,16 @@ import { useEffect, useRef } from "react";
 import * as Notifications from "expo-notifications";
 import { router, type Href } from "expo-router";
 
-import { pushTarget, setBadge, type PushData } from "@/push";
+import { hallRefresh } from "@/hall-refresh";
 import { readUnreadCount } from "@/notices";
+import { pushTarget, setBadge, type PushData } from "@/push";
+import { responseKey } from "@/reminder";
 import { useSession } from "@/session";
+
+function withTap(target: string, key: string): string {
+  const joiner = target.includes("?") ? "&" : "?";
+  return `${target}${joiner}tap=${encodeURIComponent(key)}`;
+}
 
 /** Opens the screen a tapped push points at, cold start included, and marks that item read. */
 export function PushRouter({ settled }: { settled: boolean }) {
@@ -13,10 +20,20 @@ export function PushRouter({ settled }: { settled: boolean }) {
   const handled = useRef<string | null>(null);
 
   useEffect(() => {
+    if (!settled || !user) {
+      return;
+    }
+    const received = Notifications.addNotificationReceivedListener(() => {
+      hallRefresh();
+    });
+    return () => received.remove();
+  }, [settled, user]);
+
+  useEffect(() => {
     if (!settled || !user || !response) {
       return;
     }
-    const key = response.notification.request.identifier;
+    const key = responseKey(response.notification.request.identifier, response.notification.date);
     if (handled.current === key || response.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) {
       return;
     }
@@ -28,12 +45,14 @@ export function PushRouter({ settled }: { settled: boolean }) {
         const count = reply.ok ? readUnreadCount(reply.data) : null;
         if (count !== null) {
           setBadge(count);
+        } else {
+          hallRefresh();
         }
       });
     }
     const target = pushTarget(user.role, data);
     if (target) {
-      router.push(target as Href);
+      router.push(withTap(target, key) as Href);
     }
     void Notifications.clearLastNotificationResponseAsync().catch(() => undefined);
   }, [response, settled, staffRequest, user]);
