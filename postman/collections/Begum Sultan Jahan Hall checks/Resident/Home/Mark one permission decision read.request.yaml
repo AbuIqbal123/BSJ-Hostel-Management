@@ -1,0 +1,8 @@
+$kind: http-request
+method: POST
+url: '{{baseUrl}}/api/v1/me/notifications/{{notificationId}}/read'
+order: 4500
+description: |-
+  Caller: resident. Marks one inbox row read. Idempotent. A row that is not
+  hers is 404. Set collection variable notificationId to the row id from Own
+  permission decisions (or her notifications list).

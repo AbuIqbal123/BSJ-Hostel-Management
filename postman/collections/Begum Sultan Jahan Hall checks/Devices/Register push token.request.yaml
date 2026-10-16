@@ -1,0 +1,18 @@
+$kind: http-request
+method: POST
+url: '{{baseUrl}}/api/v1/devices/push-token'
+order: 1000
+description: |-
+  Caller: any signed-in account. Stores the Expo push token for this phone.
+  Idempotent: the same token again is 204. A token held by another account
+  moves to the caller.
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "token": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]",
+      "platform": "android"
+    }

@@ -6,7 +6,6 @@ Rows are finished or unused records, not exit and return lines.
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -14,22 +13,6 @@ from fastapi.testclient import TestClient
 
 from app.shared.testing_env import role_credential
 from app.residents.home.tests import test_home
-
-
-@pytest.fixture
-def database_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
-    path = tmp_path / "hostel.db"
-    monkeypatch.setenv("DATABASE_PATH", str(path))
-    monkeypatch.setenv("ENVIRONMENT", "development")
-    monkeypatch.setenv("SMS_DRIVER", "mock")
-    from app.shared.testing_env import signing_key_for_tests
-
-    monkeypatch.setenv("APP_SECRET_KEY", signing_key_for_tests())
-    from app.shared.config import get_settings
-
-    get_settings.cache_clear()
-    yield path
-    get_settings.cache_clear()
 
 
 FINISHED_OUTING = "e7700000-0000-4000-8000-000000000031"

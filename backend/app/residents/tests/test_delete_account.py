@@ -3,14 +3,11 @@
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Iterator
 from pathlib import Path
 
-import pytest
 from fastapi.testclient import TestClient
 
 from app.shared.testing_env import role_credential
-from app.shared.auth.rate_limit import login_limiter, refresh_limiter
 from app.shared.auth.tests.test_session import (
     RESIDENT_ID,
     ROOM_ID,
@@ -18,25 +15,6 @@ from app.shared.auth.tests.test_session import (
     bearer,
     issue_accounts,
 )
-from app.shared.testing_env import signing_key_for_tests
-
-
-@pytest.fixture
-def database_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
-    path = tmp_path / "hostel.db"
-    monkeypatch.setenv("DATABASE_PATH", str(path))
-    monkeypatch.setenv("ENVIRONMENT", "development")
-    monkeypatch.setenv("SMS_DRIVER", "mock")
-    monkeypatch.setenv("APP_SECRET_KEY", signing_key_for_tests())
-    from app.shared.config import get_settings
-
-    get_settings.cache_clear()
-    login_limiter.reset()
-    refresh_limiter.reset()
-    yield path
-    login_limiter.reset()
-    refresh_limiter.reset()
-    get_settings.cache_clear()
 
 
 def _delete_body(secret: str) -> dict[str, str]:

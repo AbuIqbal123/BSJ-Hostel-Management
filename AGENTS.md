@@ -45,6 +45,7 @@ OpenAPI tags are grouped by URL prefix. Postman collection folders use the same 
 | Gate | `/api/v1/gate` |
 | Permissions | `/api/v1/permissions` and `/api/v1/me/permissions*` |
 | Guest Stays | `/api/v1/guest-stays` and `/api/v1/me/guest-stays*` |
+| Devices | `/api/v1/devices` |
 
 Other tags (Operations, Resident, Hall office) follow the same idea: one tag owns a clear path family. When you add a route, put it under the tag for its prefix. When you add or move a Postman request, put it in the matching folder. Do not put permission or guest-stay routes under Register.
 
