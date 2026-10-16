@@ -132,6 +132,21 @@ export default function StaffHomeScreen() {
       ) : (
         <HallButton label="Scan a hall pass" onPress={() => router.push("/staff/scan")} />
       )}
+      {register ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Guest payments. Mark a stay paid and keep a receipt"
+          onPress={() => router.push("/staff/payments")}
+          style={({ pressed }) => [
+            styles.office,
+            { backgroundColor: colors.surface, borderColor: colors.line },
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text style={[text.button, { color: colors.ink }]}>Guest payments</Text>
+          <Text style={[text.error, { color: colors.inkSoft }]}>Mark a stay paid and keep a receipt</Text>
+        </Pressable>
+      ) : null}
       {runsOffice(user.role) ? (
         <Pressable
           accessibilityRole="button"

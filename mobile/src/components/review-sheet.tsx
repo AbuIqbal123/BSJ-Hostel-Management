@@ -16,10 +16,11 @@ type ReviewSheetProps = {
   busy: boolean;
   onDecide: (decision: "approved" | "rejected", note: string) => void;
   onClose: () => void;
+  extra?: ReactNode;
 };
 
 /** A pending request opened over the list with Approve and Reject. */
-export function ReviewSheet({ title, subtitle, facts, error, busy, onDecide, onClose }: ReviewSheetProps) {
+export function ReviewSheet({ title, subtitle, facts, error, busy, onDecide, onClose, extra }: ReviewSheetProps) {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
   const [rejecting, setRejecting] = useState(false);
@@ -101,6 +102,7 @@ export function ReviewSheet({ title, subtitle, facts, error, busy, onDecide, onC
           ))}
         </View>
         {error ? <Text accessibilityLiveRegion="polite" style={[text.error, { color: colors.danger }]}>{error}</Text> : null}
+        {extra}
         {actions}
       </View>
     </Modal>

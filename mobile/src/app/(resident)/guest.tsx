@@ -20,6 +20,7 @@ import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
 import { HALL_ZONE, formatChipDay, formatHallDate } from "@/format-when";
 import { hallDay } from "@/outing-when";
+import { paymentLabel } from "@/payment-file";
 import { guestLine } from "@/requests";
 import { useSession, type GuestStay } from "@/session";
 import { useDark } from "@/theme/appearance";
@@ -471,6 +472,7 @@ function GuestDetail({ id }: { id: string }) {
           </Text>
           <Text style={[text.body, { color: colors.ink }]}>{stay.reason}</Text>
           <Text style={[text.body, { color: colors.ink }]}>{guestLine(stay)}</Text>
+          <Text style={[text.body, { color: colors.ink }]}>{paymentLabel(stay.paymentStatus)}</Text>
           {stay.decisionNote ? (
             <Text style={[text.body, { color: colors.inkSoft }]}>{stay.decisionNote}</Text>
           ) : null}

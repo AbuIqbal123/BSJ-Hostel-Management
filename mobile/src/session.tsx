@@ -258,7 +258,13 @@ function permissionPayload(body: PermissionCreate): Record<string, string> {
 
 export type StaffReply =
   | { ok: true; data: unknown }
-  | { ok: false; message: string; details: Record<string, unknown> | null };
+  | { ok: false; message: string; details: Record<string, unknown> | null; code: string | null };
+
+export type StaffFile = { uri: string; name: string; type: string };
+
+export type StaffPreview =
+  | { ok: true; uri: string; contentType: string }
+  | { ok: false; message: string; code: string | null };
 
 type SessionValue = {
   ready: boolean;
@@ -291,10 +297,14 @@ type SessionValue = {
   submitGuestStay: (body: GuestStayCreate) => Promise<string | null>;
   updateGuestStay: (guestStayId: string, body: GuestStayCreate) => Promise<string | null>;
   cancelGuestStay: (guestStayId: string) => Promise<HallFailure | null>;
-  /** Reads and writes under /api/v1 for any signed-in role. A body makes it a POST. Pass POST to write with no body, or PATCH to update. */
-  staffRequest: (path: string, body?: unknown, method?: "POST" | "PATCH") => Promise<StaffReply>;
+  /** Reads and writes under /api/v1 for any signed-in role. A body makes it a POST. Pass POST to write with no body, PATCH to update, or DELETE to remove. */
+  staffRequest: (path: string, body?: unknown, method?: "POST" | "PATCH" | "DELETE") => Promise<StaffReply>;
   /** GET that returns text, such as the register CSV. */
   staffText: (path: string) => Promise<StaffReply>;
+  /** POST multipart field `evidence` for a guest receipt. */
+  staffFile: (path: string, file: StaffFile) => Promise<StaffReply>;
+  /** GET binary evidence and keep a cache copy the screen can show. */
+  staffPreview: (path: string) => Promise<StaffPreview>;
 };
 
 const SessionContext = createContext<SessionValue | null>(null);
@@ -1505,18 +1515,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [authorized, endSession],
   );
 
-  const staffFailure = (json: unknown): StaffReply => {
-    const error = (json as { error?: { message?: unknown; details?: unknown } } | null)?.error;
+  const staffFailure = (json: unknown): Extract<StaffReply, { ok: false }> => {
+    const error = (json as { error?: { code?: unknown; message?: unknown; details?: unknown } } | null)?.error;
     return {
       ok: false,
       message: trimStop(typeof error?.message === "string" && error.message ? error.message : "The hall could not be reached"),
       details:
         error?.details && typeof error.details === "object" ? (error.details as Record<string, unknown>) : null,
+      code: typeof error?.code === "string" ? error.code : null,
     };
   };
 
-  const staffRequest = useCallback(async (path: string, body?: unknown, method?: "POST" | "PATCH"): Promise<StaffReply> => {
-    const unreachable = { ok: false as const, message: "The hall could not be reached", details: null };
+  const staffRequest = useCallback(async (path: string, body?: unknown, method?: "POST" | "PATCH" | "DELETE"): Promise<StaffReply> => {
+    const unreachable = { ok: false as const, message: "The hall could not be reached", details: null, code: null };
     if (!sessionRef.current) {
       return { ...unreachable, message: "Sign in again" };
     }
@@ -1542,7 +1553,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const staffText = useCallback(async (path: string): Promise<StaffReply> => {
-    const unreachable = { ok: false as const, message: "The hall could not be reached", details: null };
+    const unreachable = { ok: false as const, message: "The hall could not be reached", details: null, code: null };
     if (!sessionRef.current) {
       return { ...unreachable, message: "Sign in again" };
     }
@@ -1556,6 +1567,53 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return unreachable;
     }
   }, []);
+
+  const staffFile = useCallback(async (path: string, file: StaffFile): Promise<StaffReply> => {
+    const unreachable = { ok: false as const, message: "The hall could not be reached", details: null, code: null };
+    if (!sessionRef.current) {
+      return { ...unreachable, message: "Sign in again" };
+    }
+    try {
+      const form = new FormData();
+      // React Native fetch reads this shape. The hall sniffs the bytes and ignores the type.
+      form.append("evidence", { uri: file.uri, name: file.name, type: file.type } as unknown as Blob);
+      const response = await authorized(`/api/v1${path}`, { method: "POST", body: form });
+      const json: unknown = await response.json().catch(() => null);
+      if (response.ok) {
+        return { ok: true, data: json };
+      }
+      return staffFailure(json);
+    } catch {
+      return unreachable;
+    }
+  }, [authorized]);
+
+  const staffPreview = useCallback(async (path: string): Promise<StaffPreview> => {
+    const unreachable = { ok: false as const, message: "The hall could not be reached", code: null };
+    if (!sessionRef.current) {
+      return { ...unreachable, message: "Sign in again" };
+    }
+    try {
+      const response = await authorized(`/api/v1${path}`, { method: "GET" });
+      if (!response.ok) {
+        const failure = staffFailure(await response.json().catch(() => null));
+        return { ok: false, message: failure.message, code: failure.code };
+      }
+      const contentType = response.headers.get("content-type")?.split(";")[0]?.trim() || "application/octet-stream";
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      const { File, Paths } = await import("expo-file-system");
+      const ext = contentType.includes("png") ? "png" : contentType.includes("pdf") ? "pdf" : "jpg";
+      const dest = new File(Paths.cache, `payment-preview.${ext}`);
+      if (dest.exists) {
+        dest.delete();
+      }
+      dest.create();
+      dest.write(bytes);
+      return { ok: true, uri: dest.uri, contentType };
+    } catch {
+      return unreachable;
+    }
+  }, [authorized]);
 
   const value = useMemo<SessionValue>(
     () => ({
@@ -1586,6 +1644,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       cancelGuestStay,
       staffRequest,
       staffText,
+      staffFile,
+      staffPreview,
     }),
     [
       ready,
@@ -1615,6 +1675,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       cancelGuestStay,
       staffRequest,
       staffText,
+      staffFile,
+      staffPreview,
     ],
   );
 

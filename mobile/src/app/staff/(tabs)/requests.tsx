@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, SectionList, StyleSheet, Text, View } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { DenseRow } from "@/components/dense-row";
@@ -360,6 +360,21 @@ export default function RequestsScreen() {
           busy={busy}
           onDecide={(decision, note) => void decide(decision, note)}
           onClose={() => setOpen(null)}
+          extra={
+            open.tab === "guests" ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  const stayId = open.row.id;
+                  setOpen(null);
+                  router.push({ pathname: "/staff/payments", params: { id: stayId } });
+                }}
+                style={styles.textButton}
+              >
+                <Text style={[text.button, { color: colors.forest }]}>Payment</Text>
+              </Pressable>
+            ) : null
+          }
         />
       ) : null}
     </>
@@ -384,4 +399,5 @@ const styles = StyleSheet.create({
   chips: { gap: 8, alignItems: "center" },
   divider: { width: 1, height: 20, marginHorizontal: 4 },
   empty: { textAlign: "center", paddingTop: 96 },
+  textButton: { minHeight: 44, justifyContent: "center" },
 });
