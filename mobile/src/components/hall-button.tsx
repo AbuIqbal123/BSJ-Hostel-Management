@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Platform, Pressable, StyleSheet, Text } from "react-native";
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text } from "react-native";
 
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
@@ -8,10 +8,13 @@ type HallButtonProps = {
   label: string;
   onPress: () => void;
   disabled?: boolean;
+  /** Inline progress. The button stays in place and ignores presses. */
+  busy?: boolean;
 };
 
-export function HallButton({ label, onPress, disabled = false }: HallButtonProps) {
+export function HallButton({ label, onPress, disabled = false, busy = false }: HallButtonProps) {
   const colors = useHallColors();
+  const held = disabled || busy;
   const labelStyle = useMemo(() => [text.button, { color: colors.onForest }], [colors]);
   const ripple = useMemo(
     () => (Platform.OS === "android" ? { color: colors.forestDeep } : undefined),
@@ -22,19 +25,20 @@ export function HallButton({ label, onPress, disabled = false }: HallButtonProps
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      disabled={disabled}
+      accessibilityState={{ disabled: held, busy }}
+      disabled={held}
       onPress={onPress}
       android_ripple={ripple}
       style={({ pressed }) => [
         styles.button,
         {
           backgroundColor: pressed ? colors.forestDeep : colors.forest,
-          opacity: disabled ? 0.6 : 1,
-          transform: [{ scale: pressed && !disabled ? 0.98 : 1 }],
+          opacity: held ? 0.6 : 1,
+          transform: [{ scale: pressed && !held ? 0.98 : 1 }],
         },
       ]}
     >
-      <Text style={labelStyle}>{label}</Text>
+      {busy ? <ActivityIndicator color={colors.onForest} /> : <Text style={labelStyle}>{label}</Text>}
     </Pressable>
   );
 }

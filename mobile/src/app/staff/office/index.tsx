@@ -66,7 +66,7 @@ export default function OfficeHome() {
           <Text style={[text.error, { color: colors.inkSoft }]}>{link.detail}</Text>
         </Pressable>
       ))}
-      <HallButton label={busy ? "Exporting" : "Export register"} disabled={busy} onPress={() => void exportRegister()} />
+      <HallButton label="Export register" busy={busy} onPress={() => void exportRegister()} />
       <OfficeError message={error} />
     </OfficeFrame>
   );

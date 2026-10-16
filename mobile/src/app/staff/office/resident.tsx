@@ -65,7 +65,7 @@ export default function OfficeResident() {
   const [reset, setReset] = useState("");
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<"save" | "reissue" | "reset" | null>(null);
 
   const fill = (key: keyof ResidentDraft) => (value: string) => {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -126,11 +126,11 @@ export default function OfficeResident() {
     if (account && Object.keys(body).length === 0) {
       return;
     }
-    setBusy(true);
+    setBusy("save");
     const reply = account
       ? await staffRequest(`/admin/residents/${encodeURIComponent(account.id)}`, body, "PATCH")
       : await staffRequest("/admin/residents", body);
-    setBusy(false);
+    setBusy(null);
     if (!reply.ok) {
       setError(replyError(reply) ?? "The resident didn't save");
       return;
@@ -179,13 +179,13 @@ export default function OfficeResident() {
         style: "destructive",
         onPress: () => {
           void (async () => {
-            setBusy(true);
+            setBusy("reissue");
             const reply = await staffRequest(
               `/admin/residents/${encodeURIComponent(account.id)}/hall-pass/reissue`,
               undefined,
               "POST",
             );
-            setBusy(false);
+            setBusy(null);
             const issued = reply.ok ? readPass(reply.data) : null;
             if (!issued) {
               setError(replyError(reply) ?? "The hall pass didn't reissue");
@@ -216,9 +216,9 @@ export default function OfficeResident() {
         style: "destructive",
         onPress: () => {
           void (async () => {
-            setBusy(true);
+            setBusy("reset");
             const reply = await staffRequest(`/admin/users/${encodeURIComponent(account.id)}/password`, body, "POST");
-            setBusy(false);
+            setBusy(null);
             setReset("");
             if (!reply.ok) {
               setError(replyError(reply) ?? "The password didn't reset");
@@ -284,12 +284,12 @@ export default function OfficeResident() {
           ) : null}
         </View>
       )}
-      <HallButton label={account ? "Save resident" : "Add resident"} disabled={busy} onPress={save} />
+      <HallButton label={account ? "Save resident" : "Add resident"} busy={busy === "save"} disabled={busy !== null} onPress={save} />
       {account ? (
         <View style={styles.password}>
-          <HallButton label="Reissue hall pass" disabled={busy} onPress={reissue} />
+          <HallButton label="Reissue hall pass" busy={busy === "reissue"} disabled={busy !== null} onPress={reissue} />
           <TextField label="New temporary password" value={reset} onChangeText={(value) => { setReset(value); setError(null); }} secureTextEntry maxLength={200} />
-          <HallButton label="Reset password" disabled={busy} onPress={resetPassword} />
+          <HallButton label="Reset password" busy={busy === "reset"} disabled={busy !== null} onPress={resetPassword} />
         </View>
       ) : null}
       {pass ? (

@@ -1,36 +1,51 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { router, useFocusEffect } from "expo-router";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 
 import { DenseRow } from "@/components/dense-row";
 import { HallButton } from "@/components/hall-button";
-import { OfficeError, OfficeFrame, replyError } from "@/components/office-frame";
+import { EmptyState, ListError, RetryRow } from "@/components/list-state";
+import { OfficeFrame, replyError } from "@/components/office-frame";
+import { SkeletonRows } from "@/components/skeleton";
+import { acceptFailure, acceptPage, shouldRequestNext, type Listed } from "@/list-page";
 import { readPage, readStaffAccount, type OfficeStaff } from "@/office";
 import { roleLabel, useSession } from "@/session";
-import { useHallColors } from "@/theme/colors";
-import { text } from "@/theme/text";
 
 const PAGE = 50;
 
 export default function OfficeStaffList() {
-  const colors = useHallColors();
   const { staffRequest } = useSession();
-  const [rows, setRows] = useState<OfficeStaff[] | null>(null);
-  const [total, setTotal] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const paging = useRef(false);
+  const [list, setList] = useState<Listed<OfficeStaff>>({ rows: null, total: 0, error: null, pageError: null });
+  const [pagingUi, setPagingUi] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(
-    (offset: number) => {
-      const search = new URLSearchParams({ limit: String(PAGE), offset: String(offset) });
-      void staffRequest(`/admin/staff?${search.toString()}`).then((reply) => {
-        const page = reply.ok ? readPage(reply.data, readStaffAccount) : null;
-        if (!page) {
-          setError(replyError(reply) ?? "Staff didn't load");
+    (offset: number, fromPull = false) => {
+      if (offset > 0) {
+        if (paging.current) {
           return;
         }
-        setTotal(page.total);
-        setRows((shown) => (offset === 0 ? page.items : [...(shown ?? []), ...page.items]));
-        setError(null);
+        paging.current = true;
+        setPagingUi(true);
+      }
+      if (fromPull) {
+        setRefreshing(true);
+      }
+      const search = new URLSearchParams({ limit: String(PAGE), offset: String(offset) });
+      void staffRequest(`/admin/staff?${search.toString()}`).then((reply) => {
+        if (offset > 0) {
+          paging.current = false;
+          setPagingUi(false);
+        }
+        if (fromPull) {
+          setRefreshing(false);
+        }
+        const page = reply.ok ? readPage(reply.data, readStaffAccount) : null;
+        const message = replyError(reply) ?? "Staff didn't load";
+        setList((state) =>
+          page ? acceptPage(state, offset, page.items, page.total, (item) => item.id) : acceptFailure(state, offset, message),
+        );
       });
     },
     [staffRequest],
@@ -42,12 +57,25 @@ export default function OfficeStaffList() {
     }, [load]),
   );
 
+  const rows = list.rows ?? [];
+
   return (
-    <OfficeFrame title="Staff">
+    <OfficeFrame
+      title="Staff"
+      refreshing={refreshing}
+      onRefresh={() => load(0, true)}
+      onNearEnd={() => {
+        if (shouldRequestNext(rows.length, list.total, paging.current, list.pageError !== null)) {
+          load(rows.length);
+        }
+      }}
+    >
       <HallButton label="Add staff" onPress={() => router.push("/staff/office/member")} />
-      <OfficeError message={error} />
+      {list.rows === null && !list.error ? <SkeletonRows count={4} kind="row" /> : null}
+      {list.error && rows.length === 0 ? <ListError message={list.error} onRetry={() => load(0)} /> : null}
+      {list.error && rows.length > 0 ? <ListError message={list.error} onRetry={() => load(0, true)} /> : null}
       <View>
-        {(rows ?? []).map((member, index, all) => (
+        {rows.map((member, index, all) => (
           <DenseRow
             key={member.id}
             title={member.fullName}
@@ -60,8 +88,11 @@ export default function OfficeStaffList() {
           />
         ))}
       </View>
-      {rows && rows.length === 0 ? <Text style={[text.body, { color: colors.inkSoft }]}>No staff yet</Text> : null}
-      {rows && rows.length < total ? <HallButton label="More" onPress={() => load(rows.length)} /> : null}
+      {list.rows && rows.length === 0 && !list.error ? (
+        <EmptyState message="No staff yet" actionLabel="Add staff" onAction={() => router.push("/staff/office/member")} />
+      ) : null}
+      {pagingUi ? <SkeletonRows count={1} kind="row" /> : null}
+      {list.pageError ? <RetryRow message={list.pageError} onRetry={() => load(rows.length)} /> : null}
     </OfficeFrame>
   );
 }

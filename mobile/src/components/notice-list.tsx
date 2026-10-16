@@ -6,6 +6,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { goBackOr } from "@/back";
 import { onHallRefresh } from "@/hall-refresh";
 import { BackMark } from "@/components/back-mark";
+import { EmptyState, ListError, RetryRow } from "@/components/list-state";
+import { SkeletonRows } from "@/components/skeleton";
+import { mergeById } from "@/list-page";
 import { DayRange, type DayRangeValue } from "@/components/day-range";
 import { FilterChip } from "@/components/filter-chip";
 import { SearchField } from "@/components/search-field";
@@ -73,6 +76,8 @@ export function NoticeList({ base, role, back, staff }: { base: string; role: Ha
   const [next, setNext] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pageError, setPageError] = useState<string | null>(null);
+  const [pagingUi, setPagingUi] = useState(false);
   const generation = useRef(0);
   const paging = useRef(false);
 
@@ -97,12 +102,18 @@ export function NoticeList({ base, role, back, staff }: { base: string; role: Ha
         return;
       }
       if (!reply.ok) {
-        setError(trimStop(reply.message));
+        const message = trimStop(reply.message);
+        if (cursor) {
+          setPageError(message);
+        } else {
+          setError(message);
+        }
         return;
       }
       setError(null);
+      setPageError(null);
       const page = readNoticePage(reply.data, role);
-      setItems((current) => (cursor && current ? [...current, ...page.items] : page.items));
+      setItems((current) => (cursor && current ? mergeById(current, page.items, 1, (item) => item.id) : page.items));
       setNext(page.next);
     },
     [base, filter, q, range.from, range.to, role, staff, staffRequest],
@@ -141,8 +152,10 @@ export function NoticeList({ base, role, back, staff }: { base: string; role: Ha
       return;
     }
     paging.current = true;
+    setPagingUi(true);
     await load(next);
     paging.current = false;
+    setPagingUi(false);
   }, [load, next]);
 
   const open = useCallback(
@@ -220,7 +233,7 @@ export function NoticeList({ base, role, back, staff }: { base: string; role: Ha
         ))}
       </ScrollView>
       {staff ? <DayRange value={range} onChange={setRange} /> : null}
-      {error ? <Text accessibilityLiveRegion="polite" style={[text.error, { color: colors.danger }]}>{error}</Text> : null}
+      {error && items !== null && items.length > 0 ? <ListError message={error} onRetry={() => void refresh()} /> : null}
     </View>
   );
 
@@ -234,22 +247,32 @@ export function NoticeList({ base, role, back, staff }: { base: string; role: Ha
       renderItem={({ item }) => <NoticeCard item={item} onPress={() => open(item)} />}
       ItemSeparatorComponent={() => <View style={styles.gap} />}
       onEndReachedThreshold={0.5}
-      onEndReached={() => void more()}
+      onEndReached={() => {
+        if (!pageError) {
+          void more();
+        }
+      }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={colors.inkFaint} />}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
       showsVerticalScrollIndicator={false}
       ListEmptyComponent={
-        items !== null && !error ? (
-          <Text style={[text.body, styles.empty, { color: colors.inkSoft }]}>
-            {filtered ? "Nothing matches" : "No notifications in the last 90 days"}
-          </Text>
+        items === null && !error ? (
+          <SkeletonRows count={4} kind="card" />
+        ) : items === null && error ? (
+          <ListError message={error} onRetry={() => void load(null)} />
+        ) : items !== null && !error ? (
+          <EmptyState message={filtered ? "Nothing matches" : "No notifications in the last 90 days"} />
         ) : null
       }
       ListFooterComponent={
-        next === null && items !== null && items.length > 0 && !staff ? (
-          <Text style={[text.label, styles.footer, { color: colors.inkFaint }]}>Older history is under Settings</Text>
-        ) : null
+        <>
+          {pagingUi ? <SkeletonRows count={1} kind="card" /> : null}
+          {pageError ? <RetryRow message={pageError} onRetry={() => void more()} /> : null}
+          {next === null && items !== null && items.length > 0 && !staff ? (
+            <Text style={[text.label, styles.footer, { color: colors.inkFaint }]}>Older history is under Settings</Text>
+          ) : null}
+        </>
       }
     />
   );

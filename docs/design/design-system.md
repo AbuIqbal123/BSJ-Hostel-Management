@@ -35,7 +35,7 @@ Inspired by Apple / Jony Ive craft applied to hostel ops: beauty through restrai
 - Purple gradients, neon accents, glassmorphism stacks.
 - Card-in-card nesting more than one deep.
 - Emoji as icons; Lucide/Heroicons dumped wholesale without a curated set.
-- Skeleton screens that shimmer longer than the real fetch.
+- A placeholder that keeps pulsing after the rows have arrived. The pulse stops as soon as the list is replaced.
 - Inventing an Emergency tab in v1.
 - Em dashes (U+2014) in UI strings, empty/error copy, or docs that define product language. Use commas, periods, or hyphens.
 - Heavy animation libraries or web-only motion kits as core Expo deps (Lottie-everywhere, Framer-style stacks, large gesture frameworks for trivial fades).
@@ -286,9 +286,9 @@ Thumb zone: primary action pinned bottom-safe-area on mobile flows (plan, decide
 
 | State | Treatment |
 |---|---|
-| Loading | Quiet inline spinner or opacity pulse on content; prefer partial content. No branded Lottie loop. |
-| Empty | One sentence + optional secondary action (“No pending permissions.”) |
-| Error | Soft `danger.bg` banner or full-screen gate refusal; use API `message` when present |
+| Loading | On the first load of a list, `SkeletonRows` matches the row height, spacing, and rounding. A short opacity pulse runs only while that placeholder is on screen. Reduce motion shows the same shape still. Pull to refresh keeps the rows. A submit button uses `HallButton` `busy` (an in-button indicator, the button disabled). No full-screen spinner and no branded Lottie loop. |
+| Empty | `EmptyState`: one short sentence, plus the next action when the screen already has one. |
+| Error | `ListError` on a failed first page: the API message and a Retry button, in the list, not only a toast. `RetryRow` when a later page fails: the rows already loaded stay, and Retry asks for that page again without dropping or repeating them. |
 | Success | Brief confirmation (serif headline + one detail); gate auto-returns to scan-ready after ~1.5–2s |
 | Disabled | Lower opacity; never rely on color alone |
 
@@ -403,7 +403,20 @@ When many elements animate (list rows, chip groups, stacked cards, staggered toa
 - One motion job per interaction. Do not stack fade, scale, rotate, and color shift on the same control.
 - **Respect reduce-motion / reduced-motion:** instant cuts, no stagger delays, no decorative enter animations. Still show the final state clearly (chip, toast copy, gate result).
 
-**Forbidden:** parallax hero headers; looping Lottie on home; confetti on approve; continuous shimmer; neon or circuit-board motion; childish overshoot on institutional screens; motion that delays a gate result.
+**Forbidden:** parallax hero headers; looping Lottie on home; confetti on approve; a shimmer that continues after the content arrives; neon or circuit-board motion; childish overshoot on institutional screens; motion that delays a gate result.
+
+### List placeholders
+
+Shared pieces live in `mobile/src/components/skeleton.tsx` and `mobile/src/components/list-state.tsx`. Paging rules live in `mobile/src/list-page.ts`.
+
+| Piece | When |
+|---|---|
+| `SkeletonRows` | First load, and the one-row placeholder while the next page is in flight. `kind="row"` matches a dense list row (56pt, grouped radius). `kind="card"` matches a permission card (72pt, radius 12). |
+| `ListError` | The first page failed, or a refresh failed while rows are still showing. Retry. |
+| `RetryRow` | A later page failed. The loaded rows stay. Another fetch waits until Retry. |
+| `EmptyState` | The page loaded and there is nothing to show. |
+
+The pulse is an opacity loop on the placeholder only. `AccessibilityInfo` reduce motion turns that loop off and leaves the placeholder at full opacity. Changing a filter, tab, or search may show the placeholder, because the old rows belong to a different query. Pull to refresh of the same query does not clear the rows.
 
 ---
 

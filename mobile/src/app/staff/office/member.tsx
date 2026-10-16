@@ -40,7 +40,7 @@ export default function OfficeMember() {
   const [reset, setReset] = useState("");
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<"save" | "reset" | null>(null);
 
   const fill = (key: "fullName" | "username" | "jobTitle" | "temporaryPassword") => (value: string) => {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -98,11 +98,11 @@ export default function OfficeMember() {
       return;
     }
     const send = async () => {
-      setBusy(true);
+      setBusy("save");
       const reply = account
         ? await staffRequest(`/admin/staff/${encodeURIComponent(account.id)}`, body, "PATCH")
         : await staffRequest("/admin/staff", body);
-      setBusy(false);
+      setBusy(null);
       const saved = reply.ok ? readStaffAccount(reply.data) : null;
       if (!saved) {
         setError(replyError(reply) ?? "The account didn't save");
@@ -138,9 +138,9 @@ export default function OfficeMember() {
         style: "destructive",
         onPress: () => {
           void (async () => {
-            setBusy(true);
+            setBusy("reset");
             const reply = await staffRequest(`/admin/users/${encodeURIComponent(account.id)}/password`, body, "POST");
-            setBusy(false);
+            setBusy(null);
             setReset("");
             if (!reply.ok) {
               setError(replyError(reply) ?? "The password didn't reset");
@@ -208,7 +208,7 @@ export default function OfficeMember() {
           ) : null}
         </View>
       )}
-      <HallButton label={account ? "Save staff" : "Add staff"} disabled={busy} onPress={() => void save()} />
+      <HallButton label={account ? "Save staff" : "Add staff"} busy={busy === "save"} disabled={busy !== null} onPress={() => void save()} />
       {account ? (
         <View style={styles.block}>
           <TextField
@@ -221,7 +221,7 @@ export default function OfficeMember() {
             secureTextEntry
             maxLength={200}
           />
-          <HallButton label="Reset password" disabled={busy} onPress={resetPassword} />
+          <HallButton label="Reset password" busy={busy === "reset"} disabled={busy !== null} onPress={resetPassword} />
         </View>
       ) : null}
       {note ? <Text style={[text.body, { color: colors.inkSoft }]}>{note}</Text> : null}

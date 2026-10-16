@@ -4,7 +4,9 @@ import { View } from "react-native";
 
 import { DenseRow } from "@/components/dense-row";
 import { HallButton } from "@/components/hall-button";
+import { EmptyState, ListError } from "@/components/list-state";
 import { ChoiceLine, OfficeError, OfficeFrame, replyError } from "@/components/office-frame";
+import { SkeletonRows } from "@/components/skeleton";
 import { TextField } from "@/components/text-field";
 import { bounded, readBlock, readBlocks, readRoom, readRooms, type OfficeBlock, type OfficeRoom } from "@/office";
 import { useSession } from "@/session";
@@ -18,42 +20,56 @@ export default function OfficeBlock() {
   const [roomsCount, setRoomsCount] = useState("");
   const [beds, setBeds] = useState("");
   const [status, setStatus] = useState<"active" | "inactive">("active");
-  const [rooms, setRooms] = useState<OfficeRoom[]>([]);
+  const [rooms, setRooms] = useState<OfficeRoom[] | null>(null);
+  const [blockError, setBlockError] = useState<string | null>(null);
+  const [roomsError, setRoomsError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [number, setNumber] = useState("");
   const [editing, setEditing] = useState<OfficeRoom | null>(null);
   const [roomNumber, setRoomNumber] = useState("");
   const [roomBeds, setRoomBeds] = useState("");
   const [roomStatus, setRoomStatus] = useState<"active" | "inactive">("active");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<"block" | "add" | "room" | null>(null);
 
-  const load = useCallback(() => {
-    if (!id) {
-      return;
-    }
-    void staffRequest("/admin/blocks").then((reply) => {
-      const next = reply.ok ? readBlocks(reply.data) : null;
-      const found = next?.find((item) => item.id === id) ?? null;
-      if (!found) {
-        setError(replyError(reply) ?? "This block didn't load");
+  const load = useCallback(
+    (fromPull = false) => {
+      if (!id) {
         return;
       }
-      setBlock(found);
-      setName(found.name);
-      setFloors(found.floors === null ? "" : String(found.floors));
-      setRoomsCount(String(found.roomCount));
-      setBeds(String(found.bedsPerRoom));
-      setStatus(found.status);
-    });
-    void staffRequest(`/admin/rooms?block_id=${encodeURIComponent(id)}`).then((reply) => {
-      const next = reply.ok ? readRooms(reply.data) : null;
-      if (!next) {
-        setError(replyError(reply) ?? "Rooms didn't load");
-        return;
+      if (fromPull) {
+        setRefreshing(true);
       }
-      setRooms(next);
-    });
-  }, [id, staffRequest]);
+      void staffRequest("/admin/blocks").then((reply) => {
+        if (fromPull) {
+          setRefreshing(false);
+        }
+        const next = reply.ok ? readBlocks(reply.data) : null;
+        const found = next?.find((item) => item.id === id) ?? null;
+        if (!found) {
+          setBlockError(replyError(reply) ?? "This block didn't load");
+          return;
+        }
+        setBlock(found);
+        setName(found.name);
+        setFloors(found.floors === null ? "" : String(found.floors));
+        setRoomsCount(String(found.roomCount));
+        setBeds(String(found.bedsPerRoom));
+        setStatus(found.status);
+        setBlockError(null);
+      });
+      void staffRequest(`/admin/rooms?block_id=${encodeURIComponent(id)}`).then((reply) => {
+        const next = reply.ok ? readRooms(reply.data) : null;
+        if (!next) {
+          setRoomsError(replyError(reply) ?? "Rooms didn't load");
+          return;
+        }
+        setRooms(next);
+        setRoomsError(null);
+      });
+    },
+    [id, staffRequest],
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -70,21 +86,21 @@ export default function OfficeBlock() {
       return;
     }
     if (name.trim().length < 1 || name.trim().length > 80) {
-      setError("Enter the block name");
+      setFormError("Enter the block name");
       return;
     }
     const roomCount = bounded(roomsCount, 1, 500, "Enter the room count", "Room count is from 1 to 500");
     const bedCount = bounded(beds, 1, 6, "Enter the beds per room", "Beds per room is from 1 to 6");
     const countProblem = typeof roomCount === "string" ? roomCount : typeof bedCount === "string" ? bedCount : null;
     if (countProblem) {
-      setError(countProblem);
+      setFormError(countProblem);
       return;
     }
     let floorCount: number | null = null;
     if (floors.trim()) {
       const parsed = bounded(floors, 1, 20, "Enter the floors", "Floors are from 1 to 20");
       if (typeof parsed === "string") {
-        setError(parsed);
+        setFormError(parsed);
         return;
       }
       floorCount = parsed;
@@ -108,14 +124,14 @@ export default function OfficeBlock() {
     if (Object.keys(body).length === 0) {
       return;
     }
-    setBusy(true);
+    setBusy("block");
     const reply = await staffRequest(`/admin/blocks/${encodeURIComponent(id)}`, body, "PATCH");
-    setBusy(false);
+    setBusy(null);
     if (!reply.ok || !readBlock(reply.data)) {
-      setError(replyError(reply) ?? "The block didn't save");
+      setFormError(replyError(reply) ?? "The block didn't save");
       return;
     }
-    setError(null);
+    setFormError(null);
     load();
   };
 
@@ -125,18 +141,18 @@ export default function OfficeBlock() {
     }
     const door = number.trim();
     if (door.length < 1 || door.length > 12) {
-      setError("Enter the door number");
+      setFormError("Enter the door number");
       return;
     }
-    setBusy(true);
+    setBusy("add");
     const reply = await staffRequest("/admin/rooms", { block_id: id, number: door });
-    setBusy(false);
+    setBusy(null);
     if (!reply.ok || !readRoom(reply.data)) {
-      setError(replyError(reply) ?? "The room didn't save");
+      setFormError(replyError(reply) ?? "The room didn't save");
       return;
     }
     setNumber("");
-    setError(null);
+    setFormError(null);
     load();
   };
 
@@ -146,12 +162,12 @@ export default function OfficeBlock() {
     }
     const door = roomNumber.trim();
     if (door.length < 1 || door.length > 12) {
-      setError("Enter the door number");
+      setFormError("Enter the door number");
       return;
     }
     const bedCount = bounded(roomBeds, 1, 6, "Enter the beds", "Beds are from 1 to 6");
     if (typeof bedCount === "string") {
-      setError(bedCount);
+      setFormError(bedCount);
       return;
     }
     const body: Record<string, unknown> = {};
@@ -168,39 +184,53 @@ export default function OfficeBlock() {
       setEditing(null);
       return;
     }
-    setBusy(true);
+    setBusy("room");
     const reply = await staffRequest(`/admin/rooms/${encodeURIComponent(editing.id)}`, body, "PATCH");
-    setBusy(false);
+    setBusy(null);
     if (!reply.ok || !readRoom(reply.data)) {
-      setError(replyError(reply) ?? "The room didn't save");
+      setFormError(replyError(reply) ?? "The room didn't save");
       return;
     }
     setEditing(null);
-    setError(null);
+    setFormError(null);
     load();
   };
 
+  const rows = rooms ?? [];
+  const held = busy !== null;
+  const waiting = block === null && rooms === null && !blockError && !roomsError;
+
   return (
-    <OfficeFrame title={block?.name ?? "Block"}>
-      <TextField label="Name" value={name} onChangeText={setName} maxLength={80} autoCapitalize="sentences" />
-      <TextField label="Floors" value={floors} onChangeText={setFloors} keyboardType="number-pad" />
-      <TextField label="Rooms" value={roomsCount} onChangeText={setRoomsCount} keyboardType="number-pad" />
-      <TextField label="Beds per room" value={beds} onChangeText={setBeds} keyboardType="number-pad" />
-      <ChoiceLine
-        label="Block"
-        value={status}
-        options={[
-          { value: "active", label: "Active" },
-          { value: "inactive", label: "Inactive" },
-        ]}
-        onChange={(value) => setStatus(value === "inactive" ? "inactive" : "active")}
-      />
-      <HallButton label="Save block" disabled={busy || !block} onPress={() => void saveBlock()} />
-      <TextField label="Door number" value={number} onChangeText={setNumber} maxLength={12} />
-      <HallButton label="Add room" disabled={busy} onPress={() => void addRoom()} />
-      <OfficeError message={error} />
+    <OfficeFrame title={block?.name ?? "Block"} refreshing={refreshing} onRefresh={() => load(true)}>
+      {waiting ? <SkeletonRows count={4} kind="row" /> : null}
+      {blockError && !block ? <ListError message={blockError} onRetry={() => load()} /> : null}
+      {block ? (
+        <>
+          <TextField label="Name" value={name} onChangeText={setName} maxLength={80} autoCapitalize="sentences" />
+          <TextField label="Floors" value={floors} onChangeText={setFloors} keyboardType="number-pad" />
+          <TextField label="Rooms" value={roomsCount} onChangeText={setRoomsCount} keyboardType="number-pad" />
+          <TextField label="Beds per room" value={beds} onChangeText={setBeds} keyboardType="number-pad" />
+          <ChoiceLine
+            label="Block"
+            value={status}
+            options={[
+              { value: "active", label: "Active" },
+              { value: "inactive", label: "Inactive" },
+            ]}
+            onChange={(value) => setStatus(value === "inactive" ? "inactive" : "active")}
+          />
+          <HallButton label="Save block" busy={busy === "block"} disabled={held} onPress={() => void saveBlock()} />
+          <TextField label="Door number" value={number} onChangeText={setNumber} maxLength={12} />
+          <HallButton label="Add room" busy={busy === "add"} disabled={held} onPress={() => void addRoom()} />
+        </>
+      ) : null}
+      <OfficeError message={formError} />
+      {blockError && block ? <ListError message={blockError} onRetry={() => load(true)} /> : null}
+      {roomsError && rows.length === 0 ? <ListError message={roomsError} onRetry={() => load()} /> : null}
+      {roomsError && rows.length > 0 ? <ListError message={roomsError} onRetry={() => load(true)} /> : null}
+      {rooms === null && block && !roomsError ? <SkeletonRows count={3} kind="row" /> : null}
       <View>
-        {rooms.map((room, index, all) => (
+        {rows.map((room, index, all) => (
           <View key={room.id}>
             <DenseRow
               title={room.label}
@@ -213,7 +243,7 @@ export default function OfficeBlock() {
                 setRoomNumber(room.number);
                 setRoomBeds(String(room.bedCount));
                 setRoomStatus(room.status);
-                setError(null);
+                setFormError(null);
               }}
             />
             {editing?.id === room.id ? (
@@ -229,12 +259,13 @@ export default function OfficeBlock() {
                   ]}
                   onChange={(value) => setRoomStatus(value === "inactive" ? "inactive" : "active")}
                 />
-                <HallButton label="Save room" disabled={busy} onPress={() => void saveRoom()} />
+                <HallButton label="Save room" busy={busy === "room"} disabled={held} onPress={() => void saveRoom()} />
               </View>
             ) : null}
           </View>
         ))}
       </View>
+      {rooms && rows.length === 0 && !roomsError ? <EmptyState message="No rooms in this block yet. Add one above." /> : null}
     </OfficeFrame>
   );
 }

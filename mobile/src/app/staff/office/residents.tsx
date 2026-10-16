@@ -1,29 +1,42 @@
 import { useCallback, useRef, useState } from "react";
 import { router, useFocusEffect } from "expo-router";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 
 import { DenseRow } from "@/components/dense-row";
 import { HallButton } from "@/components/hall-button";
-import { OfficeError, OfficeFrame, replyError } from "@/components/office-frame";
+import { EmptyState, ListError, RetryRow } from "@/components/list-state";
+import { OfficeFrame, replyError } from "@/components/office-frame";
 import { SearchField } from "@/components/search-field";
+import { SkeletonRows } from "@/components/skeleton";
+import { acceptFailure, acceptPage, shouldRequestNext, type Listed } from "@/list-page";
 import { readPage, readResident, type OfficeResident } from "@/office";
 import { useSession } from "@/session";
-import { useHallColors } from "@/theme/colors";
-import { text } from "@/theme/text";
 
 const PAGE = 50;
+const EMPTY: Listed<OfficeResident> = { rows: null, total: 0, error: null, pageError: null };
 
 export default function OfficeResidents() {
-  const colors = useHallColors();
   const { staffRequest } = useSession();
   const ticket = useRef(0);
+  const paging = useRef(false);
   const [query, setQuery] = useState("");
-  const [rows, setRows] = useState<OfficeResident[] | null>(null);
-  const [total, setTotal] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const seenQuery = useRef(query);
+  const [list, setList] = useState<Listed<OfficeResident>>(EMPTY);
+  const [pagingUi, setPagingUi] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(
-    (q: string, offset: number) => {
+    (q: string, offset: number, fromPull = false) => {
+      if (offset > 0) {
+        if (paging.current) {
+          return;
+        }
+        paging.current = true;
+        setPagingUi(true);
+      }
+      if (fromPull) {
+        setRefreshing(true);
+      }
       const search = new URLSearchParams({ limit: String(PAGE), offset: String(offset) });
       const needle = q.trim().slice(0, 80);
       if (needle) {
@@ -31,17 +44,21 @@ export default function OfficeResidents() {
       }
       const current = offset === 0 ? ++ticket.current : ticket.current;
       void staffRequest(`/admin/residents?${search.toString()}`).then((reply) => {
+        if (offset > 0) {
+          paging.current = false;
+          setPagingUi(false);
+        }
+        if (fromPull) {
+          setRefreshing(false);
+        }
         if (current !== ticket.current) {
           return;
         }
         const page = reply.ok ? readPage(reply.data, readResident) : null;
-        if (!page) {
-          setError(replyError(reply) ?? "Residents didn't load");
-          return;
-        }
-        setTotal(page.total);
-        setRows((shown) => (offset === 0 ? page.items : [...(shown ?? []), ...page.items]));
-        setError(null);
+        const message = replyError(reply) ?? "Residents didn't load";
+        setList((state) =>
+          page ? acceptPage(state, offset, page.items, page.total, (item) => item.id) : acceptFailure(state, offset, message),
+        );
       });
     },
     [staffRequest],
@@ -49,18 +66,39 @@ export default function OfficeResidents() {
 
   useFocusEffect(
     useCallback(() => {
+      if (seenQuery.current !== query) {
+        seenQuery.current = query;
+        ticket.current += 1;
+        paging.current = false;
+        setList(EMPTY);
+      }
       const timer = setTimeout(() => load(query, 0), query ? 300 : 0);
       return () => clearTimeout(timer);
     }, [load, query]),
   );
 
+  const rows = list.rows ?? [];
+  const near = () => {
+    if (!shouldRequestNext(rows.length, list.total, paging.current, list.pageError !== null)) {
+      return;
+    }
+    load(query, rows.length);
+  };
+
   return (
-    <OfficeFrame title="Residents">
+    <OfficeFrame
+      title="Residents"
+      refreshing={refreshing}
+      onRefresh={() => load(query, 0, true)}
+      onNearEnd={near}
+    >
       <SearchField value={query} placeholder="Name, enrolment, or room" onChange={setQuery} />
       <HallButton label="Add a resident" onPress={() => router.push("/staff/office/resident")} />
-      <OfficeError message={error} />
+      {list.rows === null && !list.error ? <SkeletonRows count={4} kind="row" /> : null}
+      {list.error && rows.length === 0 ? <ListError message={list.error} onRetry={() => load(query, 0)} /> : null}
+      {list.error && rows.length > 0 ? <ListError message={list.error} onRetry={() => load(query, 0, true)} /> : null}
       <View>
-        {(rows ?? []).map((resident, index, all) => (
+        {rows.map((resident, index, all) => (
           <DenseRow
             key={resident.id}
             title={resident.fullName}
@@ -73,12 +111,15 @@ export default function OfficeResidents() {
           />
         ))}
       </View>
-      {rows && rows.length === 0 ? (
-        <Text style={[text.body, { color: colors.inkSoft }]}>{query.trim() ? "No one matches" : "No residents yet"}</Text>
+      {list.rows && rows.length === 0 && !list.error ? (
+        <EmptyState
+          message={query.trim() ? "No one matches" : "No residents yet"}
+          actionLabel={query.trim() ? undefined : "Add a resident"}
+          onAction={query.trim() ? undefined : () => router.push("/staff/office/resident")}
+        />
       ) : null}
-      {rows && rows.length < total ? (
-        <HallButton label="More" onPress={() => load(query, rows.length)} />
-      ) : null}
+      {pagingUi ? <SkeletonRows count={1} kind="row" /> : null}
+      {list.pageError ? <RetryRow message={list.pageError} onRetry={() => load(query, rows.length)} /> : null}
     </OfficeFrame>
   );
 }

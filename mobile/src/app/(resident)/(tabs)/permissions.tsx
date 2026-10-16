@@ -1,10 +1,13 @@
 import { useCallback, useRef, useState } from "react";
 import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { EmptyState, ListError, RetryRow } from "@/components/list-state";
+import { SkeletonRows } from "@/components/skeleton";
 import { formatHallDate, formatWhenParts } from "@/format-when";
+import { acceptFailure, acceptPage, shouldRequestNext, type Listed } from "@/list-page";
 import { guestLine, kindLabel, statusSentence, statusTone } from "@/requests";
 import { useSession, type GuestStayCard, type HallPermission, type PermissionKind } from "@/session";
 import { useHallColors } from "@/theme/colors";
@@ -148,11 +151,17 @@ export default function PermissionsScreen() {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
   const { loadPermissions, loadGuestStays } = useSession();
-  const [items, setItems] = useState<HallPermission[] | null>(null);
-  const [stays, setStays] = useState<GuestStayCard[] | null>(null);
-  const [failed, setFailed] = useState(false);
-  const [staysFailed, setStaysFailed] = useState(false);
+  const [permissions, setPermissions] = useState<Listed<HallPermission>>({
+    rows: null,
+    total: 0,
+    error: null,
+    pageError: null,
+  });
+  const [stays, setStays] = useState<Listed<GuestStayCard>>({ rows: null, total: 0, error: null, pageError: null });
   const [tab, setTab] = useState<RequestTab>("late_night");
+  const [refreshing, setRefreshing] = useState(false);
+  const [paging, setPaging] = useState(false);
+  const pagingRef = useRef(false);
   const loadPermissionsRef = useRef(loadPermissions);
   const loadGuestStaysRef = useRef(loadGuestStays);
   loadPermissionsRef.current = loadPermissions;
@@ -160,33 +169,56 @@ export default function PermissionsScreen() {
 
   const load = useCallback(() => {
     let active = true;
-    void loadPermissionsRef.current().then((result) => {
+    void loadPermissionsRef.current(0).then((result) => {
       if (!active) {
         return;
       }
-      if (result.error !== null) {
-        setItems(null);
-        setFailed(true);
-        return;
-      }
-      setFailed(false);
-      setItems(result.items);
+      setPermissions((state) =>
+        result.error !== null
+          ? acceptFailure(state, 0, result.error)
+          : acceptPage(state, 0, result.items, result.total, (item) => item.id),
+      );
     });
-    void loadGuestStaysRef.current().then((result) => {
+    void loadGuestStaysRef.current(0).then((result) => {
       if (!active) {
         return;
       }
-      if (result.error !== null) {
-        setStays(null);
-        setStaysFailed(true);
-        return;
-      }
-      setStaysFailed(false);
-      setStays(result.items);
+      setStays((state) =>
+        result.error !== null
+          ? acceptFailure(state, 0, result.error)
+          : acceptPage(state, 0, result.items, result.total, (item) => item.id),
+      );
     });
     return () => {
       active = false;
     };
+  }, []);
+
+  const refresh = useCallback(() => {
+    setRefreshing(true);
+    let pending = 2;
+    const done = () => {
+      pending -= 1;
+      if (pending === 0) {
+        setRefreshing(false);
+      }
+    };
+    void loadPermissionsRef.current(0).then((result) => {
+      setPermissions((state) =>
+        result.error !== null
+          ? acceptFailure(state, 0, result.error)
+          : acceptPage(state, 0, result.items, result.total, (item) => item.id),
+      );
+      done();
+    });
+    void loadGuestStaysRef.current(0).then((result) => {
+      setStays((state) =>
+        result.error !== null
+          ? acceptFailure(state, 0, result.error)
+          : acceptPage(state, 0, result.items, result.total, (item) => item.id),
+      );
+      done();
+    });
   }, []);
 
   useFocusEffect(load);
@@ -194,14 +226,56 @@ export default function PermissionsScreen() {
   const openForm = (kind: PermissionKind) => {
     router.push({ pathname: "/permission", params: { kind } });
   };
+  const permissionRows = permissions.rows ?? [];
+  const stayRows = stays.rows ?? [];
   const shownPermissions =
-    tab === "guest" || items === null
-      ? []
-      : soonestFirst(items.filter((item) => item.permissionType === tab));
+    tab === "guest" ? [] : soonestFirst(permissionRows.filter((item) => item.permissionType === tab));
   const shownStays =
-    tab !== "guest" || stays === null
-      ? []
-      : [...stays].sort((left, right) => left.startDate.localeCompare(right.startDate));
+    tab !== "guest" ? [] : [...stayRows].sort((left, right) => left.startDate.localeCompare(right.startDate));
+  const active = tab === "guest" ? stays : permissions;
+  const loadedCount = tab === "guest" ? stayRows.length : permissionRows.length;
+  const waiting = active.rows === null && active.error === null;
+  const firstFailure = active.error !== null && loadedCount === 0;
+  const emptyCopy =
+    tab === "guest" ? "No guest stays" : tab === "home_going" ? "No home-going requests" : "No late-night requests";
+  const emptyAction = tab === "guest" ? "Request guest stay" : tab === "home_going" ? "Request home going" : "Request late-night";
+
+  const more = (force = false) => {
+    if (pagingRef.current) {
+      return;
+    }
+    const offset = loadedCount;
+    if (!force && !shouldRequestNext(offset, active.total, false, active.pageError !== null)) {
+      return;
+    }
+    if (force && offset >= active.total) {
+      return;
+    }
+    pagingRef.current = true;
+    setPaging(true);
+    const finish = (result: { error: string } | { error: null; items: HallPermission[] | GuestStayCard[]; total: number }) => {
+      pagingRef.current = false;
+      setPaging(false);
+      if (tab === "guest") {
+        setStays((state) =>
+          result.error !== null
+            ? acceptFailure(state, offset, result.error)
+            : acceptPage(state, offset, result.items as GuestStayCard[], result.total, (item) => item.id),
+        );
+        return;
+      }
+      setPermissions((state) =>
+        result.error !== null
+          ? acceptFailure(state, offset, result.error)
+          : acceptPage(state, offset, result.items as HallPermission[], result.total, (item) => item.id),
+      );
+    };
+    if (tab === "guest") {
+      void loadGuestStaysRef.current(offset).then(finish);
+      return;
+    }
+    void loadPermissionsRef.current(offset).then(finish);
+  };
 
   return (
     <ScrollView
@@ -211,6 +285,14 @@ export default function PermissionsScreen() {
         { paddingTop: insets.top + 28, paddingBottom: insets.bottom + 28 },
       ]}
       showsVerticalScrollIndicator={false}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.inkFaint} />}
+      scrollEventThrottle={200}
+      onScroll={(event) => {
+        const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+        if (contentSize.height - (contentOffset.y + layoutMeasurement.height) < 280) {
+          more();
+        }
+      }}
     >
       <Text style={[text.hallName, styles.title, { color: colors.ink }]}>Permissions</Text>
       <View style={styles.rows}>
@@ -262,12 +344,11 @@ export default function PermissionsScreen() {
           );
         })}
       </View>
-      {tab !== "guest" && failed ? (
-        <Text accessibilityLiveRegion="polite" style={[text.error, { color: colors.danger }]}>Permissions didn't load</Text>
+      {waiting ? <SkeletonRows count={3} kind="card" /> : null}
+      {firstFailure ? (
+        <ListError message={active.error ?? "This list didn't load"} onRetry={load} />
       ) : null}
-      {tab === "guest" && staysFailed ? (
-        <Text accessibilityLiveRegion="polite" style={[text.error, { color: colors.danger }]}>Guest stays didn't load</Text>
-      ) : null}
+      {active.error && loadedCount > 0 ? <ListError message={active.error} onRetry={refresh} /> : null}
       {shownPermissions.length > 0 || shownStays.length > 0 ? (
         <View style={[styles.requests, { borderTopColor: colors.line }]}>
           <Text style={[text.button, { color: colors.ink }]}>Your requests</Text>
@@ -280,6 +361,23 @@ export default function PermissionsScreen() {
             ))}
           </View>
         </View>
+      ) : null}
+      {!waiting && !firstFailure && shownPermissions.length === 0 && shownStays.length === 0 && !shouldRequestNext(loadedCount, active.total, paging, active.pageError !== null) ? (
+        <EmptyState
+          message={emptyCopy}
+          actionLabel={emptyAction}
+          onAction={() => {
+            if (tab === "guest") {
+              router.push("/guest");
+              return;
+            }
+            openForm(tab);
+          }}
+        />
+      ) : null}
+      {paging ? <SkeletonRows count={1} kind="card" /> : null}
+      {active.pageError ? (
+        <RetryRow message={active.pageError} onRetry={() => more(true)} />
       ) : null}
     </ScrollView>
   );

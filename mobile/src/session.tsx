@@ -149,8 +149,8 @@ export type GuestStayCreate = {
 };
 
 export type GuestListResult =
-  | { error: string; items?: undefined }
-  | { error: null; items: GuestStayCard[] };
+  | { error: string; items?: undefined; total?: undefined }
+  | { error: null; items: GuestStayCard[]; total: number };
 
 export type GuestResult =
   | { error: string; stay?: undefined }
@@ -201,8 +201,8 @@ export type HallPermission = {
 };
 
 export type PermissionListResult =
-  | { error: string; items?: undefined }
-  | { error: null; items: HallPermission[] };
+  | { error: string; items?: undefined; total?: undefined }
+  | { error: null; items: HallPermission[]; total: number };
 
 export type PermissionResult =
   | { error: string; permission?: undefined }
@@ -280,7 +280,7 @@ type SessionValue = {
   planOuting: (body: PlanOutingBody) => Promise<string | null>;
   updateOuting: (outingId: string, body: PlanOutingBody) => Promise<string | null>;
   cancelOuting: (outingId: string) => Promise<HallFailure | null>;
-  loadPermissions: () => Promise<PermissionListResult>;
+  loadPermissions: (offset?: number) => Promise<PermissionListResult>;
   loadPermission: (permissionId: string) => Promise<PermissionResult>;
   submitPermission: (body: PermissionCreate) => Promise<string | null>;
   updatePermission: (permissionId: string, body: PermissionCreate) => Promise<string | null>;
@@ -292,7 +292,7 @@ type SessionValue = {
     to?: string | null;
     cursor?: string | null;
   }) => Promise<HistoryResult>;
-  loadGuestStays: () => Promise<GuestListResult>;
+  loadGuestStays: (offset?: number) => Promise<GuestListResult>;
   loadGuestStay: (guestStayId: string) => Promise<GuestResult>;
   submitGuestStay: (body: GuestStayCreate) => Promise<string | null>;
   updateGuestStay: (guestStayId: string, body: GuestStayCreate) => Promise<string | null>;
@@ -631,6 +631,13 @@ function readGuestCard(item: Record<string, unknown>): GuestStayCard | null {
     paymentStatus: item.payment_status,
     bucket: item.bucket,
   };
+}
+
+function readTotal(value: unknown): number | null {
+  if (!isRecord(value) || typeof value.total !== "number" || !Number.isInteger(value.total) || value.total < 0) {
+    return null;
+  }
+  return value.total;
 }
 
 function readGuestPage(value: unknown): GuestStayCard[] | null {
@@ -1214,20 +1221,22 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const loadGuestStays = useCallback(async (): Promise<GuestListResult> => {
+  const loadGuestStays = useCallback(async (offset = 0): Promise<GuestListResult> => {
     if (!sessionRef.current) {
       return { error: "Sign in again" };
     }
     try {
-      const response = await authorized("/api/v1/me/guest-stays?limit=50", { method: "GET" });
+      const response = await authorized(`/api/v1/me/guest-stays?limit=50&offset=${offset}`, { method: "GET" });
       if (!response.ok) {
         return { error: await errorMessage(response) };
       }
-      const items = readGuestPage(await response.json());
-      if (!items) {
+      const body: unknown = await response.json();
+      const items = readGuestPage(body);
+      const total = readTotal(body);
+      if (!items || total === null) {
         return { error: "The hall could not be reached" };
       }
-      return { error: null, items };
+      return { error: null, items, total };
     } catch {
       return { error: "The hall could not be reached" };
     }
@@ -1396,21 +1405,25 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const loadPermissions = useCallback(async (): Promise<PermissionListResult> => {
+  const loadPermissions = useCallback(async (offset = 0): Promise<PermissionListResult> => {
     if (!sessionRef.current) {
       return { error: "Sign in again" };
     }
     try {
-      await authorized("/api/v1/me/expire-passed", { method: "POST" });
-      const response = await authorized("/api/v1/me/permissions?limit=500", { method: "GET" });
+      if (offset === 0) {
+        await authorized("/api/v1/me/expire-passed", { method: "POST" });
+      }
+      const response = await authorized(`/api/v1/me/permissions?limit=50&offset=${offset}`, { method: "GET" });
       if (!response.ok) {
         return { error: await errorMessage(response) };
       }
-      const items = readPermissionPage(await response.json());
-      if (!items) {
+      const body: unknown = await response.json();
+      const items = readPermissionPage(body);
+      const total = readTotal(body);
+      if (!items || total === null) {
         return { error: "The hall could not be reached" };
       }
-      return { error: null, items };
+      return { error: null, items, total };
     } catch {
       return { error: "The hall could not be reached" };
     }
