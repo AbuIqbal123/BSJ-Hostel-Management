@@ -2,8 +2,8 @@
 
 Drives the real app on an iOS simulator with [TesterArmy e2e](https://e2e.tester.army/docs) (Apache-2.0). It sits beside the API smoke checks and doesn't replace them. Only macOS can run it.
 
-- `tests/resident.e2e.ts`: sign in, Home, Pass, Permissions, plan an ordinary outing, Settings, change password.
-- `tests/staff.e2e.ts`: warden Home, Out now, Requests; gate Scan by pass code.
+- `tests/resident.e2e.ts`: sign in, Home, Pass, Permissions, plan an ordinary outing, Settings, change password, a History list that pages, a History failure that retries, and Guest stays (upcoming, then Show older).
+- `tests/staff.e2e.ts`: warden Home, Out now (Ordinary, Permission, and Late), Requests; gate Scan by pass code.
 - The runner starts `scripts/serve-api.sh`, a throwaway API on `127.0.0.1:8010` with a fresh SQLite hall, the dev accounts and mock SMS. Passwords are read from its seed output at fill time, never from the repo or the environment.
 - Every step is a plain locator except one, tagged `agent`: the iOS date and time pickers in "plan an ordinary outing". That step uses your SuperGrok login or a local Ollama model, never an API key. Once it passes, it's recorded in `.e2e/cache/` and replays with no model call. Commit the cache.
 - No hosted devices (Limrun, EAS, Kernel). Telemetry is off.
