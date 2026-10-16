@@ -28,6 +28,7 @@ export default function StaffLayout() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="out" />
       <Stack.Screen name="notifications" />
+      <Stack.Screen name="office" />
     </Stack>
   );
 }
