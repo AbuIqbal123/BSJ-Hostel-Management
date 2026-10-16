@@ -137,6 +137,8 @@ Set `APP_SECRET_KEY` to at least 32 bytes. Keep `SMS_DRIVER=mock` unless `ENVIRO
 
 Seed local accounts from `backend/` with `.venv/bin/python -m app.dev_seed`. It runs only in development and refuses Render. Passwords come from `BSJ_SEED_PASSWORD` or a per-role `BSJ_SEED_PASSWORD_*` value, in the shell or in `backend/.env`. A missing one is generated and printed once. A password from settings is not printed. An account that already exists is left as it is. `--reset-passwords` sets the seed accounts again. Room B-204 is created for the sample resident. Passwords that once appeared in this repository are burned. Do not reuse them.
 
+Create the first provost, from `backend/`, with `.venv/bin/python scripts/create_provost.py --username provost --full-name "Hall Provost"`. The password is typed at a hidden prompt and typed again. Do not pass it as an argument. A second run leaves the existing provost password unchanged. A laptop writes the local file. To write the hosted hall, run it where `RENDER=true` and the Turso URL and token are already in the environment.
+
 Checks and lint, from `backend/`: `.venv/bin/pytest` and `.venv/bin/ruff check .`. A push to `dev`, and a pull request, runs both on GitHub, plus the phone typecheck and tests.
 
 Phone, from `mobile/`: `npx expo start`. Set `EXPO_PUBLIC_API_URL` when the phone should not use the default host.

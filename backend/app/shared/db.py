@@ -7,12 +7,17 @@ commit there cannot change the status line.
 
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
+import urllib.error
+import urllib.request
 from collections.abc import Iterator
+from http.client import HTTPException
 from typing import Any
 
 import turso_serverless
+from turso_serverless.session import ProtocolError
 from fastapi import Request
 
 from app.shared.config import Settings, get_settings, is_hosted
@@ -46,9 +51,49 @@ def _connect_turso(settings: Settings) -> Any:
             "TURSO_DATABASE_URL must be a Turso URL. Refusing to open a database file."
         )
     connection = turso_serverless.connect(url, auth_token=token)
+    _install_turso_timeout(connection, settings.turso_timeout_seconds)
     connection.row_factory = _named_row
     connection.execute("PRAGMA foreign_keys=ON;")
     return connection
+
+
+def _install_turso_timeout(connection: Any, seconds: float) -> None:
+    """The Turso client posts with urlopen and does not take a timeout."""
+    session = getattr(connection, "_session", None)
+    if session is None or not hasattr(session, "_post"):
+        return
+
+    def _post(path: str, body: dict) -> bytes:
+        url = f"{session._base_url}{path}"
+        data = json.dumps(body, allow_nan=False).encode("utf-8")
+        request = urllib.request.Request(url, data=data, headers=session._headers(), method="POST")
+        try:
+            with urllib.request.urlopen(request, timeout=seconds) as response:
+                return response.read()
+        except urllib.error.HTTPError as exc:
+            raw = exc.read().decode("utf-8", errors="replace")
+            session._reset_stream()
+            message = None
+            try:
+                parsed = json.loads(raw)
+                if isinstance(parsed, dict):
+                    for key in ("error", "message"):
+                        if isinstance(parsed.get(key), str):
+                            message = parsed[key]
+                            break
+            except ValueError:
+                pass
+            if message is not None:
+                raise ProtocolError(f"HTTP status {exc.code}: {message}") from None
+            raise ProtocolError(f"HTTP status {exc.code}") from None
+        except urllib.error.URLError as exc:
+            session._reset_stream()
+            raise ProtocolError(f"request to {url} failed: {exc.reason}") from None
+        except (HTTPException, OSError, TimeoutError) as exc:
+            session._reset_stream()
+            raise ProtocolError(f"request to {url} failed: {exc!r}") from None
+
+    session._post = _post
 
 
 def create_connection() -> Any:

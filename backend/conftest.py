@@ -7,17 +7,24 @@ from pathlib import Path
 
 import pytest
 
-from app.shared.auth.rate_limit import login_limiter, options_limiter, refresh_limiter
+from app.shared.auth.rate_limit import (
+    login_limiter,
+    options_limiter,
+    refresh_limiter,
+    username_login_limiter,
+)
 from app.shared.testing_env import signing_key_for_tests
 
 
 @pytest.fixture(autouse=True)
 def _reset_auth_rate_limiters() -> None:
     login_limiter.reset()
+    username_login_limiter.reset()
     options_limiter.reset()
     refresh_limiter.reset()
     yield
     login_limiter.reset()
+    username_login_limiter.reset()
     options_limiter.reset()
     refresh_limiter.reset()
 

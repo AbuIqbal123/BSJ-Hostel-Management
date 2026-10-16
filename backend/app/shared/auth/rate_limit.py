@@ -41,6 +41,9 @@ class AttemptLimiter:
 
 
 login_limiter = AttemptLimiter(limit=LOGIN_LIMIT, window_seconds=WINDOW_SECONDS)
+# One bucket per username, checked before the account lookup, so a missing
+# name and a real name share the same generic refusal.
+username_login_limiter = AttemptLimiter(limit=LOGIN_LIMIT, window_seconds=WINDOW_SECONDS)
 refresh_limiter = AttemptLimiter(limit=REFRESH_LIMIT, window_seconds=WINDOW_SECONDS)
 # Opening signup reads the room list. It must not spend the sign-in budget.
 options_limiter = AttemptLimiter(limit=OPTIONS_LIMIT, window_seconds=WINDOW_SECONDS)
@@ -48,3 +51,8 @@ options_limiter = AttemptLimiter(limit=OPTIONS_LIMIT, window_seconds=WINDOW_SECO
 
 def client_key(request_client_host: str | None) -> str:
     return request_client_host or "unknown"
+
+
+def username_key(username: str) -> str:
+    folded = username.casefold().strip()
+    return folded or "blank"

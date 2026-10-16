@@ -15,9 +15,14 @@ class Settings(BaseSettings):
     )
 
     environment: str = "development"
+    debug: bool = False
+    # None means on in development and off in production. Set DOCS_ENABLED to override.
+    docs_enabled: bool | None = None
+    cors_origins: str = ""
     database_path: Path = BACKEND_ROOT / "data" / "hostel.db"
     turso_database_url: str = ""
     turso_auth_token: str = ""
+    turso_timeout_seconds: float = 5
     payment_evidence_dir: Path = BACKEND_ROOT / "data" / "payment-evidence"
     sqlite_busy_timeout_ms: int = 5000
     sms_driver: str = "mock"
@@ -63,6 +68,43 @@ class Settings(BaseSettings):
                 "meets the recommended key length. Refusing to start."
             )
 
+    def reject_unsafe_hosting(self) -> None:
+        """Production and Render refuse a debug process, a wildcard, a known key, or a file database."""
+        if self.turso_timeout_seconds <= 0:
+            raise RuntimeError("TURSO_TIMEOUT_SECONDS must be greater than zero. Refusing to start.")
+        hosted = is_hosted()
+        if self.environment != "production" and not hosted:
+            return
+        reasons: list[str] = []
+        if self.debug:
+            reasons.append("DEBUG is on")
+        origins = [part.strip() for part in self.cors_origins.split(",") if part.strip()]
+        if "*" in origins:
+            reasons.append("CORS_ORIGINS contains a wildcard")
+        if self.app_secret_key.strip() in _DEFAULT_SECRETS:
+            reasons.append("APP_SECRET_KEY is a default value")
+        if hosted and os.environ.get("DATABASE_PATH", "").strip():
+            reasons.append("DATABASE_PATH is set and the hosted hall keeps records on Turso")
+        if hosted:
+            url = self.turso_database_url.strip().lower()
+            if url.startswith(("file:", "sqlite:")):
+                reasons.append(
+                    "TURSO_DATABASE_URL is a file URL. Refusing to open a database file"
+                )
+        if reasons:
+            raise RuntimeError("Refusing to start. " + ". ".join(reasons) + ".")
+
+
+_DEFAULT_SECRETS = frozenset(
+    {
+        "changeme",
+        "change-me",
+        "secret",
+        "password",
+        "hall-test-signing-key-0123456789abcdef",
+    }
+)
+
 
 def is_hosted() -> bool:
     """Render sets RENDER=true. Every other process uses the local SQLite file."""
@@ -72,7 +114,10 @@ def is_hosted() -> bool:
 @lru_cache
 def get_settings() -> Settings:
     settings = Settings()
+    if settings.docs_enabled is None:
+        settings.docs_enabled = settings.environment != "production"
     settings.reject_unsafe_sms()
     settings.reject_unsafe_push()
     settings.reject_missing_secret()
+    settings.reject_unsafe_hosting()
     return settings

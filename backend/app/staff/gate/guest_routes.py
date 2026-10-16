@@ -37,6 +37,9 @@ class GateGuestCard(BaseModel):
 class GateGuestList(BaseModel):
     model_config = ConfigDict(extra="forbid")
     items: list[GateGuestCard]
+    total: int
+    limit: int
+    offset: int
 
 
 class GateOccupancy(BaseModel):
@@ -65,6 +68,11 @@ class GuestDepartureResult(BaseModel):
     recorded_by: str
     departure_time: str
     message: str
+
+
+def _search_pattern(raw: str) -> str:
+    escaped = raw.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"
 
 
 def guests_in_hall_count(connection: sqlite3.Connection) -> int:
@@ -134,6 +142,9 @@ def gate_guests(
     connection: ConnectionDep,
     bucket: Annotated[GateGuestBucket, Query()],
     payment_status: Annotated[Literal["paid", "unpaid"] | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=50)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    q: Annotated[str | None, Query(max_length=80)] = None,
 ) -> GateGuestList:
     today = clock.hall_local_date(clock.utc_now())
     clauses = ["guest_stays.status = 'approved'"]
@@ -153,6 +164,27 @@ def gate_guests(
     if payment_status is not None:
         clauses.append("guest_stays.payment_status = ?")
         params.append(payment_status)
+    term = (q or "").strip()
+    if term:
+        clauses.append(
+            """(
+              guest_stays.guest_name LIKE ? ESCAPE '\\'
+              OR host.full_name LIKE ? ESCAPE '\\'
+              OR rooms.label LIKE ? ESCAPE '\\'
+            )"""
+        )
+        pattern = _search_pattern(term)
+        params.extend([pattern, pattern, pattern])
+    where = " AND ".join(clauses)
+    from_sql = """
+        FROM guest_stays
+        JOIN users AS host ON host.id = guest_stays.host_resident_id
+        JOIN residents ON residents.user_id = guest_stays.host_resident_id
+        JOIN rooms ON rooms.id = residents.room_id
+    """
+    total = int(
+        connection.execute(f"SELECT COUNT(*) AS n {from_sql} WHERE {where}", params).fetchone()["n"]
+    )
     rows = connection.execute(
         f"""
         SELECT
@@ -166,14 +198,12 @@ def gate_guests(
           guest_stays.departed_at,
           host.full_name AS host_name,
           rooms.label AS host_room_label
-        FROM guest_stays
-        JOIN users AS host ON host.id = guest_stays.host_resident_id
-        JOIN residents ON residents.user_id = guest_stays.host_resident_id
-        JOIN rooms ON rooms.id = residents.room_id
-        WHERE {' AND '.join(clauses)}
+        {from_sql}
+        WHERE {where}
         ORDER BY guest_stays.guest_start_date, guest_stays.guest_name, guest_stays.id
+        LIMIT ? OFFSET ?
         """,
-        params,
+        [*params, limit, offset],
     ).fetchall()
     items: list[GateGuestCard] = []
     for row in rows:
@@ -201,7 +231,7 @@ def gate_guests(
                 bucket=card_bucket,
             )
         )
-    return GateGuestList(items=items)
+    return GateGuestList(items=items, total=total, limit=limit, offset=offset)
 
 
 @router.post("/guests/{guest_stay_id}/arrival", response_model=GuestArrivalResult)

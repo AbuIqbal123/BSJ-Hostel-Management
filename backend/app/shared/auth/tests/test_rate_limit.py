@@ -10,7 +10,7 @@ from argon2 import PasswordHasher
 from fastapi.testclient import TestClient
 
 from app.shared.testing_env import role_credential
-from app.shared.auth.rate_limit import login_limiter, refresh_limiter
+from app.shared.auth.rate_limit import login_limiter, refresh_limiter, username_login_limiter
 from app.shared.auth.tests.test_session import assert_error
 
 GATE_ID = "a11ce000-0000-4000-8000-000000000001"
@@ -137,3 +137,51 @@ def test_login_and_refresh_rate_limit(database_path: Path, monkeypatch: pytest.M
             "rate_limited",
             "Too many attempts. Try again shortly.",
         )
+
+
+def test_login_is_limited_per_username(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(login_limiter, "limit", 100)
+    monkeypatch.setattr(username_login_limiter, "limit", 2)
+    from app.main import app
+
+    with TestClient(app) as client:
+        assert client.get("/health").json() == {"status": "ok"}
+        issue_gate(database_path)
+        message = "Too many attempts. Try again shortly."
+        for username in ("gate.fatima", "GATE.FATIMA"):
+            refused = client.post(
+                "/api/v1/auth/login",
+                json=_login_body(username, role_credential("wrong")),
+            )
+            assert_error(refused, 401, "unauthenticated", "Username or password is wrong.")
+        blocked = client.post(
+            "/api/v1/auth/login",
+            json=_login_body("gate.fatima", role_credential("gate")),
+        )
+        assert_error(blocked, 429, "rate_limited", message)
+        assert "gate.fatima" not in blocked.text
+        assert "GATE.FATIMA" not in blocked.text
+
+        missing = client.post(
+            "/api/v1/auth/login",
+            json=_login_body("no.such.person", role_credential("wrong")),
+        )
+        assert missing.status_code == 401
+        again = client.post(
+            "/api/v1/auth/login",
+            json=_login_body("no.such.person", role_credential("wrong")),
+        )
+        assert again.status_code == 401
+        hidden = client.post(
+            "/api/v1/auth/login",
+            json=_login_body("no.such.person", role_credential("wrong")),
+        )
+        assert_error(hidden, 429, "rate_limited", message)
+        assert hidden.json()["error"]["message"] == blocked.json()["error"]["message"]
+        assert "no.such.person" not in hidden.text
+
+        other = client.post(
+            "/api/v1/auth/login",
+            json=_login_body("someone.else", role_credential("wrong")),
+        )
+        assert other.status_code == 401
