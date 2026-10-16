@@ -15,6 +15,16 @@ describe('staff', { tags: ['staff'] }, () => {
 
     await screen.getByRole('button', /Out now/).tap();
     await expect(screen.getByText('Out now')).toBeVisible();
+    // Each tab's name includes its count, and the runner does not treat it as a button.
+    await screen.getByText(/^Ordinary/).tap();
+    await expect(screen.getByText('No one is out')).toBeVisible();
+    await screen.getByText(/^Permission/).tap();
+    await expect(screen.getByText('No one is out')).toBeVisible();
+    await screen.getByText(/^Late/).tap();
+    await expect(screen.getByRole('button', 'Still out')).toBeVisible();
+    await expect(screen.getByText('No one is late')).toBeVisible();
+    await screen.getByRole('button', 'Came back late').tap();
+    await expect(screen.getByText('No late returns')).toBeVisible();
     await screen.getByRole('button', 'Back').tap();
 
     await tab(screen, 'requests').tap();
@@ -29,9 +39,15 @@ describe('staff', { tags: ['staff'] }, () => {
     await expect(tab(screen, 'requests')).toHaveCount(0);
 
     await tab(screen, 'scan').tap();
-    await screen.getByTestId('scan-code').fill(RESIDENT_PASS);
-    await screen.getByRole('button', 'Record').tap();
-    // A fresh hall has no planned outing, so the gate sees who it is and why nothing was recorded.
-    await expect(screen.getByText(/Aisha Khan|no planned outing/)).toBeVisible({ timeout: 15_000 });
+    const code = screen.getByTestId('scan-code');
+    await code.fill(RESIDENT_PASS);
+    // Record sits under the keyboard. Enter is the field's return key and submits the same code.
+    await code.press('Enter');
+    // A fresh hall has no planned outing. A planned one is not open until thirty minutes before.
+    // The card's spoken label repeats both lines, so each line is matched on its own.
+    await expect(screen.getByText('Aisha Khan')).toBeVisible({ timeout: 15_000 });
+    await expect(
+      screen.getByText(/There is no planned outing|30 minutes before its start/),
+    ).toBeVisible();
   });
 });

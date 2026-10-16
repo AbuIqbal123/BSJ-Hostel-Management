@@ -19,7 +19,8 @@ export default {
         // with EXPO_PUBLIC_API_URL pointing at the scratch API below.
         bundleId: 'com.abuiqbal.bsjhall',
         // No camera on a simulator: the Scan tab falls back to typing the pass code.
-        permissions: { camera: 'deny', notifications: 'deny' },
+        // This Xcode runtime cannot set notifications through simctl privacy.
+        permissions: { camera: 'deny' },
         command: { executable: 'bash', args: ['scripts/serve-api.sh'] },
         readyUrl: `http://127.0.0.1:${apiPort}/health`,
       },
