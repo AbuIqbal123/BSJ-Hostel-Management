@@ -272,7 +272,7 @@ class ForwardedClient:
         await self.asgi_app(scope, receive, send)  # type: ignore[misc]
 
 
-_DOC_PATHS = {"/docs", "/docs/", "/redoc", "/redoc/", "/openapi.json", "/docs/oauth2-redirect"}
+_DOC_PATHS = DOCUMENTATION_PATHS | {"/docs/", "/redoc/"}
 
 
 class DocsGate:
