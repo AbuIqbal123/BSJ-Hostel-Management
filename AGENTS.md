@@ -106,3 +106,9 @@ When a mistake repeats, fix it so it cannot happen, then add a row here. Drop th
 |---|---|
 | Catch database integrity errors with `INTEGRITY_ERRORS` from `app.shared.db`, never `sqlite3.IntegrityError` (Turso raises a different class) | `ruff check` rule TID251 in `backend/ruff.toml`; `backend/tests/test_integrity_errors.py` |
 | No unused imports, locals or undefined names | `ruff check` (F rules) |
+| Catch other database errors with `DB_ERRORS` from `app.shared.db`, never `sqlite3.OperationalError` or `sqlite3.DatabaseError` | `ruff check` rule TID251 in `backend/ruff.toml` |
+| Read the time from `app.shared.clock`, never `datetime.now()` or `date.today()` | `ruff check` rule TID251 in `backend/ruff.toml` |
+| No blind `except Exception` and no `try`/`except`/`pass` | `ruff check` rules BLE001, S110, and SIM105 |
+| Every route depends on the signed-in account unless it is on the public list | `backend/app/shared/auth/tests/test_route_auth.py` |
+| Every test file has a `docs/tests/tests.md` entry and the stated count matches, `docs/api/api.md` matches `backend/openapi.yaml`, and every OpenAPI path is in Postman | `backend/scripts/check_docs.py`, run by CI |
+| On the phone, no silent catch outside `src/safe.ts` and no `new Date()` outside `src/format-when.ts` (use `hallNow()`) | `npm run lint` warnings from `mobile/eslint.config.mjs` |

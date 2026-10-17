@@ -27,7 +27,7 @@ flowchart TB
   warden --> phone
   provost --> phone
   provost --> browser
-  phone -->|"sign-in, home, outings, permissions, guests, hall pass, history, inbox, scan, register"| api
+  phone -->|"sign-in, home, outings, permissions, guests, hall pass, history, inbox, scan, register, guest payments, hall office"| api
   browser -->|"Swagger, register, gate, hall office"| api
   api -->|"Turso when hosted, SQLite file on a laptop, receipt bytes included"| records
   api -->|"mock driver, no phone network"| sms
@@ -141,7 +141,7 @@ Create the first provost, from `backend/`, with `.venv/bin/python scripts/create
 
 On a laptop, `.venv/bin/python scripts/create_provost.py --dev-defaults` creates the test provost `provost123` with password `provost123`. The command refuses when `ENVIRONMENT` is `production` or when the database is a Turso URL (`RENDER=true`). It does not change a provost that already exists, and it does not print the password. The hidden prompt is still how a real account is created, and that prompt does not accept `provost123`.
 
-Checks and lint, from `backend/`: `.venv/bin/pytest` and `.venv/bin/ruff check .`. A push to `dev`, and a pull request, runs both on GitHub, plus the phone typecheck and tests.
+Checks, lint, and the docs guard, from `backend/`: `.venv/bin/pytest`, `.venv/bin/ruff check .`, and `.venv/bin/python scripts/check_docs.py`. A push to `dev`, and a pull request, runs all three on GitHub, plus the phone typecheck, lint, tests, and `expo-doctor`, and a secret scan.
 
 Phone, from `mobile/`: `npx expo start`. Set `EXPO_PUBLIC_API_URL` when the phone should not use the default host.
 
