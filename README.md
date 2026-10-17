@@ -27,7 +27,7 @@ flowchart TB
   warden --> phone
   provost --> phone
   provost --> browser
-  phone -->|"sign-in, home, outings, permissions, guests, hall pass, history, inbox, scan, register"| api
+  phone -->|"sign-in, home, outings, permissions, guests, hall pass, history, inbox, scan, register, guest payments, hall office"| api
   browser -->|"Swagger, register, gate, hall office"| api
   api -->|"Turso when hosted, SQLite file on a laptop, receipt bytes included"| records
   api -->|"mock driver, no phone network"| sms
