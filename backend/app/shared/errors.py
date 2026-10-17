@@ -24,22 +24,6 @@ from app.shared.auth.password_rules import (
 from app.shared.request_context import current_request_id
 
 
-def request_id_for(request: Request) -> str:
-    value = getattr(request.state, "request_id", "")
-    if isinstance(value, str) and value:
-        return value
-    return current_request_id()
-
-
-def json_error(status_code: int, code: str, message: str, **kwargs: Any) -> JSONResponse:
-    request_id = kwargs.pop("request_id")
-    response = JSONResponse(
-        status_code=status_code,
-        content=error_content(code, message, request_id=request_id, **kwargs),
-    )
-    response.headers["X-Request-ID"] = request_id
-    return response
-
 log = logging.getLogger("bsj.http")
 
 NOT_FOUND = "Not found."
@@ -81,6 +65,30 @@ def error_content(
     elif field is not None:
         error["details"] = {"field": field}
     return {"detail": message, "error": error}
+
+
+def request_id_for(request: Request) -> str:
+    value = getattr(request.state, "request_id", "")
+    if isinstance(value, str) and value:
+        return value
+    return current_request_id()
+
+
+def json_error(
+    status_code: int,
+    code: str,
+    message: str,
+    *,
+    request_id: str,
+    field: str | None = None,
+    details: dict[str, Any] | None = None,
+) -> JSONResponse:
+    response = JSONResponse(
+        status_code=status_code,
+        content=error_content(code, message, field, details, request_id=request_id),
+    )
+    response.headers["X-Request-ID"] = request_id
+    return response
 
 
 def api_error_handler(request: Request, exc: ApiError) -> JSONResponse:
