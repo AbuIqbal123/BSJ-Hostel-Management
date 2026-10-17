@@ -6,7 +6,6 @@ import { Platform } from "react-native";
 import { endingReminderAt } from "@/reminder";
 import { ignore } from "@/safe";
 
-export { endingReminderAt, responseKey } from "@/reminder";
 export { pushTarget, type PushData } from "@/push-target";
 
 /** Push and local notifications only exist on a real phone build, never on web. */
