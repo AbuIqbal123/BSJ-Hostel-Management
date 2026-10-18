@@ -26,11 +26,15 @@ class AttemptLimiter:
         with self._lock:
             self._hits.clear()
 
+    def _recent(self, key: str, now: float) -> list[float]:
+        return [stamp for stamp in self._hits.get(key, []) if now - stamp < self.window_seconds]
+
     def check(self, key: str) -> None:
         now = time.monotonic()
         with self._lock:
-            recent = [stamp for stamp in self._hits.get(key, []) if now - stamp < self.window_seconds]
+            recent = self._recent(key, now)
             if len(recent) >= self.limit:
+                self._hits[key] = recent
                 raise ApiError(
                     429,
                     "rate_limited",
@@ -39,10 +43,29 @@ class AttemptLimiter:
             recent.append(now)
             self._hits[key] = recent
 
+    def blocked(self, key: str) -> bool:
+        """True when this key is already at the limit. Does not record a hit."""
+        now = time.monotonic()
+        with self._lock:
+            recent = self._recent(key, now)
+            if recent:
+                self._hits[key] = recent
+            else:
+                self._hits.pop(key, None)
+            return len(recent) >= self.limit
+
+    def record(self, key: str) -> None:
+        """Record one hit. The caller already decided this attempt failed."""
+        now = time.monotonic()
+        with self._lock:
+            recent = self._recent(key, now)
+            recent.append(now)
+            self._hits[key] = recent
+
 
 login_limiter = AttemptLimiter(limit=LOGIN_LIMIT, window_seconds=WINDOW_SECONDS)
-# One bucket per username, checked before the account lookup, so a missing
-# name and a real name share the same generic refusal.
+# Failed passwords only. A correct password does not spend this budget, so
+# one address cannot lock a warden out before the failure threshold.
 username_login_limiter = AttemptLimiter(limit=LOGIN_LIMIT, window_seconds=WINDOW_SECONDS)
 refresh_limiter = AttemptLimiter(limit=REFRESH_LIMIT, window_seconds=WINDOW_SECONDS)
 # Opening signup reads the room list. It must not spend the sign-in budget.

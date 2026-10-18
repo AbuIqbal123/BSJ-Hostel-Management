@@ -8,6 +8,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict
 
 from app.shared.audit import record_audit
+from app.shared.like import like_contains
 
 GuestStatus = Literal["pending", "approved", "rejected", "cancelled", "departed"]
 PaymentStatus = Literal["unpaid", "paid"]
@@ -229,10 +230,11 @@ def _list_filter_sql(
         clauses.append("guest_stays.status NOT IN ('cancelled', 'rejected')")
     if q:
         clauses.append(
-            "(lower(guest_stays.guest_name) LIKE ? OR lower(host.full_name) LIKE ?"
-            " OR lower(rooms.label) LIKE ?)"
+            "(lower(guest_stays.guest_name) LIKE ? ESCAPE '\\'"
+            " OR lower(host.full_name) LIKE ? ESCAPE '\\'"
+            " OR lower(rooms.label) LIKE ? ESCAPE '\\')"
         )
-        pattern = f"%{q.strip().lower()}%"
+        pattern = like_contains(q.strip().lower())
         params.extend([pattern, pattern, pattern])
     if block_id is not None:
         clauses.append("rooms.block_id = ?")

@@ -224,7 +224,9 @@ def _start_session(connection: sqlite3.Connection, account: Account, now: dateti
 @router.post("/login")
 def login(body: LoginRequest, request: Request, connection: ConnectionDep) -> TokenResponse:
     login_limiter.check(client_key(request.client.host if request.client else None))
-    username_login_limiter.check(username_key(body.username))
+    name = username_key(body.username)
+    if username_login_limiter.blocked(name):
+        raise ApiError(429, "rate_limited", "Too many attempts. Try again shortly.")
     row = connection.execute(
         """
         SELECT id
@@ -235,9 +237,11 @@ def login(body: LoginRequest, request: Request, connection: ConnectionDep) -> To
     ).fetchone()
     if row is None:
         consume_unknown_password(body.password)
+        username_login_limiter.record(name)
         raise ApiError(401, "unauthenticated", _BAD_CREDENTIALS)
     account = _load_account(connection, row["id"])
     if not password_matches(account.password_hash, body.password):
+        username_login_limiter.record(name)
         raise ApiError(401, "unauthenticated", _BAD_CREDENTIALS)
     if account.status != "active":
         raise ApiError(
@@ -513,30 +517,42 @@ def onboard_options(request: Request, connection: ConnectionDep) -> list[Onboard
         """,
         RESIDENT_BLOCK_CODES,
     ).fetchall()
-    blocks: list[OnboardBlockOption] = []
-    for block in block_rows:
+    # One occupancy read for every room. A query per room would be a Turso
+    # round trip each, on a public endpoint.
+    block_ids = [block["id"] for block in block_rows]
+    room_rows = []
+    if block_ids:
+        room_placeholders = ", ".join("?" for _ in block_ids)
         room_rows = connection.execute(
-            """
-            SELECT rooms.id AS room_id, rooms.label AS room_label
+            f"""
+            SELECT
+              rooms.block_id AS block_id,
+              rooms.id AS room_id,
+              rooms.label AS room_label,
+              rooms.bed_count AS beds,
+              COUNT(residents.user_id) AS taken
             FROM rooms
-            WHERE rooms.block_id = ?
-              AND rooms.is_active = 1
-            ORDER BY CAST(rooms.number AS INTEGER), rooms.number
+            LEFT JOIN residents ON residents.room_id = rooms.id
+            WHERE rooms.is_active = 1
+              AND rooms.block_id IN ({room_placeholders})
+            GROUP BY rooms.block_id, rooms.id, rooms.label, rooms.bed_count, rooms.number
+            ORDER BY rooms.block_id, CAST(rooms.number AS INTEGER), rooms.number
             """,
-            (block["id"],),
+            block_ids,
         ).fetchall()
-        # Same check as signup. A 2-bed room with one resident still has a bed.
-        open_rooms = [
-            row for row in room_rows if room_has_capacity(connection, row["room_id"])
-        ]
-        blocks.append(
-            OnboardBlockOption(
-                id=block["id"],
-                name=block["name"],
-                rooms=[
-                    OnboardRoomOption(id=row["room_id"], label=row["room_label"])
-                    for row in open_rooms
-                ],
-            )
+    # Same check as signup. A 2-bed room with one resident still has a bed.
+    open_by_block: dict[str, list[OnboardRoomOption]] = {}
+    for row in room_rows:
+        if int(row["taken"]) >= int(row["beds"]):
+            continue
+        open_by_block.setdefault(row["block_id"], []).append(
+            OnboardRoomOption(id=row["room_id"], label=row["room_label"])
         )
-    return blocks
+    return [
+        OnboardBlockOption(
+            id=block["id"],
+            name=block["name"],
+            rooms=open_by_block.get(block["id"], []),
+        )
+        for block in block_rows
+    ]

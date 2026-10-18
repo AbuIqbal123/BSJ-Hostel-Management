@@ -483,6 +483,118 @@ def test_evidence_bytes_round_trip_and_limits(
     assert "guest_stay_payment_evidence" not in Path(guest_routes.__file__).read_text(encoding="utf-8")
 
 
+def _http_scope(path: str, headers: list[tuple[bytes, bytes]]) -> dict:
+    return {
+        "type": "http",
+        "asgi": {"version": "3.0", "spec_version": "2.3"},
+        "http_version": "1.1",
+        "method": "POST",
+        "scheme": "http",
+        "path": path,
+        "raw_path": path.encode(),
+        "query_string": b"",
+        "headers": headers,
+        "client": ("127.0.0.1", 12345),
+        "server": ("testserver", 80),
+    }
+
+
+def _response_status_and_body(messages: list[dict]) -> tuple[int, dict]:
+    start = next(message for message in messages if message["type"] == "http.response.start")
+    body = b"".join(
+        message.get("body", b"")
+        for message in messages
+        if message["type"] == "http.response.body"
+    )
+    return start["status"], json.loads(body)
+
+
+def test_oversize_receipt_stops_before_the_rest_of_the_body(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import anyio
+
+    from app.main import app
+    from app.residents.guests.payment_evidence import MAX_EVIDENCE_BYTES
+    from app.shared import clock
+    from app.shared.migrate import migrate
+
+    monkeypatch.setattr(clock, "utc_now", FrozenClock().utc_now)
+    migrate()
+    issue_people(database_path)
+    with TestClient(app) as client:
+        assert client.get("/health").status_code == 200
+        token = sign_in(client, "warden.sara", role_credential("warden"))
+
+    url = f"/api/v1/guest-stays/{UPCOMING}/payment/evidence"
+    auth_header = (b"authorization", f"Bearer {token}".encode())
+    reads = {"n": 0}
+
+    async def receive_nothing():
+        reads["n"] += 1
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    messages: list[dict] = []
+
+    async def send(message):
+        messages.append(message)
+
+    scope = _http_scope(
+        url,
+        [
+            (b"content-type", b"multipart/form-data; boundary=bound"),
+            (b"content-length", str(MAX_EVIDENCE_BYTES + 64 * 1024).encode()),
+            auth_header,
+        ],
+    )
+    anyio.run(app, scope, receive_nothing, send)
+    status, body = _response_status_and_body(messages)
+    assert status == 413
+    assert body["error"]["code"] == "payload_too_large"
+    assert body["error"]["message"] == "Evidence file must be at most 2 MiB."
+    assert body["error"]["details"] == {"field": "evidence"}
+    assert reads["n"] == 0
+
+    head = (
+        b"--bound\r\n"
+        b'Content-Disposition: form-data; name="evidence"; filename="big.jpg"\r\n'
+        b"Content-Type: image/jpeg\r\n\r\n"
+    )
+    chunk_size = 256 * 1024
+    payload = head + (b"\xff\xd8\xff" + (b"x" * (MAX_EVIDENCE_BYTES + chunk_size))) + b"\r\n--bound--\r\n"
+    pieces = [payload[index : index + chunk_size] for index in range(0, len(payload), chunk_size)]
+    assert len(pieces) > 3
+    cursor = {"i": 0}
+
+    async def receive_chunks():
+        index = cursor["i"]
+        cursor["i"] += 1
+        if index >= len(pieces):
+            return {"type": "http.request", "body": b"", "more_body": False}
+        return {
+            "type": "http.request",
+            "body": pieces[index],
+            "more_body": index + 1 < len(pieces),
+        }
+
+    streamed: list[dict] = []
+
+    async def send_stream(message):
+        streamed.append(message)
+
+    anyio.run(
+        app,
+        _http_scope(url, [(b"content-type", b"multipart/form-data; boundary=bound"), auth_header]),
+        receive_chunks,
+        send_stream,
+    )
+    status, body = _response_status_and_body(streamed)
+    assert status == 413
+    assert body["error"]["code"] == "payload_too_large"
+    assert body["error"]["message"] == "Evidence file must be at most 2 MiB."
+    assert cursor["i"] < len(pieces)
+
+
 def test_metadata_without_a_blob_is_not_a_file(
     database_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

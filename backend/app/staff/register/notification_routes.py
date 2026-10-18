@@ -8,6 +8,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Body, Query
 from pydantic import BaseModel, ConfigDict
 
+from app.shared.like import like_contains
 from app.shared.page import PageDep
 from app.shared import clock
 from app.shared.auth.routes import ConnectionDep
@@ -74,8 +75,11 @@ def list_staff_notifications(
     elif filter == "needs_action":
         filters.append("needs_action")
     if q and q.strip():
-        filters.append("(lower(resident_name) LIKE :q OR lower(room_label) LIKE :q)")
-        extra["q"] = f"%{q.strip().lower()}%"
+        filters.append(
+            "(lower(resident_name) LIKE :q ESCAPE '\\'"
+            " OR lower(room_label) LIKE :q ESCAPE '\\')"
+        )
+        extra["q"] = like_contains(q.strip().lower())
     if block_id:
         filters.append("block_id = :block_id")
         extra["block_id"] = block_id

@@ -8,6 +8,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict
 
 from app.shared.audit import record_audit
+from app.shared.like import like_contains
 
 PermissionType = Literal["late_night", "home_going"]
 PermissionStatus = Literal[
@@ -230,8 +231,11 @@ def list_reviews(
         clauses.append("permissions.created_at <= ?")
         params.append(created_to)
     if q:
-        clauses.append("(lower(users.full_name) LIKE ? OR lower(rooms.label) LIKE ?)")
-        pattern = f"%{q.strip().lower()}%"
+        clauses.append(
+            "(lower(users.full_name) LIKE ? ESCAPE '\\'"
+            " OR lower(rooms.label) LIKE ? ESCAPE '\\')"
+        )
+        pattern = like_contains(q.strip().lower())
         params.extend([pattern, pattern])
     where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
     total = connection.execute(

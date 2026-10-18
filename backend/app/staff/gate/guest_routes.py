@@ -14,6 +14,7 @@ from app.residents.guests.records import (
     record_guest_stay,
 )
 from app.shared import clock
+from app.shared.like import like_contains
 from app.shared.auth.routes import ConnectionDep
 from app.shared.errors import ApiError
 from app.staff.gate.routes import GateDep
@@ -69,11 +70,6 @@ class GuestDepartureResult(BaseModel):
     recorded_by: str
     departure_time: str
     message: str
-
-
-def _search_pattern(raw: str) -> str:
-    escaped = raw.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-    return f"%{escaped}%"
 
 
 def guests_in_hall_count(connection: sqlite3.Connection) -> int:
@@ -175,7 +171,7 @@ def gate_guests(
               OR rooms.label LIKE ? ESCAPE '\\'
             )"""
         )
-        pattern = _search_pattern(term)
+        pattern = like_contains(term)
         params.extend([pattern, pattern, pattern])
     where = " AND ".join(clauses)
     from_sql = """

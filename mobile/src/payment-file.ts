@@ -1,7 +1,6 @@
 /** Receipt rules for a guest payment. The phone converts images before upload. */
 
 export const MAX_EVIDENCE_BYTES = 2 * 1024 * 1024;
-export const MAX_EDGE = 2000;
 
 export const PDF_TOO_LARGE =
   "That file is too large. Take a photo of the receipt instead or choose a smaller PDF.";
@@ -14,8 +13,6 @@ export const CLOSED_STAY = "Payment cannot change on a closed stay";
 export const NOTE_REQUIRED = "A note is required to mark this paid";
 
 export type EvidenceKind = "jpeg" | "png" | "pdf" | "convert" | "unsupported";
-
-export type SaveStep = { quality: number; longest: number };
 
 export type PaymentCard = {
   id: string;
@@ -96,61 +93,6 @@ export function pdfDecision(bytes: number): string | null {
     return PDF_TOO_LARGE;
   }
   return null;
-}
-
-/** Longest side at most `longest`, without enlarging the photo. */
-export function fittedEdge(width: number, height: number, longest: number): { width: number; height: number } {
-  const current = Math.max(width, height);
-  if (current <= longest || current <= 0) {
-    return { width, height };
-  }
-  const scale = longest / current;
-  return {
-    width: Math.max(1, Math.round(width * scale)),
-    height: Math.max(1, Math.round(height * scale)),
-  };
-}
-
-/** JPEG re-encodes. The first pass is quality 0.7 with the long side capped at 2000. */
-export function jpegPasses(width: number, height: number): SaveStep[] {
-  const longest = Math.max(width, height);
-  if (longest <= 0) {
-    return [];
-  }
-  const edge = Math.min(MAX_EDGE, longest);
-  const steps: SaveStep[] = [
-    { quality: 0.7, longest: edge },
-    { quality: 0.5, longest: edge },
-    { quality: 0.35, longest: edge },
-  ];
-  let next = edge;
-  while (next > 800) {
-    next = Math.max(800, Math.round(next * 0.7));
-    steps.push({ quality: 0.45, longest: next });
-  }
-  return steps;
-}
-
-export function imagePlan(
-  kind: EvidenceKind,
-  bytes: number | null,
-  width: number,
-  height: number,
-): { action: "keep-png" } | { action: "jpeg"; steps: SaveStep[] } | { action: "refuse"; message: string } {
-  if (kind === "pdf" || kind === "unsupported") {
-    return { action: "refuse", message: UNSUPPORTED_FILE };
-  }
-  if (kind === "png" && bytes !== null && bytes > 0 && bytes <= MAX_EVIDENCE_BYTES) {
-    return { action: "keep-png" };
-  }
-  if (width <= 0 || height <= 0) {
-    return { action: "refuse", message: PHOTO_UNREADABLE };
-  }
-  const steps = jpegPasses(width, height);
-  if (steps.length === 0) {
-    return { action: "refuse", message: PHOTO_UNREADABLE };
-  }
-  return { action: "jpeg", steps };
 }
 
 export function displayName(filename: string, fallback: string): string {

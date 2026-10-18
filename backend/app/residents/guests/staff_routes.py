@@ -4,17 +4,17 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, BackgroundTasks, File, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.shared.page import PageDep
 from app.residents.guests.payment_evidence import (
-    MAX_EVIDENCE_BYTES,
     clear_evidence,
     display_filename,
     download_name,
     load_evidence,
+    read_limited_evidence,
     save_evidence,
     sniff_content_type,
 )
@@ -280,10 +280,10 @@ async def upload_guest_payment_evidence(
     guest_stay_id: str,
     account: RegisterDep,
     connection: ConnectionDep,
-    evidence: UploadFile = File(...),
+    evidence: Annotated[tuple[bytes, str | None], Depends(read_limited_evidence)],
 ) -> GuestStayBody:
+    raw, filename = evidence
     existing = _require_mutable_stay(connection, guest_stay_id)
-    raw = await evidence.read(MAX_EVIDENCE_BYTES + 1)
     content_type = sniff_content_type(raw)
     now_text = clock.format_instant(clock.utc_now())
     save_evidence(
@@ -291,7 +291,7 @@ async def upload_guest_payment_evidence(
         guest_stay_id=guest_stay_id,
         content=raw,
         content_type=content_type,
-        original_name=display_filename(evidence.filename),
+        original_name=display_filename(filename),
         uploaded_by=account.id,
         now_text=now_text,
     )
