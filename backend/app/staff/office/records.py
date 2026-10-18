@@ -9,6 +9,7 @@ from typing import Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.shared.like import like_contains
 from app.shared.schemas import Destination, DestinationList
 
 SETTINGS_COLUMNS = (
@@ -506,13 +507,13 @@ def list_resident_accounts(
     filters = ["users.role = 'resident'", "residents.room_id != ?"]
     params: list[object] = [FORMER_ROOM_ID]
     if q is not None and q.strip():
-        needle = f"%{q.strip().lower()}%"
+        needle = like_contains(q.strip().lower())
         filters.append(
             """
             (
-              lower(users.full_name) LIKE ?
-              OR lower(residents.enrolment_number) LIKE ?
-              OR lower(rooms.label) LIKE ?
+              lower(users.full_name) LIKE ? ESCAPE '\\'
+              OR lower(residents.enrolment_number) LIKE ? ESCAPE '\\'
+              OR lower(rooms.label) LIKE ? ESCAPE '\\'
             )
             """
         )

@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict
 
 from app.residents.outings.records import OUTING_SELECT, OutingBody, outing_from_row
 from app.shared import clock
+from app.shared.like import like_contains
 
 
 RegisterState = Literal["inside", "outside", "late"]
@@ -262,8 +263,11 @@ def list_register(
     params: list[object] = []
     filters: list[str] = []
     if q:
-        filters.append("(lower(users.full_name) LIKE ? OR lower(rooms.label) LIKE ?)")
-        pattern = f"%{q.strip().lower()}%"
+        filters.append(
+            "(lower(users.full_name) LIKE ? ESCAPE '\\'"
+            " OR lower(rooms.label) LIKE ? ESCAPE '\\')"
+        )
+        pattern = like_contains(q.strip().lower())
         params.extend([pattern, pattern])
     if block_id:
         filters.append("rooms.block_id = ?")
