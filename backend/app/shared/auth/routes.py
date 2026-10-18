@@ -224,7 +224,9 @@ def _start_session(connection: sqlite3.Connection, account: Account, now: dateti
 @router.post("/login")
 def login(body: LoginRequest, request: Request, connection: ConnectionDep) -> TokenResponse:
     login_limiter.check(client_key(request.client.host if request.client else None))
-    username_login_limiter.check(username_key(body.username))
+    name = username_key(body.username)
+    if username_login_limiter.blocked(name):
+        raise ApiError(429, "rate_limited", "Too many attempts. Try again shortly.")
     row = connection.execute(
         """
         SELECT id
@@ -235,9 +237,11 @@ def login(body: LoginRequest, request: Request, connection: ConnectionDep) -> To
     ).fetchone()
     if row is None:
         consume_unknown_password(body.password)
+        username_login_limiter.record(name)
         raise ApiError(401, "unauthenticated", _BAD_CREDENTIALS)
     account = _load_account(connection, row["id"])
     if not password_matches(account.password_hash, body.password):
+        username_login_limiter.record(name)
         raise ApiError(401, "unauthenticated", _BAD_CREDENTIALS)
     if account.status != "active":
         raise ApiError(

@@ -10,7 +10,13 @@ from argon2 import PasswordHasher
 from fastapi.testclient import TestClient
 
 from app.shared.testing_env import role_credential
-from app.shared.auth.rate_limit import login_limiter, refresh_limiter, username_login_limiter
+from app.shared.auth.rate_limit import (
+    client_key,
+    login_limiter,
+    refresh_limiter,
+    username_key,
+    username_login_limiter,
+)
 from app.shared.auth.tests.test_session import assert_error
 
 GATE_ID = "a11ce000-0000-4000-8000-000000000001"
@@ -187,3 +193,54 @@ def test_login_is_limited_per_username(database_path: Path, monkeypatch: pytest.
             json=_login_body("someone.else", role_credential("wrong")),
         )
         assert other.status_code == 401
+
+
+def test_wrong_passwords_from_one_address_do_not_lock_another_until_the_threshold(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(login_limiter, "limit", 2)
+    monkeypatch.setattr(username_login_limiter, "limit", 4)
+    from app.main import app
+
+    with TestClient(app) as client:
+        assert client.get("/health").json() == {"status": "ok"}
+        issue_gate(database_path)
+    attacker = TestClient(app, client=("198.51.100.10", 50000))
+    owner = TestClient(app, client=("198.51.100.20", 50000))
+    wrong = _login_body("gate.fatima", role_credential("wrong"))
+    right = _login_body("gate.fatima", role_credential("gate"))
+    for _ in range(2):
+        refused = attacker.post("/api/v1/auth/login", json=wrong)
+        assert refused.status_code == 401
+    blocked_address = attacker.post("/api/v1/auth/login", json=wrong)
+    assert_error(blocked_address, 429, "rate_limited", "Too many attempts. Try again shortly.")
+    signed_in = owner.post("/api/v1/auth/login", json=right)
+    assert signed_in.status_code == 200
+    assert set(login_limiter._hits) == {
+        client_key("198.51.100.10"),
+        client_key("198.51.100.20"),
+    }
+    assert len(username_login_limiter._hits[username_key("gate.fatima")]) == 2
+
+
+def test_successful_sign_in_does_not_spend_the_username_budget(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(login_limiter, "limit", 100)
+    monkeypatch.setattr(username_login_limiter, "limit", 2)
+    from app.main import app
+
+    with TestClient(app) as client:
+        assert client.get("/health").json() == {"status": "ok"}
+        issue_gate(database_path)
+        right = _login_body("gate.fatima", role_credential("gate"))
+        wrong = _login_body("gate.fatima", role_credential("wrong"))
+        for _ in range(4):
+            signed_in = client.post("/api/v1/auth/login", json=right)
+            assert signed_in.status_code == 200
+        assert username_key("gate.fatima") not in username_login_limiter._hits
+        for _ in range(2):
+            refused = client.post("/api/v1/auth/login", json=wrong)
+            assert refused.status_code == 401
+        blocked = client.post("/api/v1/auth/login", json=right)
+        assert_error(blocked, 429, "rate_limited", "Too many attempts. Try again shortly.")
