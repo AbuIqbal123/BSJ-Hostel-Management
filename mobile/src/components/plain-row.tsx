@@ -66,11 +66,21 @@ export function PlainRow({ title, parts, extra, mutedExtra = false, aside, time,
       </View>
       {time ? (
         <View style={styles.time}>
-          <Text numberOfLines={1} style={[styles.timeText, { color: colors.inkFaint }]}>
+          <Text
+            numberOfLines={1}
+            allowFontScaling={false}
+            ellipsizeMode="tail"
+            style={[styles.timeText, { color: colors.inkFaint }]}
+          >
             {time[0]}
           </Text>
           {time[1] ? (
-            <Text numberOfLines={1} style={[styles.timeText, { color: colors.inkFaint }]}>
+            <Text
+              numberOfLines={1}
+              allowFontScaling={false}
+              ellipsizeMode="tail"
+              style={[styles.timeText, { color: colors.inkFaint }]}
+            >
               {time[1]}
             </Text>
           ) : null}
@@ -113,14 +123,21 @@ const styles = StyleSheet.create({
   titleLine: { flexDirection: "row", alignItems: "center", gap: 8, minWidth: 0 },
   title: { flex: 1, minWidth: 0, fontFamily: "SourceSans3_600SemiBold", fontSize: 17, lineHeight: 22 },
   aside: { flexShrink: 0, fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20 },
-  parts: { flexDirection: "row", alignItems: "center", gap: 8, minWidth: 0 },
+  parts: { flexDirection: "row", alignItems: "center", gap: 8, minWidth: 0, overflow: "hidden" },
   part: { fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20 },
-  partFixed: { flexShrink: 0 },
+  partFixed: { flexShrink: 1 },
   partLast: { flex: 1, minWidth: 0 },
   extra: { fontFamily: "SourceSans3_600SemiBold", fontSize: 17, lineHeight: 22 },
   extraMuted: { fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20 },
-  time: { width: 88, alignItems: "flex-end", flexShrink: 0 },
-  timeText: { fontFamily: "IBMPlexMono_500Medium", fontSize: 13, lineHeight: 18, textAlign: "right" },
+  time: { width: 88, maxWidth: 88, flexGrow: 0, flexShrink: 0, overflow: "hidden" },
+  timeText: {
+    width: 88,
+    maxWidth: 88,
+    fontFamily: "IBMPlexMono_500Medium",
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: "right",
+  },
   hairline: { height: StyleSheet.hairlineWidth },
   pressed: { opacity: 0.6 },
 });
