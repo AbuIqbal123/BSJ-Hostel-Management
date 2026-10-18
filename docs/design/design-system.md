@@ -280,7 +280,7 @@ Rows
 - Two-line row: height 68, padding 12/12, content 44 (22 title + 2 gap + 20 subline).
 - Three-line row: height 90, padding 12/12, content 66.
 - Content vertically centred. Chevron 18px, right-aligned at the 28px margin.
-- Title: SourceSans3 600, 17/22. Subline: SourceSans3 400, 15/20, 8px between inline items, no dot separators. A Requests detail wraps so the room code and the reason stay whole, and only the place gives way. A History date wraps so the start and the end both stay visible.
+- Title: SourceSans3 600, 17/22. Subline: SourceSans3 400, 15/20, 8px between inline items, no dot separators. On a Requests row the room code and the reason do not shrink, and the place stays on one line. A History date that crosses midnight wraps to a second line so the start and the end both stay visible.
 - Time column: IBM Plex Mono, right-aligned, same left x on every row.
 
 Lines

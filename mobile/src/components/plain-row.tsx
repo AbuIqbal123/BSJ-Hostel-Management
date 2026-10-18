@@ -5,11 +5,12 @@ import { useHallColors } from "@/theme/colors";
 
 type PlainRowProps = {
   title: string;
-  /** Subline pieces, 8px apart, no dot separators. */
+  /** Subline pieces, 8px apart, no dot separators. The last piece truncates. */
   parts?: string[];
   /**
-   * Leading subline pieces that stay on one line and never shrink.
-   * Later pieces wrap. Defaults to every piece except the last.
+   * Leading pieces that stay one line and do not shrink. The last piece still
+   * truncates on one line. `0` lets the first piece wrap onto a second line
+   * and keeps any later piece on the row. Omit it for the usual one-line subline.
    */
   keepParts?: number;
   /** A third line under the subline. Muted is the quiet recorder line. */
@@ -54,14 +55,18 @@ export function PlainRow({
         {parts && parts.length > 0 ? (
           <View style={styles.parts}>
             {parts.map((part, index) => {
-              const kept = index < (keepParts ?? parts.length - 1);
+              const wraps = keepParts === 0 && index === 0;
+              const held =
+                (keepParts !== undefined && keepParts > 0 && index < keepParts) || (keepParts === 0 && index > 0);
               return (
                 <Text
                   key={`${index}-${part}`}
+                  numberOfLines={wraps ? 2 : 1}
+                  ellipsizeMode="tail"
                   style={[
                     styles.part,
                     { color: colors.inkSoft },
-                    kept ? styles.partKept : styles.partWrap,
+                    wraps ? styles.partWrap : held ? styles.partHeld : index === parts.length - 1 ? styles.partLast : styles.partFixed,
                   ]}
                 >
                   {part}
@@ -139,10 +144,12 @@ const styles = StyleSheet.create({
   titleLine: { flexDirection: "row", alignItems: "center", gap: 8, minWidth: 0 },
   title: { flex: 1, minWidth: 0, fontFamily: "SourceSans3_600SemiBold", fontSize: 17, lineHeight: 22 },
   aside: { flexShrink: 0, fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20 },
-  parts: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 8, rowGap: 0, minWidth: 0 },
+  parts: { flexDirection: "row", alignItems: "center", gap: 8, minWidth: 0, overflow: "hidden" },
   part: { fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20 },
-  partKept: { flexShrink: 0, maxWidth: "100%" },
-  partWrap: { flexShrink: 1, maxWidth: "100%" },
+  partFixed: { flexShrink: 1 },
+  partHeld: { flexShrink: 0 },
+  partWrap: { flexShrink: 1, minWidth: 0 },
+  partLast: { flex: 1, minWidth: 0 },
   extra: { fontFamily: "SourceSans3_600SemiBold", fontSize: 17, lineHeight: 22 },
   extraMuted: { fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20 },
   time: { width: 88, maxWidth: 88, flexGrow: 0, flexShrink: 0, overflow: "hidden" },

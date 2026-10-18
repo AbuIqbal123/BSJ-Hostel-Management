@@ -29,6 +29,13 @@ function whenLine(item: HistoryItem): string {
   return formatSpan(item.startedAt, item.endedAt, item.kind === "home_going" || item.kind === "guest_stay");
 }
 
+/** A clock span that names two hall days. That line is the one that wraps. */
+function crossesMidnight(when: string): boolean {
+  const toAt = when.indexOf(" to ");
+  const commaAt = when.indexOf(", ");
+  return commaAt >= 0 && toAt > commaAt;
+}
+
 function recordedLine(item: HistoryItem): string | null {
   const names = [item.exitRecordedBy, item.returnRecordedBy].filter(
     (name): name is string => name !== null && name.length > 0,
@@ -73,7 +80,7 @@ function HistoryRow({ item, first }: { item: HistoryItem; first: boolean }) {
         title={title}
         aside={kindLabel(item.kind)}
         parts={item.unused ? [when, "Unused"] : [when]}
-        keepParts={0}
+        keepParts={crossesMidnight(when) ? 0 : undefined}
         extra={recorded}
         mutedExtra
         onPress={() => openHistory(item)}
