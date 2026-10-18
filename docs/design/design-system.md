@@ -271,6 +271,29 @@ Borders + paper/surface shift remain the primary separation. Shadows are quiet s
 
 Never wrap every list row in its own elevated card.
 
+## Lists, rows and lines (staff Home, Permissions, History, Requests)
+
+Grid: 4px. Screen side padding: 28px (text left x=28, chevron right edge x=365 on a 393pt screen).
+
+Rows
+- One-line row: height 48, padding 13 top and bottom (min tap height 48).
+- Two-line row: height 68, padding 12/12, content 44 (22 title + 2 gap + 20 subline).
+- Three-line row: height 90, padding 12/12, content 66.
+- Content vertically centred. Chevron 18px, right-aligned at the 28px margin.
+- Title: SourceSans3 600, 17/22. Subline: SourceSans3 400, 15/20, 8px between inline items, no dot separators.
+- Time column: IBM Plex Mono, right-aligned, same left x on every row.
+
+Lines
+- Hairline thickness (StyleSheet.hairlineWidth), line token #D4DBD4.
+- Own 1px element between two rows, not a row border. Runs x=28 to x=365.
+- Gap above and below equals row padding (12/12, 13/13 beside one-line rows).
+- Only between two rows of one list. None after the last row, none directly above or below a section header, tabs or filter row, none around the numbers row or empty state.
+
+Rhythm
+- Section header 13/18 SourceSans3 600 inkFaint, 8px below.
+- 32px above a header (24px after a tab row). 24px numbers row to list, tabs to list, filters to empty sentence.
+- Empty state: one inkFaint sentence 17/22.
+
 ### Actions
 
 | Kind | Look |

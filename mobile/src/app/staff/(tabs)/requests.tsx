@@ -3,26 +3,24 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "r
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { DenseRow } from "@/components/dense-row";
-import { FilterChip } from "@/components/filter-chip";
+import { FilterMark } from "@/components/filter-chip";
 import { SearchField } from "@/components/search-field";
 import { SectionHead } from "@/components/section-head";
-import { EmptyState } from "@/components/list-state";
 import { PagedList } from "@/components/paged-list";
+import { PlainRow, RowHairline } from "@/components/plain-row";
 import { ReviewSheet, type Fact } from "@/components/review-sheet";
 import { pageQuery } from "@/list-page";
 import { useListPage } from "@/use-list-page";
-import { formatHallDate, formatSpan, formatWhen } from "@/format-when";
+import { formatHallDate, formatSpan, formatWhen, formatWhenParts } from "@/format-when";
 import { kindLabel } from "@/requests";
 import { useSession, type PermissionKind } from "@/session";
 import {
-  guestTime,
-  permissionTime,
   readGuestDetail,
   readGuestReviews,
   readPermissionReviews,
   readSummary,
   readTotal,
+  shortDay,
   submittedDay,
   trimStop,
   type GuestReview,
@@ -82,6 +80,33 @@ function daySections(items: Item[]): Section[] {
   return sections;
 }
 
+function timeLines(item: Item): readonly [string, string] {
+  if (item.tab === "guests") {
+    return [shortDay(formatHallDate(item.row.start)), `to ${shortDay(formatHallDate(item.row.end))}`];
+  }
+  const start = formatWhenParts(item.row.departureAt);
+  const end = formatWhenParts(item.row.expectedReturnAt);
+  if (!start || !end) {
+    return ["", ""];
+  }
+  if (item.row.kind === "home_going") {
+    return [shortDay(start.day), `to ${shortDay(end.day)}`];
+  }
+  return [shortDay(start.day), start.clock];
+}
+
+function detailParts(item: Item, kind: PermissionKind | null): string[] {
+  if (item.tab === "guests") {
+    return [item.row.hostRoom, `Guest of ${item.row.hostName}`];
+  }
+  const parts = [item.row.room];
+  if (kind !== "late_night") {
+    parts.push(kindLabel(item.row.kind));
+  }
+  parts.push(item.row.place);
+  return parts.filter((part) => part.length > 0);
+}
+
 function permissionFacts(row: PermissionReview): Fact[] {
   const facts: Fact[] = [
     { label: "Place", value: row.detail ? `${row.place}, ${row.detail}` : row.place },
@@ -103,7 +128,7 @@ export default function RequestsScreen() {
   const [blocks, setBlocks] = useState<HallBlock[]>([]);
   const [query, setQuery] = useState("");
   const [q, setQ] = useState("");
-  const [counts, setCounts] = useState<Counts | null>(null);
+  const [, setCounts] = useState<Counts | null>(null);
   const [open, setOpen] = useState<Item | null>(null);
   const [guestFacts, setGuestFacts] = useState<Fact[] | null>(null);
   const [sheetError, setSheetError] = useState<string | null>(null);
@@ -248,21 +273,22 @@ export default function RequestsScreen() {
           {decidedNote}
         </Text>
       ) : null}
-      <View style={[styles.segment, { backgroundColor: colors.line }]}>
+      <View style={styles.segment}>
         {(["permissions", "guests"] as const).map((value) => {
           const on = tab === value;
-          const count = value === "permissions" ? counts?.permissions : counts?.guests;
+          const label = value === "permissions" ? "Permissions" : "Guest stays";
           return (
             <Pressable
               key={value}
               accessibilityRole="tab"
               accessibilityState={{ selected: on }}
               onPress={() => setTab(value)}
-              style={[styles.segmentItem, on && { backgroundColor: colors.surface }]}
+              style={styles.segmentItem}
             >
-              <Text numberOfLines={1} style={[text.label, { color: on ? colors.ink : colors.inkSoft }]}>
-                {`${value === "permissions" ? "Permissions" : "Guest stays"}${count === undefined ? "" : ` ${count}`}`}
+              <Text numberOfLines={1} style={[text.label, { color: on ? colors.forest : colors.inkSoft }]}>
+                {label}
               </Text>
+              <View style={[styles.segmentMark, { backgroundColor: on ? colors.forest : "transparent" }]} />
             </Pressable>
           );
         })}
@@ -275,15 +301,15 @@ export default function RequestsScreen() {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
         {tab === "permissions" ? (
           <>
-            <FilterChip label="All" on={kind === null} onPress={() => setKind(null)} />
-            <FilterChip label={`Late-night ${counts?.late ?? ""}`.trim()} on={kind === "late_night"} onPress={() => setKind("late_night")} />
-            <FilterChip label={`Home going ${counts?.home ?? ""}`.trim()} on={kind === "home_going"} onPress={() => setKind("home_going")} />
+            <FilterMark label="All" on={kind === null} onPress={() => setKind(null)} />
+            <FilterMark label="Late-night" on={kind === "late_night"} onPress={() => setKind("late_night")} />
+            <FilterMark label="Home going" on={kind === "home_going"} onPress={() => setKind("home_going")} />
             <View style={[styles.divider, { backgroundColor: colors.line }]} />
           </>
         ) : null}
-        <FilterChip label="All blocks" on={blockId === null} onPress={() => setBlockId(null)} />
+        <FilterMark label="All blocks" on={blockId === null} onPress={() => setBlockId(null)} />
         {blocks.map((block) => (
-          <FilterChip key={block.id} label={block.name} on={blockId === block.id} onPress={() => setBlockId(block.id)} />
+          <FilterMark key={block.id} label={block.name} on={blockId === block.id} onPress={() => setBlockId(block.id)} />
         ))}
       </ScrollView>
     </View>
@@ -304,7 +330,11 @@ export default function RequestsScreen() {
         onRetry={list.retry}
         onRetryPage={() => list.loadNext(true)}
         header={header}
-        empty={<EmptyState message={q.trim() ? `Nothing matches ${q.trim()}` : "Nothing is waiting"} />}
+        empty={
+          <Text style={[styles.emptyLine, { color: colors.inkFaint }]}>
+            {q.trim() ? `Nothing matches ${q.trim()}` : "Nothing is waiting"}
+          </Text>
+        }
         keyExtractor={(item) => item.row.id}
         stickySectionHeadersEnabled
         keyboardShouldPersistTaps="handled"
@@ -313,21 +343,24 @@ export default function RequestsScreen() {
         windowSize={9}
         refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={list.refresh} tintColor={colors.inkFaint} />}
         onEndReached={() => list.loadNext()}
-        renderSectionHeader={({ section }) => <SectionHead title={section.title} count={String(section.data.length)} />}
-        renderItem={({ item, index, section }) => (
-          <DenseRow
-            title={item.tab === "permissions" ? item.row.name : item.row.guestName}
-            detail={
-              item.tab === "permissions"
-                ? `${item.row.room} · ${kindLabel(item.row.kind)} · ${item.row.place}`
-                : `${item.row.hostRoom} · Guest of ${item.row.hostName}`
-            }
-            time={item.tab === "permissions" ? permissionTime(item.row) : guestTime(item.row)}
-            first={index === 0}
-            last={index === section.data.length - 1}
-            onPress={() => openItem(item)}
-          />
-        )}
+        renderSectionHeader={({ section }) => <SectionHead title={section.title} padTop={16} />}
+        renderItem={({ item, index }) => {
+          const name = item.tab === "permissions" ? item.row.name : item.row.guestName;
+          const parts = detailParts(item, kind);
+          const time = timeLines(item);
+          return (
+            <View>
+              {index > 0 ? <RowHairline /> : null}
+              <PlainRow
+                title={name}
+                parts={parts}
+                time={time}
+                onPress={() => openItem(item)}
+                label={`${name}. ${parts.join(", ")}. ${time.join(" ")}`}
+              />
+            </View>
+          );
+        }}
       />
       {open ? (
         <ReviewSheet
@@ -368,18 +401,16 @@ const styles = StyleSheet.create({
   content: { flexGrow: 1, paddingHorizontal: 28 },
   header: { gap: 16, paddingBottom: 8 },
   title: { textAlign: "left" },
-  segment: { flexDirection: "row", borderRadius: 10, borderCurve: "continuous", padding: 2 },
-  segmentItem: {
-    flex: 1,
-    minHeight: 36,
-    borderRadius: 8,
-    borderCurve: "continuous",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 8,
+  segment: { flexDirection: "row", minHeight: 40 },
+  segmentItem: { flex: 1, minHeight: 40, alignItems: "center", justifyContent: "flex-end", gap: 6 },
+  segmentMark: { alignSelf: "stretch", height: 2, borderRadius: 1 },
+  chips: { gap: 18, alignItems: "flex-end" },
+  divider: { width: StyleSheet.hairlineWidth, height: 20, marginHorizontal: 4 },
+  emptyLine: {
+    marginTop: 16,
+    fontFamily: "SourceSans3_400Regular",
+    fontSize: 17,
+    lineHeight: 22,
   },
-  chips: { gap: 8, alignItems: "center" },
-  divider: { width: 1, height: 20, marginHorizontal: 4 },
-  empty: { textAlign: "center", paddingTop: 96 },
   textButton: { minHeight: 44, justifyContent: "center" },
 });

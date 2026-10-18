@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { router, useFocusEffect } from "expo-router";
+import { Feather } from "@expo/vector-icons";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -8,6 +9,7 @@ import { onHallRefresh } from "@/hall-refresh";
 import { DenseRow } from "@/components/dense-row";
 import { HallButton } from "@/components/hall-button";
 import { PagedList } from "@/components/paged-list";
+import { RowHairline } from "@/components/plain-row";
 import { SectionHead } from "@/components/section-head";
 import { pageQuery } from "@/list-page";
 import { setBadge } from "@/push";
@@ -136,34 +138,45 @@ export default function StaffHomeScreen() {
       ) : (
         <HallButton label="Scan a hall pass" onPress={() => router.push("/staff/scan")} />
       )}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Guests. Expected and in the hall"
-        onPress={() => router.push("/staff/guests")}
-        style={({ pressed }) => [
-          styles.office,
-          { backgroundColor: colors.surface, borderColor: colors.line },
-          pressed && styles.pressed,
-        ]}
-      >
-        <Text style={[text.button, { color: colors.ink }]}>Guests</Text>
-        <Text style={[text.error, { color: colors.inkSoft }]}>Expected and in the hall</Text>
-      </Pressable>
-      {register ? (
+      <View>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Guest payments. Mark a stay paid and keep a receipt"
-          onPress={() => router.push("/staff/payments")}
-          style={({ pressed }) => [
-            styles.office,
-            { backgroundColor: colors.surface, borderColor: colors.line },
-            pressed && styles.pressed,
-          ]}
+          accessibilityLabel="Guests. Expected and in the hall"
+          onPress={() => router.push("/staff/guests")}
+          style={({ pressed }) => [styles.link, pressed && styles.pressed]}
         >
-          <Text style={[text.button, { color: colors.ink }]}>Guest payments</Text>
-          <Text style={[text.error, { color: colors.inkSoft }]}>Mark a stay paid and keep a receipt</Text>
+          <View style={styles.linkCopy}>
+            <Text numberOfLines={1} style={[styles.linkTitle, { color: colors.ink }]}>
+              Guests
+            </Text>
+            <Text numberOfLines={1} style={[styles.linkDetail, { color: colors.inkSoft }]}>
+              Expected and in the hall
+            </Text>
+          </View>
+          <Feather name="chevron-right" size={18} color={colors.inkFaint} />
         </Pressable>
-      ) : null}
+        {register ? (
+          <>
+            <RowHairline />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Guest payments. Mark a stay paid and keep a receipt"
+              onPress={() => router.push("/staff/payments")}
+              style={({ pressed }) => [styles.link, pressed && styles.pressed]}
+            >
+              <View style={styles.linkCopy}>
+                <Text numberOfLines={1} style={[styles.linkTitle, { color: colors.ink }]}>
+                  Guest payments
+                </Text>
+                <Text numberOfLines={1} style={[styles.linkDetail, { color: colors.inkSoft }]}>
+                  Mark a stay paid and keep a receipt
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={18} color={colors.inkFaint} />
+            </Pressable>
+          </>
+        ) : null}
+      </View>
       {runsOffice(user.role) ? (
         <Pressable
           accessibilityRole="button"
@@ -179,7 +192,7 @@ export default function StaffHomeScreen() {
           <Text style={[text.error, { color: colors.inkSoft }]}>People, places, and hall settings</Text>
         </Pressable>
       ) : null}
-      <View style={[styles.section, { borderTopColor: colors.line }]}>
+      <View style={styles.section}>
         <PagedList
           rows={activity.rows}
           error={activity.error}
@@ -189,7 +202,7 @@ export default function StaffHomeScreen() {
           onRetry={activity.retry}
           onRetryPage={() => activity.loadNext(true)}
           skeletonCount={3}
-          header={<SectionHead title="Recent at the gate" />}
+          header={<SectionHead title="Recent at the gate" padTop={0} />}
           empty={<Text style={[text.body, { color: colors.inkSoft }]}>No one has passed the gate yet</Text>}
         >
           <View>
@@ -230,6 +243,16 @@ const styles = StyleSheet.create({
   count: { fontFamily: "SourceSerif4_600SemiBold", fontSize: 34, lineHeight: 42, letterSpacing: -0.6 },
   label: { fontFamily: "SourceSans3_600SemiBold", fontSize: 15, lineHeight: 20, marginTop: 2 },
   note: { fontFamily: "SourceSans3_400Regular", fontSize: 13, lineHeight: 18 },
+  link: {
+    minHeight: 68,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  linkCopy: { flex: 1, minWidth: 0, gap: 2 },
+  linkTitle: { fontFamily: "SourceSans3_600SemiBold", fontSize: 17, lineHeight: 22 },
+  linkDetail: { fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20 },
   office: {
     borderWidth: 1,
     borderRadius: 16,
@@ -238,6 +261,6 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     gap: 4,
   },
-  section: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 2 },
+  section: { marginTop: 4 },
   pressed: { opacity: 0.6 },
 });
