@@ -7,6 +7,12 @@ type PlainRowProps = {
   title: string;
   /** Subline pieces, 8px apart, no dot separators. The last piece truncates. */
   parts?: string[];
+  /**
+   * Leading pieces that stay one line and do not shrink. The last piece still
+   * truncates on one line. `0` lets the first piece wrap onto a second line
+   * and keeps any later piece on the row. Omit it for the usual one-line subline.
+   */
+  keepParts?: number;
   /** A third line under the subline. Muted is the quiet recorder line. */
   extra?: string | null;
   mutedExtra?: boolean;
@@ -19,7 +25,17 @@ type PlainRowProps = {
 };
 
 /** A tappable list row. The hairline between rows is drawn by the list, not by this row. */
-export function PlainRow({ title, parts, extra, mutedExtra = false, aside, time, onPress, label }: PlainRowProps) {
+export function PlainRow({
+  title,
+  parts,
+  keepParts,
+  extra,
+  mutedExtra = false,
+  aside,
+  time,
+  onPress,
+  label,
+}: PlainRowProps) {
   const colors = useHallColors();
   const two = Boolean((parts && parts.length > 0) || (time && time[1]));
   const three = Boolean(extra);
@@ -38,20 +54,25 @@ export function PlainRow({ title, parts, extra, mutedExtra = false, aside, time,
         </View>
         {parts && parts.length > 0 ? (
           <View style={styles.parts}>
-            {parts.map((part, index) => (
-              <Text
-                key={`${index}-${part}`}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-                style={[
-                  styles.part,
-                  { color: colors.inkSoft },
-                  index === parts.length - 1 ? styles.partLast : styles.partFixed,
-                ]}
-              >
-                {part}
-              </Text>
-            ))}
+            {parts.map((part, index) => {
+              const wraps = keepParts === 0 && index === 0;
+              const held =
+                (keepParts !== undefined && keepParts > 0 && index < keepParts) || (keepParts === 0 && index > 0);
+              return (
+                <Text
+                  key={`${index}-${part}`}
+                  numberOfLines={wraps ? 2 : 1}
+                  ellipsizeMode="tail"
+                  style={[
+                    styles.part,
+                    { color: colors.inkSoft },
+                    wraps ? styles.partWrap : held ? styles.partHeld : index === parts.length - 1 ? styles.partLast : styles.partFixed,
+                  ]}
+                >
+                  {part}
+                </Text>
+              );
+            })}
           </View>
         ) : null}
         {extra ? (
@@ -126,6 +147,8 @@ const styles = StyleSheet.create({
   parts: { flexDirection: "row", alignItems: "center", gap: 8, minWidth: 0, overflow: "hidden" },
   part: { fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20 },
   partFixed: { flexShrink: 1 },
+  partHeld: { flexShrink: 0 },
+  partWrap: { flexShrink: 1, minWidth: 0 },
   partLast: { flex: 1, minWidth: 0 },
   extra: { fontFamily: "SourceSans3_600SemiBold", fontSize: 17, lineHeight: 22 },
   extraMuted: { fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20 },

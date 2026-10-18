@@ -354,6 +354,7 @@ export default function RequestsScreen() {
               <PlainRow
                 title={name}
                 parts={parts}
+                keepParts={parts.length > 1 ? parts.length - 1 : undefined}
                 time={time}
                 onPress={() => openItem(item)}
                 label={`${name}. ${parts.join(", ")}. ${time.join(" ")}`}
