@@ -279,6 +279,71 @@ def test_onboard_options_are_closed_with_signup(
         assert any(block["name"] == "Block-A" and block["rooms"] for block in opened.json())
 
 
+def _add_rooms(path: Path, count: int) -> None:
+    connection = sqlite3.connect(path)
+    try:
+        connection.execute("PRAGMA foreign_keys=ON;")
+        for offset in range(count):
+            number = str(900 + offset)
+            connection.execute(
+                """
+                INSERT INTO rooms (id, block_id, number, label, bed_count, is_active)
+                VALUES (?, ?, ?, ?, 2, 1)
+                """,
+                (
+                    f"aa100000-0000-4000-8000-{offset + 1:012d}",
+                    BLOCK_A,
+                    number,
+                    f"A-{number}",
+                ),
+            )
+        connection.commit()
+    finally:
+        connection.close()
+
+
+def test_onboard_options_query_count_does_not_grow_with_rooms(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.main import app
+    from app.shared import db
+
+    recorded: list[str] = []
+    counting = {"on": False}
+    real_connect = db.create_connection
+
+    def traced_connection():
+        connection = real_connect()
+
+        def trace(statement: str) -> None:
+            if counting["on"]:
+                recorded.append(statement)
+
+        connection.set_trace_callback(trace)
+        return connection
+
+    monkeypatch.setattr(db, "create_connection", traced_connection)
+
+    def query_count(client: TestClient) -> int:
+        recorded.clear()
+        counting["on"] = True
+        try:
+            listed = client.get("/api/v1/auth/onboard/options")
+            assert listed.status_code == 200
+        finally:
+            counting["on"] = False
+        return len(recorded)
+
+    with TestClient(app) as client:
+        assert client.get("/health").status_code == 200
+        before = query_count(client)
+        _add_rooms(database_path, 25)
+        after = query_count(client)
+
+    assert before > 0
+    assert after == before
+
+
 def test_onboard_options_follow_bed_count(database_path: Path) -> None:
     from app.main import app
 
