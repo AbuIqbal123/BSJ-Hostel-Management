@@ -19,7 +19,7 @@ import { goBackOr } from "@/back";
 import { BackMark } from "@/components/back-mark";
 import { DenseRow } from "@/components/dense-row";
 import { HallButton } from "@/components/hall-button";
-import { EmptyState, ListError } from "@/components/list-state";
+import { EmptyState, ListError, RetryRow } from "@/components/list-state";
 import { PagedList } from "@/components/paged-list";
 import { SkeletonRows } from "@/components/skeleton";
 import { useDelayedLoading } from "@/use-delayed-loading";
@@ -30,6 +30,7 @@ import {
   NOTE_REQUIRED,
   PAYMENT_LOCKED,
   UNSUPPORTED_FILE,
+  evidenceKind,
   lockCopy,
   paymentLabel,
   readPaymentPage,
@@ -37,7 +38,7 @@ import {
   type PaymentCard,
   type PaymentStay,
 } from "@/payment-file";
-import { prepareReceipt, type PreparedReceipt, type SourceFile } from "@/prepare-receipt";
+import { prepareUpload, type PreparedReceipt, type SourceFile } from "@/prepare-upload";
 import { useSession, type StaffReply } from "@/session";
 import { formatHallDate } from "@/format-when";
 import { readsRegister, shortDay, trimStop } from "@/staff";
@@ -164,6 +165,10 @@ function PaymentDetail({ id }: { id: string }) {
   const [error, setError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [action, setAction] = useState<"paid" | "unpaid" | "upload" | "remove" | null>(null);
+  const [preparing, setPreparing] = useState(false);
+  const [preparingPhoto, setPreparingPhoto] = useState(false);
+  const [prepareError, setPrepareError] = useState<string | null>(null);
+  const lastSource = useRef<SourceFile | null>(null);
   const [loaded, setLoaded] = useState(false);
   const showStaySkeleton = useDelayedLoading(!loaded && stay === null && loadError === null) && loadError === null;
 
@@ -224,13 +229,18 @@ function PaymentDetail({ id }: { id: string }) {
   }, [id, staffPreview, stay?.evidenceName, stay?.evidenceType]);
 
   const accept = async (source: SourceFile) => {
-    setAction("upload");
+    lastSource.current = source;
+    const kind = evidenceKind(source.mime, source.name);
+    setPreparing(true);
+    setPreparingPhoto(kind !== "pdf");
+    setPrepareError(null);
     setError(null);
-    const prepared = await prepareReceipt(source);
-    setAction(null);
+    const prepared = await prepareUpload(source);
+    setPreparing(false);
+    setPreparingPhoto(false);
     if (!prepared.ok) {
       setDraft(null);
-      setError(prepared.message);
+      setPrepareError(prepared.message);
       return;
     }
     setDraft(prepared.file);
@@ -347,6 +357,7 @@ function PaymentDetail({ id }: { id: string }) {
   };
 
   const locked = stay ? lockCopy(stay) : null;
+  const busy = action !== null || preparing;
   const previewUri = draft?.preview ? draft.uri : storedPreview;
   const evidenceLabel = draft?.name ?? stay?.evidenceName;
 
@@ -386,8 +397,8 @@ function PaymentDetail({ id }: { id: string }) {
                 maxLength={500}
                 style={[text.field, styles.note, { backgroundColor: colors.surface, borderColor: colors.line, color: colors.ink }]}
               />
-              <HallButton label="Mark paid" busy={action === "paid"} disabled={action !== null} onPress={() => void savePayment("paid")} />
-              <Pressable accessibilityRole="button" disabled={action !== null} onPress={() => void savePayment("unpaid")} style={styles.textButton}>
+              <HallButton label="Mark paid" busy={action === "paid"} disabled={busy} onPress={() => void savePayment("paid")} />
+              <Pressable accessibilityRole="button" disabled={busy} onPress={() => void savePayment("unpaid")} style={styles.textButton}>
                 {action === "unpaid" ? (
                   <ActivityIndicator color={colors.ink} />
                 ) : (
@@ -413,20 +424,36 @@ function PaymentDetail({ id }: { id: string }) {
               {draft.preview ? draft.name : `${draft.name}, PDF`}
             </Text>
           ) : null}
+          {preparing && preparingPhoto ? (
+            <Text accessibilityLiveRegion="polite" style={[text.body, { color: colors.inkSoft }]}>
+              Preparing photo
+            </Text>
+          ) : null}
+          {prepareError ? (
+            <RetryRow
+              message={prepareError}
+              onRetry={() => {
+                const source = lastSource.current;
+                if (source) {
+                  void accept(source);
+                }
+              }}
+            />
+          ) : null}
           {locked ? null : (
             <>
-              <Pressable accessibilityRole="button" disabled={action !== null} onPress={() => void takePhoto()} style={styles.textButton}>
+              <Pressable accessibilityRole="button" disabled={busy} onPress={() => void takePhoto()} style={styles.textButton}>
                 <Text style={[text.button, { color: colors.forest }]}>Take a photo</Text>
               </Pressable>
-              <Pressable accessibilityRole="button" disabled={action !== null} onPress={() => void choosePhoto()} style={styles.textButton}>
+              <Pressable accessibilityRole="button" disabled={busy} onPress={() => void choosePhoto()} style={styles.textButton}>
                 <Text style={[text.button, { color: colors.forest }]}>Choose a photo</Text>
               </Pressable>
-              <Pressable accessibilityRole="button" disabled={action !== null} onPress={() => void choosePdf()} style={styles.textButton}>
+              <Pressable accessibilityRole="button" disabled={busy} onPress={() => void choosePdf()} style={styles.textButton}>
                 <Text style={[text.button, { color: colors.forest }]}>Choose a PDF</Text>
               </Pressable>
-              {draft ? <HallButton label="Upload receipt" busy={action === "upload"} disabled={action !== null} onPress={() => void upload()} /> : null}
+              {draft ? <HallButton label="Upload receipt" busy={action === "upload"} disabled={busy} onPress={() => void upload()} /> : null}
               {stay.evidenceName ? (
-                <Pressable accessibilityRole="button" disabled={action !== null} onPress={() => void removeEvidence()} style={styles.textButton}>
+                <Pressable accessibilityRole="button" disabled={busy} onPress={() => void removeEvidence()} style={styles.textButton}>
                   {action === "remove" ? (
                     <ActivityIndicator color={colors.danger} />
                   ) : (
