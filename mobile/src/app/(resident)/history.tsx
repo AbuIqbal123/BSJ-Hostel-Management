@@ -73,6 +73,7 @@ function HistoryRow({ item, first }: { item: HistoryItem; first: boolean }) {
         title={title}
         aside={kindLabel(item.kind)}
         parts={item.unused ? [when, "Unused"] : [when]}
+        keepParts={0}
         extra={recorded}
         mutedExtra
         onPress={() => openHistory(item)}

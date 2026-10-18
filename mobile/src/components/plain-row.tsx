@@ -5,8 +5,13 @@ import { useHallColors } from "@/theme/colors";
 
 type PlainRowProps = {
   title: string;
-  /** Subline pieces, 8px apart, no dot separators. The last piece truncates. */
+  /** Subline pieces, 8px apart, no dot separators. */
   parts?: string[];
+  /**
+   * Leading subline pieces that stay on one line and never shrink.
+   * Later pieces wrap. Defaults to every piece except the last.
+   */
+  keepParts?: number;
   /** A third line under the subline. Muted is the quiet recorder line. */
   extra?: string | null;
   mutedExtra?: boolean;
@@ -19,7 +24,17 @@ type PlainRowProps = {
 };
 
 /** A tappable list row. The hairline between rows is drawn by the list, not by this row. */
-export function PlainRow({ title, parts, extra, mutedExtra = false, aside, time, onPress, label }: PlainRowProps) {
+export function PlainRow({
+  title,
+  parts,
+  keepParts,
+  extra,
+  mutedExtra = false,
+  aside,
+  time,
+  onPress,
+  label,
+}: PlainRowProps) {
   const colors = useHallColors();
   const two = Boolean((parts && parts.length > 0) || (time && time[1]));
   const three = Boolean(extra);
@@ -38,20 +53,21 @@ export function PlainRow({ title, parts, extra, mutedExtra = false, aside, time,
         </View>
         {parts && parts.length > 0 ? (
           <View style={styles.parts}>
-            {parts.map((part, index) => (
-              <Text
-                key={`${index}-${part}`}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-                style={[
-                  styles.part,
-                  { color: colors.inkSoft },
-                  index === parts.length - 1 ? styles.partLast : styles.partFixed,
-                ]}
-              >
-                {part}
-              </Text>
-            ))}
+            {parts.map((part, index) => {
+              const kept = index < (keepParts ?? parts.length - 1);
+              return (
+                <Text
+                  key={`${index}-${part}`}
+                  style={[
+                    styles.part,
+                    { color: colors.inkSoft },
+                    kept ? styles.partKept : styles.partWrap,
+                  ]}
+                >
+                  {part}
+                </Text>
+              );
+            })}
           </View>
         ) : null}
         {extra ? (
@@ -123,10 +139,10 @@ const styles = StyleSheet.create({
   titleLine: { flexDirection: "row", alignItems: "center", gap: 8, minWidth: 0 },
   title: { flex: 1, minWidth: 0, fontFamily: "SourceSans3_600SemiBold", fontSize: 17, lineHeight: 22 },
   aside: { flexShrink: 0, fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20 },
-  parts: { flexDirection: "row", alignItems: "center", gap: 8, minWidth: 0, overflow: "hidden" },
+  parts: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 8, rowGap: 0, minWidth: 0 },
   part: { fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20 },
-  partFixed: { flexShrink: 1 },
-  partLast: { flex: 1, minWidth: 0 },
+  partKept: { flexShrink: 0, maxWidth: "100%" },
+  partWrap: { flexShrink: 1, maxWidth: "100%" },
   extra: { fontFamily: "SourceSans3_600SemiBold", fontSize: 17, lineHeight: 22 },
   extraMuted: { fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20 },
   time: { width: 88, maxWidth: 88, flexGrow: 0, flexShrink: 0, overflow: "hidden" },
