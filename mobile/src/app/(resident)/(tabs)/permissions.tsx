@@ -7,10 +7,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyState, ListError, RetryRow } from "@/components/list-state";
 import { SkeletonRows } from "@/components/skeleton";
 import { PagedList } from "@/components/paged-list";
+import { PlainRow, RowHairline } from "@/components/plain-row";
+import { SectionHead } from "@/components/section-head";
 import { useListPage } from "@/use-list-page";
 import { formatHallDate, formatWhenParts } from "@/format-when";
 import { olderAvailable } from "@/list-page";
-import { guestLine, kindLabel, statusSentence, statusTone } from "@/requests";
+import { guestLine, statusSentence } from "@/requests";
 import { useSession, type GuestStayCard, type HallPermission, type PermissionKind } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
@@ -65,87 +67,44 @@ function soonestFirst(items: HallPermission[]): HallPermission[] {
   });
 }
 
-function guestTone(item: GuestStayCard, colors: ReturnType<typeof useHallColors>) {
-  if (item.status === "rejected") {
-    return { color: colors.danger, border: colors.danger, background: colors.dangerBg };
-  }
-  if (item.status === "pending") {
-    return { color: colors.pending, border: colors.pending, background: colors.pendingBg };
-  }
-  if (item.status === "approved" || item.bucket === "in_hall") {
-    return { color: colors.forest, border: colors.forest, background: colors.approvedBg };
-  }
-  return { color: colors.inkSoft, border: colors.line, background: colors.surface };
-}
-
-function GuestStayRow({ item }: { item: GuestStayCard }) {
-  const colors = useHallColors();
-  const tone = guestTone(item, colors);
+function GuestStayRow({ item, first }: { item: GuestStayCard; first: boolean }) {
   const status = guestLine(item);
   const dates = `${formatHallDate(item.startDate)} to ${formatHallDate(item.endDate)}`;
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${item.guestName}. ${status}. ${dates}`}
-      onPress={() => router.push({ pathname: "/guest", params: { id: item.id } })}
-      style={({ pressed }) => [
-        styles.card,
-        { backgroundColor: colors.surface, borderColor: colors.line },
-        pressed && styles.pressed,
-      ]}
-    >
-      <View style={styles.cardTop}>
-        <Text style={[styles.place, { color: colors.ink }]}>{item.guestName}</Text>
-        <View style={[styles.status, { borderColor: tone.border, backgroundColor: tone.background }]}>
-          <Text style={[styles.statusText, { color: tone.color }]}>{status}</Text>
-        </View>
-      </View>
-      <Text style={[text.body, { color: colors.ink }]}>{dates}</Text>
-    </Pressable>
+    <View>
+      {first ? null : <RowHairline />}
+      <PlainRow
+        title={item.guestName}
+        aside={status}
+        parts={[dates]}
+        onPress={() => router.push({ pathname: "/guest", params: { id: item.id } })}
+        label={`${item.guestName}. ${status}. ${dates}`}
+      />
+    </View>
   );
 }
 
-function PermissionRow({ item }: { item: HallPermission }) {
-  const colors = useHallColors();
-  const kind = kindLabel(item.permissionType);
+function PermissionRow({ item, first }: { item: HallPermission; first: boolean }) {
   const status = statusSentence(item.status);
   const home = item.permissionType === "home_going";
   const when = home ? null : permissionWhen(item.departureAt, item.expectedReturnAt);
   const dates = home ? homeDates(item.departureAt, item.expectedReturnAt) : "";
-  const tone = statusTone(item.status, colors);
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={
-        home
-          ? `${item.shortPlace}. ${kind}. ${status}. ${dates}`
-          : `${item.shortPlace}. ${kind}. ${status}. ${when?.day}. ${when?.span}`
-      }
-      onPress={() => {
-        router.push({ pathname: "/permission", params: { id: item.id } });
-      }}
-      style={({ pressed }) => [
-        styles.card,
-        { backgroundColor: colors.surface, borderColor: colors.line },
-        pressed && styles.pressed,
-      ]}
-    >
-      <View style={styles.cardTop}>
-        <Text style={[styles.place, { color: colors.ink }]}>{item.shortPlace}</Text>
-        <View style={[styles.status, { borderColor: tone.border, backgroundColor: tone.background }]}>
-          <Text style={[styles.statusText, { color: tone.color }]}>{status}</Text>
-        </View>
-      </View>
-      <Text style={[text.body, { color: colors.inkSoft }]}>{kind}</Text>
-      {home ? (
-        <Text style={[text.body, { color: colors.ink }]}>{dates}</Text>
-      ) : (
-        <>
-          <Text style={[text.body, { color: colors.inkSoft }]}>{when?.day}</Text>
-          <Text style={[text.mono, { color: colors.ink }]}>{when?.span}</Text>
-        </>
-      )}
-    </Pressable>
+    <View>
+      {first ? null : <RowHairline />}
+      <PlainRow
+        title={item.shortPlace}
+        aside={status}
+        parts={home ? [dates] : [when?.day ?? ""]}
+        extra={home ? null : when?.span}
+        onPress={() => router.push({ pathname: "/permission", params: { id: item.id } })}
+        label={
+          home
+            ? `${item.shortPlace}. ${status}. ${dates}`
+            : `${item.shortPlace}. ${status}. ${when?.day}. ${when?.span}`
+        }
+      />
+    </View>
   );
 }
 
@@ -247,25 +206,33 @@ export default function PermissionsScreen() {
           onPress={() => openForm("late_night")}
           style={({ pressed }) => [styles.row, pressed && styles.pressed]}
         >
-          <Text style={[text.button, { color: colors.ink }]}>Request late-night</Text>
+          <Text numberOfLines={1} style={[styles.rowLabel, { color: colors.ink }]}>
+            Request late-night
+          </Text>
           <Feather name="chevron-right" size={18} color={colors.inkFaint} />
         </Pressable>
+        <RowHairline />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Request home going"
           onPress={() => openForm("home_going")}
           style={({ pressed }) => [styles.row, pressed && styles.pressed]}
         >
-          <Text style={[text.button, { color: colors.ink }]}>Request home going</Text>
+          <Text numberOfLines={1} style={[styles.rowLabel, { color: colors.ink }]}>
+            Request home going
+          </Text>
           <Feather name="chevron-right" size={18} color={colors.inkFaint} />
         </Pressable>
+        <RowHairline />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Request guest stay"
           onPress={() => router.push("/guest")}
           style={({ pressed }) => [styles.row, pressed && styles.pressed]}
         >
-          <Text style={[text.button, { color: colors.ink }]}>Request guest stay</Text>
+          <Text numberOfLines={1} style={[styles.rowLabel, { color: colors.ink }]}>
+            Request guest stay
+          </Text>
           <Feather name="chevron-right" size={18} color={colors.inkFaint} />
         </Pressable>
       </View>
@@ -317,11 +284,11 @@ export default function PermissionsScreen() {
           tab === "guest" ? (
             <>
               {olderRows.length > 0 ? (
-                <View style={[styles.requests, { borderTopColor: colors.line }]}>
-                  <Text style={[text.button, { color: colors.ink }]}>Older</Text>
-                  <View style={styles.list}>
-                    {olderRows.map((item) => (
-                      <GuestStayRow key={item.id} item={item} />
+                <View style={styles.requests}>
+                  <SectionHead title="Older" padTop={24} />
+                  <View>
+                    {olderRows.map((item, index) => (
+                      <GuestStayRow key={item.id} item={item} first={index === 0} />
                     ))}
                   </View>
                 </View>
@@ -357,14 +324,14 @@ export default function PermissionsScreen() {
         }
       >
         {shown.length > 0 ? (
-          <View style={[styles.requests, { borderTopColor: colors.line }]}>
-            <Text style={[text.button, { color: colors.ink }]}>Your requests</Text>
-            <View style={styles.list}>
-              {shownPermissions.map((item) => (
-                <PermissionRow key={item.id} item={item} />
+          <View style={styles.requests}>
+            <SectionHead title="Your requests" padTop={0} />
+            <View>
+              {shownPermissions.map((item, index) => (
+                <PermissionRow key={item.id} item={item} first={index === 0} />
               ))}
-              {shownStays.map((item) => (
-                <GuestStayRow key={item.id} item={item} />
+              {shownStays.map((item, index) => (
+                <GuestStayRow key={item.id} item={item} first={index === 0} />
               ))}
             </View>
           </View>
@@ -382,55 +349,21 @@ const styles = StyleSheet.create({
     gap: 28,
   },
   title: { textAlign: "left" },
-  rows: { gap: 4 },
+  rows: {},
   tabs: { flexDirection: "row", gap: 16 },
   tab: { flex: 1, minHeight: 44, justifyContent: "flex-end", gap: 8 },
   tabLabel: { textAlign: "center" },
   tabMark: { height: 2, borderRadius: 1 },
   row: {
     minHeight: 48,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  requests: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    paddingTop: 22,
-    gap: 14,
-  },
-  list: { gap: 12 },
-  card: {
-    borderWidth: 1,
-    borderRadius: 12,
-    borderCurve: "continuous",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 4,
-  },
-  cardTop: {
+    paddingVertical: 13,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
   },
-  place: {
-    flex: 1,
-    fontFamily: "SourceSerif4_600SemiBold",
-    fontSize: 17,
-    letterSpacing: -0.2,
-  },
-  status: {
-    borderWidth: 1,
-    borderRadius: 8,
-    borderCurve: "continuous",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  statusText: {
-    fontFamily: "SourceSans3_600SemiBold",
-    fontSize: 13,
-    lineHeight: 18,
-  },
+  rowLabel: { flex: 1, fontFamily: "SourceSans3_600SemiBold", fontSize: 17, lineHeight: 22 },
+  requests: { marginTop: -4 },
   pressed: { opacity: 0.6 },
   older: { alignSelf: "center", minHeight: 44, justifyContent: "center" },
 });

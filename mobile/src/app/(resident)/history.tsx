@@ -7,6 +7,7 @@ import { goBackOr } from "@/back";
 import { BackMark } from "@/components/back-mark";
 import { PagedList } from "@/components/paged-list";
 import { DayRange, type DayRangeValue } from "@/components/day-range";
+import { PlainRow, RowHairline } from "@/components/plain-row";
 import { formatSpan } from "@/format-when";
 import { kindLabel } from "@/requests";
 import { useSession, type HistoryItem, type HistoryKind } from "@/session";
@@ -61,37 +62,23 @@ function openHistory(item: HistoryItem) {
   });
 }
 
-function HistoryRow({ item }: { item: HistoryItem }) {
-  const colors = useHallColors();
+function HistoryRow({ item, first }: { item: HistoryItem; first: boolean }) {
   const title = item.who ?? item.place ?? kindLabel(item.kind);
   const recorded = recordedLine(item);
+  const when = whenLine(item);
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={[kindLabel(item.kind), whenLine(item), recorded].filter(Boolean).join(", ")}
-      onPress={() => openHistory(item)}
-      style={({ pressed }) => [styles.cell, pressed && styles.pressed]}
-    >
-      <View style={styles.cellTop}>
-        <Text numberOfLines={1} style={[styles.cellTitle, { color: colors.ink }]}>
-          {title}
-        </Text>
-        <Text style={[text.body, { color: colors.inkSoft }]}>{kindLabel(item.kind)}</Text>
-      </View>
-      <View style={styles.cellTop}>
-        <Text numberOfLines={1} style={[styles.cellWhen, { color: colors.ink }]}>
-          {whenLine(item)}
-        </Text>
-        {item.unused ? (
-          <Text style={[text.body, { color: colors.inkFaint }]}>Unused</Text>
-        ) : null}
-      </View>
-      {recorded ? (
-        <Text numberOfLines={1} style={[text.body, { color: colors.inkFaint }]}>
-          {recorded}
-        </Text>
-      ) : null}
-    </Pressable>
+    <View>
+      {first ? null : <RowHairline />}
+      <PlainRow
+        title={title}
+        aside={kindLabel(item.kind)}
+        parts={item.unused ? [when, "Unused"] : [when]}
+        extra={recorded}
+        mutedExtra
+        onPress={() => openHistory(item)}
+        label={[kindLabel(item.kind), when, item.unused ? "Unused" : null, recorded].filter(Boolean).join(", ")}
+      />
+    </View>
   );
 }
 
@@ -173,6 +160,7 @@ export default function HistoryScreen() {
       </ScrollView>
       <DayRange value={range} onChange={setRange} />
       </View>
+      <View style={styles.list}>
       <PagedList
         rows={list.rows}
         error={list.error}
@@ -181,7 +169,7 @@ export default function HistoryScreen() {
         showPageSkeleton={list.showPageSkeleton}
         onRetry={list.rows && list.rows.length > 0 ? list.refresh : list.retry}
         onRetryPage={() => list.loadNext(true)}
-        empty="No history"
+        empty={<Text style={[styles.emptyLine, { color: colors.inkFaint }]}>No history</Text>}
         footer={
           list.hasMore && !list.showPageSkeleton ? (
             <Pressable
@@ -198,13 +186,11 @@ export default function HistoryScreen() {
       >
         <View>
           {(list.rows ?? []).map((item, index) => (
-            <View key={item.id}>
-              {index > 0 ? <View style={[styles.hairline, { backgroundColor: colors.line }]} /> : null}
-              <HistoryRow item={item} />
-            </View>
+            <HistoryRow key={item.id} item={item} first={index === 0} />
           ))}
         </View>
       </PagedList>
+      </View>
     </ScrollView>
   );
 }
@@ -216,6 +202,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     gap: 28,
   },
+  list: { marginTop: -4 },
   back: { alignSelf: "flex-start", minHeight: 44, flexDirection: "row", alignItems: "center", gap: 2, marginLeft: -6 },
   title: { textAlign: "left" },
   controls: { gap: 12 },
@@ -228,21 +215,11 @@ const styles = StyleSheet.create({
   },
   filter: { minHeight: 44, justifyContent: "flex-end", gap: 8 },
   filterMark: { height: 2, borderRadius: 1 },
-  hairline: { height: StyleSheet.hairlineWidth },
-  cell: { paddingVertical: 12, gap: 2 },
-  cellTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  cellTitle: {
-    flex: 1,
-    fontFamily: "SourceSans3_600SemiBold",
+  emptyLine: {
+    fontFamily: "SourceSans3_400Regular",
     fontSize: 17,
     lineHeight: 22,
   },
-  cellWhen: { flex: 1 },
   failed: { alignItems: "center", gap: 12 },
   older: { alignSelf: "center", minHeight: 44, justifyContent: "center" },
   pressed: { opacity: 0.6 },
