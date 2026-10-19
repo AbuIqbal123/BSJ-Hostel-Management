@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { router, useFocusEffect, useNavigation } from "expo-router";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
@@ -70,9 +70,13 @@ function openHistory(item: HistoryItem) {
 }
 
 function HistoryRow({ item, first }: { item: HistoryItem; first: boolean }) {
+  const { fontScale } = useWindowDimensions();
   const title = item.who ?? item.place ?? kindLabel(item.kind);
   const recorded = recordedLine(item);
   const when = whenLine(item);
+  // At the default size this stays the one-line date. A larger size gives an
+  // unused row enough lines for the start and the end.
+  const openDate = item.unused === true && fontScale > 1;
   return (
     <View>
       {first ? null : <RowHairline />}
@@ -80,7 +84,8 @@ function HistoryRow({ item, first }: { item: HistoryItem; first: boolean }) {
         title={title}
         aside={kindLabel(item.kind)}
         parts={item.unused ? [when, "Unused"] : [when]}
-        keepParts={crossesMidnight(when) ? 0 : undefined}
+        keepParts={crossesMidnight(when) || openDate ? 0 : undefined}
+        wrapLines={openDate ? 0 : undefined}
         extra={recorded}
         mutedExtra
         onPress={() => openHistory(item)}

@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 import { useHallColors } from "@/theme/colors";
 
@@ -9,10 +9,15 @@ type PlainRowProps = {
   parts?: string[];
   /**
    * Leading pieces that stay one line and do not shrink. The last piece still
-   * truncates on one line. `0` lets the first piece wrap onto a second line
-   * and keeps any later piece on the row. Omit it for the usual one-line subline.
+   * truncates on one line. `0` lets the first piece wrap and keeps any later
+   * piece on the row. Omit it for the usual one-line subline.
    */
   keepParts?: number;
+  /**
+   * Lines the first piece may use when `keepParts` is 0. Two is the midnight
+   * date. `0` leaves the piece unlimited so both ends stay visible.
+   */
+  wrapLines?: number;
   /** A third line under the subline. Muted is the quiet recorder line. */
   extra?: string | null;
   mutedExtra?: boolean;
@@ -29,6 +34,7 @@ export function PlainRow({
   title,
   parts,
   keepParts,
+  wrapLines,
   extra,
   mutedExtra = false,
   aside,
@@ -37,6 +43,7 @@ export function PlainRow({
   label,
 }: PlainRowProps) {
   const colors = useHallColors();
+  const { fontScale } = useWindowDimensions();
   const two = Boolean((parts && parts.length > 0) || (time && time[1]));
   const three = Boolean(extra);
   const body = (
@@ -53,22 +60,31 @@ export function PlainRow({
           ) : null}
         </View>
         {parts && parts.length > 0 ? (
-          <View style={styles.parts}>
+          <View style={[styles.parts, keepParts !== undefined && keepParts > 0 && fontScale > 1 ? styles.partsWrap : null]}>
             {parts.map((part, index) => {
               const wraps = keepParts === 0 && index === 0;
               const held =
                 (keepParts !== undefined && keepParts > 0 && index < keepParts) || (keepParts === 0 && index > 0);
+              const clip = index === parts.length - 1 && !held && !wraps;
+              const lines = wraps ? (wrapLines === 0 ? undefined : wrapLines ?? 2) : 1;
+              const textStyle = [
+                styles.part,
+                { color: colors.inkSoft },
+                wraps ? styles.partWrap : held ? styles.partHeld : clip ? styles.partClip : styles.partFixed,
+              ];
+              // The place lives in a box that can shrink. A bare text keeps its
+              // full width on iOS, which clips the reason and hides the place.
+              if (clip) {
+                return (
+                  <View key={`${index}-${part}`} style={styles.partLast}>
+                    <Text numberOfLines={1} ellipsizeMode="tail" style={textStyle}>
+                      {part}
+                    </Text>
+                  </View>
+                );
+              }
               return (
-                <Text
-                  key={`${index}-${part}`}
-                  numberOfLines={wraps ? 2 : 1}
-                  ellipsizeMode="tail"
-                  style={[
-                    styles.part,
-                    { color: colors.inkSoft },
-                    wraps ? styles.partWrap : held ? styles.partHeld : index === parts.length - 1 ? styles.partLast : styles.partFixed,
-                  ]}
-                >
+                <Text key={`${index}-${part}`} numberOfLines={lines} ellipsizeMode="tail" style={textStyle}>
                   {part}
                 </Text>
               );
@@ -145,10 +161,12 @@ const styles = StyleSheet.create({
   title: { flex: 1, minWidth: 0, fontFamily: "SourceSans3_600SemiBold", fontSize: 17, lineHeight: 22 },
   aside: { flexShrink: 0, fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20 },
   parts: { flexDirection: "row", alignItems: "center", gap: 8, minWidth: 0, overflow: "hidden" },
+  partsWrap: { flexWrap: "wrap" },
   part: { fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20 },
   partFixed: { flexShrink: 1 },
   partHeld: { flexShrink: 0 },
   partWrap: { flexShrink: 1, minWidth: 0 },
+  partClip: { width: "100%" },
   partLast: { flex: 1, minWidth: 0 },
   extra: { fontFamily: "SourceSans3_600SemiBold", fontSize: 17, lineHeight: 22 },
   extraMuted: { fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20 },
