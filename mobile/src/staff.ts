@@ -1,5 +1,5 @@
 import type { HallRole, PermissionKind } from "@/session";
-import { formatHallDate, formatWhen, formatWhenParts, hallNow } from "@/format-when";
+import { formatWhen, formatWhenParts, hallNow } from "@/format-when";
 
 export function homePath(role: HallRole): "/home" | "/staff" {
   return role === "resident" ? "/home" : "/staff";
@@ -243,23 +243,6 @@ export function readGuestDetail(value: unknown): GuestDetail | null {
     reason: str(body.reason) ?? "",
     days: num(body.inclusive_days),
   };
-}
-
-/** `13 Oct, 7:30 PM`, or days only for home going. */
-export function permissionTime(item: PermissionReview): string {
-  const start = formatWhenParts(item.departureAt);
-  const end = formatWhenParts(item.expectedReturnAt);
-  if (!start || !end) {
-    return "";
-  }
-  if (item.kind === "home_going") {
-    return `${shortDay(start.day)} to ${shortDay(end.day)}`;
-  }
-  return `${shortDay(start.day)}, ${start.clock}`;
-}
-
-export function guestTime(item: GuestReview): string {
-  return `${shortDay(formatHallDate(item.start))} to ${shortDay(formatHallDate(item.end))}`;
 }
 
 /** Section title for the hall day a request was submitted. */
