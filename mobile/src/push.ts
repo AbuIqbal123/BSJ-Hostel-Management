@@ -5,6 +5,7 @@ import { Platform } from "react-native";
 
 import { endingReminderAt } from "@/reminder";
 import { ignore } from "@/safe";
+import { runEach } from "@/session-refresh";
 
 export { pushTarget, type PushData } from "@/push-target";
 
@@ -87,14 +88,8 @@ export async function clearNotificationSurface(): Promise<void> {
     () => Notifications.dismissAllNotificationsAsync(),
     () => Notifications.clearLastNotificationResponseAsync(),
   ];
-  for (const step of steps) {
-    try {
-      await step();
-    } catch {
-      // A missing notification permission must not stop the session from ending.
-      ignore();
-    }
-  }
+  // A missing notification permission must not stop the session from ending.
+  await runEach(steps);
 }
 
 /**

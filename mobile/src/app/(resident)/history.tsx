@@ -228,7 +228,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 22,
   },
-  failed: { alignItems: "center", gap: 12 },
   older: { alignSelf: "center", minHeight: 44, justifyContent: "center" },
   pressed: { opacity: 0.6 },
 });

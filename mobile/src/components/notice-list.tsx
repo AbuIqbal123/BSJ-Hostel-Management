@@ -256,7 +256,6 @@ const styles = StyleSheet.create({
   detail: { fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20 },
   status: { fontFamily: "SourceSans3_600SemiBold", fontSize: 13, lineHeight: 18 },
   gap: { height: 12 },
-  empty: { textAlign: "center", paddingTop: 96 },
   footer: { textAlign: "center", paddingTop: 20 },
   pressed: { opacity: 0.6 },
 });
