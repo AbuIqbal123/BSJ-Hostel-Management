@@ -942,7 +942,7 @@ Copy this block for each test and fill every field.
 | Test | `mobile/src/__tests__/session-end.test.ts` |
 | Purpose | One cleanup cancels outing reminders, zeroes the badge, dismisses banners, clears the last tap, the stored push token, and the session. A failed step does not skip the rest. Running it again is safe. |
 | Actor | Resident or staff signing out, changing her password, deleting her account, or being signed out by a 401 refresh. |
-| Preconditions | None. `runEach` in `mobile/src/session-refresh.ts` is what `endSession` uses. |
+| Preconditions | None. `runEach` in `mobile/src/session-refresh.ts` runs the notification steps of `clearNotificationSurface` in `mobile/src/push.ts`, which `endSession` calls first. |
 | Action | Run the cleanup steps in that order, once with a throwing middle step, and once again on an already cleared phone. Run with `npm test` in `mobile/`. |
 | Expected response | Reminders, badge, banners, last tap, push token, and session are clear. The steps after a throw still run. The second run stays clear. |
 | Failure cases | Isolated: notification permissions and SecureStore are not available in the unit run. A throw that skips the session clear is the failure. |
