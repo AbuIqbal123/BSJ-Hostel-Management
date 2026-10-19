@@ -102,30 +102,16 @@ export function displayName(filename: string, fallback: string): string {
 }
 
 /** The name sent with the file. JPEG is always receipt.jpg, never a HEIC name. */
-export function uploadName(kind: "jpeg" | "png" | "pdf", original: string): string {
+export function uploadName(kind: "jpeg" | "pdf", original: string): string {
   if (kind === "jpeg") {
     return "receipt.jpg";
   }
-  const fallback = kind === "png" ? "receipt.png" : "receipt.pdf";
-  const name = displayName(original, fallback);
-  const lower = name.toLowerCase();
-  if (kind === "png" && lower.endsWith(".png")) {
-    return name;
-  }
-  if (kind === "pdf" && lower.endsWith(".pdf")) {
-    return name;
-  }
-  return fallback;
+  const name = displayName(original, "receipt.pdf");
+  return name.toLowerCase().endsWith(".pdf") ? name : "receipt.pdf";
 }
 
-export function contentType(kind: "jpeg" | "png" | "pdf"): "image/jpeg" | "image/png" | "application/pdf" {
-  if (kind === "jpeg") {
-    return "image/jpeg";
-  }
-  if (kind === "png") {
-    return "image/png";
-  }
-  return "application/pdf";
+export function contentType(kind: "jpeg" | "pdf"): "image/jpeg" | "application/pdf" {
+  return kind === "jpeg" ? "image/jpeg" : "application/pdf";
 }
 
 function card(item: Json): PaymentCard | null {

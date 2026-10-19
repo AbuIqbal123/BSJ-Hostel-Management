@@ -22,7 +22,7 @@ export const TARGET_UPLOAD_BYTES = Math.floor(1.5 * 1024 * 1024);
 export type PreparedReceipt = {
   uri: string;
   name: string;
-  type: "image/jpeg" | "image/png" | "application/pdf";
+  type: "image/jpeg" | "application/pdf";
   bytes: number;
   preview: boolean;
 };
