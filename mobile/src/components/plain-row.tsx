@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
+import { requestsPlaceOnOwnLine } from "@/row-layout";
 import { useHallColors } from "@/theme/colors";
 
 type PlainRowProps = {
@@ -59,8 +60,30 @@ export function PlainRow({
             </Text>
           ) : null}
         </View>
-        {parts && parts.length > 0 ? (
-          <View style={[styles.parts, keepParts !== undefined && keepParts > 0 && fontScale > 1 ? styles.partsWrap : null]}>
+        {parts && parts.length > 0 && requestsPlaceOnOwnLine(parts.length, fontScale) ? (
+          <View style={styles.partsStack}>
+            <View style={[styles.parts, styles.partsWrap]}>
+              {parts.slice(0, -1).map((part, index) => (
+                <Text
+                  key={`${index}-${part}`}
+                  ellipsizeMode="tail"
+                  style={[styles.part, styles.partHeld, styles.partWhole, { color: colors.inkSoft }]}
+                >
+                  {part}
+                </Text>
+              ))}
+            </View>
+            <Text
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              style={[styles.part, styles.placeLine, { color: colors.inkSoft }]}
+            >
+              {parts[parts.length - 1]}
+            </Text>
+          </View>
+        ) : null}
+        {parts && parts.length > 0 && !requestsPlaceOnOwnLine(parts.length, fontScale) ? (
+          <View style={styles.parts}>
             {parts.map((part, index) => {
               const wraps = keepParts === 0 && index === 0;
               const held =
@@ -161,13 +184,16 @@ const styles = StyleSheet.create({
   title: { flex: 1, minWidth: 0, fontFamily: "SourceSans3_600SemiBold", fontSize: 17, lineHeight: 22 },
   aside: { flexShrink: 0, fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20 },
   parts: { flexDirection: "row", alignItems: "center", gap: 8, minWidth: 0, overflow: "hidden" },
-  partsWrap: { flexWrap: "wrap" },
+  partsStack: { alignSelf: "stretch", minWidth: 0 },
+  partsWrap: { flexWrap: "wrap", overflow: "visible" },
   part: { fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20 },
   partFixed: { flexShrink: 1 },
   partHeld: { flexShrink: 0 },
+  partWhole: { maxWidth: "100%" },
   partWrap: { flexShrink: 1, minWidth: 0 },
   partClip: { width: "100%" },
   partLast: { flex: 1, minWidth: 0 },
+  placeLine: { alignSelf: "stretch" },
   extra: { fontFamily: "SourceSans3_600SemiBold", fontSize: 17, lineHeight: 22 },
   extraMuted: { fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20 },
   time: { width: 88, maxWidth: 88, flexGrow: 0, flexShrink: 0, overflow: "hidden" },
