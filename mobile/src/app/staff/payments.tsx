@@ -502,7 +502,6 @@ const styles = StyleSheet.create({
   title: { textAlign: "left" },
   search: { height: 48, borderWidth: 1, borderRadius: 12, borderCurve: "continuous", paddingHorizontal: 14 },
   note: { minHeight: 52, borderWidth: 1, borderRadius: 12, borderCurve: "continuous", paddingHorizontal: 14 },
-  empty: { textAlign: "center", paddingTop: 96 },
   textButton: { minHeight: 44, justifyContent: "center" },
   preview: { width: "100%", height: 220, borderRadius: 12, borderCurve: "continuous" },
   denied: { alignItems: "center", justifyContent: "center", padding: 28 },

@@ -232,7 +232,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   search: { height: 48, borderWidth: 1, borderRadius: 12, borderCurve: "continuous", paddingHorizontal: 14 },
-  empty: { textAlign: "center", paddingTop: 96 },
   scrim: { flex: 1, backgroundColor: "rgba(20, 38, 31, 0.32)" },
   sheet: {
     borderTopLeftRadius: 22,
