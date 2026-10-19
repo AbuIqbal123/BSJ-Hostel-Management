@@ -9,6 +9,7 @@ import { PagedList } from "@/components/paged-list";
 import { DayRange, type DayRangeValue } from "@/components/day-range";
 import { PlainRow, RowHairline } from "@/components/plain-row";
 import { formatSpan } from "@/format-when";
+import { historyPartsLayout } from "@/row-layout";
 import { kindLabel } from "@/requests";
 import { useSession, type HistoryItem, type HistoryKind } from "@/session";
 import { useListPage } from "@/use-list-page";
@@ -27,13 +28,6 @@ const KIND_FILTERS: { id: KindFilter; label: string }[] = [
 
 function whenLine(item: HistoryItem): string {
   return formatSpan(item.startedAt, item.endedAt, item.kind === "home_going" || item.kind === "guest_stay");
-}
-
-/** A clock span that names two hall days. That line is the one that wraps. */
-function crossesMidnight(when: string): boolean {
-  const toAt = when.indexOf(" to ");
-  const commaAt = when.indexOf(", ");
-  return commaAt >= 0 && toAt > commaAt;
 }
 
 function recordedLine(item: HistoryItem): string | null {
@@ -74,9 +68,7 @@ function HistoryRow({ item, first }: { item: HistoryItem; first: boolean }) {
   const title = item.who ?? item.place ?? kindLabel(item.kind);
   const recorded = recordedLine(item);
   const when = whenLine(item);
-  // At the default size this stays the one-line date. A larger size gives an
-  // unused row enough lines for the start and the end.
-  const openDate = item.unused === true && fontScale > 1;
+  const dateLayout = historyPartsLayout(when, fontScale);
   return (
     <View>
       {first ? null : <RowHairline />}
@@ -84,8 +76,8 @@ function HistoryRow({ item, first }: { item: HistoryItem; first: boolean }) {
         title={title}
         aside={kindLabel(item.kind)}
         parts={item.unused ? [when, "Unused"] : [when]}
-        keepParts={crossesMidnight(when) || openDate ? 0 : undefined}
-        wrapLines={openDate ? 0 : undefined}
+        keepParts={dateLayout.keepParts}
+        wrapLines={dateLayout.wrapLines}
         extra={recorded}
         mutedExtra
         onPress={() => openHistory(item)}
