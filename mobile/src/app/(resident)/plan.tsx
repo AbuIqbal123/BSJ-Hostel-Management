@@ -19,16 +19,10 @@ import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
 import { utcInstant } from "@/format-when";
 import { WhenField, leaveNote, notBefore, returnNote } from "@/outing-when";
+import { paramText } from "@/route-param";
 import { lockOuting, noteOutingLeft, useSession, type DestinationItem } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
-
-function paramText(value: string | string[] | undefined): string {
-  if (Array.isArray(value)) {
-    return value[0] ?? "";
-  }
-  return value ?? "";
-}
 
 function instant(value: string): Date | null {
   if (value.length === 0) {

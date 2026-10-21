@@ -5,13 +5,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { goBackOr } from "@/back";
 import { BackMark } from "@/components/back-mark";
 import { formatClockDay } from "@/format-when";
+import { paramText } from "@/route-param";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
-
-function paramText(value: string | string[] | undefined): string {
-  const raw = Array.isArray(value) ? value[0] : value;
-  return raw ?? "";
-}
 
 export default function OutingRecordScreen() {
   const colors = useHallColors();

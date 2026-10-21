@@ -22,6 +22,7 @@ import { HALL_ZONE, formatChipDay, formatHallDate, hallNow } from "@/format-when
 import { hallDay } from "@/outing-when";
 import { paymentLabel } from "@/payment-file";
 import { guestLine } from "@/requests";
+import { paramText } from "@/route-param";
 import { useSession, type GuestStay } from "@/session";
 import { useDark } from "@/theme/appearance";
 import { useHallColors } from "@/theme/colors";
@@ -43,11 +44,6 @@ const RELATIONS = [
   "Grandfather",
   OTHER_RELATION,
 ];
-
-function paramText(value: string | string[] | undefined): string {
-  const raw = Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
-  return raw.trim();
-}
 
 function HallDate({
   label,
@@ -494,7 +490,7 @@ function GuestDetail({ id }: { id: string }) {
 
 export default function GuestScreen() {
   const params = useLocalSearchParams<{ id?: string | string[] }>();
-  const id = paramText(params.id);
+  const id = paramText(params.id).trim();
   if (id.length > 0) {
     return <GuestDetail id={id} />;
   }
