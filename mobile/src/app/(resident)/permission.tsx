@@ -20,6 +20,7 @@ import { TextField } from "@/components/text-field";
 import { HALL_ZONE, formatClockDay, formatWhenParts, hallNow, utcInstant } from "@/format-when";
 import { WhenField, hallAt, hallDay, isNextHallMidnight, sameNight } from "@/outing-when";
 import { kindLabel, statusSentence, statusTone } from "@/requests";
+import { paramText } from "@/route-param";
 import { syncResidentReminders } from "@/return-reminders";
 import {
   useSession,
@@ -40,11 +41,6 @@ async function refreshReminders(loadResidentHome: () => Promise<ResidentHomeResu
 }
 
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
-
-function paramText(value: string | string[] | undefined): string {
-  const raw = Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
-  return raw.trim();
-}
 
 function kindParam(value: string): PermissionKind | null {
   if (value === "late_night" || value === "home_going") {
@@ -770,8 +766,8 @@ export default function PermissionScreen() {
     id?: string | string[];
     kind?: string | string[];
   }>();
-  const id = paramText(params.id);
-  const kind = kindParam(paramText(params.kind));
+  const id = paramText(params.id).trim();
+  const kind = kindParam(paramText(params.kind).trim());
   if (id.length > 0) {
     return <PermissionDetail key={id} id={id} />;
   }
