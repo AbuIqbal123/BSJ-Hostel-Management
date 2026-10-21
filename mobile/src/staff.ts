@@ -1,5 +1,6 @@
 import type { HallRole, PermissionKind } from "@/session";
 import { formatWhen, formatWhenParts, hallNow } from "@/format-when";
+import { type Json, record, str } from "@/json";
 
 export function homePath(role: HallRole): "/home" | "/staff" {
   return role === "resident" ? "/home" : "/staff";
@@ -13,16 +14,6 @@ export function readsRegister(role: HallRole): boolean {
 /** Copy has no full stop at the end of a line. */
 export function trimStop(message: string): string {
   return message.trim().replace(/\.$/, "");
-}
-
-type Json = Record<string, unknown>;
-
-function record(value: unknown): Json | null {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Json) : null;
-}
-
-function str(value: unknown): string | null {
-  return typeof value === "string" ? value : null;
 }
 
 function num(value: unknown): number {

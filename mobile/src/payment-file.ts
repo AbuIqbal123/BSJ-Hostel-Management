@@ -1,5 +1,7 @@
 /** Receipt rules for a guest payment. The phone converts images before upload. */
 
+import { type Json, record, str } from "@/json";
+
 export const MAX_EVIDENCE_BYTES = 2 * 1024 * 1024;
 
 export const PDF_TOO_LARGE =
@@ -32,16 +34,6 @@ export type PaymentStay = PaymentCard & {
   evidenceName: string | null;
   evidenceType: string | null;
 };
-
-type Json = Record<string, unknown>;
-
-function record(value: unknown): Json | null {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Json) : null;
-}
-
-function text(value: unknown): string | null {
-  return typeof value === "string" ? value : null;
-}
 
 export function evidenceKind(contentType: string | null, filename: string): EvidenceKind {
   const type = (contentType ?? "").toLowerCase().split(";")[0]?.trim() ?? "";
@@ -119,13 +111,13 @@ function card(item: Json): PaymentCard | null {
   if (payment !== "paid" && payment !== "unpaid") {
     return null;
   }
-  const id = text(item.id);
-  const guestName = text(item.guest_name);
-  const hostName = text(item.host_name);
-  const hostRoom = text(item.host_room_label);
-  const start = text(item.guest_start_date);
-  const end = text(item.guest_end_date);
-  const bucket = text(item.bucket);
+  const id = str(item.id);
+  const guestName = str(item.guest_name);
+  const hostName = str(item.host_name);
+  const hostRoom = str(item.host_room_label);
+  const start = str(item.guest_start_date);
+  const end = str(item.guest_end_date);
+  const bucket = str(item.bucket);
   if (!id || !guestName || !hostName || !hostRoom || !start || !end || !bucket) {
     return null;
   }
@@ -153,7 +145,7 @@ export function readPaymentPage(value: unknown): { items: PaymentCard[]; total: 
 export function readPaymentStay(value: unknown): PaymentStay | null {
   const body = record(value);
   const base = body ? card(body) : null;
-  const status = body ? text(body.status) : null;
+  const status = body ? str(body.status) : null;
   if (!body || !base || !status) {
     return null;
   }

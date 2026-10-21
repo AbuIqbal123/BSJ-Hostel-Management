@@ -1,5 +1,7 @@
 /** Gate guest list, arrival, and departure. The page size is not a cap on guests. */
 
+import { type Json, record, str } from "@/json";
+
 export const SEND_TO_WARDEN = "Send this guest to the warden to pay";
 export const NOT_EXPECTED = "That guest is not expected now";
 export const ALREADY_ARRIVED = "This guest has already arrived";
@@ -17,16 +19,6 @@ export type GateGuest = {
 };
 
 export type GateOccupancy = { inHall: number; shouldHaveLeft: number };
-
-type Json = Record<string, unknown>;
-
-function record(value: unknown): Json | null {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Json) : null;
-}
-
-function text(value: unknown): string | null {
-  return typeof value === "string" ? value : null;
-}
 
 export function arrivalRefusal(code: string | null, bucket: string): string | null {
   if (code === "payment_required") {
@@ -60,13 +52,13 @@ function guest(item: Json): GateGuest | null {
   if (payment !== "paid" && payment !== "unpaid") {
     return null;
   }
-  const id = text(item.id);
-  const guestName = text(item.guest_name);
-  const hostName = text(item.host_name);
-  const hostRoom = text(item.host_room_label);
-  const start = text(item.guest_start_date);
-  const end = text(item.guest_end_date);
-  const bucket = text(item.bucket);
+  const id = str(item.id);
+  const guestName = str(item.guest_name);
+  const hostName = str(item.host_name);
+  const hostRoom = str(item.host_room_label);
+  const start = str(item.guest_start_date);
+  const end = str(item.guest_end_date);
+  const bucket = str(item.bucket);
   if (!id || !guestName || !hostName || !hostRoom || !start || !end || !bucket) {
     return null;
   }
@@ -99,6 +91,6 @@ export function readOccupancy(value: unknown): GateOccupancy | null {
 }
 
 export function readGateMessage(value: unknown): string | null {
-  const message = text(record(value)?.message);
+  const message = str(record(value)?.message);
   return message && message.length > 0 ? message : null;
 }

@@ -1,3 +1,4 @@
+import { type Json, record, str } from "@/json";
 import { passwordRulesMet } from "@/password-rules";
 
 const MONTHS = [
@@ -37,16 +38,6 @@ export const RESET_CONFIRM = {
 
 export const REGISTER_CSV_HEADER =
   "record_type,full_name,enrolment_number,room_label,block_code,course,presence,state,place,exited_at,expected_return_at,grace_ends_at,returned_at,outing_type,guardian_name,guardian_phone,guest_name,relation,host_name,host_room_label,guest_start_date,guest_end_date,payment_status,guest_bucket,arrived_at,departed_at";
-
-type Json = Record<string, unknown>;
-
-function record(value: unknown): Json | null {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Json) : null;
-}
-
-function str(value: unknown): string | null {
-  return typeof value === "string" ? value : null;
-}
 
 function int(value: unknown): number | null {
   return typeof value === "number" && Number.isInteger(value) ? value : null;
