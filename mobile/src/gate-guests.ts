@@ -1,5 +1,7 @@
 /** Gate guest list, arrival, and departure. The page size is not a cap on guests. */
 
+import { record, text, type Json } from "@/json";
+
 export const SEND_TO_WARDEN = "Send this guest to the warden to pay";
 export const NOT_EXPECTED = "That guest is not expected now";
 export const ALREADY_ARRIVED = "This guest has already arrived";
@@ -17,16 +19,6 @@ export type GateGuest = {
 };
 
 export type GateOccupancy = { inHall: number; shouldHaveLeft: number };
-
-type Json = Record<string, unknown>;
-
-function record(value: unknown): Json | null {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Json) : null;
-}
-
-function text(value: unknown): string | null {
-  return typeof value === "string" ? value : null;
-}
 
 export function arrivalRefusal(code: string | null, bucket: string): string | null {
   if (code === "payment_required") {

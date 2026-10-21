@@ -1,5 +1,7 @@
 /** Receipt rules for a guest payment. The phone converts images before upload. */
 
+import { record, text, type Json } from "@/json";
+
 export const MAX_EVIDENCE_BYTES = 2 * 1024 * 1024;
 
 export const PDF_TOO_LARGE =
@@ -32,16 +34,6 @@ export type PaymentStay = PaymentCard & {
   evidenceName: string | null;
   evidenceType: string | null;
 };
-
-type Json = Record<string, unknown>;
-
-function record(value: unknown): Json | null {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Json) : null;
-}
-
-function text(value: unknown): string | null {
-  return typeof value === "string" ? value : null;
-}
 
 export function evidenceKind(contentType: string | null, filename: string): EvidenceKind {
   const type = (contentType ?? "").toLowerCase().split(";")[0]?.trim() ?? "";
