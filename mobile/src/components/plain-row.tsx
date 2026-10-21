@@ -45,6 +45,7 @@ export function PlainRow({
 }: PlainRowProps) {
   const colors = useHallColors();
   const { fontScale } = useWindowDimensions();
+  const stacked = parts !== undefined && requestsPlaceOnOwnLine(parts.length, fontScale);
   const two = Boolean((parts && parts.length > 0) || (time && time[1]));
   const three = Boolean(extra);
   const body = (
@@ -60,13 +61,12 @@ export function PlainRow({
             </Text>
           ) : null}
         </View>
-        {parts && parts.length > 0 && requestsPlaceOnOwnLine(parts.length, fontScale) ? (
+        {parts && stacked ? (
           <View style={styles.partsStack}>
             <View style={[styles.parts, styles.partsWrap]}>
               {parts.slice(0, -1).map((part, index) => (
                 <Text
                   key={`${index}-${part}`}
-                  ellipsizeMode="tail"
                   style={[styles.part, styles.partHeld, styles.partWhole, { color: colors.inkSoft }]}
                 >
                   {part}
@@ -82,7 +82,7 @@ export function PlainRow({
             </Text>
           </View>
         ) : null}
-        {parts && parts.length > 0 && !requestsPlaceOnOwnLine(parts.length, fontScale) ? (
+        {parts && parts.length > 0 && !stacked ? (
           <View style={styles.parts}>
             {parts.map((part, index) => {
               const wraps = keepParts === 0 && index === 0;
