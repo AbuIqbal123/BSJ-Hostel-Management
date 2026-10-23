@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { router, useFocusEffect } from "expo-router";
 import { AppState, BackHandler, InteractionManager, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import Animated, { Easing, FadeIn, FadeOut, LinearTransition, ReduceMotion } from "react-native-reanimated";
+import Animated, { FadeIn, FadeOut, LinearTransition, ReduceMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Bell } from "@/components/bell";
@@ -14,10 +14,10 @@ import { setBadge } from "@/push";
 import { syncResidentReminders } from "@/return-reminders";
 import { outingLocked, takeOutingLeft, useSession, type DestinationItem, type UpcomingOuting } from "@/session";
 import { useHallColors } from "@/theme/colors";
+import { EASE_OUT } from "@/theme/motion";
 import { text } from "@/theme/text";
 import { WhenField, hallDay, leaveNote, notBefore, returnNote } from "@/outing-when";
 
-const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 const ROW_ENTER = FadeIn.duration(180).easing(EASE_OUT).reduceMotion(ReduceMotion.System);
 const ROW_EXIT = FadeOut.duration(160).easing(EASE_OUT).reduceMotion(ReduceMotion.System);
 const ROW_MOVE = LinearTransition.duration(220).easing(EASE_OUT).reduceMotion(ReduceMotion.System);

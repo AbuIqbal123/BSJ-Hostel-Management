@@ -6,7 +6,6 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar, StyleSheet, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, {
-  Easing,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -26,14 +25,13 @@ import { SessionProvider, useSession } from "@/session";
 import { homePath } from "@/staff";
 import { AppearanceProvider, useDark } from "@/theme/appearance";
 import { useHallColors } from "@/theme/colors";
+import { EASE_OUT } from "@/theme/motion";
 import { text } from "@/theme/text";
 
 SplashScreen.preventAutoHideAsync();
 
 const LAUNCH_MS = 750;
 const FADE_MS = 280;
-const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
-
 // A fresh launch starts at the index gate. A restored path can still skip it.
 export const unstable_settings = {
   initialRouteName: "index",
