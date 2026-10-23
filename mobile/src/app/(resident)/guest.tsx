@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Feather } from "@expo/vector-icons";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import Animated, {
-  Easing,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -26,9 +25,8 @@ import { paramText } from "@/route-param";
 import { useSession, type GuestStay } from "@/session";
 import { useDark } from "@/theme/appearance";
 import { useHallColors } from "@/theme/colors";
+import { EASE_OUT } from "@/theme/motion";
 import { text } from "@/theme/text";
-
-const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 
 const OTHER_RELATION = "Other";
 const RELATIONS = [

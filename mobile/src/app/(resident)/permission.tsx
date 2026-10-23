@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Feather } from "@expo/vector-icons";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import Animated, {
-  Easing,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -31,6 +30,7 @@ import {
 } from "@/session";
 import { useDark } from "@/theme/appearance";
 import { useHallColors } from "@/theme/colors";
+import { EASE_OUT } from "@/theme/motion";
 import { text } from "@/theme/text";
 
 async function refreshReminders(loadResidentHome: () => Promise<ResidentHomeResult>) {
@@ -39,8 +39,6 @@ async function refreshReminders(loadResidentHome: () => Promise<ResidentHomeResu
     syncResidentReminders(result.home);
   }
 }
-
-const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 
 function kindParam(value: string): PermissionKind | null {
   if (value === "late_night" || value === "home_going") {
