@@ -22,8 +22,8 @@
     "outing_type": "ordinary",
     "status": "planned",
     "place": "Women's College",
-    "expected_return_at": "2026-10-01T12:00:00Z",
-    "grace_ends_at": "2026-10-01T12:30:00Z",
+    "expected_return_at": "2026-10-01T13:00:00Z",
+    "grace_ends_at": "2026-10-01T13:30:00Z",
     "exited_at": null,
     "exit_recorded_by_name": null,
     "returned_at": null,
@@ -33,7 +33,7 @@
     "starts_at": "2026-10-01T06:00:00Z",
     "qr_visible": false,
     "qr_visible_from": "2026-10-01T05:30:00Z",
-    "qr_visible_until": "2026-10-01T12:00:00Z"
+    "qr_visible_until": "2026-10-01T13:00:00Z"
   },
   "ahead": {
     "permission_id": null,

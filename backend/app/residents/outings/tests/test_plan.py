@@ -236,7 +236,7 @@ def test_plan_outing(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
             "The expected return must be in the future.",
         )
         assert_error(
-            plan(client, resident, {"destination_id": LIBRARY, "starts_at": "2026-09-30T00:45:00Z", "expected_return_at": "2026-09-30T01:00:00Z"}),
+            plan(client, resident, {"destination_id": LIBRARY, "starts_at": "2026-10-01T00:00:00Z", "expected_return_at": "2026-10-01T00:30:00Z"}),
             409,
             "outside_ordinary_hours",
             "That return is outside ordinary hours.",
@@ -248,7 +248,7 @@ def test_plan_outing(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
             "That return is outside ordinary hours. Please submit a permission request.",
         )
         assert_error(
-            plan(client, resident, {"destination_id": WOMENS, "starts_at": "2026-10-01T06:00:00Z", "expected_return_at": "2026-10-01T13:00:00Z"}),
+            plan(client, resident, {"destination_id": WOMENS, "starts_at": "2026-10-01T06:00:00Z", "expected_return_at": "2026-10-01T13:01:00Z"}),
             409,
             "permission_required",
             "That return is outside ordinary hours. Please submit a permission request.",
@@ -278,7 +278,7 @@ def test_plan_outing(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
             "The expected return must be after the start.",
         )
         assert_error(
-            plan(client, resident, {"destination_id": LIBRARY, "starts_at": "2026-09-30T01:00:00Z", "expected_return_at": "2026-09-30T13:00:00Z"}),
+            plan(client, resident, {"destination_id": LIBRARY, "starts_at": "2026-10-01T00:30:00Z", "expected_return_at": "2026-10-01T12:00:00Z"}),
             409,
             "outside_ordinary_hours",
             "That start is outside ordinary hours.",
@@ -351,7 +351,7 @@ def test_plan_outing(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
 
         clear_planned(database_path)
         winter_id = assert_planned(
-            plan(client, resident, {"destination_id": WOMENS, "starts_at": "2026-10-01T06:00:00Z", "expected_return_at": "2026-10-01T12:00:00Z"}),
+            plan(client, resident, {"destination_id": WOMENS, "starts_at": "2026-10-01T06:00:00Z", "expected_return_at": "2026-10-01T13:00:00Z"}),
             expected["winter_end"],
             database_path,
             WOMENS,
@@ -429,6 +429,75 @@ def test_plan_outing(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
         ]
         assert sorted(recorded, key=lambda row: (row[1], row[3])) == sorted(
             expected_audits, key=lambda row: (row[1], row[3])
+        )
+
+
+def test_ordinary_hours_edges(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Ordinary hours are 06:00–18:30; the start is excluded and the end is included."""
+    from app.shared import clock
+    from app.main import app
+
+    monkeypatch.setattr(clock, "utc_now", FrozenClock().utc_now)
+    with TestClient(app) as client:
+        issue_people(database_path)
+        resident = sign_in(client, "24-GLLB-118", role_credential("resident"))
+        # Exactly 06:00 IST on 1 October (00:30Z): start of the window is not included.
+        assert_error(
+            plan(
+                client,
+                resident,
+                {
+                    "destination_id": LIBRARY,
+                    "starts_at": "2026-10-01T00:00:00Z",
+                    "expected_return_at": "2026-10-01T00:30:00Z",
+                },
+            ),
+            409,
+            "outside_ordinary_hours",
+            "That return is outside ordinary hours.",
+        )
+        # One minute before 06:00 IST (00:29Z).
+        assert_error(
+            plan(
+                client,
+                resident,
+                {
+                    "destination_id": LIBRARY,
+                    "starts_at": "2026-10-01T00:00:00Z",
+                    "expected_return_at": "2026-10-01T00:29:00Z",
+                },
+            ),
+            409,
+            "outside_ordinary_hours",
+            "That return is outside ordinary hours.",
+        )
+        # Exactly 18:30 IST (13:00Z): end of the window is included.
+        accepted = plan(
+            client,
+            resident,
+            {
+                "destination_id": WOMENS,
+                "starts_at": "2026-10-01T06:00:00Z",
+                "expected_return_at": "2026-10-01T13:00:00Z",
+            },
+        )
+        assert accepted.status_code == 201
+        assert accepted.json()["expected_return_at"] == "2026-10-01T13:00:00Z"
+        clear_planned(database_path)
+        # One minute after 18:30 IST (13:01Z).
+        assert_error(
+            plan(
+                client,
+                resident,
+                {
+                    "destination_id": WOMENS,
+                    "starts_at": "2026-10-01T06:00:00Z",
+                    "expected_return_at": "2026-10-01T13:01:00Z",
+                },
+            ),
+            409,
+            "permission_required",
+            "That return is outside ordinary hours. Please submit a permission request.",
         )
 
 
