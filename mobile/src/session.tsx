@@ -16,6 +16,7 @@ import { AppState, Platform } from "react-native";
 import { pageQuery } from "@/list-page";
 import { allowReturnReminders, clearNotificationSurface, PUSH_TOKEN_KEY, pushToken } from "@/push";
 import { refreshEffect, registerPushToken, singleFlight } from "@/session-refresh";
+import { isRecord } from "@/json";
 import { ignore, readJson } from "@/safe";
 import { trimStop } from "@/staff";
 
@@ -410,9 +411,6 @@ export function outingLocked(id: string): boolean {
   return lockedOutingIds.has(id);
 }
 
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
 
 function readUpcoming(value: Record<string, unknown>): UpcomingOuting[] {
   if (!("upcoming_outings" in value) || !Array.isArray(value.upcoming_outings)) {

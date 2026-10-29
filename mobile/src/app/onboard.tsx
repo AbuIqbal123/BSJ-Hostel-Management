@@ -21,7 +21,8 @@ import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
 import { PASSWORD_RULES, passwordRulesMet } from "@/password-rules";
 import { signupRecovery } from "@/onboard-room";
-import { errorMessage, hallFetch, isRecord, useSession } from "@/session";
+import { isRecord } from "@/json";
+import { errorMessage, hallFetch, useSession } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
