@@ -1,4 +1,4 @@
-/** Object and string readers for hall JSON. `record` refuses a list; `isRecord` only refuses null. */
+/** Object and string readers for hall JSON. `record` returns null for a list. `isRecord` is true for any non-null object, including a list. */
 
 export type Json = Record<string, unknown>;
 
