@@ -18,6 +18,7 @@ BLOCK_B = "d032aad6-a203-5ea0-ba9a-3a9257edbfc8"
 LIBRARY = "fc2da7c5-8d65-5680-8034-d8acb69745eb"
 GATE_ID = "a11ce000-0000-4000-8000-000000000001"
 WARDEN_ID = "e55fa000-0000-4000-8000-000000000005"
+PROVOST_ID = "f66ab000-0000-4000-8000-000000000006"
 RESIDENT_ID = "b22de000-0000-4000-8000-000000000002"
 ROOM_ID = "d4400000-0000-4000-8000-000000000004"
 CREATED = "2026-09-30T00:00:00Z"
@@ -60,6 +61,7 @@ def issue_people(path: Path) -> None:
         for user_id, role, username, full_name, password in (
             (GATE_ID, "gate", "gate.fatima", "Fatima Khan", role_credential("gate")),
             (WARDEN_ID, "warden", "warden.sara", "Sara Malik", role_credential("warden")),
+            (PROVOST_ID, "provost", "provost.halima", "Halima Begum", role_credential("provost")),
             (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", role_credential("resident")),
         ):
             connection.execute(
@@ -77,6 +79,10 @@ def issue_people(path: Path) -> None:
         connection.execute(
             "INSERT INTO staff (user_id, job_title) VALUES (?, 'Warden')",
             (WARDEN_ID,),
+        )
+        connection.execute(
+            "INSERT INTO staff (user_id, job_title) VALUES (?, 'Provost')",
+            (PROVOST_ID,),
         )
         connection.execute(
             """

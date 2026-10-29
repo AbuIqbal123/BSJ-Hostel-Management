@@ -1,11 +1,11 @@
-"""Warden and provost permission queue and decisions."""
+"""Warden and provost permission queue; provost-only decisions."""
 
 from __future__ import annotations
 
 import sqlite3
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, BackgroundTasks, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from pydantic import BaseModel, ConfigDict
 
 from app.shared.page import PageDep
@@ -21,11 +21,15 @@ from app.residents.permissions.records import (
 )
 from app.residents.notifications.records import record_decision
 from app.shared import clock, push
-from app.shared.auth.routes import ConnectionDep
+from app.shared.auth.roles import ADMIN, require_roles
+from app.shared.auth.routes import Account, ConnectionDep
 from app.shared.errors import ApiError
 from app.staff.register.routes import RegisterDep
 
 router = APIRouter(prefix="/api/v1", tags=["Permissions"])
+
+provost_account = require_roles(ADMIN)
+ProvostDep = Annotated[Account, Depends(provost_account)]
 
 
 class ExpirePassedPermissionsResult(BaseModel):
@@ -120,7 +124,7 @@ def _refuse_overlap(connection: sqlite3.Connection, permission_id: str) -> None:
 def decide_permission(
     permission_id: str,
     body: DecisionRequest,
-    account: RegisterDep,
+    account: ProvostDep,
     connection: ConnectionDep,
     background_tasks: BackgroundTasks,
 ) -> PermissionReviewBody:

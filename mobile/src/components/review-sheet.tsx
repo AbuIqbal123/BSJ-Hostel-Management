@@ -14,20 +14,21 @@ type ReviewSheetProps = {
   facts: Fact[];
   error: string | null;
   busy: boolean;
-  onDecide: (decision: "approved" | "rejected", note: string) => void;
+  /** Provost only. When omitted, the sheet is read-only (warden may still mark payment via `extra`). */
+  onDecide?: (decision: "approved" | "rejected", note: string) => void;
   onClose: () => void;
   extra?: ReactNode;
 };
 
-/** A pending request opened over the list with Approve and Reject. */
+/** A pending request opened over the list; Approve and Reject when `onDecide` is set. */
 export function ReviewSheet({ title, subtitle, facts, error, busy, onDecide, onClose, extra }: ReviewSheetProps) {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
   const [rejecting, setRejecting] = useState(false);
   const [note, setNote] = useState("");
 
-  let actions: ReactNode;
-  if (rejecting) {
+  let actions: ReactNode = null;
+  if (onDecide && rejecting) {
     actions = (
       <>
         <TextInput
@@ -47,7 +48,7 @@ export function ReviewSheet({ title, subtitle, facts, error, busy, onDecide, onC
             accessibilityRole="button"
             accessibilityState={{ disabled: busy, busy }}
             disabled={busy}
-            onPress={() => onDecide("rejected", note.trim())}
+            onPress={() => onDecide?.("rejected", note.trim())}
             style={({ pressed }) => [styles.button, { backgroundColor: colors.danger, opacity: busy || pressed ? 0.7 : 1 }]}
           >
             {busy ? (
@@ -59,7 +60,7 @@ export function ReviewSheet({ title, subtitle, facts, error, busy, onDecide, onC
         </View>
       </>
     );
-  } else {
+  } else if (onDecide) {
     actions = (
       <View style={styles.buttons}>
         <View style={styles.half}>

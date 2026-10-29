@@ -100,10 +100,10 @@ def test_push_tokens_and_messages(database_path: Path, monkeypatch: pytest.Monke
         assert late_row["outcome"] is None
         assert late_row["occurred_at"] == "2026-09-30T12:15:00Z"
 
-        # The warden declines her guest stay.
+        # The provost declines her guest stay.
         decided = client.post(
             f"/api/v1/guest-stays/{STAY_B}/decision",
-            headers=auth(warden),
+            headers=auth(provost),
             json={"decision": "rejected"},
         )
         assert decided.status_code == 200
@@ -139,7 +139,7 @@ def test_push_tokens_and_messages(database_path: Path, monkeypatch: pytest.Monke
         assert by_kind["resident_late"]["needs_action"] is False
         assert by_kind["resident_late"]["decided_by_name"] == "Fatima Khan"
         assert by_kind["guest_stay_decided"]["outcome"] == "declined"
-        assert by_kind["guest_stay_decided"]["decided_by_name"] == "Sara Malik"
+        assert by_kind["guest_stay_decided"]["decided_by_name"] == "Halima Begum"
         assert by_kind["guest_stay_decided"]["guest_name"]
         home = client.get("/api/v1/me/home", headers=auth(aisha)).json()
         assert home["notifications_unread_count"] == 2
@@ -163,7 +163,7 @@ def test_push_tokens_and_messages(database_path: Path, monkeypatch: pytest.Monke
         ).status_code == 204
         client.post(
             f"/api/v1/permissions/{permission_id}/decision",
-            headers=auth(warden),
+            headers=auth(provost),
             json={"decision": "approved"},
         )
         assert push.SENT == []

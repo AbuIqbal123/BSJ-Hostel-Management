@@ -356,7 +356,9 @@ def test_guest_stays_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch)
         )
 
         warden = sign_in(client, "warden.sara", role_credential("warden"))
+        provost = sign_in(client, "provost.halima", role_credential("provost"))
         headers = {"Authorization": f"Bearer {warden}"}
+        provost_headers = {"Authorization": f"Bearer {provost}"}
 
         default_list = client.get("/api/v1/guest-stays", headers=headers)
         assert default_list.status_code == 200
@@ -441,22 +443,33 @@ def test_guest_stays_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch)
             "That record was not found.",
         )
 
+        assert_error(
+            client.post(
+                f"/api/v1/guest-stays/{PENDING_A}/decision",
+                headers=headers,
+                json={"decision": "approved", "note": ""},
+            ),
+            403,
+            "forbidden",
+            "This account cannot do that.",
+        )
+
         approved = client.post(
             f"/api/v1/guest-stays/{PENDING_A}/decision",
-            headers=headers,
+            headers=provost_headers,
             json={"decision": "approved", "note": ""},
         )
         assert approved.status_code == 200
         assert approved.json()["status"] == expected["approved_empty_note"]["status"]
         assert approved.json()["payment_status"] == expected["approved_empty_note"]["payment_status"]
         assert approved.json()["decision_note"] is None
-        assert approved.json()["decided_by"] == WARDEN_ID
+        assert approved.json()["decided_by"] == PROVOST_ID
         assert approved.json()["bucket"] == expected["approved_empty_note"]["bucket"]
 
         assert_error(
             client.post(
                 f"/api/v1/guest-stays/{PENDING_A}/decision",
-                headers=headers,
+                headers=provost_headers,
                 json={"decision": "rejected"},
             ),
             409,
@@ -465,7 +478,7 @@ def test_guest_stays_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch)
 
         rejected = client.post(
             f"/api/v1/guest-stays/{PENDING_B}/decision",
-            headers=headers,
+            headers=provost_headers,
             json={"decision": "rejected", "note": "Not this week."},
         )
         assert rejected.status_code == 200
@@ -613,8 +626,6 @@ def test_guest_stays_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch)
         assert after_leave.json()["decided_by"] == WARDEN_ID
         assert after_leave.json()["departed_at"] is not None
 
-        provost = sign_in(client, "provost.halima", role_credential("provost"))
-        provost_headers = {"Authorization": f"Bearer {provost}"}
         provost_list = client.get(
             "/api/v1/guest-stays?bucket=upcoming",
             headers=provost_headers,

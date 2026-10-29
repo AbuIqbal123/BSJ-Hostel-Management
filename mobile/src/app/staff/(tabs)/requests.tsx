@@ -15,6 +15,7 @@ import { formatHallDate, formatSpan, formatWhen, formatWhenParts } from "@/forma
 import { kindLabel } from "@/requests";
 import { useSession, type PermissionKind } from "@/session";
 import {
+  decidesRequests,
   readGuestDetail,
   readGuestReviews,
   readPermissionReviews,
@@ -120,7 +121,8 @@ function permissionFacts(row: PermissionReview): Fact[] {
 export default function RequestsScreen() {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
-  const { staffRequest } = useSession();
+  const { user, staffRequest } = useSession();
+  const canDecide = user !== null && decidesRequests(user.role);
   const params = useLocalSearchParams<{ tab?: string; open?: string; tap?: string }>();
   const [tab, setTab] = useState<Tab>("permissions");
   const [kind, setKind] = useState<PermissionKind | null>(null);
@@ -374,7 +376,7 @@ export default function RequestsScreen() {
           facts={open.tab === "permissions" ? permissionFacts(open.row) : (guestFacts ?? [])}
           error={sheetError}
           busy={busy}
-          onDecide={(decision, note) => void decide(decision, note)}
+          onDecide={canDecide ? (decision, note) => void decide(decision, note) : undefined}
           onClose={() => setOpen(null)}
           extra={
             open.tab === "guests" ? (

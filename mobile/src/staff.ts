@@ -11,6 +11,11 @@ export function readsRegister(role: HallRole): boolean {
   return role === "warden" || role === "provost";
 }
 
+/** Only the provost approves or rejects late-night, home going, and guest stays. */
+export function decidesRequests(role: HallRole): boolean {
+  return role === "provost";
+}
+
 /** Copy has no full stop at the end of a line. */
 export function trimStop(message: string): string {
   return message.trim().replace(/\.$/, "");

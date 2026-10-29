@@ -1049,8 +1049,8 @@ paths:
         `starts_at` and `expected_return_at` must both be in the future, the
         return after the start, on the same hall day, and inside ordinary hours
         on that hall date. The start of ordinary hours is not included. The end
-        is included. Summer, 1 April through 30 September, is 6:30 AM to 6:30 PM.
-        Winter, 1 October through 31 March, is 6:30 AM to 5:30 PM. A time at or
+        is included. For now both seasons use 6:00 AM to 6:30 PM (posted hall
+        rules). Season columns remain so the hall can split them later. A time at or
         before the start is outside ordinary hours. A time after the end needs
         late-night permission or home going. When the chosen destination is the
         Other row, `destination_text` is required. A planned outing whose
@@ -2513,11 +2513,12 @@ paths:
       operationId: decide_permission
       summary: Approve or reject a permission
       description: |
-        Caller: warden or provost. Only a `pending` permission can be decided.
-        Before deciding, expires this permission if it is an unused approved
-        request whose expected return has already passed. Approval does not
-        create an outing and does not by itself let a scan succeed before the
-        use window. Rejection leaves ordinary outings available.
+        Caller: provost. Only a `pending` permission can be decided. Wardens may
+        list and read permissions but cannot decide them. Before deciding,
+        expires this permission if it is an unused approved request whose
+        expected return has already passed. Approval does not create an outing
+        and does not by itself let a scan succeed before the use window.
+        Rejection leaves ordinary outings available.
 
         Approval is refused with 409 `permission_overlap` when the resident
         already holds an approved or in-use permission whose hours overlap
@@ -2647,11 +2648,12 @@ paths:
       operationId: decide_guest_stay
       summary: Approve or reject a guest stay
       description: |
-        Caller: warden or provost. Only while `pending`. A resident cannot edit
-        an approved stay, and cannot edit after arrival, so those stays are not
-        sent back for another decision. When the guest has already arrived, only
-        `approved` is allowed — reject is refused (the guest is in the hall).
-        Approval does not mark payment and does not clear or set arrival.
+        Caller: provost. Only while `pending`. Wardens may list and read guest
+        stays but cannot decide them. A resident cannot edit an approved stay,
+        and cannot edit after arrival, so those stays are not sent back for
+        another decision. When the guest has already arrived, only `approved`
+        is allowed — reject is refused (the guest is in the hall). Approval does
+        not mark payment and does not clear or set arrival.
       parameters:
         - $ref: "#/components/parameters/GuestStayId"
       requestBody:
@@ -6267,8 +6269,8 @@ components:
         summer_outing_start:
           type: string
           pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
-          description: Ordinary outing window start (summer). Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30.
-          example: "06:30"
+          description: Ordinary outing window start (summer). Kept as HH:MM. Shown as 6:00 AM. Starts as 06:00.
+          example: "06:00"
         summer_outing_end:
           type: string
           pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
@@ -6277,13 +6279,13 @@ components:
         winter_outing_start:
           type: string
           pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
-          description: Ordinary outing window start (winter). Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30.
-          example: "06:30"
+          description: Ordinary outing window start (winter). Same as summer for now. Starts as 06:00.
+          example: "06:00"
         winter_outing_end:
           type: string
           pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
-          description: Ordinary outing window end (winter). Kept as HH:MM. Shown as 5:30 PM. Starts as 17:30.
-          example: "17:30"
+          description: Ordinary outing window end (winter). Same as summer for now. Starts as 18:30.
+          example: "18:30"
         summer_season_start:
           type: string
           pattern: "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"

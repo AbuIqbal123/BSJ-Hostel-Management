@@ -56,8 +56,8 @@ The rules in this document are the contract. The room inventory is taken from th
 - Ordinary hours are a window with a start and an end. Summer is 1 April through 30 September, 6:30 AM to 6:30 PM. Winter is 1 October through 31 March, 6:30 AM to 5:30 PM. On 30 September the summer window is in force. On 1 October the winter window is in force. The clock times and the two start dates are under Hall settings.
 - Grace is 30 minutes after the expected return. An expected return of 7:00 PM means grace ends at 7:30 PM.
 - A message to the parent or guardian is sent when grace ends and the resident is still outside. A second message is sent when that resident returns. An on-time return sends nothing. Every resident has a guardian phone, so the number is always on file.
-- Late-night permission is for staying in Aligarh after ordinary hours. A warden or the provost must approve it before the resident leaves. The hall records the place, the reason, the departure, and the expected return.
-- Home going is leave for home. The hall records the home address, the reason, the departure, and the return. A warden or the provost must approve it before the resident leaves.
+- Late-night permission is for staying in Aligarh after ordinary hours. The **provost** must approve it before the resident leaves. The hall records the place, the reason, the departure, and the expected return.
+- Home going is leave for home. The hall records the home address, the reason, the departure, and the return. The **provost** must approve it before the resident leaves.
 - A rejection does not block an ordinary outing inside ordinary hours.
 - Gate staff scan the hall pass. A second immediate scan must not undo the movement. The gate screen for that case says the resident is already outside and should present the same pass on return.
 - The register shows who is inside, outside, or late, and the permissions still waiting. It shows those counts for the whole hall and again for each block. Search is by name or room. A register list row names the outside destination when the resident is outside. A resident record includes the open outside outing when she is outside — place, exit, expected return, grace, outing type — and whether the guardian was told. When she is inside, that outing field is null; cancelled, returned, and planned outings are not shown there.
@@ -126,11 +126,9 @@ Other writing rules:
 
 There is one settings record for the hall.
 
-Ordinary outing hours are the window in which an ordinary outing may start and in which its expected return must fall. The window has a start and an end. Summer and winter each have their own window. There is no separate limit on how many hours an ordinary outing may last. If the resident needs to be out after the end of the window, she asks for late-night permission. If she needs to stay away overnight, she asks for home going.
+Ordinary outing hours are the window in which an ordinary outing may start and in which its expected return must fall. The window has a start and an end. Summer and winter each have their own settings columns so the hall can split them later. For now both seasons use the same posted notice window: **6:00 AM to 6:30 PM**. There is no separate limit on how many hours an ordinary outing may last. If the resident needs to be out after the end of the window, she asks for late-night permission. If she needs to stay away overnight, she asks for home going. The printed “night stay a day in advance” rule is the guest-stay lead (`guest_min_lead_days`), not home going.
 
-The clock times below are the hall's published times. SOP 06 and SOP 07 both say summer is 6:30 AM to 6:30 PM and winter is 6:30 AM to 5:30 PM. SOP 05 prints 5:30 AM as the start. This record follows SOP 06 and SOP 07, which agree with each other.
-
-The season is a date. Summer starts on 1 April and winter starts on 1 October. AMU University Health Services uses that split for its own seasonal hours: evening OPD is 5:00 PM to 6:00 PM from 1 April to 30 September, and 4:00 PM to 5:00 PM from 1 October to 31 March. The hall's outing SOP names summer and winter and does not name the dates, so this record uses the university's published split. A hall date from 1 April through 30 September uses the summer window. A hall date from 1 October through 31 March uses the winter window. On 30 September 2026 an ordinary outing uses 6:30 AM to 6:30 PM. On 1 October 2026 it uses 6:30 AM to 5:30 PM. The provost can correct a clock time or a start date if the hall publishes a different one. The correction does not rewrite an outing that is already open.
+The season is a date. Summer starts on 1 April and winter starts on 1 October. AMU University Health Services uses that split for its own seasonal hours. The hall's outing SOP names summer and winter and does not name the dates, so this record uses the university's published split. A hall date from 1 April through 30 September uses the summer window. A hall date from 1 October through 31 March uses the winter window. Until the hall publishes a different split, both windows are 6:00 AM to 6:30 PM. The provost can correct a clock time or a start date. The correction does not rewrite an outing that is already open.
 
 | Detail | Kept as | Required | Where it comes from | Rule |
 |---|---|---|---|---|
@@ -139,10 +137,10 @@ The season is a date. Summer starts on 1 April and winter starts on 1 October. A
 | university_name | Text | Yes | Set with the record | Aligarh Muslim University. |
 | timezone | Text | Yes | Set with the record | `Asia/Kolkata`. |
 | grace_minutes | Whole number | Yes | The hall confirmed 30. The provost can change it later. | Minutes after the expected return before a guardian can be told. Taken when the outing is created. A later change does not rewrite an outing already open. Whole minutes from 0 to 180. |
-| summer_outing_start | Time of day | Yes | SOP 06 and SOP 07 | Shown as 6:30 AM. Kept as `06:30`. |
-| summer_outing_end | Time of day | Yes | SOP 06 and SOP 07 | Shown as 6:30 PM. Kept as `18:30`. The end is after the start. |
-| winter_outing_start | Time of day | Yes | SOP 06 and SOP 07 | Shown as 6:30 AM. Kept as `06:30`. |
-| winter_outing_end | Time of day | Yes | SOP 06 and SOP 07 | Shown as 5:30 PM. Kept as `17:30`. The end is after the start. |
+| summer_outing_start | Time of day | Yes | Posted hall rules (one window for now) | Shown as 6:00 AM. Kept as `06:00`. |
+| summer_outing_end | Time of day | Yes | Posted hall rules (one window for now) | Shown as 6:30 PM. Kept as `18:30`. The end is after the start. |
+| winter_outing_start | Time of day | Yes | Same as summer until the hall splits seasons again | Shown as 6:00 AM. Kept as `06:00`. |
+| winter_outing_end | Time of day | Yes | Same as summer until the hall splits seasons again | Shown as 6:30 PM. Kept as `18:30`. The end is after the start. |
 | summer_season_start | Month and day | Yes | AMU University Health Services | 1 April. Kept as `04-01`. Summer runs from this day through the day before winter starts. |
 | winter_season_start | Month and day | Yes | AMU University Health Services | 1 October. Kept as `10-01`. Winter runs from this day through the day before summer starts, across the new year. |
 | permission_lead_minutes | Whole number | Yes | Still open. Default 30. | Minutes before a permission's start when a resident may leave. Whole minutes from 0 to 180. |
@@ -271,7 +269,7 @@ The hall pass code stays the same from outing to outing. It changes only when th
 
 ### Staff
 
-A staff profile exists only for gate, warden, or provost. The role on the person is what limits the account. Gate staff scan. A warden or the provost approves. The provost also keeps the hall's records. The job title is the name of the post, such as Gatekeeper, Resident warden, Non-resident warden, or Provost. It does not grant extra actions.
+A staff profile exists only for gate, warden, or provost. The role on the person is what limits the account. Gate staff scan. The provost alone approves or rejects late-night, home going, and guest stays. Wardens see the queues and register. The provost also keeps the hall's records. The job title is the name of the post, such as Gatekeeper, Resident warden, Non-resident warden, or Provost. It does not grant extra actions.
 
 | Detail | Kept as | Required | Where it comes from | Rule |
 |---|---|---|---|---|
@@ -320,7 +318,7 @@ This record is what lets a phone stay signed in. The person signs in with a user
 
 ## Permissions
 
-A permission is the warden's or the provost's decision. It is not itself the moment of leaving. The leaving is an outing.
+A permission is the provost's decision. It is not itself the moment of leaving. The leaving is an outing.
 
 | Detail | Kept as | Required | Where it comes from | Rule |
 |---|---|---|---|---|
@@ -334,9 +332,9 @@ A permission is the warden's or the provost's decision. It is not itself the mom
 | reason | Text | Yes | The resident types it | Both forms require it. |
 | departure_at | Instant | Yes | The resident sets it | When she plans to leave. Must not be in the past when she submits (a few minutes of clock skew are allowed). There is no maximum how far ahead it may be. Late-night is a clock. Home going is a hall date, stored as the start of that day, or the current time when that day is today. |
 | expected_return_at | Instant | Yes | The resident sets it | Must be later than the departure. Late-night is a clock. Home going is a hall date, stored as the end of that day. |
-| decided_by | Identifier | Empty while waiting, and empty if the resident cancels before a decision | The warden or provost who approves or rejects | Required once that decision is recorded. |
+| decided_by | Identifier | Empty while waiting, and empty if the resident cancels before a decision | The provost who approves or rejects | Required once that decision is recorded. |
 | decided_at | Instant | Empty in the same cases as decided_by | System, at the decision | Required once the decision is recorded. |
-| decision_note | Text | Empty if they write nothing | The warden or provost may type it when deciding | Optional. |
+| decision_note | Text | Empty if they write nothing | The provost may type it when deciding | Optional. |
 | created_at | Instant | Yes | System, when the resident asks | When the request was made. |
 | updated_at | Instant | Yes | System | When it last changed. |
 
@@ -344,13 +342,13 @@ The short place lets the warden's card read "Home going · Lucknow" without open
 
 ### Permission lifecycle
 
-- Waiting: the warden or provost has not decided.
+- Waiting: the provost has not decided.
 - Approved: the resident may leave during the use window. No outing has been opened from it yet.
 - In use: an outing was opened from this permission and the resident has not returned.
 - Completed: that outing was returned.
 - Rejected, cancelled, and expired: finished. They do not start again.
 
-From waiting, the warden or provost can reject it, or the resident can cancel it. From approved, the resident can cancel it before leaving. An approved permission whose expected return has passed, and which the resident never used, becomes expired. That check runs on write paths (plan, submit, cancel, decision, gate scan) and on the explicit expire-passed posts (`POST /api/v1/me/expire-passed` for the resident's own plans and permissions; `POST /api/v1/permissions/expire-passed` for staff across the hall). GET routes do not write expiry. Guardian-message sends also consider expiry. Once expired it no longer counts as waiting or approved, and the gate cannot open an outing from it.
+From waiting, the provost can reject it, or the resident can cancel it. From approved, the resident can cancel it before leaving. An approved permission whose expected return has passed, and which the resident never used, becomes expired. That check runs on write paths (plan, submit, cancel, decision, gate scan) and on the explicit expire-passed posts (`POST /api/v1/me/expire-passed` for the resident's own plans and permissions; `POST /api/v1/permissions/expire-passed` for staff across the hall). GET routes do not write expiry. Guardian-message sends also consider expiry. Once expired it no longer counts as waiting or approved, and the gate cannot open an outing from it.
 
 The use window runs from the departure minus the early-leave setting, through the expected return. The gate can open an outing from the permission only inside that window.
 
@@ -358,7 +356,7 @@ A resident may hold more than one permission. She may also plan several future o
 
 ## Resident notifications
 
-A row is written when a warden or the provost approves or rejects her permission or guest stay, and once per outing when it passes grace while she is out (written by the read-time late check, the same one that records the guardian late notice). The late row is also the marker that the late push went out. The resident reads her own rows from the last 90 days, newest first, a page at a time. Each row shows the outcome: the decision and who made it, or for a late row, her return and the gate staff who recorded it. Opening the list does not mark anything read. She marks one row read, or every unread row up to an instant.
+A row is written when the provost approves or rejects her permission or guest stay, and once per outing when it passes grace while she is out (written by the read-time late check, the same one that records the guardian late notice). The late row is also the marker that the late push went out. The resident reads her own rows from the last 90 days, newest first, a page at a time. Each row shows the outcome: the decision and who made it, or for a late row, her return and the gate staff who recorded it. Opening the list does not mark anything read. She marks one row read, or every unread row up to an instant.
 
 | Detail | Kept as | Required | Where it comes from | Rule |
 |---|---|---|---|---|
@@ -366,7 +364,7 @@ A row is written when a warden or the provost approves or rejects her permission
 | resident_id | Identifier | Yes | The permission | The resident the decision is for. |
 | kind | Choice | Yes | System | permission_decided, guest_stay_decided, or resident_late. |
 | record_id | Identifier | Yes | The permission, guest stay, or outing | One row per kind and record. A second decision on the same record, or a second late check on the same outing, is not stored. |
-| decision | Choice | For a decision | The warden or provost | Approved or rejected. Empty on a late row. |
+| decision | Choice | For a decision | The provost | Approved or rejected. Empty on a late row. |
 | created_at | Instant | Yes | System | When the decision was recorded, or the outing's grace_ends_at for a late row. |
 | read_at | Instant | Empty until she reads it | System | Set when she marks that row, or all rows up to an instant, read. |
 
@@ -475,9 +473,9 @@ Guests are not accounts and have no hall pass.
 | payment_evidence_content_type | Text | Empty when no file. | System, from the file header | `image/jpeg`, `image/png`, or `application/pdf`. |
 | payment_evidence_uploaded_at | Instant | Empty when no file. | System, when the bytes are stored | |
 | payment_evidence_uploaded_by | Identifier | Empty when no file. | The warden or provost who uploaded it | |
-| decided_by | Identifier | Empty while waiting, and empty if the resident cancels. Yes once approved or rejected. | The warden or provost who decided | The audit of the decision. A waiting stay has no decision yet. A resident edit is allowed only while waiting and before arrival, and it leaves this field empty. |
+| decided_by | Identifier | Empty while waiting, and empty if the resident cancels. Yes once approved or rejected. | The provost who decided | The audit of the decision. A waiting stay has no decision yet. A resident edit is allowed only while waiting and before arrival, and it leaves this field empty. |
 | decided_at | Instant | Empty in the same cases as decided_by. Yes once approved or rejected. | System, at the decision | |
-| decision_note | Text | Empty if they write nothing | The warden or provost may type it | Optional. |
+| decision_note | Text | Empty if they write nothing | The provost may type it | Optional. |
 | arrived_at | Instant | Yes once arrival is recorded. Empty before that. | The gate scan, or the gate, warden, or provost recording the arrival | |
 | arrived_recorded_by | Identifier | Yes whenever arrived_at is set | The staff member who recorded the arrival | |
 | departed_at | Instant | Yes once departure is recorded. Empty before that. | The staff member's record of departure | At or after arrival. |
@@ -496,7 +494,7 @@ The state and the times agree:
 
 ### Guest lifecycle
 
-- From waiting, before arrival, the resident may edit name, relation, dates, and reason. The stay stays waiting and the decision stays empty. The warden or provost may approve or reject, or the resident may cancel.
+- From waiting, before arrival, the resident may edit name, relation, dates, and reason. The stay stays waiting and the decision stays empty. The provost may approve or reject, or the resident may cancel.
 - An approved stay cannot be edited. Before arrival the resident may still cancel it.
 - After arrival the resident cannot edit the stay, whether it is waiting or approved, and cannot cancel it.
 - Approved is the stay that can be in the hall. Arrival is a time on that stay, not a new state.
@@ -631,14 +629,15 @@ What a person may do comes from her or his role.
 
 Gate staff scan a hall pass and record a guest's arrival and departure. They do not approve a permission, they do not approve a guest stay, and they do not change residents, rooms, or settings. Their screens are the scan result, recent gate activity, and the guest lists.
 
-A warden or the provost approves or rejects a permission and a guest stay, sees the register and the late list, and marks a guest paid. The provost also creates and edits residents, creates staff, rooms, destinations, and settings, issues a new hall pass, resets a password, exports the register, and reads guardian messages and the audit log. A resident can delete her own account. A deleted account is left off the provost's resident list and off the register counts.
+A warden or the provost sees the register and the late list, views waiting permission and guest-stay queues, and marks a guest paid. Only the **provost** approves or rejects a permission or a guest stay. The provost also creates and edits residents, creates staff, rooms, destinations, and settings, issues a new hall pass, resets a password, exports the register, and reads guardian messages and the audit log. A resident can delete her own account. A deleted account is left off the provost's resident list and off the register counts.
 
 | Action | Resident | Gate | Warden | Provost |
 |---|---|---|---|---|
 | Self-onboard (active account) | Yes | | | |
 | Own outing, own permission, own guest application, own hall pass, own permission-decision inbox | Yes (active only) | | | |
 | Scan a hall pass, record a guest's arrival and departure | | Yes | Yes | Yes |
-| Register, late list, waiting decisions, mark a guest paid, upload or clear optional payment evidence | | | Yes | Yes |
+| Register, late list, view waiting queues, mark a guest paid, upload or clear optional payment evidence | | | Yes | Yes |
+| Approve or reject late-night, home going, or guest stay | | | | Yes |
 | Export the register | | | | Yes |
 | Create and edit residents, create staff, rooms, blocks, destinations, and settings | | | | Yes |
 | Issue a new hall pass, reset a password | | | | Yes |

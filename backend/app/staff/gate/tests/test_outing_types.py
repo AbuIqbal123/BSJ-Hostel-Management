@@ -248,8 +248,8 @@ def test_approval_refuses_a_permission_that_overlaps_an_approved_one(desk) -> No
     client, _movable, path = desk
     seed_permission(path, PERMISSION_ID, "late_night", "approved", stamp(15), stamp(17))
     seed_permission(path, SECOND_PERMISSION_ID, "home_going", "pending", stamp(16), stamp(20))
-    warden = sign_in(client, "warden.sara", role_credential("warden"))
-    headers = {"Authorization": f"Bearer {warden}"}
+    provost = sign_in(client, "provost.halima", role_credential("provost"))
+    headers = {"Authorization": f"Bearer {provost}"}
     path_decision = f"/api/v1/permissions/{SECOND_PERMISSION_ID}/decision"
 
     refused = client.post(path_decision, headers=headers, json={"decision": "approved"})
@@ -271,10 +271,10 @@ def test_approval_allows_back_to_back_permissions(desk) -> None:
     client, _movable, path = desk
     seed_permission(path, PERMISSION_ID, "late_night", "approved", stamp(15), stamp(17))
     seed_permission(path, SECOND_PERMISSION_ID, "late_night", "pending", stamp(17), stamp(19))
-    warden = sign_in(client, "warden.sara", role_credential("warden"))
+    provost = sign_in(client, "provost.halima", role_credential("provost"))
     response = client.post(
         f"/api/v1/permissions/{SECOND_PERMISSION_ID}/decision",
-        headers={"Authorization": f"Bearer {warden}"},
+        headers={"Authorization": f"Bearer {provost}"},
         json={"decision": "approved"},
     )
     assert response.status_code == 200

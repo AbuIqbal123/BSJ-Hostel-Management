@@ -16,6 +16,7 @@ from app.shared.testing_env import role_credential
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "resident-notifications.json"
 BLOCK_B = "d032aad6-a203-5ea0-ba9a-3a9257edbfc8"
 WARDEN_ID = "e55fa000-0000-4000-8000-000000000005"
+PROVOST_ID = "f66ab000-0000-4000-8000-000000000006"
 AISHA_ID = "b22de000-0000-4000-8000-000000000002"
 ZARA_ID = "d55fa000-0000-4000-8000-00000000000a"
 ROOM_B204 = "d4400000-0000-4000-8000-000000000004"
@@ -98,6 +99,18 @@ def issue_people(path: Path) -> None:
         connection.execute(
             "INSERT INTO staff (user_id, job_title) VALUES (?, 'Warden')",
             (WARDEN_ID,),
+        )
+        connection.execute(
+            """
+            INSERT INTO users (
+              id, role, username, full_name, password_hash, status, created_at, updated_at
+            ) VALUES (?, 'provost', 'provost.halima', 'Halima Begum', ?, 'active', ?, ?)
+            """,
+            (PROVOST_ID, hash_password(role_credential("provost")), CREATED, CREATED),
+        )
+        connection.execute(
+            "INSERT INTO staff (user_id, job_title) VALUES (?, 'Provost')",
+            (PROVOST_ID,),
         )
         for user_id, username, full_name, password, room_id, course, guardian, phone, token in (
             (
@@ -193,6 +206,7 @@ def test_resident_notification_inbox(database_path: Path, monkeypatch: pytest.Mo
         aisha = sign_in(client, "24-GLLB-118", role_credential("resident"))
         zara = sign_in(client, "24-BA-003", role_credential("resident-30"))
         warden = sign_in(client, "warden.sara", role_credential("warden"))
+        provost = sign_in(client, "provost.halima", role_credential("provost"))
         assert_error(
             client.get("/api/v1/me/notifications", headers=auth(warden)),
             403,
@@ -218,7 +232,7 @@ def test_resident_notification_inbox(database_path: Path, monkeypatch: pytest.Mo
                 "expected_return_at": "2026-09-30T18:00:00Z",
             },
         )
-        decide(client, warden, late_id, "approved")
+        decide(client, provost, late_id, "approved")
         assert unread_count(database_path, AISHA_ID) == 1
 
         listed = client.get("/api/v1/me/notifications", headers=auth(aisha))
@@ -244,7 +258,7 @@ def test_resident_notification_inbox(database_path: Path, monkeypatch: pytest.Mo
                 "expected_return_at": "2026-09-30T18:00:00Z",
             },
         )
-        decide(client, warden, zara_late, "approved")
+        decide(client, provost, zara_late, "approved")
         assert len(client.get("/api/v1/me/notifications", headers=auth(aisha)).json()["items"]) == 1
 
         frozen.advance()
@@ -260,10 +274,10 @@ def test_resident_notification_inbox(database_path: Path, monkeypatch: pytest.Mo
                 "expected_return_at": "2026-10-04T12:00:00Z",
             },
         )
-        decide(client, warden, home_id, "rejected")
+        decide(client, provost, home_id, "rejected")
         again = client.post(
             f"/api/v1/permissions/{home_id}/decision",
-            headers=auth(warden),
+            headers=auth(provost),
             json={"decision": "approved"},
         )
         assert again.status_code == 409

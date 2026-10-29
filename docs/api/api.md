@@ -1592,8 +1592,8 @@ outing so the phone can show when the guardian would be told.
 `starts_at` and `expected_return_at` must both be in the future, the
 return after the start, on the same hall day, and inside ordinary hours
 on that hall date. The start of ordinary hours is not included. The end
-is included. Summer, 1 April through 30 September, is 6:30 AM to 6:30 PM.
-Winter, 1 October through 31 March, is 6:30 AM to 5:30 PM. A time at or
+is included. For now both seasons use 6:00 AM to 6:30 PM (posted hall
+rules). Season columns remain so the hall can split them later. A time at or
 before the start is outside ordinary hours. A time after the end needs
 late-night permission or home going. When the chosen destination is the
 Other row, `destination_text` is required. A planned outing whose
@@ -1951,7 +1951,7 @@ Late-night and home-going permissions. Resident requests under /api/v1/me/permis
 | GET | `/api/v1/permissions` | [Permission queue](#get-api-v1-permissions) | warden or provost |
 | POST | `/api/v1/permissions/expire-passed` | [Expire passed unused permissions](#post-api-v1-permissions-expire-passed) | warden or provost |
 | GET | `/api/v1/permissions/{permission_id}` | [Permission for review](#get-api-v1-permissions-permission_id) | warden or provost |
-| POST | `/api/v1/permissions/{permission_id}/decision` | [Approve or reject a permission](#post-api-v1-permissions-permission_id-decision) | warden or provost |
+| POST | `/api/v1/permissions/{permission_id}/decision` | [Approve or reject a permission](#post-api-v1-permissions-permission_id-decision) | provost |
 
 ### <a id="get-api-v1-me-permissions"></a>GET `/api/v1/me/permissions` — Own special permissions
 
@@ -2505,13 +2505,14 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 `decide_permission`
 
-**Who.** warden or provost. Bearer access token.
+**Who.** provost. Bearer access token.
 
-Caller: warden or provost. Only a `pending` permission can be decided.
-Before deciding, expires this permission if it is an unused approved
-request whose expected return has already passed. Approval does not
-create an outing and does not by itself let a scan succeed before the
-use window. Rejection leaves ordinary outings available.
+Caller: provost. Only a `pending` permission can be decided. Wardens may
+list and read permissions but cannot decide them. Before deciding,
+expires this permission if it is an unused approved request whose
+expected return has already passed. Approval does not create an outing
+and does not by itself let a scan succeed before the use window.
+Rejection leaves ordinary outings available.
 
 Approval is refused with 409 `permission_overlap` when the resident
 already holds an approved or in-use permission whose hours overlap
@@ -2611,7 +2612,7 @@ Guest applications. Resident applies and edits under /api/v1/me/guest-stays; war
 | POST | `/api/v1/me/guest-stays/{guest_stay_id}/cancel` | [Cancel own guest application](#post-api-v1-me-guest-stays-guest_stay_id-cancel) | resident |
 | GET | `/api/v1/guest-stays` | [Guest stays](#get-api-v1-guest-stays) | warden or provost |
 | GET | `/api/v1/guest-stays/{guest_stay_id}` | [Guest stay for review](#get-api-v1-guest-stays-guest_stay_id) | warden or provost |
-| POST | `/api/v1/guest-stays/{guest_stay_id}/decision` | [Approve or reject a guest stay](#post-api-v1-guest-stays-guest_stay_id-decision) | warden or provost |
+| POST | `/api/v1/guest-stays/{guest_stay_id}/decision` | [Approve or reject a guest stay](#post-api-v1-guest-stays-guest_stay_id-decision) | provost |
 | POST | `/api/v1/guest-stays/{guest_stay_id}/payment` | [Mark guest payment](#post-api-v1-guest-stays-guest_stay_id-payment) | warden or provost |
 | POST | `/api/v1/guest-stays/{guest_stay_id}/payment/evidence` | [Upload guest payment evidence](#post-api-v1-guest-stays-guest_stay_id-payment-evidence) | warden or provost |
 | GET | `/api/v1/guest-stays/{guest_stay_id}/payment/evidence` | [Download guest payment evidence](#get-api-v1-guest-stays-guest_stay_id-payment-evidence) | warden or provost |
@@ -3152,13 +3153,14 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 `decide_guest_stay`
 
-**Who.** warden or provost. Bearer access token.
+**Who.** provost. Bearer access token.
 
-Caller: warden or provost. Only while `pending`. A resident cannot edit
-an approved stay, and cannot edit after arrival, so those stays are not
-sent back for another decision. When the guest has already arrived, only
-`approved` is allowed — reject is refused (the guest is in the hall).
-Approval does not mark payment and does not clear or set arrival.
+Caller: provost. Only while `pending`. Wardens may list and read guest
+stays but cannot decide them. A resident cannot edit an approved stay,
+and cannot edit after arrival, so those stays are not sent back for
+another decision. When the guest has already arrived, only `approved`
+is allowed — reject is refused (the guest is in the hall). Approval does
+not mark payment and does not clear or set arrival.
 
 **Parameters**
 
@@ -5822,10 +5824,10 @@ Body: [HallSettings](#schema-hallsettings).
 | `university_name` | yes | string |  |
 | `timezone` | yes | string |  |
 | `grace_minutes` | yes | integer |  |
-| `summer_outing_start` | yes | string | Ordinary outing window start (summer). Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `summer_outing_start` | yes | string | Ordinary outing window start (summer). Kept as HH:MM. Shown as 6:00 AM. Starts as 06:00. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
 | `summer_outing_end` | yes | string | Ordinary outing window end (summer). Kept as HH:MM. Shown as 6:30 PM. Starts as 18:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
-| `winter_outing_start` | yes | string | Ordinary outing window start (winter). Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
-| `winter_outing_end` | yes | string | Ordinary outing window end (winter). Kept as HH:MM. Shown as 5:30 PM. Starts as 17:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `winter_outing_start` | yes | string | Ordinary outing window start (winter). Same as summer for now. Starts as 06:00. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `winter_outing_end` | yes | string | Ordinary outing window end (winter). Same as summer for now. Starts as 18:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
 | `summer_season_start` | yes | string | Month and day the summer ordinary outing window begins. Shown as 01 April. Starts as 04-01. pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
 | `winter_season_start` | yes | string | Month and day the winter ordinary outing window begins. Shown as 01 October. Starts as 10-01. pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
 | `permission_lead_minutes` | yes | integer | Minutes before a permission start when a resident may leave. Aligns with guest_min_lead_days naming. |
@@ -5892,10 +5894,10 @@ Body: [HallSettings](#schema-hallsettings).
 | `university_name` | yes | string |  |
 | `timezone` | yes | string |  |
 | `grace_minutes` | yes | integer |  |
-| `summer_outing_start` | yes | string | Ordinary outing window start (summer). Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `summer_outing_start` | yes | string | Ordinary outing window start (summer). Kept as HH:MM. Shown as 6:00 AM. Starts as 06:00. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
 | `summer_outing_end` | yes | string | Ordinary outing window end (summer). Kept as HH:MM. Shown as 6:30 PM. Starts as 18:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
-| `winter_outing_start` | yes | string | Ordinary outing window start (winter). Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
-| `winter_outing_end` | yes | string | Ordinary outing window end (winter). Kept as HH:MM. Shown as 5:30 PM. Starts as 17:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `winter_outing_start` | yes | string | Ordinary outing window start (winter). Same as summer for now. Starts as 06:00. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `winter_outing_end` | yes | string | Ordinary outing window end (winter). Same as summer for now. Starts as 18:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
 | `summer_season_start` | yes | string | Month and day the summer ordinary outing window begins. Shown as 01 April. Starts as 04-01. pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
 | `winter_season_start` | yes | string | Month and day the winter ordinary outing window begins. Shown as 01 October. Starts as 10-01. pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
 | `permission_lead_minutes` | yes | integer | Minutes before a permission start when a resident may leave. Aligns with guest_min_lead_days naming. |
@@ -7255,10 +7257,10 @@ One of: `not_due`, `sent`, `failed`.
 | `university_name` | yes | string |  |
 | `timezone` | yes | string |  |
 | `grace_minutes` | yes | integer |  |
-| `summer_outing_start` | yes | string | Ordinary outing window start (summer). Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `summer_outing_start` | yes | string | Ordinary outing window start (summer). Kept as HH:MM. Shown as 6:00 AM. Starts as 06:00. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
 | `summer_outing_end` | yes | string | Ordinary outing window end (summer). Kept as HH:MM. Shown as 6:30 PM. Starts as 18:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
-| `winter_outing_start` | yes | string | Ordinary outing window start (winter). Kept as HH:MM. Shown as 6:30 AM. Starts as 06:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
-| `winter_outing_end` | yes | string | Ordinary outing window end (winter). Kept as HH:MM. Shown as 5:30 PM. Starts as 17:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `winter_outing_start` | yes | string | Ordinary outing window start (winter). Same as summer for now. Starts as 06:00. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `winter_outing_end` | yes | string | Ordinary outing window end (winter). Same as summer for now. Starts as 18:30. pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
 | `summer_season_start` | yes | string | Month and day the summer ordinary outing window begins. Shown as 01 April. Starts as 04-01. pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
 | `winter_season_start` | yes | string | Month and day the winter ordinary outing window begins. Shown as 01 October. Starts as 10-01. pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
 | `permission_lead_minutes` | yes | integer | Minutes before a permission start when a resident may leave. Aligns with guest_min_lead_days naming. |
