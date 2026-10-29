@@ -112,3 +112,19 @@ When a mistake repeats, fix it so it cannot happen, then add a row here. Drop th
 | Every route depends on the signed-in account unless it is on the public list | `backend/app/shared/auth/tests/test_route_auth.py` |
 | Every test file has a `docs/tests/tests.md` entry and the stated count matches, `docs/api/api.md` matches `backend/openapi.yaml`, and every OpenAPI path is in Postman | `backend/scripts/check_docs.py`, run by CI |
 | On the phone, no silent catch outside `src/safe.ts` and no `new Date()` outside `src/format-when.ts` (use `hallNow()`) | `npm run lint` warnings from `mobile/eslint.config.mjs` |
+
+## Cursor Cloud specific instructions
+
+Work lands on `dev`. `main` is production.
+
+The image has Python 3.12 and Node 22. `python3.12-venv` has to be installed before `python3 -m venv`, because the default image does not include it.
+
+- API dependencies: `backend/.venv`, from `pip install -r backend/requirements.txt`.
+- Phone dependencies: `mobile/node_modules`, from `npm ci` in `mobile/`.
+- If `backend/.env` is missing, copy `backend/.env.example`. `APP_SECRET_KEY` must be at least 32 bytes or the process refuses to start. `SMS_DRIVER` stays `mock`.
+
+On a Cloud Agent boot the API listens on port 8000. Startup applies the schema. `scripts/create_provost.py --dev-defaults`, from `backend/`, creates the laptop test provost when none exists. `GET /health` returns `{"status":"ok"}`. `GET /ready` returns `{"status":"ready"}`. Swagger is http://localhost:8000/docs. Open that host, because the contract server URL is `http://localhost:8000`.
+
+Phone web: from `mobile/`, `npx expo start --web --port 8081`. The sign-in screen loads. A browser page on another origin cannot call the API, because the hall does not send CORS headers. Expo Go is the phone client.
+
+Checks, from `backend/`: `.venv/bin/pytest`, `.venv/bin/ruff check .`, and `.venv/bin/python scripts/check_docs.py`. From `mobile/`: `npx tsc --noEmit`, `npm run lint`, and `npm test -- --watchAll=false`.
