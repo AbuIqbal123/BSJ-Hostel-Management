@@ -989,7 +989,7 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** resident. Bearer access token.
 
-Caller: resident. Rows written for her when a warden or the provost
+Caller: resident. Rows written for her when the provost
 approved or declined her permission or guest stay, and when an
 outing of hers passed grace while she was out (`resident_late`, once
 per outing). Only the last 90 days are listed; the records
@@ -1939,7 +1939,7 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 ## <a id="tag-permissions"></a>Permissions
 
-Late-night and home-going permissions. Resident requests under /api/v1/me/permissions; warden or provost queue and decisions under /api/v1/permissions.
+Late-night and home-going permissions. Resident requests under /api/v1/me/permissions; warden or provost queue under /api/v1/permissions; only the provost decides.
 
 | Method | Path | Purpose | Who |
 |---|---|---|---|
@@ -2097,7 +2097,7 @@ Body: [Permission](#schema-permission).
 | `expected_return_at` | yes | date-time |  |
 | `decision_note` | no | string or null |  |
 | `decided_at` | no | date-time or null |  |
-| `decided_by` | no | string or null | Display name of the warden or provost who decided. Not a user id. Empty while waiting. |
+| `decided_by` | no | string or null | Display name of the provost who decided. Not a user id. Empty while waiting. |
 | `created_at` | yes | date-time |  |
 
 #### 401
@@ -2156,7 +2156,7 @@ Body: [Permission](#schema-permission).
 | `expected_return_at` | yes | date-time |  |
 | `decision_note` | no | string or null |  |
 | `decided_at` | no | date-time or null |  |
-| `decided_by` | no | string or null | Display name of the warden or provost who decided. Not a user id. Empty while waiting. |
+| `decided_by` | no | string or null | Display name of the provost who decided. Not a user id. Empty while waiting. |
 | `created_at` | yes | date-time |  |
 
 #### 401
@@ -2244,7 +2244,7 @@ Body: [Permission](#schema-permission).
 | `expected_return_at` | yes | date-time |  |
 | `decision_note` | no | string or null |  |
 | `decided_at` | no | date-time or null |  |
-| `decided_by` | no | string or null | Display name of the warden or provost who decided. Not a user id. Empty while waiting. |
+| `decided_by` | no | string or null | Display name of the provost who decided. Not a user id. Empty while waiting. |
 | `created_at` | yes | date-time |  |
 
 #### 401
@@ -2315,7 +2315,7 @@ Body: [Permission](#schema-permission).
 | `expected_return_at` | yes | date-time |  |
 | `decision_note` | no | string or null |  |
 | `decided_at` | no | date-time or null |  |
-| `decided_by` | no | string or null | Display name of the warden or provost who decided. Not a user id. Empty while waiting. |
+| `decided_by` | no | string or null | Display name of the provost who decided. Not a user id. Empty while waiting. |
 | `created_at` | yes | date-time |  |
 
 #### 401
@@ -2476,7 +2476,7 @@ Body: [PermissionReview](#schema-permissionreview).
 | `expected_return_at` | yes | date-time |  |
 | `decision_note` | no | string or null |  |
 | `decided_at` | no | date-time or null |  |
-| `decided_by` | no | string or null | Display name of the warden or provost who decided. Not a user id. Empty while waiting. |
+| `decided_by` | no | string or null | Display name of the provost who decided. Not a user id. Empty while waiting. |
 | `created_at` | yes | date-time |  |
 | `resident_id` | yes | uuid |  |
 | `resident_name` | yes | string |  |
@@ -2565,7 +2565,7 @@ Body: [PermissionReview](#schema-permissionreview).
 | `expected_return_at` | yes | date-time |  |
 | `decision_note` | no | string or null |  |
 | `decided_at` | no | date-time or null |  |
-| `decided_by` | no | string or null | Display name of the warden or provost who decided. Not a user id. Empty while waiting. |
+| `decided_by` | no | string or null | Display name of the provost who decided. Not a user id. Empty while waiting. |
 | `created_at` | yes | date-time |  |
 | `resident_id` | yes | uuid |  |
 | `resident_name` | yes | string |  |
@@ -2601,7 +2601,7 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 ## <a id="tag-guest-stays"></a>Guest Stays
 
-Guest applications. Resident applies and edits under /api/v1/me/guest-stays; warden or provost review under /api/v1/guest-stays. A resident may edit only while the stay is pending and before arrival; the stay stays pending. Gate arrival and departure stay under Gate.
+Guest applications. Resident applies and edits under /api/v1/me/guest-stays; warden or provost queue under /api/v1/guest-stays; only the provost decides. A resident may edit only while the stay is pending and before arrival; the stay stays pending. Gate arrival and departure stay under Gate.
 
 | Method | Path | Purpose | Who |
 |---|---|---|---|
@@ -2728,7 +2728,7 @@ Body: [GuestStay](#schema-gueststay).
 | `payment_note` | no | string or null | Off-system payment proof (transaction reference, who collected cash, screenshot mention, and similar). Set when payment is marked paid; null when unpaid. |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
-| `decided_by` | no | uuid or null | UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `decided_by` | no | uuid or null | UUID of the provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once the provost approves or rejects. |
 | `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
 | `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
@@ -2797,7 +2797,7 @@ Body: [GuestStay](#schema-gueststay).
 | `payment_note` | no | string or null | Off-system payment proof (transaction reference, who collected cash, screenshot mention, and similar). Set when payment is marked paid; null when unpaid. |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
-| `decided_by` | no | uuid or null | UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `decided_by` | no | uuid or null | UUID of the provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once the provost approves or rejects. |
 | `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
 | `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
@@ -2905,7 +2905,7 @@ Body: [GuestStay](#schema-gueststay).
 | `payment_note` | no | string or null | Off-system payment proof (transaction reference, who collected cash, screenshot mention, and similar). Set when payment is marked paid; null when unpaid. |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
-| `decided_by` | no | uuid or null | UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `decided_by` | no | uuid or null | UUID of the provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once the provost approves or rejects. |
 | `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
 | `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
@@ -2988,7 +2988,7 @@ Body: [GuestStay](#schema-gueststay).
 | `payment_note` | no | string or null | Off-system payment proof (transaction reference, who collected cash, screenshot mention, and similar). Set when payment is marked paid; null when unpaid. |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
-| `decided_by` | no | uuid or null | UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `decided_by` | no | uuid or null | UUID of the provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once the provost approves or rejects. |
 | `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
 | `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
@@ -3119,7 +3119,7 @@ Body: [GuestStay](#schema-gueststay).
 | `payment_note` | no | string or null | Off-system payment proof (transaction reference, who collected cash, screenshot mention, and similar). Set when payment is marked paid; null when unpaid. |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
-| `decided_by` | no | uuid or null | UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `decided_by` | no | uuid or null | UUID of the provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once the provost approves or rejects. |
 | `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
 | `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
@@ -3202,7 +3202,7 @@ Body: [GuestStay](#schema-gueststay).
 | `payment_note` | no | string or null | Off-system payment proof (transaction reference, who collected cash, screenshot mention, and similar). Set when payment is marked paid; null when unpaid. |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
-| `decided_by` | no | uuid or null | UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `decided_by` | no | uuid or null | UUID of the provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once the provost approves or rejects. |
 | `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
 | `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
@@ -3302,7 +3302,7 @@ Body: [GuestStay](#schema-gueststay).
 | `payment_note` | no | string or null | Off-system payment proof (transaction reference, who collected cash, screenshot mention, and similar). Set when payment is marked paid; null when unpaid. |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
-| `decided_by` | no | uuid or null | UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `decided_by` | no | uuid or null | UUID of the provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once the provost approves or rejects. |
 | `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
 | `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
@@ -3395,7 +3395,7 @@ Body: [GuestStay](#schema-gueststay).
 | `payment_note` | no | string or null | Off-system payment proof (transaction reference, who collected cash, screenshot mention, and similar). Set when payment is marked paid; null when unpaid. |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
-| `decided_by` | no | uuid or null | UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `decided_by` | no | uuid or null | UUID of the provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once the provost approves or rejects. |
 | `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
 | `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
@@ -3535,7 +3535,7 @@ Body: [GuestStay](#schema-gueststay).
 | `payment_note` | no | string or null | Off-system payment proof (transaction reference, who collected cash, screenshot mention, and similar). Set when payment is marked paid; null when unpaid. |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
-| `decided_by` | no | uuid or null | UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `decided_by` | no | uuid or null | UUID of the provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once the provost approves or rejects. |
 | `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
 | `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
@@ -4452,7 +4452,7 @@ the permanent history; older ones are reached through the
 permission and guest-stay queues, late returns, and the register
 export. Ordered by (`occurred_at`, `id`) descending. Reading does
 not mark anything read. Gate staff get 403: the inbox is for the
-people who decide requests.
+warden and the provost.
 
 Unread for the caller means after her mark-all instant (which starts
 at her account creation) and not marked one by one.
@@ -6372,7 +6372,7 @@ One of: `ordinary`, `late_night`, `home_going`.
 | `needs_action` | yes | boolean | A request still pending, or a resident still out late. |
 | `outcome` | yes | `approved` or `declined` or `cancelled` or `returned` or `None` | Null while pending or while she is still out. `approved` covers a permission later used or expired and a guest stay that departed. `returned` is for `resident_late` once the gate recorded her return. |
 | `decided_at` | yes | string or null | When it was approved, declined, or cancelled, or when she returned. |
-| `decided_by_name` | yes | string or null | The warden or provost who decided, the resident who cancelled, or the gate staff who recorded her return. |
+| `decided_by_name` | yes | string or null | The provost who decided, the resident who cancelled, or the gate staff who recorded her return. |
 
 ### <a id="schema-staffnotificationpage"></a>StaffNotificationPage
 
@@ -6425,7 +6425,7 @@ One of: `ordinary`, `late_night`, `home_going`.
 | `presence` | yes | `inside` or `outside` |  |
 | `hall_name` | yes | string | The hall's name, from hall settings. |
 | `permissions_requested` | yes | integer | Late-night and home-going permissions she has sent. minimum 0. |
-| `permissions_rejected` | yes | integer | Permissions a warden or the provost rejected. minimum 0. |
+| `permissions_rejected` | yes | integer | Permissions the provost rejected. minimum 0. |
 | `ordinary_returns` | yes | integer | Ordinary outings she has returned from. minimum 0. |
 | `late_night_returns` | yes | integer | Late-night outings she has returned from. minimum 0. |
 | `home_going_returns` | yes | integer | Home-going outings she has returned from. minimum 0. |
@@ -6458,7 +6458,7 @@ One of: `ordinary`, `late_night`, `home_going`.
 | `needs_action` | yes | boolean | True for `resident_late` while she is still out. |
 | `outcome` | yes | `approved` or `declined` or `returned` or `None` | The decision, or `returned` on a late row once she is back. Null while she is still out. |
 | `decided_at` | yes | string or null |  |
-| `decided_by_name` | yes | string or null | The warden or provost who decided, or the gate staff who recorded her return. |
+| `decided_by_name` | yes | string or null | The provost who decided, or the gate staff who recorded her return. |
 | `place` | yes | string or null | Permission short place or outing place. Null for a guest stay. |
 | `guest_name` | yes | string or null | Set only for `guest_stay_decided`. |
 | `permission_id` | yes | string or null | Set only for `permission_decided`. Kept for older clients. |
@@ -6694,7 +6694,7 @@ The `type` field selects the object:
 | `expected_return_at` | yes | date-time |  |
 | `decision_note` | no | string or null |  |
 | `decided_at` | no | date-time or null |  |
-| `decided_by` | no | string or null | Display name of the warden or provost who decided. Not a user id. Empty while waiting. |
+| `decided_by` | no | string or null | Display name of the provost who decided. Not a user id. Empty while waiting. |
 | `created_at` | yes | date-time |  |
 
 ### <a id="schema-permissionreview"></a>PermissionReview
@@ -6712,7 +6712,7 @@ The `type` field selects the object:
 | `expected_return_at` | yes | date-time |  |
 | `decision_note` | no | string or null |  |
 | `decided_at` | no | date-time or null |  |
-| `decided_by` | no | string or null | Display name of the warden or provost who decided. Not a user id. Empty while waiting. |
+| `decided_by` | no | string or null | Display name of the provost who decided. Not a user id. Empty while waiting. |
 | `created_at` | yes | date-time |  |
 | `resident_id` | yes | uuid |  |
 | `resident_name` | yes | string |  |
@@ -6792,7 +6792,7 @@ arrival, is refused.
 | `payment_note` | no | string or null | Off-system payment proof (transaction reference, who collected cash, screenshot mention, and similar). Set when payment is marked paid; null when unpaid. |
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
-| `decided_by` | no | uuid or null | UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects. |
+| `decided_by` | no | uuid or null | UUID of the provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once the provost approves or rejects. |
 | `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
 | `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
