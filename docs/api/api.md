@@ -2007,7 +2007,7 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** resident. Bearer access token.
 
-Caller: resident. A warden or the provost decides later. Also expires this resident's unused approved permissions whose
+Caller: resident. The provost decides later. Also expires this resident's unused approved permissions whose
 expected return has passed. Submitting does
 not let the resident leave. The hall pass can be used for this permission
 only after it is approved and the gate scans it inside the use window.
@@ -5149,7 +5149,7 @@ Body: [StaffCreate](#schema-staffcreate).
 | `full_name` | yes | string | 1–120 characters. |
 | `username` | yes | string | 1–80 characters. |
 | `role` | yes | `gate` or `warden` or `provost` |  |
-| `job_title` | yes | string | Name of the post. Gate staff scan. A warden or the provost approves. The provost also keeps hall records. 1–80 characters. |
+| `job_title` | yes | string | Name of the post. Gate staff scan. The provost approves requests and keeps hall records. 1–80 characters. |
 | `temporary_password` | yes | string | 10–200 characters. |
 
 **Example**
@@ -7180,7 +7180,7 @@ One of: `not_due`, `sent`, `failed`.
 | `full_name` | yes | string | 1–120 characters. |
 | `username` | yes | string | 1–80 characters. |
 | `role` | yes | `gate` or `warden` or `provost` |  |
-| `job_title` | yes | string | Name of the post. Gate staff scan. A warden or the provost approves. The provost also keeps hall records. 1–80 characters. |
+| `job_title` | yes | string | Name of the post. Gate staff scan. The provost approves requests and keeps hall records. 1–80 characters. |
 | `temporary_password` | yes | string | 10–200 characters. |
 
 ### <a id="schema-staffupdate"></a>StaffUpdate

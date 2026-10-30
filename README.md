@@ -66,7 +66,8 @@ flowchart LR
 |---|---|---|---|---|
 | Own outing, permission, guest stay, hall pass | Yes | | | |
 | Scan a hall pass, record a guest in or out | | Yes | Yes | Yes |
-| Register, late list, decide requests, mark a guest paid | | | Yes | Yes |
+| Register, late list, see requests, mark a guest paid | | | Yes | Yes |
+| Approve or reject requests | | | | Yes |
 | People, rooms, settings, audit, SMS log, register export | | | | Yes |
 
 A resident can delete her own account. Parents have no login. Guests have no pass of their own.
@@ -99,7 +100,7 @@ The hall pass and the gate use one rule for which outing she can use now. An ord
 %%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'ui-sans-serif, sans-serif', 'lineColor': '#1F4D3A'}}}%%
 flowchart LR
   ask["Resident asks"]
-  decide["Warden or provost decides"]
+  decide["Provost decides"]
   paid["Mark paid, receipt optional"]
   arrive["Gate records arrival"]
   leave["Gate records departure"]

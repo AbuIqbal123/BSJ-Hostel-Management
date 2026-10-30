@@ -1268,7 +1268,7 @@ paths:
       operationId: submit_permission
       summary: Request late-night or home going
       description: |
-        Caller: resident. A warden or the provost decides later. Also expires this resident's unused approved permissions whose
+        Caller: resident. The provost decides later. Also expires this resident's unused approved permissions whose
         expected return has passed. Submitting does
         not let the resident leave. The hall pass can be used for this permission
         only after it is approved and the gate scans it inside the use window.
@@ -6079,7 +6079,7 @@ components:
           type: string
           minLength: 1
           maxLength: 80
-          description: Name of the post. Gate staff scan. A warden or the provost approves. The provost also keeps hall records.
+          description: Name of the post. Gate staff scan. The provost approves requests and keeps hall records.
         temporary_password:
           type: string
           minLength: 10
