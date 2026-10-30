@@ -27,7 +27,7 @@ The resident phone for the hall. Plan an outing, show your hall pass, and reques
 
 Begum Sultan Jahan Hall is the phone for residents of the hall. Sign in with the account the hall office gave you, or sign up for a room that is free.
 
-Plan an ordinary outing, with where you are going and when you will be back. Show your hall pass to the gate. Ask for late-night leave or home going, and request a guest stay. When the warden or the provost decides, the notice is on your phone.
+Plan an ordinary outing, with where you are going and when you will be back. Show your hall pass to the gate. Ask for late-night leave or home going, and request a guest stay. When the provost decides, the notice is on your phone.
 
 The app needs a connection to the hall. Your sign-in stays on this phone until you sign out. The hall does not sell this information, and the app does not show ads.
 

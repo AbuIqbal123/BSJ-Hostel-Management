@@ -4,7 +4,7 @@ The resident inbox on the phone. Each row is one sentence from this table, then 
 
 `{name}` is a person's display name.
 
-- A warden or the provost decides a permission or a guest stay, and marks a guest paid.
+- The provost decides a permission or a guest stay. A warden or the provost marks a guest paid.
 - Gate staff record an exit, a return, a guest's arrival, or a guest's departure.
 - The provost reissues a hall pass or suspends the account.
 

@@ -28,16 +28,13 @@ from app.residents.guests.records import (
 )
 from app.residents.notifications.records import record_decision
 from app.shared import clock, push
-from app.shared.auth.roles import ADMIN, require_roles
-from app.shared.auth.routes import Account, ConnectionDep
+from app.shared.auth.routes import ConnectionDep
 from app.shared.errors import ApiError
 from app.shared.schemas import DecisionRequest
+from app.staff.office.routes import ProvostDep
 from app.staff.register.routes import RegisterDep
 
 router = APIRouter(prefix="/api/v1", tags=["Guest Stays"])
-
-provost_account = require_roles(ADMIN)
-ProvostDep = Annotated[Account, Depends(provost_account)]
 
 
 class PaymentRequest(BaseModel):

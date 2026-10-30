@@ -60,11 +60,11 @@ tags:
   - name: Permissions
     description: >
       Late-night and home-going permissions. Resident requests under /api/v1/me/permissions;
-      warden or provost queue and decisions under /api/v1/permissions.
+      warden or provost queue under /api/v1/permissions; only the provost decides.
   - name: Guest Stays
     description: >
       Guest applications. Resident applies and edits under /api/v1/me/guest-stays;
-      warden or provost review under /api/v1/guest-stays. A resident may edit only
+      warden or provost queue under /api/v1/guest-stays; only the provost decides. A resident may edit only
       while the stay is pending and before arrival; the stay stays pending.
       Gate arrival and departure stay under Gate.
   - name: Gate
@@ -600,7 +600,7 @@ paths:
       operationId: list_resident_notifications
       summary: Her inbox, newest first, one page
       description: |
-        Caller: resident. Rows written for her when a warden or the provost
+        Caller: resident. Rows written for her when the provost
         approved or declined her permission or guest stay, and when an
         outing of hers passed grace while she was out (`resident_late`, once
         per outing). Only the last 90 days are listed; the records
@@ -1268,7 +1268,7 @@ paths:
       operationId: submit_permission
       summary: Request late-night or home going
       description: |
-        Caller: resident. A warden or the provost decides later. Also expires this resident's unused approved permissions whose
+        Caller: resident. The provost decides later. Also expires this resident's unused approved permissions whose
         expected return has passed. Submitting does
         not let the resident leave. The hall pass can be used for this permission
         only after it is approved and the gate scans it inside the use window.
@@ -2177,7 +2177,7 @@ paths:
         permission and guest-stay queues, late returns, and the register
         export. Ordered by (`occurred_at`, `id`) descending. Reading does
         not mark anything read. Gate staff get 403: the inbox is for the
-        people who decide requests.
+        warden and the provost.
 
         Unread for the caller means after her mark-all instant (which starts
         at her account creation) and not marked one by one.
@@ -4190,7 +4190,7 @@ components:
           description: When it was approved, declined, or cancelled, or when she returned.
         decided_by_name:
           type: [string, "null"]
-          description: The warden or provost who decided, the resident who cancelled, or the gate staff who recorded her return.
+          description: The provost who decided, the resident who cancelled, or the gate staff who recorded her return.
 
     StaffNotificationPage:
       type: object
@@ -4293,7 +4293,7 @@ components:
         permissions_rejected:
           type: integer
           minimum: 0
-          description: Permissions a warden or the provost rejected.
+          description: Permissions the provost rejected.
         ordinary_returns:
           type: integer
           minimum: 0
@@ -4397,7 +4397,7 @@ components:
           type: [string, "null"]
         decided_by_name:
           type: [string, "null"]
-          description: The warden or provost who decided, or the gate staff who recorded her return.
+          description: The provost who decided, or the gate staff who recorded her return.
         place:
           type: [string, "null"]
           description: Permission short place or outing place. Null for a guest stay.
@@ -5037,7 +5037,7 @@ components:
           oneOf:
             - type: string
             - type: "null"
-          description: Display name of the warden or provost who decided. Not a user id. Empty while waiting.
+          description: Display name of the provost who decided. Not a user id. Empty while waiting.
           example: Sara Malik
         created_at:
           type: string
@@ -5219,7 +5219,7 @@ components:
             - type: string
               format: uuid
             - type: "null"
-          description: UUID of the warden or provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once a warden or the provost approves or rejects.
+          description: UUID of the provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once the provost approves or rejects.
         arrived_recorded_by:
           oneOf:
             - type: string
@@ -6079,7 +6079,7 @@ components:
           type: string
           minLength: 1
           maxLength: 80
-          description: Name of the post. Gate staff scan. A warden or the provost approves. The provost also keeps hall records.
+          description: Name of the post. Gate staff scan. The provost approves requests and keeps hall records.
         temporary_password:
           type: string
           minLength: 10
