@@ -1,0 +1,19 @@
+{
+  "name": "bsj-pitch",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pitch deck and costs PDF for Begum Sultan Jahan Hall",
+  "scripts": {
+    "build": "node presentation.js && node costs.js",
+    "build:deck": "node presentation.js",
+    "build:costs": "node costs.js",
+    "shot": "node shot-phones.js"
+  },
+  "dependencies": {
+    "pdfkit": "^0.17.2",
+    "pptxgenjs": "^4.0.1"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}
