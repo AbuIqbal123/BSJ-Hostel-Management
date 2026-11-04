@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { router, useFocusEffect, useNavigation, type Href } from "expo-router";
 import { AppState, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -8,20 +8,27 @@ import { onHallRefresh } from "@/hall-refresh";
 import { BackMark } from "@/components/back-mark";
 import { EmptyState } from "@/components/list-state";
 import { PagedList } from "@/components/paged-list";
-import { useListPage } from "@/use-list-page";
 import { DayRange, type DayRangeValue } from "@/components/day-range";
 import { FilterChip } from "@/components/filter-chip";
 import { SearchField } from "@/components/search-field";
-import { readNoticePage, readUnreadCount, type Notice } from "@/notices";
+import { openCachedList, rememberFirstPage, type ListSnapshot } from "@/list-cache";
+import {
+  markNoticeReadInCache,
+  markNoticesReadUpToInCache,
+  noticeListKey,
+  readNoticePage,
+  readUnreadCount,
+  type Notice,
+  type NoticeFilter,
+} from "@/notices";
 import { setBadge } from "@/push";
+import { useListPage } from "@/use-list-page";
 import { useSession, type HallRole } from "@/session";
 import { trimStop } from "@/staff";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
-type Filter = "all" | "unread" | "needs_action";
-
-const FILTERS: { value: Filter; label: string }[] = [
+const FILTERS: { value: NoticeFilter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "unread", label: "Unread" },
   { value: "needs_action", label: "Needs action" },
@@ -68,46 +75,69 @@ export function NoticeList({ base, role, back, staff }: { base: string; role: Ha
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { staffRequest } = useSession();
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useState<NoticeFilter>("all");
   const [query, setQuery] = useState("");
   const [q, setQ] = useState("");
   const [range, setRange] = useState<DayRangeValue>({ from: null, to: null });
+  const cacheRef = useRef(new Map<string, ListSnapshot<Notice>>());
+  const filterRef = useRef(filter);
+  const qRef = useRef(q);
+  const rangeRef = useRef(range);
+  filterRef.current = filter;
+  qRef.current = q;
+  rangeRef.current = range;
   const list = useListPage<Notice>({
     mode: "cursor",
     auto: false,
     idOf: (item) => item.id,
     loadPage: async (cursor) => {
-      const search = new URLSearchParams({ filter });
-      if (staff && q.trim()) {
-        search.set("q", q.trim());
+      const currentFilter = filterRef.current;
+      const currentQ = qRef.current;
+      const currentRange = rangeRef.current;
+      const key = noticeListKey(currentFilter, currentQ, currentRange.from, currentRange.to);
+      const search = new URLSearchParams({ filter: currentFilter });
+      if (staff && currentQ.trim()) {
+        search.set("q", currentQ.trim());
       }
-      if (staff && range.from) {
-        search.set("from", range.from);
+      if (staff && currentRange.from) {
+        search.set("from", currentRange.from);
       }
-      if (staff && range.to) {
-        search.set("to", range.to);
+      if (staff && currentRange.to) {
+        search.set("to", currentRange.to);
       }
       if (cursor) {
         search.set("cursor", cursor);
       }
       const reply = await staffRequest(`${base}?${search.toString()}`);
       if (!reply.ok) {
-        return { error: trimStop(reply.message) };
+        const error = trimStop(reply.message);
+        if (cursor === null) {
+          rememberFirstPage(cacheRef.current, key, 0, { error });
+        }
+        return { error };
       }
       const page = readNoticePage(reply.data, role);
+      if (cursor === null) {
+        rememberFirstPage(cacheRef.current, key, 0, {
+          items: page.items,
+          total: page.next ? page.items.length + 1 : page.items.length,
+        });
+      }
       return { items: page.items, next: page.next };
     },
   });
+  const filterKey = noticeListKey(filter, q, range.from, range.to);
 
   useEffect(() => {
     const timer = setTimeout(() => setQ(query), 300);
     return () => clearTimeout(timer);
   }, [query]);
 
+  // First open of a filter may skeleton. Switching back restores that list and refreshes quietly.
   useFocusEffect(
     useCallback(() => {
-      list.load();
-    }, [filter, q, range.from, range.to, list.load]),
+      openCachedList(cacheRef.current, filterKey, list);
+    }, [filterKey, list.clear, list.load, list.revise]),
   );
 
   useEffect(() => {
@@ -124,7 +154,10 @@ export function NoticeList({ base, role, back, staff }: { base: string; role: Ha
   const open = useCallback(
     (item: Notice) => {
       if (item.unread) {
-        list.replaceRows((current) => current?.map((row) => (row.id === item.id ? { ...row, unread: false } : row)) ?? null);
+        list.replaceRows(
+          (current) => current?.map((row) => (row.id === item.id ? { ...row, unread: false } : row)) ?? null,
+        );
+        markNoticeReadInCache(cacheRef.current, item.id);
         void staffRequest(`${base}/${encodeURIComponent(item.id)}/read`, {}).then((reply) => {
           const count = reply.ok ? readUnreadCount(reply.data) : null;
           if (count !== null) {
@@ -150,6 +183,7 @@ export function NoticeList({ base, role, back, staff }: { base: string; role: Ha
       return;
     }
     list.replaceRows((current) => current?.map((row) => (row.at <= newest ? { ...row, unread: false } : row)) ?? null);
+    markNoticesReadUpToInCache(cacheRef.current, newest);
     void staffRequest(`${base}/read`, { up_to: newest }).then((reply) => {
       const count = reply.ok ? readUnreadCount(reply.data) : null;
       if (count !== null) {

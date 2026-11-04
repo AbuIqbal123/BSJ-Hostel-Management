@@ -9,6 +9,7 @@ import { PagedList } from "@/components/paged-list";
 import { DayRange, type DayRangeValue } from "@/components/day-range";
 import { PlainRow, RowHairline } from "@/components/plain-row";
 import { formatSpan } from "@/format-when";
+import { openCachedList, rememberFirstPage, type ListSnapshot } from "@/list-cache";
 import { historyPartsLayout } from "@/row-layout";
 import { guestStayNoticeTitle } from "@/notices";
 import { kindLabel } from "@/requests";
@@ -116,15 +117,37 @@ export default function HistoryScreen() {
   const { loadHistory } = useSession();
   const [kind, setKind] = useState<KindFilter>("all");
   const [range, setRange] = useState<DayRangeValue>({ from: null, to: null });
-  const seen = useRef("");
+  const cacheRef = useRef(new Map<string, ListSnapshot<HistoryItem>>());
+  const kindRef = useRef(kind);
+  const rangeRef = useRef(range);
+  kindRef.current = kind;
+  rangeRef.current = range;
   const list = useListPage<HistoryItem>({
     mode: "cursor",
     auto: false,
     idOf: (item) => item.id,
     loadPage: async (cursor) => {
-      const result = await loadHistory({ kind, from: range.from, to: range.to, cursor });
+      const currentKind = kindRef.current;
+      const currentRange = rangeRef.current;
+      const key = `${currentKind}|${currentRange.from ?? ""}|${currentRange.to ?? ""}`;
+      const result = await loadHistory({
+        kind: currentKind,
+        from: currentRange.from,
+        to: currentRange.to,
+        cursor,
+      });
       if (result.error !== null) {
-        return { error: cursor ? result.error : "History didn't load" };
+        const error = cursor ? result.error : "History didn't load";
+        if (cursor === null) {
+          rememberFirstPage(cacheRef.current, key, 0, { error });
+        }
+        return { error };
+      }
+      if (cursor === null) {
+        rememberFirstPage(cacheRef.current, key, 0, {
+          items: result.items,
+          total: result.next ? result.items.length + 1 : result.items.length,
+        });
       }
       return { items: result.items, next: result.next };
     },
@@ -133,14 +156,8 @@ export default function HistoryScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (seen.current !== filterKey) {
-        if (seen.current !== "") {
-          list.clear();
-        }
-        seen.current = filterKey;
-      }
-      list.load();
-    }, [filterKey, list.clear, list.load]),
+      openCachedList(cacheRef.current, filterKey, list);
+    }, [filterKey, list.clear, list.load, list.revise]),
   );
 
   const back = () => goBackOr(navigation, "/settings");

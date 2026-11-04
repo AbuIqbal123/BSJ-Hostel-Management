@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { NotificationsOffRow } from "@/components/notifications-off-row";
+import { runsOffice } from "@/office";
 import { roleLabel, useSession } from "@/session";
 import { useAppearance } from "@/theme/appearance";
 import { useHallColors } from "@/theme/colors";
@@ -64,6 +65,10 @@ export default function StaffSettingsScreen() {
       <View style={styles.rows}>
         <Row label="Appearance" color={colors.ink} value={dark ? "Dark" : "Light"} onPress={() => setDark(!dark)} />
         <NotificationsOffRow />
+        <Row label="Gate history" color={colors.ink} chevron onPress={() => router.push("/staff/gate-history")} />
+        {user && runsOffice(user.role) ? (
+          <Row label="Office" color={colors.ink} chevron onPress={() => router.push("/staff/office")} />
+        ) : null}
         <Row label="Change password" color={colors.ink} chevron onPress={() => router.push("/change-password")} />
         <Row
           label="Sign out"

@@ -332,6 +332,35 @@ export default function SignInScreen() {
     }
   }, [password, signIn, username]);
 
+  // While signed in this screen stays on the stack as an empty sheet, so pad and
+  // keyboard refs would otherwise survive sign-out and pin the block off-screen
+  // (clipped hall name, top-heavy layout). Clear them whenever she is signed out.
+  useEffect(() => {
+    if (user) {
+      return;
+    }
+    if (outlineTimer.current != null) {
+      clearTimeout(outlineTimer.current);
+      outlineTimer.current = null;
+    }
+    hideTicket.current += 1;
+    focusCount.current = 0;
+    keyboardUpRef.current = false;
+    canvasHeightRef.current = 0;
+    blockHeightRef.current = 0;
+    canvasBottom.current = 0;
+    restingPad.current = 0;
+    padRef.current = null;
+    setPad(null);
+    setKeyboardUp(false);
+    setOutlineReady(false);
+    setUsername("");
+    setPassword("");
+    setError(null);
+    setBusy(false);
+    pendingRef.current = false;
+  }, [user]);
+
   if (user) {
     return <View style={[styles.screen, { backgroundColor: colors.paper }]} />;
   }
@@ -366,7 +395,9 @@ export default function SignInScreen() {
         >
           <View style={styles.mark}>
             <HallMark />
-            <Text style={[text.hallName, { color: colors.ink }]}>Begum Sultan Jahan Hall</Text>
+            <Text style={[text.hallName, styles.hallName, { color: colors.ink }]}>
+              Begum Sultan Jahan Hall
+            </Text>
           </View>
           <View style={styles.fields}>
             <TextField
@@ -451,7 +482,8 @@ const styles = StyleSheet.create({
     right: 28,
   },
   block: { gap: 28 },
-  mark: { alignItems: "center", gap: 12 },
+  mark: { alignItems: "center", gap: 12, alignSelf: "stretch" },
+  hallName: { alignSelf: "stretch" },
   fields: { gap: 16 },
   submit: { gap: 16 },
   onboard: {

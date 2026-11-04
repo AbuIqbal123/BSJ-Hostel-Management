@@ -16,12 +16,14 @@ import {
   arrivalRefusal,
   departureRefusal,
   gateGuestLine,
+  guestListKey,
   readGateGuests,
   readGateMessage,
   readOccupancy,
   type GateGuest,
   type GateOccupancy,
 } from "@/gate-guests";
+import { forgetCachedLists, openCachedList, rememberFirstPage, type ListSnapshot } from "@/list-cache";
 import { useSession } from "@/session";
 import { shortDay, trimStop } from "@/staff";
 import { useHallColors } from "@/theme/colors";
@@ -48,18 +50,25 @@ export default function GateGuestsScreen() {
   const [busy, setBusy] = useState(false);
   const bucketRef = useRef(bucket);
   const qRef = useRef(q);
+  const cacheRef = useRef(new Map<string, ListSnapshot<GateGuest>>());
   bucketRef.current = bucket;
   qRef.current = q;
   const list = useListPage<GateGuest>({
     idOf: (guest) => guest.id,
     loadPage: async (offset) => {
       const needle = qRef.current.trim().slice(0, 80);
+      const key = guestListKey(bucketRef.current, needle);
       const search = needle ? `&q=${encodeURIComponent(needle)}` : "";
       const reply = await staffRequest(`/gate/guests?bucket=${bucketRef.current}&${pageQuery(offset)}${search}`);
       const page = reply.ok ? readGateGuests(reply.data) : null;
-      return page
-        ? { items: page.items, total: page.total }
-        : { error: !reply.ok ? trimStop(reply.message) : "The guest list could not be read" };
+      if (page) {
+        const result = { items: page.items, total: page.total };
+        rememberFirstPage(cacheRef.current, key, offset, result);
+        return result;
+      }
+      const message = !reply.ok ? trimStop(reply.message) : "The guest list could not be read";
+      rememberFirstPage(cacheRef.current, key, offset, { error: message });
+      return { error: message };
     },
   });
 
@@ -75,11 +84,12 @@ export default function GateGuestsScreen() {
     }
   }, [staffRequest]);
 
+  // First open of a tab (or search) may skeleton. Coming back restores the list
+  // and refreshes quietly — no skeleton every switch.
   useEffect(() => {
-    list.clear();
-    list.load();
+    openCachedList(cacheRef.current, guestListKey(bucket, q), list);
     void loadOccupancy();
-  }, [bucket, q, list.clear, list.load, loadOccupancy]);
+  }, [bucket, q, list.clear, list.load, list.revise, loadOccupancy]);
 
   const record = async (guest: GateGuest) => {
     const arrival = bucket === "expected";
@@ -98,6 +108,13 @@ export default function GateGuestsScreen() {
     setOpen(null);
     setSheetError(null);
     setNotice(readGateMessage(reply.data) ?? (arrival ? "The guest is now in the hall." : "The guest has left."));
+    // Arrival/departure moves a guest between buckets — drop both caches for this search.
+    const needle = q.trim().slice(0, 80);
+    forgetCachedLists(cacheRef.current, [
+      guestListKey("expected", needle),
+      guestListKey("in_hall", needle),
+    ]);
+    list.clear();
     list.load();
     void loadOccupancy();
   };

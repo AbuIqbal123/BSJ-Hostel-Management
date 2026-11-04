@@ -31,6 +31,7 @@ export default function StaffLayout() {
       <Stack.Screen name="office" />
       <Stack.Screen name="payments" />
       <Stack.Screen name="guests" />
+      <Stack.Screen name="gate-history" />
     </Stack>
   );
 }

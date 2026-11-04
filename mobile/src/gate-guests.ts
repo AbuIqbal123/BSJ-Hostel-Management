@@ -20,6 +20,11 @@ export type GateGuest = {
 
 export type GateOccupancy = { inHall: number; shouldHaveLeft: number };
 
+/** Cache key for Expected / In the hall so a return visit skips the skeleton. */
+export function guestListKey(bucket: "expected" | "in_hall", needle: string): string {
+  return `${bucket}:${needle.trim().slice(0, 80)}`;
+}
+
 export function arrivalRefusal(code: string | null, bucket: string): string | null {
   if (code === "payment_required") {
     return SEND_TO_WARDEN;

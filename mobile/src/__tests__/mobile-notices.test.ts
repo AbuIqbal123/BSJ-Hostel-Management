@@ -1,6 +1,14 @@
 import { describe, expect, it } from "@jest/globals";
 
-import { readNoticePage, readUnreadCount } from "@/notices";
+import type { ListSnapshot } from "@/list-cache";
+import {
+  markNoticeReadInCache,
+  markNoticesReadUpToInCache,
+  noticeListKey,
+  readNoticePage,
+  readUnreadCount,
+  type Notice,
+} from "@/notices";
 
 const when = "2026-10-15T08:16:00Z";
 
@@ -190,5 +198,63 @@ describe("readUnreadCount", () => {
     expect(readUnreadCount({ unread_count: -1 })).toBeNull();
     expect(readUnreadCount({})).toBeNull();
     expect(readUnreadCount(null)).toBeNull();
+  });
+});
+
+describe("notice list cache", () => {
+  const card = (id: string, unread: boolean, at = when): Notice => ({
+    id,
+    title: id,
+    detail: "",
+    when: "",
+    at,
+    unread,
+    needsAction: false,
+    status: null,
+    target: null,
+  });
+
+  it("keys All, Unread, and search apart so a return visit can skip the false empty", () => {
+    expect(noticeListKey("all", "", null, null)).toBe("all|||");
+    expect(noticeListKey("unread", "", null, null)).toBe("unread|||");
+    expect(noticeListKey("all", "  Noor  ", "2026-10-01", null)).toBe("all|Noor|2026-10-01|");
+    expect(noticeListKey("all", "a".repeat(100), null, null)).toBe(`all|${"a".repeat(80)}||`);
+  });
+
+  it("marks one card read across filters and drops it from Unread", () => {
+    const cache = new Map<string, ListSnapshot<Notice>>([
+      ["all|||", { rows: [card("a", true), card("b", true)], total: 2, error: null }],
+      ["unread|||", { rows: [card("a", true), card("b", true)], total: 2, error: null }],
+    ]);
+    markNoticeReadInCache(cache, "a");
+    expect(cache.get("all|||")?.rows?.map((row) => [row.id, row.unread])).toEqual([
+      ["a", false],
+      ["b", true],
+    ]);
+    expect(cache.get("unread|||")?.rows?.map((row) => row.id)).toEqual(["b"]);
+  });
+
+  it("marks every card at or before up_to read and clears Unread when none remain", () => {
+    const cache = new Map<string, ListSnapshot<Notice>>([
+      [
+        "all|||",
+        {
+          rows: [card("new", true, "2026-10-16T00:00:00Z"), card("old", true, "2026-10-15T00:00:00Z")],
+          total: 2,
+          error: null,
+        },
+      ],
+      [
+        "unread|||",
+        {
+          rows: [card("new", true, "2026-10-16T00:00:00Z"), card("old", true, "2026-10-15T00:00:00Z")],
+          total: 2,
+          error: null,
+        },
+      ],
+    ]);
+    markNoticesReadUpToInCache(cache, "2026-10-16T00:00:00Z");
+    expect(cache.get("all|||")?.rows?.every((row) => !row.unread)).toBe(true);
+    expect(cache.get("unread|||")?.rows).toEqual([]);
   });
 });

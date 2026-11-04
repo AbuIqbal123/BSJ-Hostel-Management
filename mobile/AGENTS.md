@@ -34,6 +34,24 @@ Set `EXPO_PUBLIC_API_URL` when the phone should not use the default host. From `
 Use EAS to build, sign, and submit the app in the cloud (`eas build`, `eas submit`) and to ship over-the-air updates (`eas update`) — no local Xcode or Android Studio required. Run EAS CLI as `npx eas-cli@latest <command>`; substitute that for bare `eas` in docs examples.
 Docs: https://docs.expo.dev/eas/index.md
 
+### Over-the-air updates
+
+`expo-updates` is installed. `app.json` has `updates.url` and `runtimeVersion.policy` `appVersion` (updates must match the app `version` string, currently `1.0.0`). Each EAS build profile embeds a channel: `preview`, `testflight`, or `production`.
+
+JS, style, and asset changes can ship without a new binary:
+
+```bash
+npx eas-cli@latest update --channel testflight --message "…" --environment preview
+```
+
+Use `--channel preview` for internal APKs and `--channel production` for store builds. Native module or config changes still need a new `eas build`.
+
+A build only receives updates if it was compiled with this Update config and that channel. Builds made before Update was configured must be replaced once. After that, a published update usually needs **up to two cold launches** (fully quit, reopen to download; quit and reopen again to run it).
+
+### Local Android APK
+
+Preview APKs are built with `--profile preview` and saved under `mobile/dist/` (gitignored) for hand-off. Keep **only the latest** APK there: delete any previous `*.apk` in `dist/` before downloading a new one. Do not rely on Expo’s hosted internal-distribution page for sharing; the local file is enough.
+
 ## Rules
 
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.

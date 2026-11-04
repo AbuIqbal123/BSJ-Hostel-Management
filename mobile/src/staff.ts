@@ -67,6 +67,9 @@ export function readSummary(value: unknown): RegisterSummary | null {
   };
 }
 
+/** How many lines Home shows under Recent at the gate. Full history is in Settings. */
+export const RECENT_AT_GATE = 8;
+
 export type GateEvent = { key: string; title: string; detail: string; at: string };
 
 const EVENT_WORDS: Record<string, string> = {
@@ -90,10 +93,29 @@ function eventParts(item: Json): { title: string; detail: string } {
   };
 }
 
-export function readActivity(value: unknown): GateEvent[] {
+/** Today's lines show the clock; older lines show a short day and the clock. */
+function activityWhen(iso: string): string {
+  const parts = formatWhenParts(iso);
+  if (!parts) {
+    return "";
+  }
+  const today = formatWhenParts(hallNow().toISOString())?.day;
+  if (parts.day === today) {
+    return parts.clock;
+  }
+  return `${shortDay(parts.day)} ${parts.clock}`;
+}
+
+export function readActivity(value: unknown, offset = 0): GateEvent[] {
   return items(value).map((item, index) => {
     const at = str(item.occurred_at) ?? "";
-    return { key: `${at}-${index}`, ...eventParts(item), at: formatWhenParts(at)?.clock ?? "" };
+    const who = str(item.resident_name) ?? str(item.guest_name) ?? "";
+    const room = str(item.room_label) ?? str(item.host_room_label) ?? "";
+    return {
+      key: `${at}|${String(item.event)}|${who}|${room}|${offset + index}`,
+      ...eventParts(item),
+      at: activityWhen(at),
+    };
   });
 }
 

@@ -1,5 +1,6 @@
 import { formatHallDate, formatWhenParts } from "@/format-when";
 import { isRecord } from "@/json";
+import type { ListSnapshot } from "@/list-cache";
 import { pushTarget } from "@/push-target";
 import type { HallRole } from "@/session";
 import { shortDay } from "@/staff";
@@ -16,6 +17,49 @@ export type Notice = {
   status: string | null;
   target: string | null;
 };
+
+export type NoticeFilter = "all" | "unread" | "needs_action";
+
+/** Cache key for All / Unread / Needs action so a return visit skips the false empty. */
+export function noticeListKey(
+  filter: NoticeFilter,
+  q: string,
+  from: string | null,
+  to: string | null,
+): string {
+  return `${filter}|${q.trim().slice(0, 80)}|${from ?? ""}|${to ?? ""}`;
+}
+
+function dropReadFromUnread(key: string, rows: Notice[]): Notice[] {
+  return key.startsWith("unread|") ? rows.filter((row) => row.unread) : rows;
+}
+
+function rewriteNoticeCache(
+  cache: Map<string, ListSnapshot<Notice>>,
+  mapRows: (rows: Notice[]) => Notice[],
+): void {
+  for (const [key, snap] of cache) {
+    if (snap.rows === null) {
+      continue;
+    }
+    const rows = dropReadFromUnread(key, mapRows(snap.rows));
+    cache.set(key, { rows, total: rows.length, error: snap.error });
+  }
+}
+
+/** After one card is opened as read, every filter snapshot follows. Unread drops that row. */
+export function markNoticeReadInCache(cache: Map<string, ListSnapshot<Notice>>, noticeId: string): void {
+  rewriteNoticeCache(cache, (rows) =>
+    rows.map((row) => (row.id === noticeId ? { ...row, unread: false } : row)),
+  );
+}
+
+/** After Mark all read, every filter snapshot follows. Unread keeps only still-unread rows. */
+export function markNoticesReadUpToInCache(cache: Map<string, ListSnapshot<Notice>>, upTo: string): void {
+  rewriteNoticeCache(cache, (rows) =>
+    rows.map((row) => (row.at <= upTo ? { ...row, unread: false } : row)),
+  );
+}
 
 export type NoticePage = { items: Notice[]; next: string | null };
 

@@ -4,19 +4,32 @@
     "appVersionSource": "remote"
   },
   "build": {
+    "preview": {
+      "distribution": "internal",
+      "autoIncrement": true,
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://bsj-hostel-api-dev.fly.dev"
+      },
+      "channel": "preview"
+    },
     "testflight": {
       "distribution": "store",
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_URL": "https://bsj-hostel-api-dev.fly.dev"
-      }
+      },
+      "channel": "testflight"
     },
     "production": {
       "distribution": "store",
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_URL": "https://bsj-hostel-api-dev.fly.dev"
-      }
+      },
+      "channel": "production"
     }
   },
   "submit": {

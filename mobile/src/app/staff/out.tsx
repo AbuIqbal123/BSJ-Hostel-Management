@@ -11,6 +11,7 @@ import { FilterChip } from "@/components/filter-chip";
 import { PagedList } from "@/components/paged-list";
 import { SearchField } from "@/components/search-field";
 import { SectionHead } from "@/components/section-head";
+import { openCachedList, rememberFirstPage, type ListSnapshot } from "@/list-cache";
 import { pageQuery } from "@/list-page";
 import { useListPage } from "@/use-list-page";
 import { useSession } from "@/session";
@@ -34,6 +35,10 @@ type Tab = "ordinary" | "permission" | "late";
 type LateState = "now" | "past";
 type Row = { tab: "out"; row: OutRow } | { tab: "late"; row: LateReturn };
 type OutSection = { key: string; title: string; note: string; data: Row[] };
+
+function outListKey(blockId: string | null, query: string): string {
+  return `${blockId ?? ""}|${query.trim().slice(0, 80)}`;
+}
 
 const SOURCES: { value: OutingKind | null; label: string }[] = [
   { value: null, label: "All" },
@@ -99,8 +104,9 @@ export default function OutNowScreen() {
   const [lateState, setLateState] = useState<LateState>("now");
   const [source, setSource] = useState<OutingKind | null>(null);
   const [range, setRange] = useState<DayRangeValue>({ from: null, to: null });
-  const seenLate = useRef<string | null>(null);
   const measured = useRef({ content: 0, view: 0 });
+  const outCacheRef = useRef(new Map<string, ListSnapshot<OutRow>>());
+  const lateCacheRef = useRef(new Map<string, ListSnapshot<LateReturn>>());
   const queryRef = useRef(query);
   const blockRef = useRef(blockId);
   const lateStateRef = useRef(lateState);
@@ -114,21 +120,31 @@ export default function OutNowScreen() {
   const outList = useListPage<OutRow>({
     idOf: (row) => row.id,
     loadPage: async (offset) => {
+      const key = outListKey(blockRef.current, queryRef.current);
       const reply = await staffRequest(outPath(queryRef.current, blockRef.current, offset));
       if (!reply.ok) {
-        return { error: trimStop(reply.message) };
+        const error = trimStop(reply.message);
+        rememberFirstPage(outCacheRef.current, key, offset, { error });
+        return { error };
       }
-      return { items: readOutRows(reply.data), total: readTotal(reply.data) };
+      const result = { items: readOutRows(reply.data), total: readTotal(reply.data) };
+      rememberFirstPage(outCacheRef.current, key, offset, result);
+      return result;
     },
   });
   const lateList = useListPage<LateReturn>({
     idOf: (row) => row.id,
     loadPage: async (offset) => {
+      const key = `${lateStateRef.current}|${sourceRef.current ?? ""}|${rangeRef.current.from ?? ""}|${rangeRef.current.to ?? ""}`;
       const reply = await staffRequest(latePath(lateStateRef.current, sourceRef.current, rangeRef.current, offset));
       if (!reply.ok) {
-        return { error: trimStop(reply.message) };
+        const error = trimStop(reply.message);
+        rememberFirstPage(lateCacheRef.current, key, offset, { error });
+        return { error };
       }
-      return { items: readLateReturns(reply.data), total: readTotal(reply.data) };
+      const result = { items: readLateReturns(reply.data), total: readTotal(reply.data) };
+      rememberFirstPage(lateCacheRef.current, key, offset, result);
+      return result;
     },
   });
 
@@ -149,24 +165,18 @@ export default function OutNowScreen() {
   }, [staffRequest]);
 
   useEffect(() => {
-    outList.clear();
-    const timer = setTimeout(() => outList.load(), query ? 300 : 0);
+    const key = outListKey(blockId, query);
+    const timer = setTimeout(() => openCachedList(outCacheRef.current, key, outList), query ? 300 : 0);
     return () => clearTimeout(timer);
-  }, [blockId, outList.clear, outList.load, query]);
+  }, [blockId, outList.clear, outList.load, outList.revise, query]);
 
   const lateKey = `${lateState}|${source ?? ""}|${range.from ?? ""}|${range.to ?? ""}`;
   useEffect(() => {
     if (tab !== "late") {
       return;
     }
-    if (seenLate.current !== lateKey) {
-      if (seenLate.current !== null) {
-        lateList.clear();
-      }
-      seenLate.current = lateKey;
-    }
-    lateList.load();
-  }, [lateKey, lateList.clear, lateList.load, tab]);
+    openCachedList(lateCacheRef.current, lateKey, lateList);
+  }, [lateKey, lateList.clear, lateList.load, lateList.revise, tab]);
 
   const outRows = outList.rows;
   const lateRows = lateList.rows;

@@ -23,6 +23,7 @@ import { EmptyState, ListError, RetryRow } from "@/components/list-state";
 import { PagedList } from "@/components/paged-list";
 import { SkeletonRows } from "@/components/skeleton";
 import { useDelayedLoading } from "@/use-delayed-loading";
+import { openCachedList, rememberFirstPage, type ListSnapshot } from "@/list-cache";
 import { pageQuery } from "@/list-page";
 import { useListPage } from "@/use-list-page";
 import {
@@ -52,7 +53,15 @@ function refusal(reply: StaffReply): string {
   return trimStop(reply.ok ? "" : reply.message);
 }
 
-function PaymentsFrame({ title, children }: { title: string; children: ReactNode }) {
+function PaymentsFrame({
+  title,
+  afterTitle,
+  children,
+}: {
+  title: string;
+  afterTitle?: ReactNode;
+  children: ReactNode;
+}) {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
@@ -68,6 +77,7 @@ function PaymentsFrame({ title, children }: { title: string; children: ReactNode
           <BackMark color={colors.inkSoft} />
         </Pressable>
         <Text style={[text.hallName, styles.title, { color: colors.ink }]}>{title}</Text>
+        {afterTitle}
       </View>
       {children}
     </View>
@@ -81,17 +91,23 @@ function PaymentList() {
   const [query, setQuery] = useState("");
   const [q, setQ] = useState("");
   const qRef = useRef(q);
+  const cacheRef = useRef(new Map<string, ListSnapshot<PaymentCard>>());
   qRef.current = q;
   const list = useListPage<PaymentCard>({
     idOf: (stay) => stay.id,
     loadPage: async (offset) => {
-      const needle = qRef.current.trim();
+      const needle = qRef.current.trim().slice(0, 80);
       const search = needle ? `&q=${encodeURIComponent(needle)}` : "";
       const reply = await staffRequest(`/guest-stays?${pageQuery(offset)}${search}`);
       const page = reply.ok ? readPaymentPage(reply.data) : null;
-      return page
-        ? { items: page.items, total: page.total }
-        : { error: !reply.ok ? trimStop(reply.message) : "The guest list could not be read" };
+      if (page) {
+        const result = { items: page.items, total: page.total };
+        rememberFirstPage(cacheRef.current, needle, offset, result);
+        return result;
+      }
+      const error = !reply.ok ? trimStop(reply.message) : "The guest list could not be read";
+      rememberFirstPage(cacheRef.current, needle, offset, { error });
+      return { error };
     },
   });
 
@@ -101,26 +117,33 @@ function PaymentList() {
   }, [query]);
 
   useEffect(() => {
-    list.clear();
-    list.load();
-  }, [q, list.clear, list.load]);
+    openCachedList(cacheRef.current, q.trim().slice(0, 80), list);
+  }, [q, list.clear, list.load, list.revise]);
 
   const rows = list.rows ?? [];
 
   return (
-    <PaymentsFrame title="Guest payments">
-      <View style={styles.pad}>
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Guest, host, or room"
-          placeholderTextColor={colors.inkFaint}
-          autoCapitalize="none"
-          autoCorrect={false}
-          style={[text.field, styles.search, { backgroundColor: colors.surface, borderColor: colors.line, color: colors.ink }]}
-        />
-        {list.error && rows.length > 0 ? <ListError message={list.error} onRetry={list.refresh} /> : null}
-      </View>
+    <PaymentsFrame
+      title="Guest payments"
+      afterTitle={
+        <>
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Guest, host, or room"
+            placeholderTextColor={colors.inkFaint}
+            autoCapitalize="none"
+            autoCorrect={false}
+            style={[
+              text.field,
+              styles.search,
+              { backgroundColor: colors.surface, borderColor: colors.line, color: colors.ink },
+            ]}
+          />
+          {list.error && rows.length > 0 ? <ListError message={list.error} onRetry={list.refresh} /> : null}
+        </>
+      }
+    >
       <PagedList
         kind="flat"
         style={styles.list}

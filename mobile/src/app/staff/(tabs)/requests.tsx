@@ -9,6 +9,7 @@ import { SectionHead } from "@/components/section-head";
 import { PagedList } from "@/components/paged-list";
 import { PlainRow, RowHairline } from "@/components/plain-row";
 import { ReviewSheet, type Fact } from "@/components/review-sheet";
+import { openCachedList, rememberFirstPage, type ListSnapshot } from "@/list-cache";
 import { pageQuery } from "@/list-page";
 import { useListPage } from "@/use-list-page";
 import { formatHallDate, formatSpan, formatWhen, formatWhenParts } from "@/format-when";
@@ -38,6 +39,10 @@ type Tab = "permissions" | "guests";
 type Item = { tab: "permissions"; row: PermissionReview } | { tab: "guests"; row: GuestReview };
 type Section = { key: string; title: string; data: Item[] };
 type Counts = { permissions: number; guests: number; late: number; home: number };
+
+function requestListKey(tab: Tab, kind: PermissionKind | null, blockId: string | null, q: string): string {
+  return `${tab}|${kind ?? ""}|${blockId ?? ""}|${q.trim().slice(0, 80)}`;
+}
 
 function filters(search: URLSearchParams, q: string, blockId: string | null): string {
   if (q.trim()) {
@@ -158,20 +163,40 @@ export default function RequestsScreen() {
   const [busy, setBusy] = useState(false);
   const [decidedNote, setDecidedNote] = useState<string | null>(null);
   const guestDetailEpoch = useRef(0);
+  const cacheRef = useRef(new Map<string, ListSnapshot<Item>>());
+  const tabRef = useRef(tab);
+  const kindRef = useRef(kind);
+  const blockRef = useRef(blockId);
+  const qRef = useRef(q);
+  tabRef.current = tab;
+  kindRef.current = kind;
+  blockRef.current = blockId;
+  qRef.current = q;
   const list = useListPage<Item>({
     idOf: (item) => item.row.id,
     loadPage: async (offset) => {
+      const currentTab = tabRef.current;
+      const currentKind = kindRef.current;
+      const currentBlock = blockRef.current;
+      const currentQ = qRef.current;
+      const key = requestListKey(currentTab, currentKind, currentBlock, currentQ);
       const reply = await staffRequest(
-        tab === "permissions" ? permissionPath(kind, blockId, offset, q) : guestPath(blockId, offset, q),
+        currentTab === "permissions"
+          ? permissionPath(currentKind, currentBlock, offset, currentQ)
+          : guestPath(currentBlock, offset, currentQ),
       );
       if (!reply.ok) {
-        return { error: trimStop(reply.message) };
+        const error = trimStop(reply.message);
+        rememberFirstPage(cacheRef.current, key, offset, { error });
+        return { error };
       }
       const page: Item[] =
-        tab === "permissions"
+        currentTab === "permissions"
           ? readPermissionReviews(reply.data).map((row) => ({ tab: "permissions", row }))
           : readGuestReviews(reply.data).map((row) => ({ tab: "guests", row }));
-      return { items: page, total: readTotal(reply.data) };
+      const result = { items: page, total: readTotal(reply.data) };
+      rememberFirstPage(cacheRef.current, key, offset, result);
+      return result;
     },
   });
 
@@ -202,9 +227,8 @@ export default function RequestsScreen() {
   }, [query]);
 
   useEffect(() => {
-    list.clear();
-    list.load();
-  }, [blockId, kind, q, tab, list.clear, list.load]);
+    openCachedList(cacheRef.current, requestListKey(tab, kind, blockId, q), list);
+  }, [blockId, kind, q, tab, list.clear, list.load, list.revise]);
 
   useEffect(() => {
     void loadCounts();
@@ -283,11 +307,16 @@ export default function RequestsScreen() {
         }
         return;
       }
-      list.revise((state) => ({
-        ...state,
-        rows: (state.rows ?? []).filter((item) => item.row.id !== open.row.id),
-        total: Math.max(0, state.total - 1),
-      }));
+      list.revise((state) => {
+        const rows = (state.rows ?? []).filter((item) => item.row.id !== open.row.id);
+        const total = Math.max(0, state.total - 1);
+        cacheRef.current.set(requestListKey(tabRef.current, kindRef.current, blockRef.current, qRef.current), {
+          rows,
+          total,
+          error: null,
+        });
+        return { ...state, rows, total };
+      });
       setOpen(null);
       void loadCounts();
     },

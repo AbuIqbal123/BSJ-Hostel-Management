@@ -8,6 +8,7 @@ import {
   arrivalRefusal,
   departureRefusal,
   gateGuestLine,
+  guestListKey,
   readGateGuests,
   readGateMessage,
   readOccupancy,
@@ -25,6 +26,13 @@ const guest = {
 };
 
 describe("gate guests", () => {
+  it("keys Expected and In the hall lists apart so a return visit can skip the skeleton", () => {
+    expect(guestListKey("expected", "")).toBe("expected:");
+    expect(guestListKey("in_hall", "")).toBe("in_hall:");
+    expect(guestListKey("expected", "  Noor  ")).toBe("expected:Noor");
+    expect(guestListKey("expected", "a".repeat(100))).toBe(`expected:${"a".repeat(80)}`);
+  });
+
   it("tells the gate to send an unpaid guest to the warden", () => {
     expect(arrivalRefusal("payment_required", "expected")).toBe(SEND_TO_WARDEN);
   });

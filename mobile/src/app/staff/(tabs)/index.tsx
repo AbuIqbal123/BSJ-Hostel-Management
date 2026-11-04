@@ -11,12 +11,18 @@ import { HallButton } from "@/components/hall-button";
 import { PagedList } from "@/components/paged-list";
 import { RowHairline } from "@/components/plain-row";
 import { SectionHead } from "@/components/section-head";
-import { pageQuery } from "@/list-page";
 import { setBadge } from "@/push";
 import { useListPage } from "@/use-list-page";
-import { runsOffice } from "@/office";
 import { roleLabel, useSession } from "@/session";
-import { readActivity, readSummary, readsRegister, trimStop, type GateEvent, type RegisterSummary } from "@/staff";
+import {
+  RECENT_AT_GATE,
+  readActivity,
+  readSummary,
+  readsRegister,
+  trimStop,
+  type GateEvent,
+  type RegisterSummary,
+} from "@/staff";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
@@ -56,7 +62,7 @@ export default function StaffHomeScreen() {
     auto: false,
     idOf: (item: GateEvent) => item.key,
     loadPage: async () => {
-      const reply = await staffRequest(`/gate/activity?${pageQuery(0)}`);
+      const reply = await staffRequest(`/gate/activity?limit=${RECENT_AT_GATE}&offset=0`);
       if (!reply.ok) {
         return { error: trimStop(reply.message) };
       }
@@ -111,12 +117,12 @@ export default function StaffHomeScreen() {
     >
       <View style={styles.identity}>
         <View style={styles.welcomeRow}>
-          <Text numberOfLines={1} style={[text.hallName, styles.title, { color: colors.ink }]}>
+          <Text selectable style={[text.hallName, styles.title, { color: colors.ink }]}>
             {`Welcome, ${user.full_name}`}
           </Text>
           {register ? <Bell count={summary?.unread ?? 0} href="/staff/notifications" /> : null}
         </View>
-        <Text numberOfLines={1} style={[text.body, { color: colors.inkSoft }]}>
+        <Text selectable style={[text.body, { color: colors.inkSoft }]}>
           {roleLabel(user.role)}
         </Text>
       </View>
@@ -177,21 +183,6 @@ export default function StaffHomeScreen() {
           </>
         ) : null}
       </View>
-      {runsOffice(user.role) ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Office. People, places, and hall settings"
-          onPress={() => router.push("/staff/office")}
-          style={({ pressed }) => [
-            styles.office,
-            { backgroundColor: colors.surface, borderColor: colors.line },
-            pressed && styles.pressed,
-          ]}
-        >
-          <Text style={[text.button, { color: colors.ink }]}>Office</Text>
-          <Text style={[text.error, { color: colors.inkSoft }]}>People, places, and hall settings</Text>
-        </Pressable>
-      ) : null}
       <View style={styles.section}>
         <PagedList
           rows={activity.rows}
@@ -227,8 +218,8 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { flexGrow: 1, paddingHorizontal: 28, gap: 28 },
   identity: { gap: 16 },
-  welcomeRow: { flexDirection: "row", alignItems: "center", gap: 16 },
-  title: { flex: 1, textAlign: "left" },
+  welcomeRow: { flexDirection: "row", alignItems: "flex-start", gap: 16 },
+  title: { flex: 1, flexShrink: 1, textAlign: "left" },
   stats: { flexDirection: "row", gap: 12 },
   stat: {
     flex: 1,
@@ -253,14 +244,6 @@ const styles = StyleSheet.create({
   linkCopy: { flex: 1, minWidth: 0, gap: 2 },
   linkTitle: { fontFamily: "SourceSans3_600SemiBold", fontSize: 17, lineHeight: 22 },
   linkDetail: { fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20 },
-  office: {
-    borderWidth: 1,
-    borderRadius: 16,
-    borderCurve: "continuous",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 4,
-  },
   section: { marginTop: 4 },
   pressed: { opacity: 0.6 },
 });

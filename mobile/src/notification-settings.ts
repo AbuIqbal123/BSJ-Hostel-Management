@@ -1,8 +1,8 @@
 /**
- * Android push stays off until the hall has a Firebase project.
- * The phone must keep working with no google-services file, and it does not ask.
+ * Android push is on for Firebase project bsj-hall-dev (google-services.json).
+ * A development or store build still needs the FCM V1 key on EAS credentials.
  */
-export const ANDROID_PUSH_ENABLED = false;
+export const ANDROID_PUSH_ENABLED = true;
 
 /** The Settings row is only for someone who was asked and said no. Gate is never asked. */
 export function notificationRowVisible(input: {

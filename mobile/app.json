@@ -21,6 +21,7 @@
     },
     "android": {
       "package": "com.abuiqbal.bsjhall",
+      "googleServicesFile": "./google-services.json",
       "icon": "./assets/icon.png",
       "adaptiveIcon": {
         "backgroundColor": "#F2F4F0",
@@ -79,6 +80,12 @@
         "projectId": "cc55ec14-611e-449d-b394-767101db214a"
       }
     },
-    "owner": "the_abu"
+    "owner": "the_abu",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/cc55ec14-611e-449d-b394-767101db214a"
+    }
   }
 }

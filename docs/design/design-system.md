@@ -398,7 +398,7 @@ Subtle. Purposeful. Mostly short. Prefer **small, cute, purposeful micro-animati
 |---|---|
 | Screen push | 250–300ms ease-out |
 | Bottom sheet | 280ms spring soft |
-| Gate result enter | 180ms fade + 4px rise; hold; auto-dismiss |
+| Gate result enter | 180ms fade + 4px rise; hold up to 30s; dismiss (close or Scan next) or auto-clear |
 | Button press | 80ms opacity/scale 0.98 |
 | Presence chip change | Cross-fade 150ms |
 
@@ -409,7 +409,7 @@ Keep them restrained and institutional: a soft settle, a brief check mark, a gen
 | Moment | Intent | Spec (default) |
 |---|---|---|
 | Permission card appear | New request or decision lands calmly | Fade + 6–8px rise, 180–220ms ease-out |
-| Gate scan success | Confirm exit/return without delaying the next scan | Check or gold flash on result panel, ≤180ms; auto-dismiss per gate flow |
+| Gate scan success | Confirm exit/return without delaying the next scan | Check on result panel, ≤180ms; close or Scan next clears immediately; otherwise auto-clear at 30s |
 | List item enter | Queue, register row, or history row arrives ordered | Fade + 4px rise, 150–200ms ease-out; **stagger** when many |
 | Toggle | Preference or paid/unpaid flips clearly | Thumb/track 120–160ms ease-out; optional 1-frame overshoot ≤2% |
 | Toast / banner | Soft success or refusal notice | Slide or fade from edge, 200ms ease-out; hold; exit faster than enter |
@@ -430,7 +430,7 @@ When many elements animate (list rows, chip groups, stacked cards, staggered toa
 
 ### List placeholders
 
-Shared pieces live in `mobile/src/components/skeleton.tsx` and `mobile/src/components/list-state.tsx`. Paging rules live in `mobile/src/list-page.ts`.
+Shared pieces live in `mobile/src/components/skeleton.tsx` and `mobile/src/components/list-state.tsx`. Paging rules live in `mobile/src/list-page.ts`. Tab and filter restore lives in `mobile/src/list-cache.ts`.
 
 | Piece | When |
 |---|---|
@@ -439,7 +439,7 @@ Shared pieces live in `mobile/src/components/skeleton.tsx` and `mobile/src/compo
 | `RetryRow` | A later page failed. The loaded rows stay. Another fetch waits until Retry. |
 | `EmptyState` | The page loaded and there is nothing to show. |
 
-The pulse is an opacity loop on the placeholder only. `AccessibilityInfo` reduce motion turns that loop off and leaves the placeholder at full opacity. Changing a filter, tab, or search may show the placeholder, because the old rows belong to a different query. Pull to refresh of the same query does not clear the rows.
+The pulse is an opacity loop on the placeholder only. `AccessibilityInfo` reduce motion turns that loop off and leaves the placeholder at full opacity. The first open of a tab, filter, or search may show the placeholder. Switching back to a list already opened restores that first page and refreshes it quietly — no skeleton every switch. A brand-new query (never opened) may skeleton. Pull to refresh of the same query does not clear the rows.
 
 ---
 

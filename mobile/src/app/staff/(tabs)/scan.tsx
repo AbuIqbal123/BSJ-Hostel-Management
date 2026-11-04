@@ -13,8 +13,10 @@ import { readScan, scanRefusal, type ScanResult } from "@/staff";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
-const SAME_CODE_MS = 2000;
-const DIM = "rgba(20, 38, 31, 0.62)";
+const SAME_CODE_MS = 1500;
+/** Hold the result so staff can read it, then clear so the next pass is ready. */
+const RESULT_HOLD_MS = 30_000;
+const DIM = "rgba(20, 38, 31, 0.45)";
 const LIGHT = "#F2F4F0";
 
 function buzz(ok: boolean) {
@@ -22,22 +24,43 @@ function buzz(ok: boolean) {
   Haptics.notificationAsync(type).catch(ignore);
 }
 
+const CORNER = 44;
+const STROKE = 4;
+const TIP = 10;
+
+/** Two bars meet at the corner — borderRadius on a bordered box draws square nubs. */
 function Corner({ color, at }: { color: string; at: "tl" | "tr" | "bl" | "br" }) {
   const top = at[0] === "t";
   const left = at[1] === "l";
+  const bar = { backgroundColor: color };
   return (
     <View
+      pointerEvents="none"
       style={[
         styles.corner,
-        top ? { top: -2, borderTopWidth: 4 } : { bottom: -2, borderBottomWidth: 4 },
-        left ? { left: -2, borderLeftWidth: 4 } : { right: -2, borderRightWidth: 4 },
-        top && left ? { borderTopLeftRadius: 26 } : null,
-        top && !left ? { borderTopRightRadius: 26 } : null,
-        !top && left ? { borderBottomLeftRadius: 26 } : null,
-        !top && !left ? { borderBottomRightRadius: 26 } : null,
-        { borderColor: color },
+        top ? { top: 0 } : { bottom: 0 },
+        left ? { left: 0 } : { right: 0 },
       ]}
-    />
+    >
+      <View
+        style={[
+          styles.cornerArmH,
+          bar,
+          top ? { top: 0 } : { bottom: 0 },
+          left ? { left: 0, borderTopLeftRadius: top ? TIP : 0, borderBottomLeftRadius: top ? 0 : TIP } : null,
+          !left ? { right: 0, borderTopRightRadius: top ? TIP : 0, borderBottomRightRadius: top ? 0 : TIP } : null,
+        ]}
+      />
+      <View
+        style={[
+          styles.cornerArmV,
+          bar,
+          left ? { left: 0 } : { right: 0 },
+          top ? { top: 0, borderTopLeftRadius: left ? TIP : 0, borderTopRightRadius: left ? 0 : TIP } : null,
+          !top ? { bottom: 0, borderBottomLeftRadius: left ? TIP : 0, borderBottomRightRadius: left ? 0 : TIP } : null,
+        ]}
+      />
+    </View>
   );
 }
 
@@ -47,7 +70,7 @@ function Viewfinder({ size, color, children }: { size: number; color: string; ch
       <View style={[styles.dim, { flex: 1 }]} />
       <View style={{ flexDirection: "row", height: size }}>
         <View style={[styles.dim, { flex: 1 }]} />
-        <View style={[styles.frame, { width: size, height: size }]}>
+        <View style={{ width: size, height: size }}>
           {(["tl", "tr", "bl", "br"] as const).map((at) => (
             <Corner key={at} at={at} color={color} />
           ))}
@@ -79,6 +102,13 @@ function ResultCard({ result, onNext }: { result: ScanResult | null; onNext: () 
   useEffect(() => {
     Animated.timing(rise, { toValue: 1, duration: 140, useNativeDriver: true }).start();
   }, [rise]);
+  useEffect(() => {
+    if (!result) {
+      return;
+    }
+    const clear = setTimeout(onNext, RESULT_HOLD_MS);
+    return () => clearTimeout(clear);
+  }, [result, onNext]);
   const lift = rise.interpolate({ inputRange: [0, 1], outputRange: [24, 0] });
   const refused = result?.kind === "refused";
   const word = !result ? "Recording" : refused ? "Not recorded" : result.kind === "leave" ? "Leave" : "Return";
@@ -106,7 +136,17 @@ function ResultCard({ result, onNext }: { result: ScanResult | null; onNext: () 
             size={32}
             color={tone}
           />
-          <Text style={[styles.word, { color: tone }]}>{word}</Text>
+          <Text style={[styles.word, { color: tone, flex: 1 }]}>{word}</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss"
+            disabled={!result}
+            hitSlop={12}
+            onPress={onNext}
+            style={({ pressed }) => [styles.dismiss, !result && styles.dismissIdle, pressed && result && styles.pressed]}
+          >
+            <Ionicons name="close" size={22} color={result ? colors.inkSoft : colors.inkFaint} />
+          </Pressable>
         </View>
         {result?.name || secondary ? (
           <View style={styles.who}>
@@ -271,7 +311,8 @@ export default function ScanScreen() {
     );
   }
 
-  const size = Math.min(width - 96, 280);
+  // Large guide only — the camera already reads a QR anywhere in the frame.
+  const size = Math.min(width - 40, Math.round(width * 0.88));
   return (
     <View style={[styles.screen, styles.dark]}>
       <CameraView
@@ -287,7 +328,7 @@ export default function ScanScreen() {
         <Viewfinder size={size} color={card ? colors.forest : LIGHT}>
           {card ? null : (
             <>
-              <Text style={styles.hint}>Point at the hall pass</Text>
+              <Text style={styles.hint}>Point the camera at the hall pass</Text>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={torch ? "Turn torch off" : "Turn torch on"}
@@ -316,8 +357,9 @@ const styles = StyleSheet.create({
   ask: { justifyContent: "center", paddingHorizontal: 28, gap: 16 },
   center: { textAlign: "center" },
   dim: { backgroundColor: DIM },
-  frame: { borderRadius: 26 },
-  corner: { position: "absolute", width: 44, height: 44 },
+  corner: { position: "absolute", width: CORNER, height: CORNER },
+  cornerArmH: { position: "absolute", width: CORNER, height: STROKE },
+  cornerArmV: { position: "absolute", width: STROKE, height: CORNER },
   below: { flex: 1.3, alignItems: "center", paddingTop: 20, gap: 20 },
   hint: {
     fontFamily: "SourceSans3_400Regular",
@@ -356,6 +398,15 @@ const styles = StyleSheet.create({
   factLabel: { fontFamily: "SourceSans3_600SemiBold", fontSize: 13, lineHeight: 18 },
   factValue: { fontFamily: "IBMPlexMono_500Medium", fontSize: 13, lineHeight: 18, flexShrink: 1, textAlign: "right" },
   wordRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  dismiss: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: -6,
+  },
+  dismissIdle: { opacity: 0.35 },
+  pressed: { opacity: 0.6 },
   word: {
     fontFamily: "SourceSerif4_600SemiBold",
     fontSize: 30,
