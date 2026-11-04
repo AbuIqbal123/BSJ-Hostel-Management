@@ -7,6 +7,8 @@ import {
   RESET_CONFIRM,
   RETURN_PLACEHOLDERS,
   clockLabel,
+  activeFreeTextPlace,
+  canAddFreeTextPlace,
   hiddenFromResidents,
   hoursFromFields,
   hoursPatch,
@@ -116,6 +118,28 @@ describe("hall office display", () => {
     expect(places).toHaveLength(3);
     expect(places?.filter(hiddenFromResidents).map((place) => place.name)).toEqual(["Old market"]);
     expect(residentCatalog(places ?? []).map((place) => place.name)).toEqual(["Library", "Other"]);
+  });
+
+  it("allows at most one active free-text place on the Destinations form", () => {
+    const withOther = readPlaces({
+      items: [
+        { id: "a", name: "Library", source: "preset", status: "active" },
+        { id: "c", name: "Other", source: "custom", status: "active" },
+      ],
+    });
+    expect(activeFreeTextPlace(withOther ?? [])?.name).toBe("Other");
+    expect(canAddFreeTextPlace(withOther ?? [])).toBe(false);
+
+    const retiredOther = readPlaces({
+      items: [
+        { id: "a", name: "Library", source: "preset", status: "active" },
+        { id: "c", name: "Other", source: "custom", status: "inactive" },
+      ],
+    });
+    expect(activeFreeTextPlace(retiredOther ?? [])).toBeNull();
+    expect(canAddFreeTextPlace(retiredOther ?? [])).toBe(true);
+
+    expect(canAddFreeTextPlace([])).toBe(true);
   });
 
   it("sends only the hall settings that changed, and never the timezone", () => {

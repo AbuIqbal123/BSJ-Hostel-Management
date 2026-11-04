@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { router, useFocusEffect } from "expo-router";
+import { useCallback, useMemo, useState } from "react";
+import { router } from "expo-router";
 import { View } from "react-native";
 
 import { DenseRow } from "@/components/dense-row";
@@ -8,52 +8,33 @@ import { EmptyState } from "@/components/list-state";
 import { OfficeFrame, replyError } from "@/components/office-frame";
 import { PagedList } from "@/components/paged-list";
 import { SearchField } from "@/components/search-field";
-import { openCachedList, rememberFirstPage, type ListSnapshot } from "@/list-cache";
 import { pageQuery } from "@/list-page";
 import { readPage, readStaffAccount, type OfficeStaff } from "@/office";
 import { roleLabel, useSession } from "@/session";
-import { useListPage } from "@/use-list-page";
+import { useDebouncedValue } from "@/use-debounced-value";
+import { useFilteredPagedList } from "@/use-filtered-paged-list";
 
 export default function OfficeStaffList() {
   const { staffRequest } = useSession();
   const [query, setQuery] = useState("");
-  const [q, setQ] = useState("");
-  const qRef = useRef(q);
-  const cacheRef = useRef(new Map<string, ListSnapshot<OfficeStaff>>());
-  qRef.current = q;
+  const q = useDebouncedValue(query);
+  const filters = useMemo(() => ({ q }), [q]);
 
-  const list = useListPage<OfficeStaff>({
+  const list = useFilteredPagedList<OfficeStaff, { q: string }>({
     idOf: (member) => member.id,
-    loadPage: async (offset) => {
-      const needle = qRef.current.trim();
+    filters,
+    filterKey: q.trim(),
+    loadPage: useCallback(async (current, offset) => {
+      const needle = current.q.trim();
       const search = needle ? `&q=${encodeURIComponent(needle)}` : "";
       const reply = await staffRequest(`/admin/staff?${pageQuery(offset)}${search}`);
       const page = reply.ok ? readPage(reply.data, readStaffAccount) : null;
       if (!page) {
-        const error = replyError(reply) ?? "Staff didn't load";
-        rememberFirstPage(cacheRef.current, needle, offset, { error });
-        return { error };
+        return { error: replyError(reply) ?? "Staff didn't load" };
       }
-      const result = { items: page.items, total: page.total };
-      rememberFirstPage(cacheRef.current, needle, offset, result);
-      return result;
-    },
+      return { items: page.items, total: page.total };
+    }, [staffRequest]),
   });
-
-  useEffect(() => {
-    const timer = setTimeout(() => setQ(query), 300);
-    return () => clearTimeout(timer);
-  }, [query]);
-
-  useEffect(() => {
-    openCachedList(cacheRef.current, q.trim(), list);
-  }, [q, list.clear, list.load, list.revise]);
-
-  useFocusEffect(
-    useCallback(() => {
-      list.load();
-    }, [list.load]),
-  );
 
   const rows = list.rows ?? [];
 

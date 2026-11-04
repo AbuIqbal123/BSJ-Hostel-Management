@@ -1,6 +1,7 @@
 /** Receipt rules for a guest payment. The phone converts images before upload. */
 
 import { record, text, type Json } from "@/json";
+import { pageQuery } from "@/list-page";
 
 export const MAX_EVIDENCE_BYTES = 2 * 1024 * 1024;
 
@@ -65,6 +66,20 @@ export function evidenceKind(contentType: string | null, filename: string): Evid
 
 export function paymentLabel(status: "paid" | "unpaid"): "Paid" | "Not paid" {
   return status === "paid" ? "Paid" : "Not paid";
+}
+
+/**
+ * Staff Guest payments list path for `GET /api/v1/guest-stays`.
+ * Do not send `bucket=approved`: `approved` is a stay status, not a GuestBucket.
+ * Omitting `bucket` returns every non-terminal stay (pending and approved included).
+ */
+export function paymentsListPath(offset: number, q: string): string {
+  const search = new URLSearchParams(pageQuery(offset));
+  const needle = q.trim().slice(0, 80);
+  if (needle) {
+    search.set("q", needle);
+  }
+  return `/guest-stays?${search.toString()}`;
 }
 
 export function lockCopy(stay: { status: string; arrivedAt: string | null }): string | null {

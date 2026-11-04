@@ -289,8 +289,6 @@ def list_rooms(
     limit: int,
     offset: int,
 ) -> RoomPage:
-    from app.shared.like import like_contains
-
     filters: list[str] = []
     params: list[object] = []
     if block_id is not None:
@@ -723,8 +721,6 @@ def list_staff_accounts(
     limit: int,
     offset: int,
 ) -> StaffPage:
-    from app.shared.like import like_contains
-
     filters = ["users.role IN ('gate', 'warden', 'provost')"]
     params: list[object] = []
     if q is not None and q.strip():

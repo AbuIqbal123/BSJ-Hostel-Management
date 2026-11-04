@@ -1,42 +1,16 @@
 import Constants from "expo-constants";
-import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BiometricSettingsRow } from "@/components/biometric-settings-row";
 import { NotificationsOffRow } from "@/components/notifications-off-row";
+import { SettingsRow } from "@/components/settings-row";
 import { runsOffice } from "@/office";
 import { roleLabel, useSession } from "@/session";
 import { useAppearance } from "@/theme/appearance";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
-
-type RowProps = {
-  label: string;
-  color: string;
-  onPress: () => void;
-  value?: string;
-  chevron?: boolean;
-};
-
-function Row({ label, color, onPress, value, chevron = false }: RowProps) {
-  const colors = useHallColors();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-    >
-      <Text style={[text.button, { color }]}>{label}</Text>
-      {value ? (
-        <Text style={[text.body, { color: colors.inkSoft }]}>{value}</Text>
-      ) : chevron ? (
-        <Feather name="chevron-right" size={18} color={colors.inkFaint} />
-      ) : null}
-    </Pressable>
-  );
-}
 
 export default function StaffSettingsScreen() {
   const colors = useHallColors();
@@ -64,15 +38,35 @@ export default function StaffSettingsScreen() {
         </View>
       ) : null}
       <View style={styles.rows}>
-        <Row label="Appearance" color={colors.ink} value={dark ? "Dark" : "Light"} onPress={() => setDark(!dark)} />
+        <SettingsRow
+          label="Appearance"
+          color={colors.ink}
+          value={dark ? "Dark" : "Light"}
+          onPress={() => setDark(!dark)}
+        />
         <BiometricSettingsRow />
         <NotificationsOffRow />
-        <Row label="Gate history" color={colors.ink} chevron onPress={() => router.push("/staff/gate-history")} />
+        <SettingsRow
+          label="Gate history"
+          color={colors.ink}
+          chevron
+          onPress={() => router.push("/staff/gate-history")}
+        />
         {user && runsOffice(user.role) ? (
-          <Row label="Office settings" color={colors.ink} chevron onPress={() => router.push("/staff/office")} />
+          <SettingsRow
+            label="Office settings"
+            color={colors.ink}
+            chevron
+            onPress={() => router.push("/staff/office")}
+          />
         ) : null}
-        <Row label="Change password" color={colors.ink} chevron onPress={() => router.push("/change-password")} />
-        <Row
+        <SettingsRow
+          label="Change password"
+          color={colors.ink}
+          chevron
+          onPress={() => router.push("/change-password")}
+        />
+        <SettingsRow
           label="Sign out"
           color={colors.danger}
           onPress={() => {
@@ -91,12 +85,5 @@ const styles = StyleSheet.create({
   heading: { gap: 8 },
   title: { textAlign: "left" },
   rows: { gap: 4 },
-  row: {
-    minHeight: 48,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  pressed: { opacity: 0.6 },
   version: { marginTop: "auto" },
 });

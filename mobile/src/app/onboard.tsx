@@ -19,7 +19,17 @@ import {
 import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
-import { PASSWORD_RULES, passwordRulesMet } from "@/password-rules";
+import {
+  ONBOARD_COURSES as COURSES,
+  isOnboardCourse as isCourse,
+  onboardDigits as digits,
+  onboardE164 as e164,
+  onboardEnrolmentError as enrolmentError,
+  onboardFailingPasswordRule as failingPasswordRule,
+  onboardPersonError as personError,
+  onboardPhoneError as phoneError,
+} from "@/onboard-form";
+import { passwordRulesMet } from "@/password-rules";
 import { signupRecovery } from "@/onboard-room";
 import { isRecord } from "@/json";
 import { errorMessage, hallFetch, useSession } from "@/session";
@@ -28,26 +38,6 @@ import { text } from "@/theme/text";
 
 const STEP_MS = 220;
 const PAUSE_MS = 600;
-
-const COURSES = [
-  "BA LLB",
-  "LLM",
-  "BSc Industrial Chemistry",
-  "MSc Industrial Chemistry",
-  "MSc Wildlife and Biodiversity",
-  "MTech Agricultural Process and Food Engineering",
-  "MBA",
-  "MBA International Business",
-  "PG Islamic Banking and Finance",
-  "BA Theology (Sunni)",
-  "BA Theology (Shia)",
-  "PhD Agriculture",
-  "PhD Arts",
-  "PhD Commerce",
-  "PhD Law",
-  "PhD Life Sciences",
-  "PhD Theology",
-] as const;
 
 type RoomOption = {
   id: string;
@@ -62,7 +52,6 @@ type BlockOption = {
 
 const EMPTY_ROOMS = "No rooms are open";
 const HALL_UNREACHABLE = "The hall could not be reached";
-const PHONE_LINE = "Use an Indian mobile: +91 and exactly 10 digits";
 
 function readOptions(value: unknown): BlockOption[] | null {
   if (!Array.isArray(value)) {
@@ -98,62 +87,8 @@ function readOptions(value: unknown): BlockOption[] | null {
   return blocks;
 }
 
-function trimmedLength(value: string): number {
-  return value.trim().length;
-}
-
-function personError(value: string, empty: string): string | null {
-  const length = trimmedLength(value);
-  if (length < 1) {
-    return empty;
-  }
-  if (length > 120) {
-    return "Use 120 characters or fewer";
-  }
-  return null;
-}
-
-function enrolmentError(value: string): string | null {
-  const length = trimmedLength(value);
-  if (length < 1) {
-    return "Enter your enrolment number";
-  }
-  if (length > 40) {
-    return "Use 40 characters or fewer";
-  }
-  return null;
-}
-
-function failingPasswordRule(value: string): string | null {
-  for (const rule of PASSWORD_RULES) {
-    if (!rule.test(value)) {
-      return rule.label;
-    }
-  }
-  return null;
-}
-
-function digits(value: string): string {
-  return value.replace(/\D/g, "").slice(0, 10);
-}
-
-function e164(value: string): string {
-  return `+91${digits(value)}`;
-}
-
-function phoneError(value: string): string | null {
-  if (!/^\d{10}$/.test(digits(value))) {
-    return PHONE_LINE;
-  }
-  return null;
-}
-
 function shown(visible: boolean, message: string | null): string | null {
   return visible ? message : null;
-}
-
-function isCourse(value: string | null): value is (typeof COURSES)[number] {
-  return value !== null && (COURSES as readonly string[]).includes(value);
 }
 
 function useFieldMessage(): { visible: boolean; reveal: () => void; onEdit: () => void } {

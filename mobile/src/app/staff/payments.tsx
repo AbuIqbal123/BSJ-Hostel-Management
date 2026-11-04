@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
@@ -23,9 +23,8 @@ import { EmptyState, ListError, RetryRow } from "@/components/list-state";
 import { PagedList } from "@/components/paged-list";
 import { SkeletonRows } from "@/components/skeleton";
 import { useDelayedLoading } from "@/use-delayed-loading";
-import { openCachedList, rememberFirstPage, type ListSnapshot } from "@/list-cache";
-import { pageQuery } from "@/list-page";
-import { useListPage } from "@/use-list-page";
+import { useDebouncedValue } from "@/use-debounced-value";
+import { useFilteredPagedList } from "@/use-filtered-paged-list";
 import {
   CLOSED_STAY,
   NOTE_REQUIRED,
@@ -34,6 +33,7 @@ import {
   evidenceKind,
   lockCopy,
   paymentLabel,
+  paymentsListPath,
   readPaymentPage,
   readPaymentStay,
   type PaymentCard,
@@ -89,40 +89,22 @@ function PaymentList() {
   const insets = useSafeAreaInsets();
   const { staffRequest } = useSession();
   const [query, setQuery] = useState("");
-  const [q, setQ] = useState("");
-  const qRef = useRef(q);
-  const cacheRef = useRef(new Map<string, ListSnapshot<PaymentCard>>());
-  qRef.current = q;
-  const list = useListPage<PaymentCard>({
+  const q = useDebouncedValue(query);
+  const needle = q.trim().slice(0, 80);
+  const filters = useMemo(() => ({ q: needle }), [needle]);
+  const list = useFilteredPagedList<PaymentCard, { q: string }>({
     idOf: (stay) => stay.id,
-    loadPage: async (offset) => {
-      const needle = qRef.current.trim().slice(0, 80);
-      const search = new URLSearchParams(pageQuery(offset));
-      search.set("bucket", "approved");
-      if (needle) {
-        search.set("q", needle);
-      }
-      const reply = await staffRequest(`/guest-stays?${search.toString()}`);
+    filters,
+    filterKey: needle,
+    loadPage: useCallback(async (current, offset) => {
+      const reply = await staffRequest(paymentsListPath(offset, current.q));
       const page = reply.ok ? readPaymentPage(reply.data) : null;
       if (page) {
-        const result = { items: page.items, total: page.total };
-        rememberFirstPage(cacheRef.current, needle, offset, result);
-        return result;
+        return { items: page.items, total: page.total };
       }
-      const error = !reply.ok ? trimStop(reply.message) : "The guest list could not be read";
-      rememberFirstPage(cacheRef.current, needle, offset, { error });
-      return { error };
-    },
+      return { error: !reply.ok ? trimStop(reply.message) : "The guest list could not be read" };
+    }, [staffRequest]),
   });
-
-  useEffect(() => {
-    const timer = setTimeout(() => setQ(query), 300);
-    return () => clearTimeout(timer);
-  }, [query]);
-
-  useEffect(() => {
-    openCachedList(cacheRef.current, q.trim().slice(0, 80), list);
-  }, [q, list.clear, list.load, list.revise]);
 
   const rows = list.rows ?? [];
 

@@ -19,6 +19,7 @@ import { HallButton } from "@/components/hall-button";
 import { StatusPill } from "@/components/status-pill";
 import { TextField } from "@/components/text-field";
 import { HALL_ZONE, formatChipDay, formatHallDate, hallNow } from "@/format-when";
+import { GUEST_RELATIONS as RELATIONS, OTHER_RELATION, guestRelationFields as relationFields } from "@/guest-form";
 import { hallDay } from "@/outing-when";
 import { paymentLabel } from "@/payment-file";
 import { guestLine } from "@/requests";
@@ -28,21 +29,6 @@ import { useDark } from "@/theme/appearance";
 import { useHallColors } from "@/theme/colors";
 import { EASE_OUT } from "@/theme/motion";
 import { text } from "@/theme/text";
-
-const OTHER_RELATION = "Other";
-const RELATIONS = [
-  "Mother",
-  "Father",
-  "Sister",
-  "Brother",
-  "Guardian",
-  "Aunt",
-  "Uncle",
-  "Cousin",
-  "Grandmother",
-  "Grandfather",
-  OTHER_RELATION,
-];
 
 function HallDate({
   label,
@@ -119,13 +105,6 @@ function useLeave() {
 
 function dateOnHall(value: string): Date {
   return new Date(`${value}T12:00:00+05:30`);
-}
-
-function relationFields(relation: string): { id: string; other: string } {
-  if (relation !== OTHER_RELATION && RELATIONS.includes(relation)) {
-    return { id: relation, other: "" };
-  }
-  return { id: OTHER_RELATION, other: relation };
 }
 
 function DecisionSummary({ stay }: { stay: GuestStay }) {

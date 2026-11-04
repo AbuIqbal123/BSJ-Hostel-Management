@@ -27,6 +27,7 @@ import { useSession, type HallRole } from "@/session";
 import { trimStop } from "@/staff";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
+import { useDebouncedValue } from "@/use-debounced-value";
 
 const FILTERS: { value: NoticeFilter; label: string }[] = [
   { value: "all", label: "All" },
@@ -72,7 +73,7 @@ export function NoticeList({ base, role, back, staff }: { base: string; role: Ha
   const { staffRequest } = useSession();
   const [filter, setFilter] = useState<NoticeFilter>("all");
   const [query, setQuery] = useState("");
-  const [q, setQ] = useState("");
+  const q = useDebouncedValue(query);
   const [range, setRange] = useState<DayRangeValue>({ from: null, to: null });
   const cacheRef = useRef(new Map<string, ListSnapshot<Notice>>());
   const filterRef = useRef(filter);
@@ -122,11 +123,6 @@ export function NoticeList({ base, role, back, staff }: { base: string; role: Ha
     },
   });
   const filterKey = noticeListKey(filter, q, range.from, range.to);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setQ(query), 300);
-    return () => clearTimeout(timer);
-  }, [query]);
 
   // First open of a filter may skeleton. Switching back restores that list and refreshes quietly.
   useFocusEffect(

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigation } from "expo-router";
 import { Modal, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -10,7 +10,6 @@ import { HallButton } from "@/components/hall-button";
 import { EmptyState, ListError } from "@/components/list-state";
 import { PagedList } from "@/components/paged-list";
 import { pageQuery } from "@/list-page";
-import { useListPage } from "@/use-list-page";
 import { formatHallDate } from "@/format-when";
 import {
   arrivalRefusal,
@@ -23,13 +22,16 @@ import {
   type GateGuest,
   type GateOccupancy,
 } from "@/gate-guests";
-import { forgetCachedLists, openCachedList, rememberFirstPage, type ListSnapshot } from "@/list-cache";
 import { useSession } from "@/session";
 import { shortDay, trimStop } from "@/staff";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
+import { useDebouncedValue } from "@/use-debounced-value";
+import { useFilteredPagedList } from "@/use-filtered-paged-list";
 
 type Bucket = "expected" | "in_hall";
+
+type GuestFilters = { bucket: Bucket; q: string };
 
 function dates(guest: GateGuest): string {
   return `${shortDay(formatHallDate(guest.start))} to ${shortDay(formatHallDate(guest.end))}`;
@@ -42,40 +44,31 @@ export default function GateGuestsScreen() {
   const { staffRequest } = useSession();
   const [bucket, setBucket] = useState<Bucket>("expected");
   const [query, setQuery] = useState("");
-  const [q, setQ] = useState("");
+  const q = useDebouncedValue(query);
+  const needle = q.trim().slice(0, 80);
   const [occupancy, setOccupancy] = useState<GateOccupancy | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [open, setOpen] = useState<GateGuest | null>(null);
   const [sheetError, setSheetError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const bucketRef = useRef(bucket);
-  const qRef = useRef(q);
-  const cacheRef = useRef(new Map<string, ListSnapshot<GateGuest>>());
-  bucketRef.current = bucket;
-  qRef.current = q;
-  const list = useListPage<GateGuest>({
+  const filters = useMemo<GuestFilters>(() => ({ bucket, q: needle }), [bucket, needle]);
+
+  const list = useFilteredPagedList<GateGuest, GuestFilters>({
     idOf: (guest) => guest.id,
-    loadPage: async (offset) => {
-      const needle = qRef.current.trim().slice(0, 80);
-      const key = guestListKey(bucketRef.current, needle);
-      const search = needle ? `&q=${encodeURIComponent(needle)}` : "";
-      const reply = await staffRequest(`/gate/guests?bucket=${bucketRef.current}&${pageQuery(offset)}${search}`);
+    filters,
+    filterKey: guestListKey(bucket, needle),
+    loadPage: useCallback(async (current, offset) => {
+      const search = current.q ? `&q=${encodeURIComponent(current.q)}` : "";
+      const reply = await staffRequest(`/gate/guests?bucket=${current.bucket}&${pageQuery(offset)}${search}`);
       const page = reply.ok ? readGateGuests(reply.data) : null;
       if (page) {
-        const result = { items: page.items, total: page.total };
-        rememberFirstPage(cacheRef.current, key, offset, result);
-        return result;
+        return { items: page.items, total: page.total };
       }
-      const message = !reply.ok ? trimStop(reply.message) : "The guest list could not be read";
-      rememberFirstPage(cacheRef.current, key, offset, { error: message });
-      return { error: message };
-    },
+      return {
+        error: !reply.ok ? trimStop(reply.message) : "The guest list could not be read",
+      };
+    }, [staffRequest]),
   });
-
-  useEffect(() => {
-    const timer = setTimeout(() => setQ(query), 300);
-    return () => clearTimeout(timer);
-  }, [query]);
 
   const loadOccupancy = useCallback(async () => {
     const reply = await staffRequest("/gate/occupancy");
@@ -84,12 +77,9 @@ export default function GateGuestsScreen() {
     }
   }, [staffRequest]);
 
-  // First open of a tab (or search) may skeleton. Coming back restores the list
-  // and refreshes quietly — no skeleton every switch.
   useEffect(() => {
-    openCachedList(cacheRef.current, guestListKey(bucket, q), list);
     void loadOccupancy();
-  }, [bucket, q, list.clear, list.load, list.revise, loadOccupancy]);
+  }, [bucket, needle, loadOccupancy]);
 
   const record = async (guest: GateGuest) => {
     const arrival = bucket === "expected";
@@ -108,12 +98,7 @@ export default function GateGuestsScreen() {
     setOpen(null);
     setSheetError(null);
     setNotice(readGateMessage(reply.data) ?? (arrival ? "The guest is now in the hall." : "The guest has left."));
-    // Arrival/departure moves a guest between buckets — drop both caches for this search.
-    const needle = q.trim().slice(0, 80);
-    forgetCachedLists(cacheRef.current, [
-      guestListKey("expected", needle),
-      guestListKey("in_hall", needle),
-    ]);
+    list.forget([guestListKey("expected", needle), guestListKey("in_hall", needle)]);
     list.clear();
     list.load();
     void loadOccupancy();

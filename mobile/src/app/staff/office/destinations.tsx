@@ -7,7 +7,13 @@ import { HallButton } from "@/components/hall-button";
 import { ChoiceLine, OfficeError, OfficeFrame, replyError } from "@/components/office-frame";
 import { PagedList } from "@/components/paged-list";
 import { TextField } from "@/components/text-field";
-import { hiddenFromResidents, readPlace, readPlaces, type OfficePlace } from "@/office";
+import {
+  canAddFreeTextPlace,
+  hiddenFromResidents,
+  readPlace,
+  readPlaces,
+  type OfficePlace,
+} from "@/office";
 import { useSession } from "@/session";
 import { useListPage } from "@/use-list-page";
 import { useHallColors } from "@/theme/colors";
@@ -96,6 +102,7 @@ export default function OfficeDestinations() {
 
   const rows = list.rows ?? [];
   const held = busy !== null;
+  const offerFreeText = canAddFreeTextPlace(rows);
 
   return (
     <OfficeFrame title="Destinations" refreshing={list.refreshing} onRefresh={list.refresh}>
@@ -111,11 +118,23 @@ export default function OfficeDestinations() {
         header={
           <>
             <Text style={[text.body, { color: colors.inkSoft }]}>
-              An inactive place stays on this list. Residents only see active places
+              An inactive place stays on this list. Residents only see active places. One free-text
+              place (Other) is enough
             </Text>
             <TextField label="Place" value={name} onChangeText={setName} maxLength={80} autoCapitalize="sentences" />
             <HallButton label="Add place" busy={busy === "preset"} disabled={held} onPress={() => void create("preset")} />
-            <HallButton label="Add free-text place" busy={busy === "custom"} disabled={held} onPress={() => void create("custom")} />
+            {offerFreeText ? (
+              <HallButton
+                label="Add free-text place"
+                busy={busy === "custom"}
+                disabled={held}
+                onPress={() => void create("custom")}
+              />
+            ) : (
+              <Text style={[text.body, { color: colors.inkSoft }]}>
+                Free-text place already on the list. Edit that row if you need to rename or retire it
+              </Text>
+            )}
             <OfficeError message={formError} />
           </>
         }

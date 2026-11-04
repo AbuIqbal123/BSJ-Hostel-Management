@@ -1,19 +1,32 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFocusEffect } from "expo-router";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
-import { Animated, Easing, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import Animated, {
+  Easing,
+  cancelAnimation,
+  useAnimatedProps,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 import QRCode from "react-native-qrcode-svg";
-import Svg, { Rect } from "react-native-svg";
+import Svg, { Path } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { formatWhen, formatWhenParts } from "@/format-when";
 import { useSession, type DestinationItem, type HallPass } from "@/session";
 import { useDark } from "@/theme/appearance";
 import { useHallColors } from "@/theme/colors";
+import { EASE_OUT } from "@/theme/motion";
 import { text } from "@/theme/text";
 
 const FADE_MS = 220;
-const BORDER_MS = 3200;
+const BORDER_MS = 3600;
+const PULSE_MS = 1600;
 function Fact({
   label,
   value,
@@ -40,14 +53,32 @@ function Fact({
 
 const AWAKE = "hall-pass";
 const BORDER = 16;
-const FOREST = 4;
-const AnimatedRect = Animated.createAnimatedComponent(Rect);
+const INSET = 4;
+const RADIUS = 18;
+const AnimatedPath = Animated.createAnimatedComponent(Path);
 
-function borderLength(frame: number): number {
-  const inset = FOREST;
-  const radius = 18;
-  const side = frame - inset * 2;
-  return 2 * (side + side - radius * 2) + 2 * Math.PI * radius;
+/** Perimeter of a rounded square: four shortened sides + one full circle of corners. */
+function borderLength(side: number, radius: number): number {
+  return 4 * (side - 2 * radius) + 2 * Math.PI * radius;
+}
+
+/** Clockwise rounded rect; Z closes with no extra length so the dash loop has no open-path seam. */
+function roundedRectPath(x: number, y: number, side: number, radius: number): string {
+  const r = radius;
+  const right = x + side;
+  const bottom = y + side;
+  return [
+    `M ${x + r} ${y}`,
+    `H ${right - r}`,
+    `A ${r} ${r} 0 0 1 ${right} ${y + r}`,
+    `V ${bottom - r}`,
+    `A ${r} ${r} 0 0 1 ${right - r} ${bottom}`,
+    `H ${x + r}`,
+    `A ${r} ${r} 0 0 1 ${x} ${bottom - r}`,
+    `V ${y + r}`,
+    `A ${r} ${r} 0 0 1 ${x + r} ${y}`,
+    "Z",
+  ].join(" ");
 }
 
 function shownPlace(
@@ -67,49 +98,80 @@ function shownPlace(
 function PassCode({ value, size }: { value: string; size: number }) {
   const colors = useHallColors();
   const dark = useDark();
-  const opacity = useRef(new Animated.Value(0)).current;
-  const travel = useRef(new Animated.Value(0)).current;
+  const reduced = useReducedMotion();
+  const opacity = useSharedValue(0);
+  const travel = useSharedValue(0);
+  const pulse = useSharedValue(1);
   const faded = useRef<string | null>(null);
-  const frame = size + BORDER * 2;
-  const length = borderLength(frame);
+  // Integer frame keeps SVG dash math and corner joins aligned to device pixels.
+  const frame = Math.round(size + BORDER * 2);
+  const qrSize = frame - BORDER * 2;
+  const side = frame - INSET * 2;
+  const length = borderLength(side, RADIUS);
+  const path = useMemo(() => roundedRectPath(INSET, INSET, side, RADIUS), [side]);
+  // Soft comet: wide translucent body + shorter bright head. Dash + gap = exact perimeter.
+  const bodyDash = length * 0.2;
+  const bodyGap = length - bodyDash;
+  const headDash = length * 0.08;
+  const headGap = length - headDash;
+  const headLead = bodyDash - headDash;
+  const trackStroke = dark ? colors.forest : colors.line;
+  const bodyStroke = colors.forest;
+  const headStroke = dark ? colors.pending : colors.forestDeep;
+  const trackPulse = dark ? 0.45 : 0.3;
 
   useEffect(() => {
     if (faded.current === value) {
       return;
     }
     faded.current = value;
-    opacity.setValue(0);
-    Animated.timing(opacity, {
-      toValue: 1,
-      duration: FADE_MS,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
+    opacity.value = 0;
+    opacity.value = withTiming(1, { duration: FADE_MS, easing: EASE_OUT });
   }, [opacity, value]);
 
   useFocusEffect(
     useCallback(() => {
       void activateKeepAwakeAsync(AWAKE);
-      const loop = Animated.loop(
-        Animated.timing(travel, {
-          toValue: 1,
-          duration: BORDER_MS,
-          easing: Easing.linear,
-          useNativeDriver: false,
-        }),
+      if (reduced) {
+        travel.value = 0;
+        pulse.value = 1;
+        return () => {
+          void deactivateKeepAwake(AWAKE);
+        };
+      }
+      travel.value = 0;
+      travel.value = withRepeat(
+        withTiming(1, { duration: BORDER_MS, easing: Easing.linear }),
+        -1,
+        false,
       );
-      loop.start();
+      pulse.value = withRepeat(
+        withSequence(
+          withTiming(0.55, { duration: PULSE_MS, easing: EASE_OUT }),
+          withTiming(1, { duration: PULSE_MS, easing: EASE_OUT }),
+        ),
+        -1,
+        false,
+      );
       return () => {
-        loop.stop();
+        cancelAnimation(travel);
+        cancelAnimation(pulse);
         void deactivateKeepAwake(AWAKE);
       };
-    }, [travel]),
+    }, [pulse, reduced, travel]),
   );
 
-  const offset = travel.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -length],
-  });
+  const shellStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  const trackProps = useAnimatedProps(() => ({
+    strokeOpacity: 0.35 + pulse.value * trackPulse,
+  }));
+  const bodyProps = useAnimatedProps(() => ({
+    strokeDashoffset: -travel.value * length,
+  }));
+  // Bright tip sits on the leading end of the soft body.
+  const headProps = useAnimatedProps(() => ({
+    strokeDashoffset: -travel.value * length - headLead,
+  }));
 
   return (
     <Animated.View
@@ -118,41 +180,65 @@ function PassCode({ value, size }: { value: string; size: number }) {
         {
           width: frame,
           height: frame,
-          opacity,
           shadowColor: dark ? "#000000" : colors.ink,
           shadowOpacity: dark ? 0.45 : 0.14,
         },
+        shellStyle,
       ]}
       accessibilityLabel="Hall pass"
     >
       <Svg width={frame} height={frame} style={styles.border}>
-        <Rect
-          x={FOREST}
-          y={FOREST}
-          width={frame - FOREST * 2}
-          height={frame - FOREST * 2}
-          rx={18}
+        <AnimatedPath
+          d={path}
           fill="none"
-          stroke={colors.line}
-          strokeWidth={2}
-        />
-        <AnimatedRect
-          x={FOREST}
-          y={FOREST}
-          width={frame - FOREST * 2}
-          height={frame - FOREST * 2}
-          rx={18}
-          fill="none"
-          stroke={colors.forest}
-          strokeWidth={FOREST}
+          stroke={trackStroke}
+          strokeWidth={dark ? 3 : 2}
           strokeLinecap="round"
-          strokeDasharray={`${Math.round(length * 0.22)} ${Math.round(length * 0.78)}`}
-          strokeDashoffset={offset}
+          strokeLinejoin="round"
+          animatedProps={trackProps}
         />
+        {reduced ? (
+          <Path
+            d={path}
+            fill="none"
+            stroke={bodyStroke}
+            strokeWidth={3}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeDasharray={`${headDash} ${headGap}`}
+            strokeDashoffset={0}
+            opacity={dark ? 0.9 : 0.85}
+          />
+        ) : (
+          <>
+            <AnimatedPath
+              d={path}
+              fill="none"
+              stroke={bodyStroke}
+              strokeWidth={dark ? 5 : 4}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray={`${bodyDash} ${bodyGap}`}
+              opacity={dark ? 0.45 : 0.28}
+              animatedProps={bodyProps}
+            />
+            <AnimatedPath
+              d={path}
+              fill="none"
+              stroke={headStroke}
+              strokeWidth={dark ? 3.5 : 2.75}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray={`${headDash} ${headGap}`}
+              opacity={dark ? 1 : 0.95}
+              animatedProps={headProps}
+            />
+          </>
+        )}
       </Svg>
       <QRCode
         value={value}
-        size={size}
+        size={qrSize}
         color="#000000"
         backgroundColor="#FFFFFF"
         quietZone={16}
@@ -224,7 +310,7 @@ export default function HallPassScreen() {
   const place = shownPlace(pass?.place ?? null, places);
   const quiet = 16;
   const codeSize = Math.max(0, width - 28 * 2 - quiet * 2 - BORDER * 2);
-  const codeFrame = codeSize + BORDER * 2;
+  const codeFrame = Math.round(codeSize + BORDER * 2);
 
   const due = pass ? returnBy(pass) : null;
   const who = pass ? (

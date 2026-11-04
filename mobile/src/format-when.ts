@@ -11,7 +11,8 @@ const hallParts = new Intl.DateTimeFormat("en-GB", {
   hourCycle: "h23",
 });
 
-const MONTHS = [
+/** Full English month names for hall dates (0 = January). */
+export const MONTHS: readonly string[] = [
   "January",
   "February",
   "March",

@@ -11,6 +11,7 @@ import {
   evidenceKind,
   lockCopy,
   paymentLabel,
+  paymentsListPath,
   pdfDecision,
   readPaymentStay,
   uploadName,
@@ -53,6 +54,13 @@ describe("payment file rules", () => {
     expect(lockCopy({ status: "approved", arrivedAt: "2026-10-01T10:00:00Z" })).toBe(PAYMENT_LOCKED);
     expect(lockCopy({ status: "rejected", arrivedAt: null })).toBe(CLOSED_STAY);
     expect(lockCopy({ status: "departed", arrivedAt: "2026-10-01T10:00:00Z" })).toBe(PAYMENT_LOCKED);
+  });
+
+  it("lists guest payments without bucket=approved (that is a status, not a GuestBucket)", () => {
+    expect(paymentsListPath(0, "")).toBe("/guest-stays?limit=50&offset=0");
+    expect(paymentsListPath(50, "  Noor  ")).toBe("/guest-stays?limit=50&offset=50&q=Noor");
+    expect(paymentsListPath(0, "a".repeat(100))).toBe(`/guest-stays?limit=50&offset=0&q=${"a".repeat(80)}`);
+    expect(paymentsListPath(0, "")).not.toContain("bucket=");
   });
 
   it("reads a stay, including evidence metadata and a missing note", () => {

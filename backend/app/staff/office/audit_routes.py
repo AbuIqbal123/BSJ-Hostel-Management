@@ -8,10 +8,9 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, ConfigDict
 
-from app.shared.inbox import hall_day_bounds
-from app.shared.like import like_contains
 from app.shared.page import PageDep
 from app.shared.auth.routes import ConnectionDep
+from app.staff.office.audit_records import list_audit_rows
 from app.staff.office.routes import ProvostDep
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Hall office"])
@@ -48,60 +47,16 @@ def list_audit(
     from_day: Annotated[date | None, Query(alias="from")] = None,
     to_day: Annotated[date | None, Query(alias="to")] = None,
 ) -> AuditPage:
-    limit = page.limit
-    offset = page.offset
-    filters: list[str] = []
-    params: list[object] = []
-    if entity_type is not None and entity_type.strip():
-        filters.append("audit_log.entity_type = ?")
-        params.append(entity_type.strip())
-    if entity_id is not None and entity_id.strip():
-        filters.append("audit_log.entity_id = ?")
-        params.append(entity_id.strip())
-    if q is not None and q.strip():
-        needle = like_contains(q.strip().lower())
-        filters.append(
-            """
-            (
-              lower(audit_log.summary) LIKE ? ESCAPE '\\'
-              OR lower(audit_log.action) LIKE ? ESCAPE '\\'
-              OR lower(COALESCE(actors.full_name, '')) LIKE ? ESCAPE '\\'
-            )
-            """
-        )
-        params.extend([needle, needle, needle])
-    start, end = hall_day_bounds(from_day, to_day)
-    if start:
-        filters.append("audit_log.occurred_at >= ?")
-        params.append(start)
-    if end:
-        filters.append("audit_log.occurred_at <= ?")
-        params.append(end)
-    where = (" WHERE " + " AND ".join(filters)) if filters else ""
-    join = "LEFT JOIN users AS actors ON actors.id = audit_log.actor_user_id"
-    total = connection.execute(
-        f"SELECT COUNT(*) AS n FROM audit_log {join}{where}",
-        params,
-    ).fetchone()["n"]
-    rows = connection.execute(
-        f"""
-        SELECT
-          audit_log.id,
-          audit_log.occurred_at,
-          audit_log.actor_user_id,
-          actors.full_name AS actor_name,
-          audit_log.action,
-          audit_log.entity_type,
-          audit_log.entity_id,
-          audit_log.summary
-        FROM audit_log
-        {join}
-        {where}
-        ORDER BY audit_log.occurred_at DESC, audit_log.id DESC
-        LIMIT ? OFFSET ?
-        """,
-        (*params, limit, offset),
-    ).fetchall()
+    total, rows = list_audit_rows(
+        connection,
+        q=q,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        from_day=from_day,
+        to_day=to_day,
+        limit=page.limit,
+        offset=page.offset,
+    )
     items = [
         AuditEvent(
             id=row["id"],
@@ -115,4 +70,4 @@ def list_audit(
         )
         for row in rows
     ]
-    return AuditPage(total=int(total), limit=limit, offset=offset, items=items)
+    return AuditPage(total=total, limit=page.limit, offset=page.offset, items=items)

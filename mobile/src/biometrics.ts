@@ -1,13 +1,13 @@
 /**
  * Face ID / fingerprint as an optional sign-in on the phone.
  * A stored session still opens the shell without a biometric gate.
- * Hides expo-local-authentication and SecureStore behind one surface.
+ * Hides expo-local-authentication behind one surface; storage uses phone-store.
  */
 
 import { Platform } from "react-native";
 import * as LocalAuthentication from "expo-local-authentication";
-import * as SecureStore from "expo-secure-store";
 
+import { phoneDelete, phoneGet, phoneSet } from "@/phone-store";
 import { ignore } from "@/safe";
 
 const PREF_KEY = "bsj.biometric.sign-in";
@@ -61,15 +61,15 @@ export async function confirmBiometrics(prompt: string): Promise<boolean> {
 
 export async function biometricSignInEnabled(): Promise<boolean> {
   try {
-    const current = await SecureStore.getItemAsync(PREF_KEY);
+    const current = await phoneGet(PREF_KEY);
     if (current === "1") {
       return true;
     }
-    const legacy = await SecureStore.getItemAsync(LEGACY_PREF_KEY);
+    const legacy = await phoneGet(LEGACY_PREF_KEY);
     if (legacy === "1") {
-      await SecureStore.setItemAsync(PREF_KEY, "1");
+      await phoneSet(PREF_KEY, "1");
       try {
-        await SecureStore.deleteItemAsync(LEGACY_PREF_KEY);
+        await phoneDelete(LEGACY_PREF_KEY);
       } catch {
         ignore();
       }
@@ -83,12 +83,12 @@ export async function biometricSignInEnabled(): Promise<boolean> {
 
 export async function setBiometricSignInEnabled(on: boolean): Promise<void> {
   if (on) {
-    await SecureStore.setItemAsync(PREF_KEY, "1");
+    await phoneSet(PREF_KEY, "1");
     return;
   }
   for (const key of [PREF_KEY, LEGACY_PREF_KEY]) {
     try {
-      await SecureStore.deleteItemAsync(key);
+      await phoneDelete(key);
     } catch {
       ignore();
     }
@@ -96,7 +96,7 @@ export async function setBiometricSignInEnabled(on: boolean): Promise<void> {
 }
 
 export async function saveBiometricCredentials(credentials: BiometricCredentials): Promise<void> {
-  await SecureStore.setItemAsync(
+  await phoneSet(
     CRED_KEY,
     JSON.stringify({
       username: credentials.username.trim(),
@@ -107,7 +107,7 @@ export async function saveBiometricCredentials(credentials: BiometricCredentials
 
 export async function readBiometricCredentials(): Promise<BiometricCredentials | null> {
   try {
-    const raw = await SecureStore.getItemAsync(CRED_KEY);
+    const raw = await phoneGet(CRED_KEY);
     if (!raw) {
       return null;
     }
@@ -126,7 +126,7 @@ export async function readBiometricCredentials(): Promise<BiometricCredentials |
 
 export async function clearBiometricCredentials(): Promise<void> {
   try {
-    await SecureStore.deleteItemAsync(CRED_KEY);
+    await phoneDelete(CRED_KEY);
   } catch {
     ignore();
   }

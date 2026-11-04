@@ -20,6 +20,12 @@ import {
   type HallNotices,
   type HoursFields,
 } from "@/office";
+import {
+  readOfficeHoursCache,
+  readOfficeNoticesCache,
+  rememberOfficeHours,
+  rememberOfficeNotices,
+} from "@/office-settings-cache";
 import { useSession } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
@@ -61,11 +67,13 @@ function fieldsFrom(hours: HallHours): HoursFields {
 export default function OfficeSettings() {
   const colors = useHallColors();
   const { staffRequest } = useSession();
-  const [savedHours, setSavedHours] = useState<HallHours | null>(null);
-  const [savedNotices, setSavedNotices] = useState<HallNotices | null>(null);
-  const [fields, setFields] = useState<HoursFields>(EMPTY);
-  const [late, setLate] = useState("");
-  const [back, setBack] = useState("");
+  const cachedHours = readOfficeHoursCache();
+  const cachedNotices = readOfficeNoticesCache();
+  const [savedHours, setSavedHours] = useState<HallHours | null>(cachedHours);
+  const [savedNotices, setSavedNotices] = useState<HallNotices | null>(cachedNotices);
+  const [fields, setFields] = useState<HoursFields>(cachedHours ? fieldsFrom(cachedHours) : EMPTY);
+  const [late, setLate] = useState(cachedNotices?.late ?? "");
+  const [back, setBack] = useState(cachedNotices?.back ?? "");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -83,9 +91,12 @@ export default function OfficeSettings() {
         }
         const hours = reply.ok ? readHours(reply.data) : null;
         if (!hours) {
-          setError(replyError(reply) ?? "Settings didn't load");
+          if (!readOfficeHoursCache()) {
+            setError(replyError(reply) ?? "Settings didn't load");
+          }
           return;
         }
+        rememberOfficeHours(hours);
         setSavedHours(hours);
         setFields(fieldsFrom(hours));
       });
@@ -95,9 +106,12 @@ export default function OfficeSettings() {
         }
         const notices = reply.ok ? readNotices(reply.data) : null;
         if (!notices) {
-          setError(replyError(reply) ?? "Texts didn't load");
+          if (!readOfficeNoticesCache()) {
+            setError(replyError(reply) ?? "Texts didn't load");
+          }
           return;
         }
+        rememberOfficeNotices(notices);
         setSavedNotices(notices);
         setLate(notices.late);
         setBack(notices.back);
@@ -138,6 +152,7 @@ export default function OfficeSettings() {
         setBusy(false);
         return;
       }
+      rememberOfficeHours(updated);
       setSavedHours(updated);
       setFields(fieldsFrom(updated));
     }
@@ -150,6 +165,7 @@ export default function OfficeSettings() {
         setBusy(false);
         return;
       }
+      rememberOfficeNotices(updated);
       setSavedNotices(updated);
       setLate(updated.late);
       setBack(updated.back);

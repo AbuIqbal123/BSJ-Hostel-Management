@@ -6,7 +6,7 @@ The value is UTC.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from zoneinfo import ZoneInfo
 
 from app.shared.errors import ApiError
@@ -17,6 +17,11 @@ HALL_ZONE = ZoneInfo("Asia/Kolkata")
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def hall_calendar_date(instant: str) -> date:
+    """Hall calendar day for a stored UTC instant."""
+    return parse_instant(instant).astimezone(HALL_ZONE).date()
 
 
 def format_instant(moment: datetime) -> str:

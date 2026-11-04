@@ -9,12 +9,12 @@ import { SectionHead } from "@/components/section-head";
 import { PagedList } from "@/components/paged-list";
 import { PlainRow, RowHairline } from "@/components/plain-row";
 import { ReviewSheet, type Fact } from "@/components/review-sheet";
-import { openCachedList, rememberFirstPage, type ListSnapshot } from "@/list-cache";
 import { pageQuery } from "@/list-page";
-import { useListPage } from "@/use-list-page";
 import { formatHallDate, formatSpan, formatWhen, formatWhenParts } from "@/format-when";
 import { kindLabel } from "@/requests";
 import { useSession, type PermissionKind } from "@/session";
+import { useDebouncedValue } from "@/use-debounced-value";
+import { useFilteredPagedList } from "@/use-filtered-paged-list";
 import {
   decidesRequests,
   guestDecisionFacts,
@@ -155,7 +155,7 @@ export default function RequestsScreen() {
   const [blockId, setBlockId] = useState<string | null>(null);
   const [blocks, setBlocks] = useState<HallBlock[]>([]);
   const [query, setQuery] = useState("");
-  const [q, setQ] = useState("");
+  const q = useDebouncedValue(query);
   const [, setCounts] = useState<Counts | null>(null);
   const [open, setOpen] = useState<Item | null>(null);
   const [guestFacts, setGuestFacts] = useState<Fact[] | null>(null);
@@ -163,41 +163,35 @@ export default function RequestsScreen() {
   const [busy, setBusy] = useState(false);
   const [decidedNote, setDecidedNote] = useState<string | null>(null);
   const guestDetailEpoch = useRef(0);
-  const cacheRef = useRef(new Map<string, ListSnapshot<Item>>());
-  const tabRef = useRef(tab);
-  const kindRef = useRef(kind);
-  const blockRef = useRef(blockId);
-  const qRef = useRef(q);
-  tabRef.current = tab;
-  kindRef.current = kind;
-  blockRef.current = blockId;
-  qRef.current = q;
-  const list = useListPage<Item>({
+  type RequestFilters = {
+    tab: Tab;
+    kind: PermissionKind | null;
+    blockId: string | null;
+    q: string;
+  };
+  const filters = useMemo<RequestFilters>(
+    () => ({ tab, kind, blockId, q }),
+    [tab, kind, blockId, q],
+  );
+  const list = useFilteredPagedList<Item, RequestFilters>({
     idOf: (item) => item.row.id,
-    loadPage: async (offset) => {
-      const currentTab = tabRef.current;
-      const currentKind = kindRef.current;
-      const currentBlock = blockRef.current;
-      const currentQ = qRef.current;
-      const key = requestListKey(currentTab, currentKind, currentBlock, currentQ);
+    filters,
+    filterKey: requestListKey(tab, kind, blockId, q),
+    loadPage: useCallback(async (current, offset) => {
       const reply = await staffRequest(
-        currentTab === "permissions"
-          ? permissionPath(currentKind, currentBlock, offset, currentQ)
-          : guestPath(currentBlock, offset, currentQ),
+        current.tab === "permissions"
+          ? permissionPath(current.kind, current.blockId, offset, current.q)
+          : guestPath(current.blockId, offset, current.q),
       );
       if (!reply.ok) {
-        const error = trimStop(reply.message);
-        rememberFirstPage(cacheRef.current, key, offset, { error });
-        return { error };
+        return { error: trimStop(reply.message) };
       }
       const page: Item[] =
-        currentTab === "permissions"
+        current.tab === "permissions"
           ? readPermissionReviews(reply.data).map((row) => ({ tab: "permissions", row }))
           : readGuestReviews(reply.data).map((row) => ({ tab: "guests", row }));
-      const result = { items: page, total: readTotal(reply.data) };
-      rememberFirstPage(cacheRef.current, key, offset, result);
-      return result;
-    },
+      return { items: page, total: readTotal(reply.data) };
+    }, [staffRequest]),
   });
 
   const loadCounts = useCallback(async () => {
@@ -220,15 +214,6 @@ export default function RequestsScreen() {
       home: homeCount,
     });
   }, [blockId, staffRequest]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setQ(query), 300);
-    return () => clearTimeout(timer);
-  }, [query]);
-
-  useEffect(() => {
-    openCachedList(cacheRef.current, requestListKey(tab, kind, blockId, q), list);
-  }, [blockId, kind, q, tab, list.clear, list.load, list.revise]);
 
   useEffect(() => {
     void loadCounts();
@@ -310,7 +295,7 @@ export default function RequestsScreen() {
       list.revise((state) => {
         const rows = (state.rows ?? []).filter((item) => item.row.id !== open.row.id);
         const total = Math.max(0, state.total - 1);
-        cacheRef.current.set(requestListKey(tabRef.current, kindRef.current, blockRef.current, qRef.current), {
+        list.remember(requestListKey(tab, kind, blockId, q), {
           rows,
           total,
           error: null,
@@ -320,7 +305,7 @@ export default function RequestsScreen() {
       setOpen(null);
       void loadCounts();
     },
-    [list.revise, loadCounts, open, staffRequest],
+    [blockId, kind, list, loadCounts, open, q, staffRequest, tab],
   );
 
   const rows = list.rows ?? [];

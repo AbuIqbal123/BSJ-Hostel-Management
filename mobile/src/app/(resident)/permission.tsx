@@ -18,7 +18,13 @@ import { HallButton } from "@/components/hall-button";
 import { StatusPill } from "@/components/status-pill";
 import { TextField } from "@/components/text-field";
 import { HALL_ZONE, formatClockDay, formatWhenParts, hallNow, utcInstant } from "@/format-when";
-import { WhenField, hallAt, hallDay, isNextHallMidnight, sameNight } from "@/outing-when";
+import { WhenField, hallDay, sameNight } from "@/outing-when";
+import {
+  homeDepartureAt,
+  homeReturnAt,
+  lateNightReturnNote,
+  permissionDepartureNote as departureNote,
+} from "@/permission-form";
 import { kindLabel } from "@/requests";
 import { paramText } from "@/route-param";
 import { syncResidentReminders } from "@/return-reminders";
@@ -49,16 +55,6 @@ function kindParam(value: string): PermissionKind | null {
 
 function hallDayLabel(iso: string): string {
   return formatWhenParts(iso)?.day ?? iso;
-}
-
-function homeDeparture(day: string): Date {
-  const start = hallAt(day, 0, 0);
-  const now = hallNow();
-  return start.getTime() < now.getTime() ? now : start;
-}
-
-function homeReturn(day: string): Date {
-  return hallAt(day, 23, 59);
 }
 
 function DateField({
@@ -118,37 +114,6 @@ function DateField({
       )}
     </View>
   );
-}
-
-function departureNote(leaveAt: Date | null): string | null {
-  if (!leaveAt) {
-    return null;
-  }
-  if (leaveAt.getTime() < Date.now()) {
-    return "Departure must not be in the past";
-  }
-  return null;
-}
-
-function returnAfterNote(leaveAt: Date | null, backBy: Date | null): string | null {
-  if (!leaveAt || !backBy) {
-    return null;
-  }
-  if (backBy.getTime() <= leaveAt.getTime()) {
-    return "Expected return must be after departure";
-  }
-  return null;
-}
-
-function lateNightReturnNote(leaveAt: Date | null, backBy: Date | null): string | null {
-  const order = returnAfterNote(leaveAt, backBy);
-  if (order || !leaveAt || !backBy) {
-    return order;
-  }
-  if (hallDay(leaveAt) === hallDay(backBy) || isNextHallMidnight(leaveAt, backBy)) {
-    return null;
-  }
-  return "A late-night return has to be the same day. Only 12:00 AM can be the next day";
 }
 
 function usePermissionBack() {
@@ -223,7 +188,7 @@ function PermissionForm({
   const homeDatesReady = leaveDay.length > 0 && backDay.length > 0 && leaveDay >= today && backDay >= leaveDay;
   const homeTimes =
     kind === "home_going" && homeDatesReady
-      ? { departure: homeDeparture(leaveDay), back: homeReturn(backDay) }
+      ? { departure: homeDepartureAt(leaveDay), back: homeReturnAt(backDay) }
       : null;
   const leaveProblem =
     kind === "home_going"

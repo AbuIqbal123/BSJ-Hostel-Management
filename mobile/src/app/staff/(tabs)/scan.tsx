@@ -50,13 +50,24 @@ function Corner({ color, at }: { color: string; at: "tl" | "tr" | "bl" | "br" })
   );
 }
 
-function Viewfinder({ size, color, children }: { size: number; color: string; children?: React.ReactNode }) {
+function Viewfinder({
+  size,
+  color,
+  camera,
+  children,
+}: {
+  size: number;
+  color: string;
+  camera: React.ReactNode;
+  children?: React.ReactNode;
+}) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
       <View style={[styles.dim, { flex: 1 }]} />
       <View style={{ flexDirection: "row", height: size }}>
         <View style={[styles.dim, { flex: 1 }]} />
-        <View style={{ width: size, height: size }}>
+        <View style={[styles.frame, { width: size, height: size }]}>
+          {camera}
           {(["tl", "tr", "bl", "br"] as const).map((at) => (
             <Corner key={at} at={at} color={color} />
           ))}
@@ -301,17 +312,24 @@ export default function ScanScreen() {
   const size = Math.min(width - 40, Math.round(width * 0.88));
   return (
     <View style={[styles.screen, styles.dark]}>
-      <CameraView
-        style={StyleSheet.absoluteFill}
-        facing="back"
-        active={focused}
-        enableTorch={torch && focused}
-        barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
-        onMountError={() => setBroken(true)}
-        onBarcodeScanned={focused && !card ? (scan: BarcodeScanningResult) => void submit(scan.data) : undefined}
-      />
       <View style={[StyleSheet.absoluteFill, { paddingTop: insets.top }]} pointerEvents="box-none">
-        <Viewfinder size={size} color={card ? colors.forest : LIGHT}>
+        <Viewfinder
+          size={size}
+          color={card ? colors.forest : LIGHT}
+          camera={
+            <CameraView
+              style={StyleSheet.absoluteFill}
+              facing="back"
+              active={focused}
+              enableTorch={torch && focused}
+              barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
+              onMountError={() => setBroken(true)}
+              onBarcodeScanned={
+                focused && !card ? (scan: BarcodeScanningResult) => void submit(scan.data) : undefined
+              }
+            />
+          }
+        >
           {card ? null : (
             <>
               <Text style={styles.hint}>Point the camera at the hall pass</Text>
@@ -343,6 +361,8 @@ const styles = StyleSheet.create({
   ask: { justifyContent: "center", paddingHorizontal: 28, gap: 16 },
   center: { textAlign: "center" },
   dim: { backgroundColor: DIM },
+  /** Clips the live preview to the same soft bend as the corner brackets. */
+  frame: { borderRadius: BEND, borderCurve: "continuous", overflow: "hidden" },
   corner: { position: "absolute", width: CORNER, height: CORNER },
   below: { flex: 1.3, alignItems: "center", paddingTop: 20, gap: 20 },
   hint: {

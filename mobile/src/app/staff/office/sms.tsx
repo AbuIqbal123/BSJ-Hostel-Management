@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useFocusEffect } from "expo-router";
-import { ScrollView, Text, View } from "react-native";
+import { useCallback, useMemo, useState } from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { DayRange, type DayRangeValue } from "@/components/day-range";
 import { DenseRow } from "@/components/dense-row";
@@ -9,43 +8,44 @@ import { OfficeFrame, replyError } from "@/components/office-frame";
 import { PagedList } from "@/components/paged-list";
 import { SearchField } from "@/components/search-field";
 import { formatWhenParts } from "@/format-when";
-import { openCachedList, rememberFirstPage, type ListSnapshot } from "@/list-cache";
 import { pageQuery } from "@/list-page";
 import { noticeLabel, readPage, readSms, type SmsRow } from "@/office";
 import { useSession } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
-import { useListPage } from "@/use-list-page";
+import { useDebouncedValue } from "@/use-debounced-value";
+import { useFilteredPagedList } from "@/use-filtered-paged-list";
 
 type NoticeFilter = "late_notice" | "return_notice" | null;
 type StatusFilter = "sent" | "failed" | null;
 
-function smsKey(notice: NoticeFilter, status: StatusFilter, q: string, range: DayRangeValue): string {
-  return `${notice ?? ""}|${status ?? ""}|${q}|${range.from ?? ""}|${range.to ?? ""}`;
+type SmsFilters = {
+  notice: NoticeFilter;
+  status: StatusFilter;
+  q: string;
+  range: DayRangeValue;
+};
+
+function smsKey(filters: SmsFilters): string {
+  return `${filters.notice ?? ""}|${filters.status ?? ""}|${filters.q}|${filters.range.from ?? ""}|${filters.range.to ?? ""}`;
 }
 
-function smsPath(
-  notice: NoticeFilter,
-  status: StatusFilter,
-  q: string,
-  range: DayRangeValue,
-  offset: number,
-): string {
+function smsPath(filters: SmsFilters, offset: number): string {
   const search = new URLSearchParams(pageQuery(offset));
-  if (notice) {
-    search.set("notice_type", notice);
+  if (filters.notice) {
+    search.set("notice_type", filters.notice);
   }
-  if (status) {
-    search.set("status", status);
+  if (filters.status) {
+    search.set("status", filters.status);
   }
-  if (q.trim()) {
-    search.set("q", q.trim());
+  if (filters.q.trim()) {
+    search.set("q", filters.q.trim());
   }
-  if (range.from) {
-    search.set("from", range.from);
+  if (filters.range.from) {
+    search.set("from", filters.range.from);
   }
-  if (range.to) {
-    search.set("to", range.to);
+  if (filters.range.to) {
+    search.set("to", filters.range.to);
   }
   return `/admin/sms?${search.toString()}`;
 }
@@ -55,55 +55,25 @@ export default function OfficeSms() {
   const { staffRequest } = useSession();
   const [open, setOpen] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [q, setQ] = useState("");
+  const q = useDebouncedValue(query);
   const [notice, setNotice] = useState<NoticeFilter>(null);
   const [status, setStatus] = useState<StatusFilter>(null);
   const [range, setRange] = useState<DayRangeValue>({ from: null, to: null });
-  const qRef = useRef(q);
-  const noticeRef = useRef(notice);
-  const statusRef = useRef(status);
-  const rangeRef = useRef(range);
-  const cacheRef = useRef(new Map<string, ListSnapshot<SmsRow>>());
-  qRef.current = q;
-  noticeRef.current = notice;
-  statusRef.current = status;
-  rangeRef.current = range;
+  const filters = useMemo<SmsFilters>(() => ({ notice, status, q, range }), [notice, status, q, range]);
 
-  const list = useListPage<SmsRow>({
+  const list = useFilteredPagedList<SmsRow, SmsFilters>({
     idOf: (row) => row.id,
-    loadPage: async (offset) => {
-      const reply = await staffRequest(
-        smsPath(noticeRef.current, statusRef.current, qRef.current, rangeRef.current, offset),
-      );
+    filters,
+    filterKey: smsKey(filters),
+    loadPage: useCallback(async (current, offset) => {
+      const reply = await staffRequest(smsPath(current, offset));
       const page = reply.ok ? readPage(reply.data, readSms) : null;
       if (!page) {
         return { error: replyError(reply) ?? "Texts didn't load" };
       }
-      const result = { items: page.items, total: page.total };
-      rememberFirstPage(
-        cacheRef.current,
-        smsKey(noticeRef.current, statusRef.current, qRef.current, rangeRef.current),
-        offset,
-        result,
-      );
-      return result;
-    },
+      return { items: page.items, total: page.total };
+    }, [staffRequest]),
   });
-
-  useEffect(() => {
-    const timer = setTimeout(() => setQ(query), 300);
-    return () => clearTimeout(timer);
-  }, [query]);
-
-  useEffect(() => {
-    openCachedList(cacheRef.current, smsKey(notice, status, q, range), list);
-  }, [notice, status, q, range, list.clear, list.load, list.revise]);
-
-  useFocusEffect(
-    useCallback(() => {
-      list.load();
-    }, [list.load]),
-  );
 
   const rows = list.rows ?? [];
   const selected = rows.find((row) => row.id === open) ?? null;
@@ -116,7 +86,12 @@ export default function OfficeSms() {
       onNearEnd={() => list.loadNext()}
     >
       <SearchField value={query} placeholder="Name, phone, or text" onChange={setQuery} />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.filterScroll}
+        contentContainerStyle={styles.filters}
+      >
         {(
           [
             { value: null, label: "All notices" },
@@ -187,3 +162,8 @@ export default function OfficeSms() {
     </OfficeFrame>
   );
 }
+
+const styles = StyleSheet.create({
+  filterScroll: { flexGrow: 0 },
+  filters: { gap: 8, paddingVertical: 4 },
+});

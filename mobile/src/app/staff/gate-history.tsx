@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useFocusEffect, useNavigation } from "expo-router";
+import { useNavigation } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
@@ -10,15 +10,21 @@ import { DenseRow } from "@/components/dense-row";
 import { FilterChip } from "@/components/filter-chip";
 import { PagedList } from "@/components/paged-list";
 import { SearchField } from "@/components/search-field";
-import { openCachedList, rememberFirstPage, type ListSnapshot } from "@/list-cache";
 import { pageQuery } from "@/list-page";
-import { useListPage } from "@/use-list-page";
 import { useSession } from "@/session";
 import { readActivity, readTotal, trimStop, type GateEvent } from "@/staff";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
+import { useDebouncedValue } from "@/use-debounced-value";
+import { useFilteredPagedList } from "@/use-filtered-paged-list";
 
 type EventFilter = "exit" | "return" | "guest_arrival" | "guest_departure" | null;
+
+type HistoryFilters = {
+  event: EventFilter;
+  q: string;
+  range: DayRangeValue;
+};
 
 const EVENTS: { value: EventFilter; label: string }[] = [
   { value: null, label: "All" },
@@ -28,23 +34,23 @@ const EVENTS: { value: EventFilter; label: string }[] = [
   { value: "guest_departure", label: "Guest out" },
 ];
 
-function historyKey(event: EventFilter, q: string, range: DayRangeValue): string {
-  return `${event ?? ""}|${q}|${range.from ?? ""}|${range.to ?? ""}`;
+function historyKey(filters: HistoryFilters): string {
+  return `${filters.event ?? ""}|${filters.q}|${filters.range.from ?? ""}|${filters.range.to ?? ""}`;
 }
 
-function historyPath(event: EventFilter, q: string, range: DayRangeValue, offset: number): string {
+function historyPath(filters: HistoryFilters, offset: number): string {
   const search = new URLSearchParams(pageQuery(offset));
-  if (event) {
-    search.set("event", event);
+  if (filters.event) {
+    search.set("event", filters.event);
   }
-  if (q.trim()) {
-    search.set("q", q.trim());
+  if (filters.q.trim()) {
+    search.set("q", filters.q.trim());
   }
-  if (range.from) {
-    search.set("from", range.from);
+  if (filters.range.from) {
+    search.set("from", filters.range.from);
   }
-  if (range.to) {
-    search.set("to", range.to);
+  if (filters.range.to) {
+    search.set("to", filters.range.to);
   }
   return `/gate/activity?${search.toString()}`;
 }
@@ -55,44 +61,23 @@ export default function GateHistoryScreen() {
   const navigation = useNavigation();
   const { staffRequest } = useSession();
   const [query, setQuery] = useState("");
-  const [q, setQ] = useState("");
+  const q = useDebouncedValue(query);
   const [event, setEvent] = useState<EventFilter>(null);
   const [range, setRange] = useState<DayRangeValue>({ from: null, to: null });
-  const qRef = useRef(q);
-  const eventRef = useRef(event);
-  const rangeRef = useRef(range);
-  const cacheRef = useRef(new Map<string, ListSnapshot<GateEvent>>());
-  qRef.current = q;
-  eventRef.current = event;
-  rangeRef.current = range;
+  const filters = useMemo<HistoryFilters>(() => ({ event, q, range }), [event, q, range]);
 
-  const list = useListPage<GateEvent>({
+  const list = useFilteredPagedList<GateEvent, HistoryFilters>({
     idOf: (item) => item.key,
-    loadPage: async (offset) => {
-      const reply = await staffRequest(historyPath(eventRef.current, qRef.current, rangeRef.current, offset));
+    filters,
+    filterKey: historyKey(filters),
+    loadPage: useCallback(async (current, offset) => {
+      const reply = await staffRequest(historyPath(current, offset));
       if (!reply.ok) {
         return { error: trimStop(reply.message) };
       }
-      const result = { items: readActivity(reply.data, offset), total: readTotal(reply.data) };
-      rememberFirstPage(cacheRef.current, historyKey(eventRef.current, qRef.current, rangeRef.current), offset, result);
-      return result;
-    },
+      return { items: readActivity(reply.data, offset), total: readTotal(reply.data) };
+    }, [staffRequest]),
   });
-
-  useEffect(() => {
-    const timer = setTimeout(() => setQ(query), 300);
-    return () => clearTimeout(timer);
-  }, [query]);
-
-  useEffect(() => {
-    openCachedList(cacheRef.current, historyKey(event, q, range), list);
-  }, [event, q, range, list.clear, list.load, list.revise]);
-
-  useFocusEffect(
-    useCallback(() => {
-      list.load();
-    }, [list.load]),
-  );
 
   const back = () => goBackOr(navigation, "/staff/settings");
 

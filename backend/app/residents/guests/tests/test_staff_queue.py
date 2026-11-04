@@ -541,6 +541,14 @@ def test_guest_stays_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch)
         upcoming = client.get("/api/v1/guest-stays?bucket=upcoming", headers=headers)
         assert [item["id"] for item in upcoming.json()["items"]] == [UPCOMING]
 
+        # `approved` is a stay status, not a GuestBucket. The phone must not send it.
+        assert_error(
+            client.get("/api/v1/guest-stays?bucket=approved", headers=headers),
+            422,
+            "validation_error",
+            "The request is not valid.",
+        )
+
         got = client.get(f"/api/v1/guest-stays/{PENDING_A}", headers=headers)
         assert got.status_code == 200
         assert got.json()["guest_name"] == "Pending One"

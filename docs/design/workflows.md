@@ -185,7 +185,7 @@ Provost may also export CSV via `GET /api/v1/admin/register/export`.
 
 **Screens:** settings (hours, grace, seasons, guest rules, SMS templates; show 12-hour + day-month as contract) → blocks/rooms → destinations → residents (create/edit; suspend; reissue pass) → staff → password reset → SMS log → audit → CSV export. Export writes a temporary `register-YYYY-MM-DD.csv` and opens the system share sheet as a **file** (WhatsApp, Files, Mail), not as pasted CSV text.
 
-**Critical states:** destructive confirms (reissue pass invalidates old QR; reset revokes sessions); inactive destinations hidden from resident catalog but visible in admin.
+**Critical states:** destructive confirms (reissue pass invalidates old QR; reset revokes sessions); inactive destinations hidden from resident catalog but visible in admin; Destinations offers at most one active free-text (Other) place — when one is already active the form does not offer adding another; the API refuses a second with `other_exists`.
 
 **Success:** provost can run the hall without database tools.
 

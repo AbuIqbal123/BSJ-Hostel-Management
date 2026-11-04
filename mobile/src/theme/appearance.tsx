@@ -7,9 +7,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import * as SecureStore from "expo-secure-store";
 import { useColorScheme } from "react-native";
 
+import { phoneGet, phoneSet } from "@/phone-store";
 import { ignore } from "@/safe";
 
 const APPEARANCE_KEY = "bsj.appearance";
@@ -29,7 +29,7 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
-    SecureStore.getItemAsync(APPEARANCE_KEY)
+    phoneGet(APPEARANCE_KEY)
       .then((stored) => {
         if (!active) {
           return;
@@ -48,7 +48,7 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
     const next: Choice = value ? "dark" : "light";
     setChoice(next);
     // The screen still changes for this visit.
-    SecureStore.setItemAsync(APPEARANCE_KEY, next).catch(ignore);
+    phoneSet(APPEARANCE_KEY, next).catch(ignore);
   }, []);
 
   const dark = choice === null ? system === "dark" : choice === "dark";
