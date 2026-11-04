@@ -67,9 +67,6 @@ export function readSummary(value: unknown): RegisterSummary | null {
   };
 }
 
-/** How many lines Home shows under Recent at the gate. Full history is in Settings. */
-export const RECENT_AT_GATE = 8;
-
 export type GateEvent = { key: string; title: string; detail: string; at: string };
 
 const EVENT_WORDS: Record<string, string> = {

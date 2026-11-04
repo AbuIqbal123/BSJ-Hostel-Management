@@ -7,6 +7,8 @@ import {
   mergeById,
   olderAvailable,
   pageQuery,
+  recentGateQuery,
+  RECENT_AT_GATE,
   placeholderMotion,
   shouldKeepPaging,
   shouldRequestNext,
@@ -20,6 +22,8 @@ describe("list pages", () => {
   it("names the shared page on every list request", () => {
     expect(pageQuery(0)).toBe("limit=50&offset=0");
     expect(pageQuery(50)).toBe("limit=50&offset=50");
+    expect(RECENT_AT_GATE).toBe(8);
+    expect(recentGateQuery()).toBe("limit=8&offset=0");
   });
 
   it("shows a still placeholder when motion is reduced", () => {

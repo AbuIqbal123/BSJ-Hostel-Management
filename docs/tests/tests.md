@@ -1205,7 +1205,7 @@ Copy this block for each test and fill every field.
 | Field | Content |
 |---|---|
 | Test | `mobile/src/__tests__/page-size.test.ts` |
-| Purpose | A screen that writes its own `limit` on a list request is refused. The only `limit` query is `pageQuery` in `mobile/src/list-page.ts`. |
+| Purpose | A screen that writes its own `limit` on a list request is refused. The only `limit` queries are `pageQuery` and `recentGateQuery` in `mobile/src/list-page.ts`. |
 | Actor | System job. |
 | Preconditions | The phone source is on disk. No screen is opened. |
 | Action | Read every file under `mobile/src/app` and `mobile/src/components`, and `mobile/src/session.tsx`. A line matching `limit` followed by `=` or `:` is a private page size. |

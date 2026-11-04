@@ -14,8 +14,8 @@ import { SectionHead } from "@/components/section-head";
 import { setBadge } from "@/push";
 import { useListPage } from "@/use-list-page";
 import { roleLabel, useSession } from "@/session";
+import { recentGateQuery } from "@/list-page";
 import {
-  RECENT_AT_GATE,
   readActivity,
   readSummary,
   readsRegister,
@@ -62,7 +62,7 @@ export default function StaffHomeScreen() {
     auto: false,
     idOf: (item: GateEvent) => item.key,
     loadPage: async () => {
-      const reply = await staffRequest(`/gate/activity?limit=${RECENT_AT_GATE}&offset=0`);
+      const reply = await staffRequest(`/gate/activity?${recentGateQuery()}`);
       if (!reply.ok) {
         return { error: trimStop(reply.message) };
       }

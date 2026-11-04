@@ -2,9 +2,17 @@
 
 export const PAGE_SIZE = 50;
 
+/** How many lines Home shows under Recent at the gate. Full history uses pageQuery. */
+export const RECENT_AT_GATE = 8;
+
 /** The only place a screen may name `limit` and `offset` on a list request. */
 export function pageQuery(offset: number): string {
   return `limit=${PAGE_SIZE}&offset=${offset}`;
+}
+
+/** Home's short recent strip. Gate history pages with pageQuery. */
+export function recentGateQuery(): string {
+  return `limit=${RECENT_AT_GATE}&offset=0`;
 }
 
 export function placeholderMotion(reduceMotion: boolean): "shimmer" | "still" {
