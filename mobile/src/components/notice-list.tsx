@@ -49,22 +49,17 @@ function NoticeCard({ item, onPress }: { item: Notice; onPress: () => void }) {
         pressed && styles.pressed,
       ]}
     >
-      <View style={styles.line}>
-        <View style={[styles.dot, { backgroundColor: item.unread ? colors.forest : "transparent" }]} />
-        <Text numberOfLines={1} style={[styles.title, { color: colors.ink }]}>
-          {item.title}
+      <Text numberOfLines={1} style={[styles.title, { color: colors.ink }]}>
+        {item.title}
+      </Text>
+      <Text numberOfLines={1} style={[styles.detail, { color: colors.inkSoft }]}>
+        {[item.detail, item.when].filter(Boolean).join(" · ")}
+      </Text>
+      {item.status ? (
+        <Text numberOfLines={1} style={[styles.status, { color: item.needsAction ? colors.pending : colors.forest }]}>
+          {item.status}
         </Text>
-      </View>
-      <View style={styles.indent}>
-        <Text numberOfLines={1} style={[styles.detail, { color: colors.inkSoft }]}>
-          {[item.detail, item.when].filter(Boolean).join(" · ")}
-        </Text>
-        {item.status ? (
-          <Text numberOfLines={1} style={[styles.status, { color: item.needsAction ? colors.pending : colors.forest }]}>
-            {item.status}
-          </Text>
-        ) : null}
-      </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -282,13 +277,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     gap: 4,
+    alignItems: "stretch",
   },
-  line: { flexDirection: "row", alignItems: "center", gap: 8 },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  indent: { paddingLeft: 16, gap: 2 },
-  title: { flex: 1, minWidth: 0, fontFamily: "SourceSans3_600SemiBold", fontSize: 17, lineHeight: 22 },
-  detail: { fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20 },
-  status: { fontFamily: "SourceSans3_600SemiBold", fontSize: 13, lineHeight: 18 },
+  title: {
+    alignSelf: "stretch",
+    textAlign: "left",
+    fontFamily: "SourceSans3_600SemiBold",
+    fontSize: 17,
+    lineHeight: 22,
+  },
+  detail: {
+    alignSelf: "stretch",
+    textAlign: "left",
+    fontFamily: "SourceSans3_400Regular",
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  status: {
+    alignSelf: "stretch",
+    textAlign: "left",
+    fontFamily: "SourceSans3_600SemiBold",
+    fontSize: 13,
+    lineHeight: 18,
+  },
   gap: { height: 12 },
   footer: { textAlign: "center", paddingTop: 20 },
   pressed: { opacity: 0.6 },

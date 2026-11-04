@@ -26,41 +26,27 @@ function buzz(ok: boolean) {
 
 const CORNER = 44;
 const STROKE = 4;
-const TIP = 10;
+/** Soft outer bend — matches the design-system corner language. */
+const BEND = 14;
 
-/** Two bars meet at the corner — borderRadius on a bordered box draws square nubs. */
+/** L-shaped bracket with a curved outer corner. */
 function Corner({ color, at }: { color: string; at: "tl" | "tr" | "bl" | "br" }) {
   const top = at[0] === "t";
   const left = at[1] === "l";
-  const bar = { backgroundColor: color };
   return (
     <View
       pointerEvents="none"
       style={[
         styles.corner,
-        top ? { top: 0 } : { bottom: 0 },
-        left ? { left: 0 } : { right: 0 },
+        { borderColor: color },
+        top ? { top: 0, borderTopWidth: STROKE } : { bottom: 0, borderBottomWidth: STROKE },
+        left ? { left: 0, borderLeftWidth: STROKE } : { right: 0, borderRightWidth: STROKE },
+        top && left ? { borderTopLeftRadius: BEND } : null,
+        top && !left ? { borderTopRightRadius: BEND } : null,
+        !top && left ? { borderBottomLeftRadius: BEND } : null,
+        !top && !left ? { borderBottomRightRadius: BEND } : null,
       ]}
-    >
-      <View
-        style={[
-          styles.cornerArmH,
-          bar,
-          top ? { top: 0 } : { bottom: 0 },
-          left ? { left: 0, borderTopLeftRadius: top ? TIP : 0, borderBottomLeftRadius: top ? 0 : TIP } : null,
-          !left ? { right: 0, borderTopRightRadius: top ? TIP : 0, borderBottomRightRadius: top ? 0 : TIP } : null,
-        ]}
-      />
-      <View
-        style={[
-          styles.cornerArmV,
-          bar,
-          left ? { left: 0 } : { right: 0 },
-          top ? { top: 0, borderTopLeftRadius: left ? TIP : 0, borderTopRightRadius: left ? 0 : TIP } : null,
-          !top ? { bottom: 0, borderBottomLeftRadius: left ? TIP : 0, borderBottomRightRadius: left ? 0 : TIP } : null,
-        ]}
-      />
-    </View>
+    />
   );
 }
 
@@ -358,8 +344,6 @@ const styles = StyleSheet.create({
   center: { textAlign: "center" },
   dim: { backgroundColor: DIM },
   corner: { position: "absolute", width: CORNER, height: CORNER },
-  cornerArmH: { position: "absolute", width: CORNER, height: STROKE },
-  cornerArmV: { position: "absolute", width: STROKE, height: CORNER },
   below: { flex: 1.3, alignItems: "center", paddingTop: 20, gap: 20 },
   hint: {
     fontFamily: "SourceSans3_400Regular",

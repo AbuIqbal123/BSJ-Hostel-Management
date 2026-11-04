@@ -349,9 +349,18 @@ export type OfficeBlock = {
   name: string;
   floors: number | null;
   roomCount: number;
+  roomsOnFile: number;
   bedsPerRoom: number;
   status: "active" | "inactive";
 };
+
+/** List line: doors on file vs published inventory (Utility starts 0 of 16). */
+export function blockRoomsDetail(block: OfficeBlock): string {
+  if (block.roomsOnFile === block.roomCount) {
+    return `${block.code} · ${block.roomsOnFile} rooms`;
+  }
+  return `${block.code} · ${block.roomsOnFile} of ${block.roomCount} on file`;
+}
 
 export function readBlock(value: unknown): OfficeBlock | null {
   const body = record(value);
@@ -363,15 +372,25 @@ export function readBlock(value: unknown): OfficeBlock | null {
   const name = str(body.name);
   const floors = body.floors === null ? null : int(body.floors);
   const roomCount = int(body.room_count);
+  const roomsOnFile = int(body.rooms_on_file);
   const bedsPerRoom = int(body.beds_per_room);
   const status = oneOf(body.status, ["active", "inactive"] as const);
-  if (!id || !code || !name || floors === undefined || roomCount === null || bedsPerRoom === null || !status) {
+  if (
+    !id ||
+    !code ||
+    !name ||
+    floors === undefined ||
+    roomCount === null ||
+    roomsOnFile === null ||
+    bedsPerRoom === null ||
+    !status
+  ) {
     return null;
   }
   if (body.floors !== null && floors === null) {
     return null;
   }
-  return { id, code, name, floors, roomCount, bedsPerRoom, status };
+  return { id, code, name, floors, roomCount, roomsOnFile, bedsPerRoom, status };
 }
 
 export function readBlocks(value: unknown): OfficeBlock[] | null {
@@ -409,11 +428,8 @@ export function readRoom(value: unknown): OfficeRoom | null {
 }
 
 export function readRooms(value: unknown): OfficeRoom[] | null {
-  if (!Array.isArray(value)) {
-    return null;
-  }
-  const rooms = value.map(readRoom);
-  return rooms.every((room) => room !== null) ? rooms : null;
+  const page = readPage(value, readRoom);
+  return page ? page.items : null;
 }
 
 export type OfficePlace = {
@@ -799,6 +815,11 @@ export function readAudit(value: unknown): AuditRow | null {
 export function registerCsv(value: string): string | null {
   const header = value.split(/\r?\n/, 1)[0];
   return header === REGISTER_CSV_HEADER ? value : null;
+}
+
+/** Download name for the register CSV (`register-2026-11-04.csv`). */
+export function registerExportFileName(hallDay: string): string {
+  return `register-${hallDay}.csv`;
 }
 
 export function noticeLabel(notice: SmsRow["notice"]): string {

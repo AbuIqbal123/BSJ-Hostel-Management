@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from datetime import date
+from typing import Annotated, Literal
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from pydantic import BaseModel, ConfigDict
 
+from app.shared.inbox import hall_day_bounds
+from app.shared.like import like_contains
 from app.shared.page import PageDep
 from app.shared.auth.routes import ConnectionDep
 from app.staff.office.routes import ProvostDep
@@ -40,12 +43,53 @@ def list_sms(
     _account: ProvostDep,
     connection: ConnectionDep,
     page: PageDep,
+    q: Annotated[str | None, Query(max_length=80)] = None,
+    notice_type: Annotated[Literal["late_notice", "return_notice"] | None, Query()] = None,
+    status: Annotated[Literal["sent", "failed"] | None, Query()] = None,
+    from_day: Annotated[date | None, Query(alias="from")] = None,
+    to_day: Annotated[date | None, Query(alias="to")] = None,
 ) -> SmsPage:
     limit = page.limit
     offset = page.offset
-    total = connection.execute("SELECT COUNT(*) AS n FROM guardian_messages").fetchone()["n"]
+    filters: list[str] = []
+    params: list[object] = []
+    if notice_type is not None:
+        filters.append("guardian_messages.notice_type = ?")
+        params.append(notice_type)
+    if status is not None:
+        filters.append("guardian_messages.status = ?")
+        params.append(status)
+    if q is not None and q.strip():
+        needle = like_contains(q.strip().lower())
+        filters.append(
+            """
+            (
+              lower(users.full_name) LIKE ? ESCAPE '\\'
+              OR lower(guardian_messages.recipient_phone) LIKE ? ESCAPE '\\'
+              OR lower(guardian_messages.body) LIKE ? ESCAPE '\\'
+            )
+            """
+        )
+        params.extend([needle, needle, needle])
+    start, end = hall_day_bounds(from_day, to_day)
+    if start:
+        filters.append("guardian_messages.created_at >= ?")
+        params.append(start)
+    if end:
+        filters.append("guardian_messages.created_at <= ?")
+        params.append(end)
+    where = (" WHERE " + " AND ".join(filters)) if filters else ""
+    total = connection.execute(
+        f"""
+        SELECT COUNT(*) AS n
+        FROM guardian_messages
+        JOIN users ON users.id = guardian_messages.resident_id
+        {where}
+        """,
+        params,
+    ).fetchone()["n"]
     rows = connection.execute(
-        """
+        f"""
         SELECT
           guardian_messages.id,
           guardian_messages.outing_id,
@@ -58,10 +102,11 @@ def list_sms(
           guardian_messages.created_at
         FROM guardian_messages
         JOIN users ON users.id = guardian_messages.resident_id
+        {where}
         ORDER BY guardian_messages.created_at DESC, guardian_messages.id DESC
         LIMIT ? OFFSET ?
         """,
-        (limit, offset),
+        (*params, limit, offset),
     ).fetchall()
     items = [
         SmsMessage(

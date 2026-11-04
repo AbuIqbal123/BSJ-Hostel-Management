@@ -113,17 +113,51 @@ def list_gate_activity(
     *,
     limit: int,
     offset: int,
+    q: str | None = None,
+    event: Literal["exit", "return", "guest_arrival", "guest_departure"] | None = None,
+    from_at: str | None = None,
+    to_at: str | None = None,
 ) -> GateActivityPage:
+    from app.shared.like import like_contains
+
+    filters: list[str] = []
+    params: list[object] = []
+    if event is not None:
+        filters.append("event = ?")
+        params.append(event)
+    if from_at is not None:
+        filters.append("occurred_at >= ?")
+        params.append(from_at)
+    if to_at is not None:
+        filters.append("occurred_at <= ?")
+        params.append(to_at)
+    if q is not None and q.strip():
+        needle = like_contains(q.strip().lower())
+        filters.append(
+            """
+            (
+              lower(COALESCE(resident_name, '')) LIKE ? ESCAPE '\\'
+              OR lower(COALESCE(room_label, '')) LIKE ? ESCAPE '\\'
+              OR lower(COALESCE(guest_name, '')) LIKE ? ESCAPE '\\'
+              OR lower(COALESCE(host_name, '')) LIKE ? ESCAPE '\\'
+              OR lower(COALESCE(host_room_label, '')) LIKE ? ESCAPE '\\'
+            )
+            """
+        )
+        params.extend([needle, needle, needle, needle, needle])
+    where = f"WHERE {' AND '.join(filters)}" if filters else ""
+    base = f"SELECT * FROM ({_GATE_ACTIVITY_UNION}) AS gate_activity {where}"
     total = connection.execute(
-        f"SELECT COUNT(*) AS n FROM ({_GATE_ACTIVITY_UNION})"
+        f"SELECT COUNT(*) AS n FROM ({base})",
+        params,
     ).fetchone()["n"]
     rows = connection.execute(
         f"""
-        {_GATE_ACTIVITY_UNION}
+        {base}
         ORDER BY occurred_at DESC, event, COALESCE(resident_name, guest_name), source_id
         LIMIT ? OFFSET ?
         """,
-        (limit, offset),
+        (*params, limit, offset),
     ).fetchall()
     items = [
         GateActivityItem(

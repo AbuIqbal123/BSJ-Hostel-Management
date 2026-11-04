@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import sqlite3
 import uuid
-from datetime import timedelta
+from datetime import date, timedelta
 from typing import Annotated, Literal, NoReturn
 
-from fastapi import APIRouter, BackgroundTasks, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.shared.page import PageDep
@@ -529,7 +529,22 @@ def gate_activity(
     _account: GateDep,
     connection: ConnectionDep,
     page: PageDep,
+    q: Annotated[str | None, Query(max_length=80)] = None,
+    event: Annotated[
+        Literal["exit", "return", "guest_arrival", "guest_departure"] | None, Query()
+    ] = None,
+    from_day: Annotated[date | None, Query(alias="from")] = None,
+    to_day: Annotated[date | None, Query(alias="to")] = None,
 ) -> GateActivityPage:
-    limit = page.limit
-    offset = page.offset
-    return list_gate_activity(connection, limit=limit, offset=offset)
+    from app.shared.inbox import hall_day_bounds
+
+    start, end = hall_day_bounds(from_day, to_day)
+    return list_gate_activity(
+        connection,
+        limit=page.limit,
+        offset=page.offset,
+        q=q,
+        event=event,
+        from_at=start,
+        to_at=end,
+    )

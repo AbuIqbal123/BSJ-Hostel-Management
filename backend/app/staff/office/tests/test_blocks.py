@@ -135,6 +135,11 @@ def test_admin_blocks(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
         assert block_b["status"] == "active"
         utility = next(item for item in listed.json() if item["code"] == "Utility")
         assert utility["floors"] is None
+        assert utility["room_count"] == 16
+        assert utility["rooms_on_file"] == 0
+        block_a = next(item for item in listed.json() if item["code"] == "A")
+        assert block_a["room_count"] == 50
+        assert block_a["rooms_on_file"] == 50
 
         created = client.post(
             "/api/v1/admin/blocks",

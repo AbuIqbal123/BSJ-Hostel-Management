@@ -1,11 +1,15 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useFocusEffect } from "expo-router";
-import { Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 
+import { DayRange, type DayRangeValue } from "@/components/day-range";
 import { DenseRow } from "@/components/dense-row";
+import { FilterChip } from "@/components/filter-chip";
 import { OfficeFrame, replyError } from "@/components/office-frame";
 import { PagedList } from "@/components/paged-list";
+import { SearchField } from "@/components/search-field";
 import { formatWhenParts } from "@/format-when";
+import { openCachedList, rememberFirstPage, type ListSnapshot } from "@/list-cache";
 import { pageQuery } from "@/list-page";
 import { readAudit, readPage, type AuditRow } from "@/office";
 import { useSession } from "@/session";
@@ -13,20 +17,78 @@ import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 import { useListPage } from "@/use-list-page";
 
+const ENTITY_TYPES: { value: string | null; label: string }[] = [
+  { value: null, label: "All" },
+  { value: "resident", label: "Resident" },
+  { value: "staff", label: "Staff" },
+  { value: "room", label: "Room" },
+  { value: "block", label: "Block" },
+  { value: "guest_stay", label: "Guest stay" },
+  { value: "permission", label: "Permission" },
+  { value: "outing", label: "Outing" },
+  { value: "settings", label: "Settings" },
+  { value: "destination", label: "Destination" },
+];
+
+function auditKey(entityType: string | null, q: string, range: DayRangeValue): string {
+  return `${entityType ?? ""}|${q}|${range.from ?? ""}|${range.to ?? ""}`;
+}
+
+function auditPath(entityType: string | null, q: string, range: DayRangeValue, offset: number): string {
+  const search = new URLSearchParams(pageQuery(offset));
+  if (entityType) {
+    search.set("entity_type", entityType);
+  }
+  if (q.trim()) {
+    search.set("q", q.trim());
+  }
+  if (range.from) {
+    search.set("from", range.from);
+  }
+  if (range.to) {
+    search.set("to", range.to);
+  }
+  return `/admin/audit?${search.toString()}`;
+}
+
 export default function OfficeAudit() {
   const colors = useHallColors();
   const { staffRequest } = useSession();
   const [open, setOpen] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [q, setQ] = useState("");
+  const [entityType, setEntityType] = useState<string | null>(null);
+  const [range, setRange] = useState<DayRangeValue>({ from: null, to: null });
+  const qRef = useRef(q);
+  const entityRef = useRef(entityType);
+  const rangeRef = useRef(range);
+  const cacheRef = useRef(new Map<string, ListSnapshot<AuditRow>>());
+  qRef.current = q;
+  entityRef.current = entityType;
+  rangeRef.current = range;
+
   const list = useListPage<AuditRow>({
     idOf: (row) => row.id,
     loadPage: async (offset) => {
-      const reply = await staffRequest(`/admin/audit?${pageQuery(offset)}`);
+      const reply = await staffRequest(auditPath(entityRef.current, qRef.current, rangeRef.current, offset));
       const page = reply.ok ? readPage(reply.data, readAudit) : null;
-      return page
-        ? { items: page.items, total: page.total }
-        : { error: replyError(reply) ?? "The audit log didn't load" };
+      if (!page) {
+        return { error: replyError(reply) ?? "The audit log didn't load" };
+      }
+      const result = { items: page.items, total: page.total };
+      rememberFirstPage(cacheRef.current, auditKey(entityRef.current, qRef.current, rangeRef.current), offset, result);
+      return result;
     },
   });
+
+  useEffect(() => {
+    const timer = setTimeout(() => setQ(query), 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  useEffect(() => {
+    openCachedList(cacheRef.current, auditKey(entityType, q, range), list);
+  }, [entityType, q, range, list.clear, list.load, list.revise]);
 
   useFocusEffect(
     useCallback(() => {
@@ -39,6 +101,18 @@ export default function OfficeAudit() {
 
   return (
     <OfficeFrame title="Audit" refreshing={list.refreshing} onRefresh={list.refresh} onNearEnd={() => list.loadNext()}>
+      <SearchField value={query} placeholder="Summary, action, or actor" onChange={setQuery} />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
+        {ENTITY_TYPES.map((item) => (
+          <FilterChip
+            key={item.label}
+            label={item.label}
+            on={entityType === item.value}
+            onPress={() => setEntityType(item.value)}
+          />
+        ))}
+      </ScrollView>
+      <DayRange value={range} onChange={setRange} />
       <PagedList
         rows={list.rows}
         error={list.error}
@@ -48,7 +122,7 @@ export default function OfficeAudit() {
         filling={list.filling}
         onRetry={list.retry}
         onRetryPage={() => list.loadNext(true)}
-        empty="Nothing recorded yet"
+        empty="No matching audit lines"
       >
         {!list.showListSkeleton && selected ? (
           <Text selectable style={[text.body, { color: colors.ink }]}>

@@ -7,7 +7,7 @@ import { HallButton } from "@/components/hall-button";
 import { OfficeError, OfficeFrame, replyError } from "@/components/office-frame";
 import { PagedList } from "@/components/paged-list";
 import { TextField } from "@/components/text-field";
-import { bounded, readBlock, readBlocks, type OfficeBlock } from "@/office";
+import { blockRoomsDetail, bounded, readBlock, readBlocks, type OfficeBlock } from "@/office";
 import { useSession } from "@/session";
 import { useListPage } from "@/use-list-page";
 
@@ -108,7 +108,7 @@ export default function OfficeBlocks() {
             <TextField label="Code" value={code} onChangeText={setCode} maxLength={16} autoCapitalize="sentences" />
             <TextField label="Name" value={name} onChangeText={setName} maxLength={80} autoCapitalize="sentences" />
             <TextField label="Floors" value={floors} onChangeText={setFloors} keyboardType="number-pad" />
-            <TextField label="Rooms" value={rooms} onChangeText={setRooms} keyboardType="number-pad" />
+            <TextField label="Published rooms" value={rooms} onChangeText={setRooms} keyboardType="number-pad" />
             <TextField label="Beds per room" value={beds} onChangeText={setBeds} keyboardType="number-pad" />
             <HallButton label="Add block" busy={busy} onPress={() => void create()} />
             <OfficeError message={formError} />
@@ -120,7 +120,7 @@ export default function OfficeBlocks() {
           <DenseRow
             key={block.id}
             title={block.name}
-            detail={`${block.code} · ${block.roomCount} rooms`}
+            detail={blockRoomsDetail(block)}
             time={block.status === "active" ? "Active" : "Inactive"}
             first={index === 0}
             last={index === all.length - 1}

@@ -25,7 +25,9 @@ import {
   readResident,
   readSms,
   readStaffAccount,
+  blockRoomsDetail,
   registerCsv,
+  registerExportFileName,
   residentCatalog,
   residentCreate,
   residentPatch,
@@ -241,9 +243,42 @@ describe("hall office display", () => {
   it("reads blocks, texts, and the audit log, and checks the register CSV header", () => {
     expect(
       readBlocks([
-        { id: "b", code: "B", name: "Block B", floors: 4, room_count: 58, beds_per_room: 2, status: "active" },
+        {
+          id: "b",
+          code: "B",
+          name: "Block B",
+          floors: 4,
+          room_count: 58,
+          rooms_on_file: 58,
+          beds_per_room: 2,
+          status: "active",
+        },
       ])?.[0],
-    ).toMatchObject({ code: "B", floors: 4 });
+    ).toMatchObject({ code: "B", floors: 4, roomsOnFile: 58 });
+    expect(
+      blockRoomsDetail({
+        id: "u",
+        code: "Utility",
+        name: "Utility",
+        floors: null,
+        roomCount: 16,
+        roomsOnFile: 0,
+        bedsPerRoom: 2,
+        status: "active",
+      }),
+    ).toBe("Utility · 0 of 16 on file");
+    expect(
+      blockRoomsDetail({
+        id: "a",
+        code: "A",
+        name: "Block-A",
+        floors: 4,
+        roomCount: 50,
+        roomsOnFile: 50,
+        bedsPerRoom: 2,
+        status: "active",
+      }),
+    ).toBe("A · 50 rooms");
     expect(readNotices({ late_sms_template: "late", return_sms_template: "back" })).toEqual({
       late: "late",
       back: "back",
@@ -284,6 +319,7 @@ describe("hall office display", () => {
     ).toBeNull();
     expect(registerCsv(`${REGISTER_CSV_HEADER}\nresident,Amina`)).toContain("Amina");
     expect(registerCsv("name\nAmina")).toBeNull();
+    expect(registerExportFileName("2026-11-04")).toBe("register-2026-11-04.csv");
     expect(officeMessage("That room is not in use.")).toBe("That room is not in use");
     expect(officeMessage("Check the fields", { phone: ["Enter a phone with the country code."] })).toBe(
       "Enter a phone with the country code",

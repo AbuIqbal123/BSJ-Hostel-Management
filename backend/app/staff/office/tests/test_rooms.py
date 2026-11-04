@@ -128,25 +128,37 @@ def test_admin_rooms(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
         headers = {"Authorization": f"Bearer {provost}"}
 
         listed = client.get(
-            f"/api/v1/admin/rooms?block_id={BLOCK_B}",
+            f"/api/v1/admin/rooms?block_id={BLOCK_B}&limit=500",
             headers=headers,
         )
         assert listed.status_code == 200
         listed_body = listed.json()
-        listed_labels = [item["label"] for item in listed_body]
+        assert listed_body["total"] == 59
+        assert listed_body["limit"] == 500
+        assert listed_body["offset"] == 0
+        listed_labels = [item["label"] for item in listed_body["items"]]
         assert "B-204" in listed_labels
         assert listed_labels.count("B-204") == 1
-        assert any(item["label"] == "B-1" for item in listed_body)
-        assert next(item for item in listed_body if item["label"] == "B-204")["bed_count"] == 2
-        assert len(listed_body) == 59
+        assert any(item["label"] == "B-1" for item in listed_body["items"])
+        assert next(item for item in listed_body["items"] if item["label"] == "B-204")["bed_count"] == 2
+        assert len(listed_body["items"]) == 59
+        assert listed_labels.index("B-2") < listed_labels.index("B-10")
 
         block_a = client.get(
-            f"/api/v1/admin/rooms?block_id={BLOCK_A}",
+            f"/api/v1/admin/rooms?block_id={BLOCK_A}&limit=10&offset=0",
             headers=headers,
         )
         assert block_a.status_code == 200
-        assert len(block_a.json()) == 50
-        assert block_a.json()[0]["label"] == "A-1"
+        page = block_a.json()
+        assert page["total"] == 50
+        assert page["limit"] == 10
+        assert [item["label"] for item in page["items"]] == [f"A-{n}" for n in range(1, 11)]
+        page_two = client.get(
+            f"/api/v1/admin/rooms?block_id={BLOCK_A}&limit=10&offset=10",
+            headers=headers,
+        )
+        assert page_two.status_code == 200
+        assert [item["label"] for item in page_two.json()["items"]] == [f"A-{n}" for n in range(11, 21)]
 
         created = client.post(
             "/api/v1/admin/rooms",
@@ -216,15 +228,17 @@ def test_admin_rooms(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
         assert deactivated.status_code == 200
         assert deactivated.json()["status"] == "inactive"
 
-        all_rooms = client.get("/api/v1/admin/rooms", headers=headers)
+        all_rooms = client.get("/api/v1/admin/rooms?limit=500", headers=headers)
         assert all_rooms.status_code == 200
-        labels = [item["label"] for item in all_rooms.json()]
+        all_body = all_rooms.json()
+        labels = [item["label"] for item in all_body["items"]]
         assert "B-087" in labels
         assert "B-204" in labels
         assert "B-206" in labels
         assert "A-1" in labels
-        assert len(labels) == 50 + 58 + 42 + 40 + 3
-        inactive = next(item for item in all_rooms.json() if item["id"] == room_087)
+        assert all_body["total"] == 50 + 58 + 42 + 40 + 3
+        assert len(labels) == all_body["total"]
+        inactive = next(item for item in all_body["items"] if item["id"] == room_087)
         assert inactive["status"] == "inactive"
 
         connection = sqlite3.connect(database_path)
@@ -277,11 +291,11 @@ def test_room_rejects_null_fields_and_unknown_block(
             assert body["error"]["message"] == f"{label} is required."
             assert body["error"]["details"] == {"field": field_name}
             listed = client.get(
-                f"/api/v1/admin/rooms?block_id={BLOCK_B}",
+                f"/api/v1/admin/rooms?block_id={BLOCK_B}&limit=500",
                 headers=headers,
             )
             assert listed.status_code == 200
-            room = next(item for item in listed.json() if item["id"] == ROOM_B204)
+            room = next(item for item in listed.json()["items"] if item["id"] == ROOM_B204)
             assert room["status"] == "active"
             assert room["number"] == "204"
 

@@ -97,8 +97,12 @@ function PaymentList() {
     idOf: (stay) => stay.id,
     loadPage: async (offset) => {
       const needle = qRef.current.trim().slice(0, 80);
-      const search = needle ? `&q=${encodeURIComponent(needle)}` : "";
-      const reply = await staffRequest(`/guest-stays?${pageQuery(offset)}${search}`);
+      const search = new URLSearchParams(pageQuery(offset));
+      search.set("bucket", "approved");
+      if (needle) {
+        search.set("q", needle);
+      }
+      const reply = await staffRequest(`/guest-stays?${search.toString()}`);
       const page = reply.ok ? readPaymentPage(reply.data) : null;
       if (page) {
         const result = { items: page.items, total: page.total };

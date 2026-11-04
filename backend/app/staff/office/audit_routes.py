@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, ConfigDict
 
+from app.shared.inbox import hall_day_bounds
+from app.shared.like import like_contains
 from app.shared.page import PageDep
 from app.shared.auth.routes import ConnectionDep
 from app.staff.office.routes import ProvostDep
@@ -39,8 +42,11 @@ def list_audit(
     _account: ProvostDep,
     connection: ConnectionDep,
     page: PageDep,
+    q: Annotated[str | None, Query(max_length=80)] = None,
     entity_type: Annotated[str | None, Query()] = None,
     entity_id: Annotated[str | None, Query()] = None,
+    from_day: Annotated[date | None, Query(alias="from")] = None,
+    to_day: Annotated[date | None, Query(alias="to")] = None,
 ) -> AuditPage:
     limit = page.limit
     offset = page.offset
@@ -52,9 +58,29 @@ def list_audit(
     if entity_id is not None and entity_id.strip():
         filters.append("audit_log.entity_id = ?")
         params.append(entity_id.strip())
+    if q is not None and q.strip():
+        needle = like_contains(q.strip().lower())
+        filters.append(
+            """
+            (
+              lower(audit_log.summary) LIKE ? ESCAPE '\\'
+              OR lower(audit_log.action) LIKE ? ESCAPE '\\'
+              OR lower(COALESCE(actors.full_name, '')) LIKE ? ESCAPE '\\'
+            )
+            """
+        )
+        params.extend([needle, needle, needle])
+    start, end = hall_day_bounds(from_day, to_day)
+    if start:
+        filters.append("audit_log.occurred_at >= ?")
+        params.append(start)
+    if end:
+        filters.append("audit_log.occurred_at <= ?")
+        params.append(end)
     where = (" WHERE " + " AND ".join(filters)) if filters else ""
+    join = "LEFT JOIN users AS actors ON actors.id = audit_log.actor_user_id"
     total = connection.execute(
-        f"SELECT COUNT(*) AS n FROM audit_log{where}",
+        f"SELECT COUNT(*) AS n FROM audit_log {join}{where}",
         params,
     ).fetchone()["n"]
     rows = connection.execute(
@@ -69,7 +95,7 @@ def list_audit(
           audit_log.entity_id,
           audit_log.summary
         FROM audit_log
-        LEFT JOIN users AS actors ON actors.id = audit_log.actor_user_id
+        {join}
         {where}
         ORDER BY audit_log.occurred_at DESC, audit_log.id DESC
         LIMIT ? OFFSET ?

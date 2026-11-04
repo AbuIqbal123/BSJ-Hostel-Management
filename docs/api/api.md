@@ -4011,12 +4011,18 @@ Body: [ErrorResponse](#schema-errorresponse).
 **Who.** gate, warden, or provost. Bearer access token.
 
 Caller: gate, warden, or provost. Newest first. Lines are resident exits,
-resident returns, guest arrivals, and guest departures.
+resident returns, guest arrivals, and guest departures. Optional `q` matches
+resident, room, guest, host, or host room. Optional `event` limits the line
+type. Optional `from` and `to` are hall calendar dates (Asia/Kolkata).
 
 **Parameters**
 
 | Name | In | Required | Type | Notes |
 |---|---|---|---|---|
+| `q` | query | no | string | at most 80 characters. |
+| `event` | query | no | `exit` or `return` or `guest_arrival` or `guest_departure` |  |
+| `from` | query | no | date |  |
+| `to` | query | no | date |  |
 | `limit` | query | no | integer | 1–500. default `50`. |
 | `offset` | query | no | integer | minimum 0. default `0`. |
 
@@ -5330,12 +5336,14 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** provost. Bearer access token.
 
-Caller: provost. Gate, warden, and provost accounts.
+Caller: provost. Gate, warden, and provost accounts. Optional `q` matches
+full name, username, or job title.
 
 **Parameters**
 
 | Name | In | Required | Type | Notes |
 |---|---|---|---|---|
+| `q` | query | no | string | at most 80 characters. |
 | `limit` | query | no | integer | 1–500. default `50`. |
 | `offset` | query | no | integer | minimum 0. default `0`. |
 
@@ -5625,6 +5633,7 @@ Body: [Block](#schema-block).
 | `name` | yes | string |  |
 | `floors` | yes | integer or null | A, B, C, and D have 4. The hall page does not state a floor count for Utility. |
 | `room_count` | yes | integer | Published room count for this block. Block-A 50, Block-B 58, Block-C 42, Block-D 40, Utility 16. |
+| `rooms_on_file` | yes | integer | How many room rows exist for this block. Utility starts at 0 until the provost adds doors. Resident blocks A–D are seeded to match room_count. minimum 0. |
 | `beds_per_room` | yes | integer | The hall page states a room capacity of 2. |
 | `status` | yes | `active` or `inactive` | `active` while the hall uses this block. `inactive` when retired. |
 
@@ -5688,6 +5697,7 @@ Body: [Block](#schema-block).
 | `name` | yes | string |  |
 | `floors` | yes | integer or null | A, B, C, and D have 4. The hall page does not state a floor count for Utility. |
 | `room_count` | yes | integer | Published room count for this block. Block-A 50, Block-B 58, Block-C 42, Block-D 40, Utility 16. |
+| `rooms_on_file` | yes | integer | How many room rows exist for this block. Utility starts at 0 until the provost adds doors. Resident blocks A–D are seeded to match room_count. minimum 0. |
 | `beds_per_room` | yes | integer | The hall page states a room capacity of 2. |
 | `status` | yes | `active` or `inactive` | `active` while the hall uses this block. `inactive` when retired. |
 
@@ -5716,24 +5726,34 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** provost. Bearer access token.
 
-Caller: provost. The response is the room array itself. There is no
-paging, because the phone picker reads the whole list.
+Caller: provost. Newest not applicable; rooms are ordered by block code,
+then door number as an integer (so A-2 before A-10), then the door text,
+then id. Optional `block_id` limits to one block. Optional `q` matches
+label or door number. Pages with `limit` and `offset`.
 
 **Parameters**
 
 | Name | In | Required | Type | Notes |
 |---|---|---|---|---|
 | `block_id` | query | no | uuid |  |
+| `q` | query | no | string |  |
+| `limit` | query | no | integer | 1–500. default `50`. |
+| `offset` | query | no | integer | minimum 0. default `0`. |
 
 **Responses**
 
 #### 200
 
-Rooms.
+Room page.
 
-Body: list of [Room](#schema-room).
+Body: [RoomPage](#schema-roompage).
 
-No fields.
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `total` | yes | integer | minimum 0. |
+| `limit` | yes | integer |  |
+| `offset` | yes | integer |  |
+| `items` | yes | list of [Room](#schema-room) |  |
 
 #### 401
 
@@ -6297,12 +6317,19 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** provost. Bearer access token.
 
-Caller: provost. Newest first. Each row is a late notice or a return notice sent to the guardian phone.
+Caller: provost. Newest first. Each row is a late notice or a return notice
+sent to the guardian phone. Optional `q` matches resident name, phone, or
+body. Optional `notice_type`, `status`, and hall-day `from`/`to`.
 
 **Parameters**
 
 | Name | In | Required | Type | Notes |
 |---|---|---|---|---|
+| `q` | query | no | string | at most 80 characters. |
+| `notice_type` | query | no | `late_notice` or `return_notice` |  |
+| `status` | query | no | `sent` or `failed` |  |
+| `from` | query | no | date |  |
+| `to` | query | no | date |  |
 | `limit` | query | no | integer | 1–500. default `50`. |
 | `offset` | query | no | integer | minimum 0. default `0`. |
 
@@ -6340,14 +6367,20 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** provost. Bearer access token.
 
-Caller: provost. Newest first. Detail never contains a password, a refresh token, or a hall-pass token.
+Caller: provost. Newest first. Detail never contains a password, a refresh
+token, or a hall-pass token. Optional `q` matches summary, action, or
+actor name. Optional `entity_type` / `entity_id`. Optional hall-day
+`from` / `to`.
 
 **Parameters**
 
 | Name | In | Required | Type | Notes |
 |---|---|---|---|---|
+| `q` | query | no | string | at most 80 characters. |
 | `entity_type` | query | no | string |  |
 | `entity_id` | query | no | string |  |
+| `from` | query | no | date |  |
+| `to` | query | no | date |  |
 | `limit` | query | no | integer | 1–500. default `50`. |
 | `offset` | query | no | integer | minimum 0. default `0`. |
 
@@ -7468,8 +7501,18 @@ One of: `not_due`, `sent`, `failed`.
 | `name` | yes | string |  |
 | `floors` | yes | integer or null | A, B, C, and D have 4. The hall page does not state a floor count for Utility. |
 | `room_count` | yes | integer | Published room count for this block. Block-A 50, Block-B 58, Block-C 42, Block-D 40, Utility 16. |
+| `rooms_on_file` | yes | integer | How many room rows exist for this block. Utility starts at 0 until the provost adds doors. Resident blocks A–D are seeded to match room_count. minimum 0. |
 | `beds_per_room` | yes | integer | The hall page states a room capacity of 2. |
 | `status` | yes | `active` or `inactive` | `active` while the hall uses this block. `inactive` when retired. |
+
+### <a id="schema-roompage"></a>RoomPage
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `total` | yes | integer | minimum 0. |
+| `limit` | yes | integer |  |
+| `offset` | yes | integer |  |
+| `items` | yes | list of [Room](#schema-room) |  |
 
 ### <a id="schema-blockcreate"></a>BlockCreate
 

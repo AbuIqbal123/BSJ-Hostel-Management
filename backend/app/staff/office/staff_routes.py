@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import json
 import uuid
+from typing import Annotated
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 
 from app.shared.page import PageDep
 from app.shared import clock
@@ -35,10 +36,9 @@ def admin_list_staff(
     _account: ProvostDep,
     connection: ConnectionDep,
     page: PageDep,
+    q: Annotated[str | None, Query(max_length=80)] = None,
 ) -> StaffPage:
-    limit = page.limit
-    offset = page.offset
-    return list_staff_accounts(connection, limit=limit, offset=offset)
+    return list_staff_accounts(connection, q=q, limit=page.limit, offset=page.offset)
 
 
 @router.post("/staff", response_model=StaffAccount, status_code=201)

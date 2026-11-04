@@ -186,6 +186,7 @@ That is 206 rooms and 412 beds. The session 2025–26 roll of 506 resident stude
 | name | Text | Yes | The hall page, then the provost if the hall renames it | Such as `Block-A` or `Utility`. |
 | floors | Whole number | Yes for A, B, C, and D. Empty for Utility until the hall publishes it. | The hall page | A, B, C, and D start at 4. |
 | room_count | Whole number | Yes | The hall page, then the provost if the published inventory changes | How many rooms this block has. Starts at the counts in the table above. The rooms on file for this block must match this number once the inventory is entered. |
+| rooms_on_file | Whole number (API only) | Yes on `GET/POST/PATCH` block responses | Count of `rooms` rows for this block | Not stored. Utility starts at 0 while `room_count` is 16. Resident blocks A–D are seeded so this equals `room_count`. The office list shows doors on file, not only the published count. |
 | beds_per_room | Whole number | Yes | The hall page, "Capacity of Room: 02" | Starts at 2. |
 | is_active | Yes or no | Yes | Provost | Yes while the hall uses this block. No when it is retired. HTTP `status` is `active` or `inactive`. |
 

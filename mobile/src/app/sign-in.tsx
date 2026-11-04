@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { router } from "expo-router";
 import {
+  Alert,
   Keyboard,
   LayoutAnimation,
   Platform,
@@ -14,6 +15,7 @@ import {
   type LayoutChangeEvent,
 } from "react-native";
 
+import { biometricsAvailable, biometricLabel } from "@/biometrics";
 import { HallButton } from "@/components/hall-button";
 import { HallMark } from "@/components/hall-mark";
 import { TextField } from "@/components/text-field";
@@ -30,7 +32,15 @@ const fallbackMotionMs = 250;
 
 export default function SignInScreen() {
   const colors = useHallColors();
-  const { user, signIn } = useSession();
+  const {
+    user,
+    signIn,
+    signInWithBiometrics,
+    biometricReady,
+    biometricSignInAvailable,
+    biometricLabel: bioLabel,
+    enableBiometricSignIn,
+  } = useSession();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -318,6 +328,32 @@ export default function SignInScreen() {
     setError(null);
   }, []);
 
+  const offerBiometrics = useCallback(
+    async (signedInUsername: string, signedInPassword: string) => {
+      if (biometricReady || !(await biometricsAvailable())) {
+        return;
+      }
+      const label = await biometricLabel();
+      Alert.alert(
+        `Sign in with ${label}?`,
+        `You stay signed in when you reopen the app. ${label} is only for the next time you sign in after signing out.`,
+        [
+          { text: "Not now", style: "cancel" },
+          {
+            text: `Use ${label}`,
+            onPress: () => {
+              void enableBiometricSignIn({
+                username: signedInUsername,
+                password: signedInPassword,
+              });
+            },
+          },
+        ],
+      );
+    },
+    [biometricReady, enableBiometricSignIn],
+  );
+
   const submit = useCallback(async () => {
     if (pendingRef.current) {
       return;
@@ -329,8 +365,25 @@ export default function SignInScreen() {
     setBusy(false);
     if (message) {
       setError(message);
+      return;
     }
-  }, [password, signIn, username]);
+    void offerBiometrics(username, password);
+  }, [offerBiometrics, password, signIn, username]);
+
+  const submitBiometrics = useCallback(async () => {
+    if (pendingRef.current) {
+      return;
+    }
+    pendingRef.current = true;
+    setBusy(true);
+    setError(null);
+    const message = await signInWithBiometrics();
+    pendingRef.current = false;
+    setBusy(false);
+    if (message) {
+      setError(message);
+    }
+  }, [signInWithBiometrics]);
 
   // While signed in this screen stays on the stack as an empty sheet, so pad and
   // keyboard refs would otherwise survive sign-out and pin the block off-screen
@@ -401,11 +454,12 @@ export default function SignInScreen() {
           </View>
           <View style={styles.fields}>
             <TextField
-              label="Username"
+              label="Enrolment number or username"
               value={username}
               onChangeText={onUsername}
               autoComplete="username"
               textContentType="username"
+              autoCapitalize="none"
               returnKeyType="next"
               submitBehavior="submit"
               onSubmitEditing={focusPassword}
@@ -429,6 +483,13 @@ export default function SignInScreen() {
             />
             <View style={styles.submit}>
               <HallButton label={busy ? "Signing in" : "Sign in"} disabled={busy} onPress={submit} />
+              {biometricSignInAvailable ? (
+                <HallButton
+                  label={busy ? "Signing in" : `Use ${bioLabel}`}
+                  disabled={busy}
+                  onPress={submitBiometrics}
+                />
+              ) : null}
               <Pressable
                 accessibilityRole="link"
                 accessibilityLabel="Don't have an account? Sign up"

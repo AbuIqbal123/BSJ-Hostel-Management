@@ -8,14 +8,16 @@ import { ListError } from "@/components/list-state";
 import { ChoiceLine, OfficeError, OfficeFrame, replyError } from "@/components/office-frame";
 import { SearchField } from "@/components/search-field";
 import { TextField } from "@/components/text-field";
+import { pageQuery } from "@/list-page";
 import {
   REISSUE_CONFIRM,
   RESET_CONFIRM,
   passwordBody,
   readCreatedResident,
+  readPage,
   readPass,
   readResident,
-  readRooms,
+  readRoom,
   residentCreate,
   residentPatch,
   type IssuedPass,
@@ -75,17 +77,22 @@ export default function OfficeResident() {
     setNote(null);
   };
 
-  const loadRooms = useCallback(() => {
-    void staffRequest("/admin/rooms").then((reply) => {
-      const next = reply.ok ? readRooms(reply.data) : null;
-      if (!next) {
-        setRoomsError(replyError(reply) ?? "Rooms didn't load");
-        return;
-      }
-      setRooms(next);
-      setRoomsError(null);
-    });
-  }, [staffRequest]);
+  const loadRooms = useCallback(
+    (needle: string) => {
+      const q = needle.trim();
+      const query = q.length > 0 ? `&q=${encodeURIComponent(q)}` : "";
+      void staffRequest(`/admin/rooms?${pageQuery(0)}${query}`).then((reply) => {
+        const next = reply.ok ? readPage(reply.data, readRoom) : null;
+        if (!next) {
+          setRoomsError(replyError(reply) ?? "Rooms didn't load");
+          return;
+        }
+        setRooms(next.items.filter((room) => room.status === "active" || room.id === draft.roomId));
+        setRoomsError(null);
+      });
+    },
+    [draft.roomId, staffRequest],
+  );
 
   const loadAccount = useCallback(
     (residentId: string) => {
@@ -97,26 +104,27 @@ export default function OfficeResident() {
         }
         setAccount(next);
         setDraft(fromAccount(next));
+        setRoomQuery(next.roomLabel);
       });
     },
     [staffRequest],
   );
 
   useEffect(() => {
-    loadRooms();
     if (id) {
       loadAccount(id);
     }
-  }, [id, loadAccount, loadRooms]);
+  }, [id, loadAccount]);
 
-  const choices = rooms.filter((room) => {
-    const selected = room.id === draft.roomId;
-    const active = room.status === "active" || selected;
-    const needle = roomQuery.trim().toLowerCase();
-    return active && (needle.length === 0 || room.label.toLowerCase().includes(needle) || room.number.includes(needle));
-  });
-  const chosen = choices.find((room) => room.id === draft.roomId) ?? null;
-  const roomChoices = chosen ? [chosen, ...choices.filter((room) => room.id !== chosen.id)].slice(0, 8) : choices.slice(0, 8);
+  useEffect(() => {
+    const timer = setTimeout(() => loadRooms(roomQuery), 300);
+    return () => clearTimeout(timer);
+  }, [loadRooms, roomQuery]);
+
+  const chosen = rooms.find((room) => room.id === draft.roomId) ?? null;
+  const roomChoices = chosen
+    ? [chosen, ...rooms.filter((room) => room.id !== chosen.id)].slice(0, 8)
+    : rooms.slice(0, 8);
 
   const write = async (nextStatus: ResidentDraft["status"]) => {
     if (busy) {
@@ -246,7 +254,7 @@ export default function OfficeResident() {
       <TextField label="Guardian" value={draft.guardianName} onChangeText={fill("guardianName")} autoCapitalize="sentences" maxLength={120} />
       <TextField label="Guardian phone" value={draft.guardianPhone} onChangeText={fill("guardianPhone")} maxLength={16} />
       <SearchField value={roomQuery} placeholder="Room" onChange={setRoomQuery} />
-      {roomsError ? <ListError message={roomsError} onRetry={loadRooms} /> : null}
+      {roomsError ? <ListError message={roomsError} onRetry={() => loadRooms(roomQuery)} /> : null}
       <View>
         {roomChoices.map((room, index, all) => (
           <DenseRow

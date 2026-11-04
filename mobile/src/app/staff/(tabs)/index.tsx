@@ -13,6 +13,7 @@ import { RowHairline } from "@/components/plain-row";
 import { SectionHead } from "@/components/section-head";
 import { setBadge } from "@/push";
 import { useListPage } from "@/use-list-page";
+import { welcomeName } from "@/person-name";
 import { roleLabel, useSession } from "@/session";
 import { recentGateQuery } from "@/list-page";
 import {
@@ -117,8 +118,8 @@ export default function StaffHomeScreen() {
     >
       <View style={styles.identity}>
         <View style={styles.welcomeRow}>
-          <Text selectable style={[text.hallName, styles.title, { color: colors.ink }]}>
-            {`Welcome, ${user.full_name}`}
+          <Text selectable numberOfLines={1} style={[text.hallName, styles.title, { color: colors.ink }]}>
+            {`Welcome, ${welcomeName(user.full_name)}`}
           </Text>
           {register ? <Bell count={summary?.unread ?? 0} href="/staff/notifications" /> : null}
         </View>

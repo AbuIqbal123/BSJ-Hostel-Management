@@ -40,6 +40,12 @@
       "expo-font",
       "expo-secure-store",
       [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Begum Sultan Jahan Hall uses Face ID so you can open the app without typing your password."
+        }
+      ],
+      [
         "expo-notifications",
         {
           "color": "#1F4D3A"
@@ -72,7 +78,8 @@
             "backgroundColor": "#121A16"
           }
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "extra": {
       "router": {},

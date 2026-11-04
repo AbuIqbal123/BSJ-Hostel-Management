@@ -13,9 +13,11 @@ from app.shared.audit import record_audit
 from app.shared.auth.routes import ConnectionDep
 from app.shared.db import INTEGRITY_ERRORS
 from app.shared.errors import ApiError
+from app.shared.page import PageDep
 from app.staff.office.records import (
     Room,
     RoomCreate,
+    RoomPage,
     RoomUpdate,
     list_rooms,
     load_block,
@@ -27,13 +29,21 @@ from app.staff.office.routes import ProvostDep
 router = APIRouter(prefix="/api/v1/admin", tags=["Hall office"])
 
 
-@router.get("/rooms", response_model=list[Room])
+@router.get("/rooms", response_model=RoomPage)
 def get_rooms(
     _account: ProvostDep,
     connection: ConnectionDep,
+    page: PageDep,
     block_id: Annotated[str | None, Query()] = None,
-) -> list[Room]:
-    return list_rooms(connection, block_id=block_id)
+    q: Annotated[str | None, Query()] = None,
+) -> RoomPage:
+    return list_rooms(
+        connection,
+        block_id=block_id,
+        q=q,
+        limit=page.limit,
+        offset=page.offset,
+    )
 
 
 @router.post("/rooms", response_model=Room, status_code=201)

@@ -12,6 +12,7 @@ import { formatWhenParts, hallNow, utcInstant } from "@/format-when";
 import { onHallRefresh } from "@/hall-refresh";
 import { setBadge } from "@/push";
 import { syncResidentReminders } from "@/return-reminders";
+import { welcomeName } from "@/person-name";
 import { outingLocked, takeOutingLeft, useSession, type DestinationItem, type UpcomingOuting } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { EASE_OUT } from "@/theme/motion";
@@ -376,8 +377,8 @@ export default function HomeScreen() {
         <View style={styles.block}>
           <View style={styles.identity}>
             <View style={styles.welcomeRow}>
-              <Text selectable style={[text.hallName, styles.title, { color: colors.ink }]}>
-                {`Welcome, ${fullName ?? user.full_name}`}
+              <Text selectable numberOfLines={1} style={[text.hallName, styles.title, { color: colors.ink }]}>
+                {`Welcome, ${welcomeName(fullName ?? user.full_name)}`}
               </Text>
               <Bell count={notificationsUnread} href="/notifications" />
             </View>

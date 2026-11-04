@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { router } from "expo-router";
-import { Pressable, Share, StyleSheet, Text } from "react-native";
+import { Pressable, StyleSheet, Text } from "react-native";
 
 import { HallButton } from "@/components/hall-button";
 import { OfficeError, OfficeFrame, replyError } from "@/components/office-frame";
-import { registerCsv } from "@/office";
+import { hallNow } from "@/format-when";
+import { registerCsv, registerExportFileName } from "@/office";
+import { hallDay } from "@/outing-when";
+import { shareLocalFile, writeCacheText } from "@/share-file";
 import { useSession } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
@@ -45,7 +48,17 @@ export default function OfficeHome() {
       return;
     }
     try {
-      await Share.share({ message: csv });
+      const uri = await writeCacheText(registerExportFileName(hallDay(hallNow())), csv);
+      const result = await shareLocalFile(uri, {
+        mimeType: "text/csv",
+        uti: "public.comma-separated-values-text",
+        dialogTitle: "Export register",
+      });
+      if (result === "unavailable") {
+        setError("Sharing is not available on this device");
+      } else if (result === "failed") {
+        setError("The register could not be shared");
+      }
     } catch {
       setError("The register could not be shared");
     }
@@ -53,7 +66,7 @@ export default function OfficeHome() {
   };
 
   return (
-    <OfficeFrame title="Office">
+    <OfficeFrame title="Office settings">
       {LINKS.map((link) => (
         <Pressable
           key={link.href}

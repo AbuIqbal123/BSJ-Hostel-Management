@@ -160,6 +160,7 @@ class Block(BaseModel):
     name: str
     floors: int | None
     room_count: int
+    rooms_on_file: int
     beds_per_room: int
     status: Literal["active", "inactive"]
 
@@ -182,6 +183,16 @@ class BlockUpdate(BaseModel):
     status: Literal["active", "inactive"] | None = None
 
 
+_BLOCK_SELECT = f"""
+SELECT
+  {', '.join(f'blocks.{column}' for column in BLOCK_COLUMNS)},
+  (
+    SELECT COUNT(*) FROM rooms WHERE rooms.block_id = blocks.id
+  ) AS rooms_on_file
+FROM blocks
+"""
+
+
 def row_to_block(row: sqlite3.Row) -> Block:
     return Block(
         id=row["id"],
@@ -189,6 +200,7 @@ def row_to_block(row: sqlite3.Row) -> Block:
         name=row["name"],
         floors=row["floors"],
         room_count=row["room_count"],
+        rooms_on_file=int(row["rooms_on_file"]),
         beds_per_room=row["beds_per_room"],
         status="active" if row["is_active"] else "inactive",
     )
@@ -197,9 +209,8 @@ def row_to_block(row: sqlite3.Row) -> Block:
 def list_blocks(connection: sqlite3.Connection) -> list[Block]:
     rows = connection.execute(
         f"""
-        SELECT {', '.join(BLOCK_COLUMNS)}
-        FROM blocks
-        ORDER BY code COLLATE NOCASE, id
+        {_BLOCK_SELECT}
+        ORDER BY blocks.code COLLATE NOCASE, blocks.id
         """
     ).fetchall()
     return [row_to_block(row) for row in rows]
@@ -208,9 +219,8 @@ def list_blocks(connection: sqlite3.Connection) -> list[Block]:
 def load_block(connection: sqlite3.Connection, block_id: str) -> Block | None:
     row = connection.execute(
         f"""
-        SELECT {', '.join(BLOCK_COLUMNS)}
-        FROM blocks
-        WHERE id = ?
+        {_BLOCK_SELECT}
+        WHERE blocks.id = ?
         """,
         (block_id,),
     ).fetchone()
@@ -263,30 +273,66 @@ def row_to_room(row: sqlite3.Row) -> Room:
     )
 
 
+class RoomPage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    total: int
+    limit: int
+    offset: int
+    items: list[Room]
+
+
 def list_rooms(
     connection: sqlite3.Connection,
     *,
     block_id: str | None = None,
-) -> list[Room]:
-    if block_id is None:
-        rows = connection.execute(
-            f"""
-            SELECT {', '.join(ROOM_COLUMNS)}
-            FROM rooms
-            ORDER BY label COLLATE NOCASE, id
+    q: str | None = None,
+    limit: int,
+    offset: int,
+) -> RoomPage:
+    from app.shared.like import like_contains
+
+    filters: list[str] = []
+    params: list[object] = []
+    if block_id is not None:
+        filters.append("rooms.block_id = ?")
+        params.append(block_id)
+    if q is not None and q.strip():
+        needle = like_contains(q.strip().lower())
+        filters.append(
             """
-        ).fetchall()
-    else:
-        rows = connection.execute(
-            f"""
-            SELECT {', '.join(ROOM_COLUMNS)}
-            FROM rooms
-            WHERE block_id = ?
-            ORDER BY label COLLATE NOCASE, id
-            """,
-            (block_id,),
-        ).fetchall()
-    return [row_to_room(row) for row in rows]
+            (
+              lower(rooms.label) LIKE ? ESCAPE '\\'
+              OR lower(rooms.number) LIKE ? ESCAPE '\\'
+            )
+            """
+        )
+        params.extend([needle, needle])
+    where = f"WHERE {' AND '.join(filters)}" if filters else ""
+    total = connection.execute(
+        f"SELECT COUNT(*) AS n FROM rooms {where}",
+        params,
+    ).fetchone()["n"]
+    rows = connection.execute(
+        f"""
+        SELECT {', '.join(f'rooms.{column}' for column in ROOM_COLUMNS)}
+        FROM rooms
+        JOIN blocks ON blocks.id = rooms.block_id
+        {where}
+        ORDER BY
+          blocks.code COLLATE NOCASE,
+          CAST(rooms.number AS INTEGER),
+          rooms.number COLLATE NOCASE,
+          rooms.id
+        LIMIT ? OFFSET ?
+        """,
+        (*params, limit, offset),
+    ).fetchall()
+    return RoomPage(
+        total=int(total),
+        limit=limit,
+        offset=offset,
+        items=[row_to_room(row) for row in rows],
+    )
 
 
 def load_room(connection: sqlite3.Connection, room_id: str) -> Room | None:
@@ -673,25 +719,44 @@ def load_staff_account(connection: sqlite3.Connection, user_id: str) -> StaffAcc
 def list_staff_accounts(
     connection: sqlite3.Connection,
     *,
+    q: str | None = None,
     limit: int,
     offset: int,
 ) -> StaffPage:
+    from app.shared.like import like_contains
+
+    filters = ["users.role IN ('gate', 'warden', 'provost')"]
+    params: list[object] = []
+    if q is not None and q.strip():
+        needle = like_contains(q.strip().lower())
+        filters.append(
+            """
+            (
+              lower(users.full_name) LIKE ? ESCAPE '\\'
+              OR lower(users.username) LIKE ? ESCAPE '\\'
+              OR lower(staff.job_title) LIKE ? ESCAPE '\\'
+            )
+            """
+        )
+        params.extend([needle, needle, needle])
+    where = " AND ".join(filters)
     total = connection.execute(
-        """
+        f"""
         SELECT COUNT(*) AS n
         FROM staff
         JOIN users ON users.id = staff.user_id
-        WHERE users.role IN ('gate', 'warden', 'provost')
-        """
+        WHERE {where}
+        """,
+        params,
     ).fetchone()["n"]
     rows = connection.execute(
         f"""
         {_STAFF_SELECT}
-        WHERE users.role IN ('gate', 'warden', 'provost')
+        WHERE {where}
         ORDER BY users.full_name COLLATE NOCASE, users.id
         LIMIT ? OFFSET ?
         """,
-        (limit, offset),
+        (*params, limit, offset),
     ).fetchall()
     return StaffPage(
         total=int(total),

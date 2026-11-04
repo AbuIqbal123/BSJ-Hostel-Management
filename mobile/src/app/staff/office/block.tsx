@@ -9,8 +9,9 @@ import { ChoiceLine, OfficeError, OfficeFrame, replyError } from "@/components/o
 import { PagedList } from "@/components/paged-list";
 import { SkeletonRows } from "@/components/skeleton";
 import { TextField } from "@/components/text-field";
+import { pageQuery } from "@/list-page";
 import { useDelayedLoading } from "@/use-delayed-loading";
-import { bounded, readBlock, readBlocks, readRoom, readRooms, type OfficeBlock, type OfficeRoom } from "@/office";
+import { bounded, readBlock, readBlocks, readPage, readRoom, type OfficeBlock, type OfficeRoom } from "@/office";
 import { useSession } from "@/session";
 import { useListPage } from "@/use-list-page";
 
@@ -34,15 +35,16 @@ export default function OfficeBlock() {
   const [busy, setBusy] = useState<"block" | "add" | "room" | null>(null);
 
   const roomsList = useListPage<OfficeRoom>({
-    auto: false,
     idOf: (room) => room.id,
-    loadPage: async () => {
+    loadPage: async (offset) => {
       if (!id) {
         return { items: [], total: 0 };
       }
-      const reply = await staffRequest(`/admin/rooms?block_id=${encodeURIComponent(id)}`);
-      const next = reply.ok ? readRooms(reply.data) : null;
-      return next ? { items: next, total: next.length } : { error: replyError(reply) ?? "Rooms didn't load" };
+      const reply = await staffRequest(
+        `/admin/rooms?block_id=${encodeURIComponent(id)}&${pageQuery(offset)}`,
+      );
+      const next = reply.ok ? readPage(reply.data, readRoom) : null;
+      return next ?? { error: replyError(reply) ?? "Rooms didn't load" };
     },
   });
 
@@ -102,7 +104,7 @@ export default function OfficeBlock() {
       setFormError("Enter the block name");
       return;
     }
-    const roomCount = bounded(roomsCount, 1, 500, "Enter the room count", "Room count is from 1 to 500");
+    const roomCount = bounded(roomsCount, 1, 500, "Enter the published room count", "Published rooms are from 1 to 500");
     const bedCount = bounded(beds, 1, 6, "Enter the beds per room", "Beds per room is from 1 to 6");
     const countProblem = typeof roomCount === "string" ? roomCount : typeof bedCount === "string" ? bedCount : null;
     if (countProblem) {
@@ -211,16 +213,25 @@ export default function OfficeBlock() {
 
   const rows = roomsList.rows ?? [];
   const held = busy !== null;
+  const emptyRooms =
+    block && block.roomsOnFile === 0 && block.roomCount > 0
+      ? `No doors on file yet. Published count is ${block.roomCount}. Add a door above.`
+      : "No rooms in this block yet. Add one above.";
 
   return (
-    <OfficeFrame title={block?.name ?? "Block"} refreshing={refreshing || roomsList.refreshing} onRefresh={() => load(true)}>
+    <OfficeFrame
+      title={block?.name ?? "Block"}
+      refreshing={refreshing || roomsList.refreshing}
+      onRefresh={() => load(true)}
+      onNearEnd={() => roomsList.loadNext()}
+    >
       {showBlockSkeleton ? <SkeletonRows count={4} kind="row" /> : null}
       {blockError && !block ? <ListError message={blockError} onRetry={() => load()} /> : null}
       {block ? (
         <>
           <TextField label="Name" value={name} onChangeText={setName} maxLength={80} autoCapitalize="sentences" />
           <TextField label="Floors" value={floors} onChangeText={setFloors} keyboardType="number-pad" />
-          <TextField label="Rooms" value={roomsCount} onChangeText={setRoomsCount} keyboardType="number-pad" />
+          <TextField label="Published rooms" value={roomsCount} onChangeText={setRoomsCount} keyboardType="number-pad" />
           <TextField label="Beds per room" value={beds} onChangeText={setBeds} keyboardType="number-pad" />
           <ChoiceLine
             label="Block"
@@ -247,44 +258,45 @@ export default function OfficeBlock() {
         onRetry={roomsList.retry}
         onRetryPage={() => roomsList.loadNext(true)}
         skeletonCount={3}
-        empty="No rooms in this block yet. Add one above."
+        filling={roomsList.filling}
+        empty={emptyRooms}
       >
-      <View>
-        {rows.map((room, index, all) => (
-          <View key={room.id}>
-            <DenseRow
-              title={room.label}
-              detail={room.number === room.label ? `${room.bedCount} beds` : `Door ${room.number} · ${room.bedCount} beds`}
-              time={room.status === "active" ? "Active" : "Inactive"}
-              first={index === 0}
-              last={index === all.length - 1 && editing?.id !== room.id}
-              onPress={() => {
-                setEditing(room);
-                setRoomNumber(room.number);
-                setRoomBeds(String(room.bedCount));
-                setRoomStatus(room.status);
-                setFormError(null);
-              }}
-            />
-            {editing?.id === room.id ? (
-              <View style={{ gap: 12, paddingVertical: 12 }}>
-                <TextField label="Door number" value={roomNumber} onChangeText={setRoomNumber} maxLength={12} />
-                <TextField label="Beds" value={roomBeds} onChangeText={setRoomBeds} keyboardType="number-pad" />
-                <ChoiceLine
-                  label="Room"
-                  value={roomStatus}
-                  options={[
-                    { value: "active", label: "Active" },
-                    { value: "inactive", label: "Inactive" },
-                  ]}
-                  onChange={(value) => setRoomStatus(value === "inactive" ? "inactive" : "active")}
-                />
-                <HallButton label="Save room" busy={busy === "room"} disabled={held} onPress={() => void saveRoom()} />
-              </View>
-            ) : null}
-          </View>
-        ))}
-      </View>
+        <View>
+          {rows.map((room, index, all) => (
+            <View key={room.id}>
+              <DenseRow
+                title={room.label}
+                detail={room.number === room.label ? `${room.bedCount} beds` : `Door ${room.number} · ${room.bedCount} beds`}
+                time={room.status === "active" ? "Active" : "Inactive"}
+                first={index === 0}
+                last={index === all.length - 1 && editing?.id !== room.id}
+                onPress={() => {
+                  setEditing(room);
+                  setRoomNumber(room.number);
+                  setRoomBeds(String(room.bedCount));
+                  setRoomStatus(room.status);
+                  setFormError(null);
+                }}
+              />
+              {editing?.id === room.id ? (
+                <View style={{ gap: 12, paddingVertical: 12 }}>
+                  <TextField label="Door number" value={roomNumber} onChangeText={setRoomNumber} maxLength={12} />
+                  <TextField label="Beds" value={roomBeds} onChangeText={setRoomBeds} keyboardType="number-pad" />
+                  <ChoiceLine
+                    label="Room"
+                    value={roomStatus}
+                    options={[
+                      { value: "active", label: "Active" },
+                      { value: "inactive", label: "Inactive" },
+                    ]}
+                    onChange={(value) => setRoomStatus(value === "inactive" ? "inactive" : "active")}
+                  />
+                  <HallButton label="Save room" busy={busy === "room"} disabled={held} onPress={() => void saveRoom()} />
+                </View>
+              ) : null}
+            </View>
+          ))}
+        </View>
       </PagedList>
     </OfficeFrame>
   );

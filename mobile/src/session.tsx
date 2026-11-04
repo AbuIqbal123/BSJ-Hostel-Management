@@ -10,6 +10,18 @@ import {
 } from "react";
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
+
+import {
+  biometricLabel,
+  biometricSignInEnabled,
+  biometricSignInReady,
+  biometricsAvailable,
+  clearBiometricSignIn,
+  confirmBiometrics,
+  readBiometricCredentials,
+  saveBiometricCredentials,
+  setBiometricSignInEnabled,
+} from "@/biometrics";
 import * as Notifications from "expo-notifications";
 import { AppState, Platform } from "react-native";
 
@@ -292,8 +304,17 @@ export type StaffPreview =
 
 type SessionValue = {
   ready: boolean;
+  /** Device offers biometrics and Face ID / fingerprint sign-in is turned on. */
+  biometricReady: boolean;
+  /** Credentials are saved so the sign-in screen can offer Face ID / fingerprint. */
+  biometricSignInAvailable: boolean;
+  biometricLabel: string;
   user: HallUser | null;
   signIn: (username: string, password: string) => Promise<string | null>;
+  signInWithBiometrics: () => Promise<string | null>;
+  /** Turn on Face ID / fingerprint for the next sign-in. Pass the password just used when known. */
+  enableBiometricSignIn: (credentials?: { username: string; password: string }) => Promise<string | null>;
+  disableBiometricSignIn: () => Promise<void>;
   signOut: () => Promise<void>;
   deleteAccount: (password: string) => Promise<string | null>;
   onboard: (body: OnboardBody) => Promise<string | null>;
@@ -872,28 +893,42 @@ async function readSession(): Promise<StoredSession | null> {
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
+  const [biometricReady, setBiometricReady] = useState(false);
+  const [biometricSignInAvailable, setBiometricSignInAvailable] = useState(false);
+  const [bioLabel, setBioLabel] = useState("Biometrics");
   const [session, setSession] = useState<StoredSession | null>(null);
   const sessionRef = useRef(session);
 
+  const refreshBiometricState = useCallback(async () => {
+    const [available, pref, label, signInOk] = await Promise.all([
+      biometricsAvailable(),
+      biometricSignInEnabled(),
+      biometricLabel(),
+      biometricSignInReady(),
+    ]);
+    setBioLabel(label);
+    setBiometricReady(available && pref);
+    setBiometricSignInAvailable(signInOk);
+  }, []);
+
   useEffect(() => {
     let active = true;
-    readSession()
-      .then((stored) => {
-        if (!active) {
-          return;
-        }
-        sessionRef.current = stored;
-        setSession(stored);
-      })
-      .finally(() => {
-        if (active) {
-          setReady(true);
-        }
-      });
+    void (async () => {
+      const stored = await readSession();
+      if (!active) {
+        return;
+      }
+      sessionRef.current = stored;
+      setSession(stored);
+      await refreshBiometricState();
+      if (active) {
+        setReady(true);
+      }
+    })();
     return () => {
       active = false;
     };
-  }, []);
+  }, [refreshBiometricState]);
 
   useEffect(() => {
     sessionRef.current = session;
@@ -925,11 +960,58 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       allowReturnReminders();
       await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(next));
       setSession(next);
+      if (await biometricSignInEnabled()) {
+        await saveBiometricCredentials({ username, password });
+      }
+      await refreshBiometricState();
       return null;
     } catch {
       return "The hall could not be reached";
     }
-  }, []);
+  }, [refreshBiometricState]);
+
+  const signInWithBiometrics = useCallback(async () => {
+    if (!(await biometricsAvailable())) {
+      return "This phone has no Face ID or fingerprint set up";
+    }
+    const label = await biometricLabel();
+    setBioLabel(label);
+    const ok = await confirmBiometrics(`Sign in with ${label}`);
+    if (!ok) {
+      return `${label} did not sign in`;
+    }
+    const credentials = await readBiometricCredentials();
+    if (!credentials) {
+      return `Sign in with your password once to turn on ${label}`;
+    }
+    return signIn(credentials.username, credentials.password);
+  }, [signIn]);
+
+  const enableBiometricSignIn = useCallback(
+    async (credentials?: { username: string; password: string }) => {
+      if (!(await biometricsAvailable())) {
+        return "This phone has no Face ID or fingerprint set up";
+      }
+      const label = await biometricLabel();
+      setBioLabel(label);
+      const ok = await confirmBiometrics(`Turn on ${label}`);
+      if (!ok) {
+        return `${label} was not confirmed`;
+      }
+      await setBiometricSignInEnabled(true);
+      if (credentials) {
+        await saveBiometricCredentials(credentials);
+      }
+      await refreshBiometricState();
+      return null;
+    },
+    [refreshBiometricState],
+  );
+
+  const disableBiometricSignIn = useCallback(async () => {
+    await clearBiometricSignIn();
+    await refreshBiometricState();
+  }, [refreshBiometricState]);
 
   const onboard = useCallback(async (body: OnboardBody) => {
     const payload: Record<string, string> = {
@@ -1010,6 +1092,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }),
       });
       if (response.status === 204) {
+        await clearBiometricSignIn();
+        await refreshBiometricState();
         await endSession();
         return null;
       }
@@ -1017,7 +1101,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     } catch {
       return "The hall could not be reached";
     }
-  }, [endSession]);
+  }, [endSession, refreshBiometricState]);
 
   const renewing = useRef<Promise<StoredSession | null> | null>(null);
 
@@ -1689,6 +1773,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           body: JSON.stringify({ password }),
         });
         if (response.status === 204) {
+          await clearBiometricSignIn();
+          await refreshBiometricState();
           await endSession();
           return null;
         }
@@ -1697,7 +1783,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         return "The hall could not be reached";
       }
     },
-    [authorized, endSession],
+    [authorized, endSession, refreshBiometricState],
   );
 
   const staffFailure = (json: unknown): Extract<StaffReply, { ok: false }> => {
@@ -1803,8 +1889,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const value = useMemo<SessionValue>(
     () => ({
       ready,
+      biometricReady,
+      biometricSignInAvailable,
+      biometricLabel: bioLabel,
       user: session?.user ?? null,
       signIn,
+      signInWithBiometrics,
+      enableBiometricSignIn,
+      disableBiometricSignIn,
       signOut,
       deleteAccount,
       onboard,
@@ -1836,8 +1928,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }),
     [
       ready,
+      biometricReady,
+      biometricSignInAvailable,
+      bioLabel,
       session,
       signIn,
+      signInWithBiometrics,
+      enableBiometricSignIn,
+      disableBiometricSignIn,
       signOut,
       deleteAccount,
       onboard,

@@ -103,6 +103,7 @@ Italic serif sparingly for emphasis in long lede copy, not on buttons.
 Default globally: **`text-wrap: pretty;`**. Prefer nicer line breaks and fewer orphans in body copy, helper text, cards, and list secondary lines.
 
 - **Edge case only:** override where an orphan is intentional (some short display headings). Do not scatter overrides. Default pretty; fix the rare heading exceptions.
+- **Home greetings:** `Welcome, …` must stay on **one line**. Do not rely on `text-wrap: balance` (or wrapping the surname onto a second line). Use the first given name via `welcomeName` when the full name would orphan a surname (`Fatima Khan` → `Welcome, Fatima`). Keep `numberOfLines={1}` on that heading. Settings and detail screens still show the full name.
 - **Expo / React Native:** the CSS intent applies on **web** (Expo web / React Native Web / global stylesheet). On **native iOS and Android**, `Text` does not expose `text-wrap`. Match the intent with normal wrapping (`flexShrink`, constrained width, avoid forced single-line unless ellipsis is the designed overflow), and keep heading exceptions rare and local. Prefer one global web stylesheet rule; do not re-declare pretty on every component.
 
 ---
@@ -458,7 +459,7 @@ Design and QA principle for Expo screens **before** shipping. Try to break what 
 | Stress | Examples | Expect |
 |---|---|---|
 | **Lots of data** | Long register lists, many permission cards, gate activity pages, guest queues | Scroll stays smooth; pagination or virtualized lists where the API pages; stagger list enter (see §6) without delaying primary actions |
-| **Long names** | Resident full names, hall / block labels, destination "Other" text, permission reasons, guest names | Wrap with pretty breaks; two-line max then ellipsis where the row must stay dense; full string on detail or expand |
+| **Long names** | Resident full names, hall / block labels, destination "Other" text, permission reasons, guest names | Home `Welcome` uses the first given name (one line). Elsewhere: wrap with pretty breaks; two-line max then ellipsis where the row must stay dense; full string on detail or expand |
 | **Unusual identifiers** | Odd emails (staff), long usernames, enrolment forms like `24-GLLB-118`, mixed case | Mono where codes belong; never truncate enrolment in a way that confuses two people; case-insensitive identity still shows hall spelling |
 | **Long chrome** | Filter chips, badges, button labels, nav titles | Chips scroll horizontally or wrap once; primary button text stays sentence case and short; overflow does not clip the tap target |
 | **Cardinality** | Empty, one item, overloaded (dozens pending) | Honest empty copy; one-item layout does not look broken; overloaded queues remain scannable (plain list, not card-per-row) |

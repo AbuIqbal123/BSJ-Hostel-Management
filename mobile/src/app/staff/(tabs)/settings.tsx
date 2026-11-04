@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { BiometricSettingsRow } from "@/components/biometric-settings-row";
 import { NotificationsOffRow } from "@/components/notifications-off-row";
 import { runsOffice } from "@/office";
 import { roleLabel, useSession } from "@/session";
@@ -58,16 +59,17 @@ export default function StaffSettingsScreen() {
             {user.full_name}
           </Text>
           <Text numberOfLines={1} selectable style={[text.body, { color: colors.inkSoft }]}>
-            {`${user.username} · ${roleLabel(user.role)}`}
+            {roleLabel(user.role)}
           </Text>
         </View>
       ) : null}
       <View style={styles.rows}>
         <Row label="Appearance" color={colors.ink} value={dark ? "Dark" : "Light"} onPress={() => setDark(!dark)} />
+        <BiometricSettingsRow />
         <NotificationsOffRow />
         <Row label="Gate history" color={colors.ink} chevron onPress={() => router.push("/staff/gate-history")} />
         {user && runsOffice(user.role) ? (
-          <Row label="Office" color={colors.ink} chevron onPress={() => router.push("/staff/office")} />
+          <Row label="Office settings" color={colors.ink} chevron onPress={() => router.push("/staff/office")} />
         ) : null}
         <Row label="Change password" color={colors.ink} chevron onPress={() => router.push("/change-password")} />
         <Row

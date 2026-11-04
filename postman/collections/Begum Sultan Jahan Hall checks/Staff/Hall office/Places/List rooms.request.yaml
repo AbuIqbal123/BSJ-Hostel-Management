@@ -1,9 +1,16 @@
 $kind: http-request
 method: GET
-url: '{{baseUrl}}/api/v1/admin/rooms?block_id={{blockId}}'
+url: '{{baseUrl}}/api/v1/admin/rooms?block_id={{blockId}}&limit=50&offset=0'
 order: 4000
 queryParams:
   - key: block_id
     value: '{{blockId}}'
+  - key: q
+    value: ''
+    disabled: true
+  - key: limit
+    value: '50'
+  - key: offset
+    value: '0'
 description: |-
-  Caller: provost.
+  Caller: provost. Paged. Optional block_id and q. Doors ordered numerically.
