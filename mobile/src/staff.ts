@@ -262,6 +262,11 @@ function decisionFact(decision: GuestDecision): { label: string; value: string }
   };
 }
 
+/** The queue drops a guest stay only once the stay itself is approved or rejected. */
+export function shouldRemoveGuestAfterDecision(status: string): boolean {
+  return status === "approved" || status === "rejected";
+}
+
 /** Fact rows for the staff review sheet: recorded decisions, then who is still waiting. */
 export function guestDecisionFacts(detail: GuestDetail): { label: string; value: string }[] {
   const facts = detail.decisions.map(decisionFact);

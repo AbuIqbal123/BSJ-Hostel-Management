@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -23,8 +23,10 @@ import {
   readSummary,
   readTotal,
   shortDay,
+  shouldRemoveGuestAfterDecision,
   submittedDay,
   trimStop,
+  type GuestDetail,
   type GuestReview,
   type HallBlock,
   type PermissionReview,
@@ -109,6 +111,24 @@ function detailParts(item: Item, kind: PermissionKind | null): string[] {
   return parts.filter((part) => part.length > 0);
 }
 
+function responseStatus(value: unknown): string {
+  if (typeof value !== "object" || value === null) {
+    return "";
+  }
+  const status = (value as { status?: unknown }).status;
+  return typeof status === "string" ? status : "";
+}
+
+function guestSheetFacts(row: GuestReview, detail: GuestDetail | null): Fact[] {
+  return [
+    { label: "Host", value: `${row.hostName}, ${row.hostRoom}` },
+    { label: "Relation", value: detail?.relation ?? "" },
+    { label: "Dates", value: `${formatHallDate(row.start)} to ${formatHallDate(row.end)}` },
+    { label: "Reason", value: detail?.reason ?? "" },
+    ...(detail ? guestDecisionFacts(detail) : []),
+  ].filter((fact) => fact.value.length > 0);
+}
+
 function permissionFacts(row: PermissionReview): Fact[] {
   const facts: Fact[] = [
     { label: "Place", value: row.detail ? `${row.place}, ${row.detail}` : row.place },
@@ -137,6 +157,7 @@ export default function RequestsScreen() {
   const [sheetError, setSheetError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [decidedNote, setDecidedNote] = useState<string | null>(null);
+  const guestDetailEpoch = useRef(0);
   const list = useListPage<Item>({
     idOf: (item) => item.row.id,
     loadPage: async (offset) => {
@@ -197,17 +218,13 @@ export default function RequestsScreen() {
       if (item.tab !== "guests") {
         return;
       }
+      const epoch = ++guestDetailEpoch.current;
       void staffRequest(`/guest-stays/${encodeURIComponent(item.row.id)}`).then((reply) => {
+        if (epoch !== guestDetailEpoch.current) {
+          return;
+        }
         const detail = reply.ok ? readGuestDetail(reply.data) : null;
-        setGuestFacts(
-          [
-            { label: "Host", value: `${item.row.hostName}, ${item.row.hostRoom}` },
-            { label: "Relation", value: detail?.relation ?? "" },
-            { label: "Dates", value: `${formatHallDate(item.row.start)} to ${formatHallDate(item.row.end)}` },
-            { label: "Reason", value: detail?.reason ?? "" },
-            ...(detail ? guestDecisionFacts(detail) : []),
-          ].filter((fact) => fact.value.length > 0),
-        );
+        setGuestFacts(guestSheetFacts(item.row, detail));
       });
     },
     [staffRequest],
@@ -247,6 +264,7 @@ export default function RequestsScreen() {
         return;
       }
       setBusy(true);
+      setSheetError(null);
       const base = open.tab === "permissions" ? "/permissions" : "/guest-stays";
       const reply = await staffRequest(`${base}/${encodeURIComponent(open.row.id)}/decision`, {
         decision,
@@ -255,6 +273,14 @@ export default function RequestsScreen() {
       setBusy(false);
       if (!reply.ok) {
         setSheetError(trimStop(reply.message));
+        return;
+      }
+      if (open.tab === "guests" && !shouldRemoveGuestAfterDecision(responseStatus(reply.data))) {
+        const detail = readGuestDetail(reply.data);
+        if (detail) {
+          guestDetailEpoch.current += 1;
+          setGuestFacts(guestSheetFacts(open.row, detail));
+        }
         return;
       }
       list.revise((state) => ({
