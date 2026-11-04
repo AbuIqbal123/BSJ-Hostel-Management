@@ -17,18 +17,17 @@ A guest stay becomes `approved` only when every required party has said yes: the
 
 ## Design fidelity (hard)
 
-The resident and staff apps are already designed. This work **must not** invent a parallel look.
+This is an **addition** to the existing app, not a redesign. After this ships, Permissions, Guest stays, Notifications, History, and guest detail must feel like the same app: same spacing, same rhythm, same row geometry, same type hierarchy. Someone who already knows the phone should not notice a “new style,” only a new section and actions.
 
-| Follow | Do not |
+| Keep unchanged | Do not |
 |---|---|
-| `docs/design/design-system.md` tokens, type, chips, spacing | New colours, gradients, or typography |
-| Permissions tab layout, `PlainRow`, `SectionHead`, hairlines | New list chrome or card nesting |
-| Existing `statusTone` / `StatusPill` (permission detail, staff review) | Ad-hoc coloured text or new pill shapes |
-| Notification inbox patterns (`docs/design/notifications.md`) | A second inbox |
-| Sentence case, hall product terms | ALL CAPS, “Needs you”, invented status words |
-| Symmetrical list rows: same padding, aside alignment, date line as today’s guest rows | One-off layouts for roommate rows |
+| Screen padding, section gaps, row height, hairlines, tab underline | Tighter/looser spacing “for the new feature” |
+| `PlainRow` + `SectionHead` as used on Permissions today | A different list or card layout for roommate rows |
+| Existing `statusTone` / `StatusPill` (permission detail, staff review) | New pill shapes, ad-hoc coloured text, or a second status language |
+| Notification list layout and quieter-line pattern | A second inbox or a Home banner |
+| Button styles already used on guest / permission detail | New CTA chrome |
 
-Roommate rows use the same structure as “Your requests” guest rows. Status aside is the existing StatusPill with word **Pending** (and Approved / Rejected when those apply), coloured via current tokens (`pending` / `forest` / `danger` and their soft backgrounds).
+**Waiting for you** is only a new `SectionHead` plus the same guest rows as **Your requests**. Status aside is StatusPill with **Pending** (and Approved / Rejected when those apply), using current tokens. If a layout choice is unclear, copy the nearest existing Permissions or guest-detail screen pixel-for-rhythm, do not invent.
 
 ## Rules agreed
 
