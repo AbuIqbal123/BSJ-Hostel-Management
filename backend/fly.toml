@@ -1,8 +1,9 @@
-# Hall API on Fly in Singapore (sin), beside Turso aws-ap-southeast-1.
+# Dev hall API on Fly in Singapore (sin), beside Turso aws-ap-southeast-1.
+# App name and Turso DB include -dev so they are not mistaken for production.
 # Mumbai (bom) no longer accepts new Machines. Deploy from backend/: fly deploy
 # Org: Abu Baker Iqbal (slug personal).
 
-app = "bsj-hostel-api"
+app = "bsj-hostel-api-dev"
 primary_region = "sin"
 org = "personal"
 

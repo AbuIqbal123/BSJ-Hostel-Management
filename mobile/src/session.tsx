@@ -336,16 +336,16 @@ type SessionValue = {
 const SessionContext = createContext<SessionValue | null>(null);
 
 const LOCAL_HALL = "http://127.0.0.1:8000";
-const RENDER_HALL = "https://bsj-hostel-api.onrender.com";
+const FLY_HALL_DEV = "https://bsj-hostel-api-dev.fly.dev";
 
 function explicitHall(): string | null {
   const configured = process.env.EXPO_PUBLIC_API_URL;
   if (configured) {
     return configured.replace(/\/$/, "");
   }
-  // Release builds talk to the hall on Render. Expo Go still finds the laptop.
+  // Release builds talk to the hosted dev hall on Fly. Expo Go still finds the laptop.
   if (!__DEV__) {
-    return RENDER_HALL;
+    return FLY_HALL_DEV;
   }
   return null;
 }

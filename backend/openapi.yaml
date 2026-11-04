@@ -45,8 +45,8 @@ info:
 servers:
   - url: http://localhost:8000
     description: Local development
-  - url: https://bsj-hostel-api.fly.dev
-    description: Hall API used by release phone builds (Fly, Singapore)
+  - url: https://bsj-hostel-api-dev.fly.dev
+    description: Hosted dev hall API (Fly Singapore; not production)
 
 tags:
   - name: Operations

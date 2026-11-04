@@ -9,7 +9,7 @@ Begum Sultan Jahan Hall, version 1.0.0. Bundle and package `com.abuiqbal.bsjhall
 - [x] Home screen icon, dark icon, splash, favicon, and Android adaptive icon use the hall's AMU seal
 - [x] Splash plugin is configured in `app.json` (`imageWidth` 112, paper `#F2F4F0`, dark paper `#121A16`)
 - [x] Export compliance: `ITSAppUsesNonExemptEncryption` is false
-- [x] Production API: `eas.json` sets `EXPO_PUBLIC_API_URL` to `https://bsj-hostel-api.fly.dev`
+- [x] Hosted dev API: `eas.json` sets `EXPO_PUBLIC_API_URL` to `https://bsj-hostel-api-dev.fly.dev`
 - [x] A release build without that variable still uses the same Render host. Expo Go still uses the laptop.
 - [x] Render was answering on 11 October 2026: `/health` returned ok, `/ready` returned ready with `user_version` 1
 - [x] Play feature graphic: `docs/play-store-assets/feature-graphic-1024x500.png` (1024×500)

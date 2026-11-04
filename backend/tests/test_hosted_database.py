@@ -125,7 +125,7 @@ def test_fly_uses_turso_like_render(
 ) -> None:
     """Fly sets FLY_APP_NAME instead of RENDER=true; hosted mode still opens Turso."""
     monkeypatch.delenv("RENDER", raising=False)
-    monkeypatch.setenv("FLY_APP_NAME", "bsj-hostel-api")
+    monkeypatch.setenv("FLY_APP_NAME", "bsj-hostel-api-dev")
     monkeypatch.delenv("DATABASE_PATH", raising=False)
     monkeypatch.setenv("TURSO_DATABASE_URL", TURSO_URL)
     monkeypatch.setenv("TURSO_AUTH_TOKEN", TURSO_TOKEN)

@@ -2,7 +2,7 @@
 
 Movement for one hall: who is inside, who is out, who is late, and who is still waiting on a decision.
 
-Residents, gate staff, wardens, and the provost use the Expo app in `mobile/`. The hall API is FastAPI in `backend/`, under `/api/v1`. A laptop serves it at `http://localhost:8000`. Release phone builds call `https://bsj-hostel-api.fly.dev`.
+Residents, gate staff, wardens, and the provost use the Expo app in `mobile/`. The hall API is FastAPI in `backend/`, under `/api/v1`. A laptop serves it at `http://localhost:8000`. Hosted dev phone builds call `https://bsj-hostel-api-dev.fly.dev`.
 
 Work lands on `dev`. `main` is production and accepts pull requests only.
 

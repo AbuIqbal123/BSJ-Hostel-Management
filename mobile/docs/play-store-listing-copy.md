@@ -1,6 +1,6 @@
 # Play Store listing copy
 
-Package `com.abuiqbal.bsjhall`. The production build calls `https://bsj-hostel-api.fly.dev`.
+Package `com.abuiqbal.bsjhall`. The hosted dev build calls `https://bsj-hostel-api-dev.fly.dev`.
 
 ## Store listing
 

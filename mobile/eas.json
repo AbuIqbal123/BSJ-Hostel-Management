@@ -8,14 +8,14 @@
       "distribution": "store",
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://bsj-hostel-api.fly.dev"
+        "EXPO_PUBLIC_API_URL": "https://bsj-hostel-api-dev.fly.dev"
       }
     },
     "production": {
       "distribution": "store",
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://bsj-hostel-api.fly.dev"
+        "EXPO_PUBLIC_API_URL": "https://bsj-hostel-api-dev.fly.dev"
       }
     }
   },
