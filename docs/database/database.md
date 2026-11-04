@@ -35,6 +35,7 @@ The service records which migration file it has applied in `schema_migrations`, 
   - [Late](#late)
 - [Guest stays](#guest-stays)
   - [Guest lifecycle](#guest-lifecycle)
+  - [Guest stay decisions](#guest-stay-decisions)
   - [Guest lists](#guest-lists)
 - [Messages to the parent or guardian](#messages-to-the-parent-or-guardian)
 - [Audit log](#audit-log)
@@ -63,6 +64,7 @@ The rules in this document are the contract. The room inventory is taken from th
 - The register shows who is inside, outside, or late, and the permissions still waiting. It shows those counts for the whole hall and again for each block. Search is by name or room. A register list row names the outside destination when the resident is outside. A resident record includes the open outside outing when she is outside — place, exit, expected return, grace, outing type — and whether the guardian was told. When she is inside, that outing field is null; cancelled, returned, and planned outings are not shown there.
 - The provost sees the whole hall and can export the register.
 - A guest stay is applied for by the host resident at least one day before the start date, for at most 7 days counting the first and last day. 18 September 2026 through 21 September 2026 is 4 days. Payment is marked at the hall office, not collected in the app. Guests have no hall pass. Gate staff record arrival and departure from a list. A guest stays on the dining count until departure is recorded, including when the end date has passed.
+- A guest stay keeps one decision row for each roommate or provost who approves or rejects it. The required roommates are the other residents on the host's room now whose accounts are active. The host is not among them. A suspended resident who has not been moved still occupies a bed, and she is not a required roommate. When no other active resident shares the room, there is no roommate to ask. The rows stay.
 - Emergency alerts are not in this version. An alert must not approve leave or change whether a resident is outside.
 - Parents and guardians do not use the app. A text message is the only channel to them.
 - A resident may self-onboard with her full name, enrolment number, chosen password, own phone, guardian name and phone, and a selected block and room. On that form the resident phone and the guardian phone are Indian mobiles: +91 followed by exactly 10 digits. The account starts **active**, can sign in immediately, and receives its hall pass. Staff (gate, warden, provost) are never self-onboarded. She can delete that account from the phone. Deletion asks for her current password, revokes her sessions, cancels planned outings and permissions and guest stays that have not arrived, and frees her room. Her name, phone, guardian, enrolment, and hall pass are removed. The account is suspended under a new username she does not know, so the old enrolment can be used again and sign-in with it fails. Outings, permissions, guest stays, and audit rows the hall already kept stay, without her name. Deletion is refused while she is outside or a guest of hers is still in the hall. The first deletion creates an inactive Utility room, `Utility-former`, that holds these accounts and is not offered at signup.
@@ -117,7 +119,7 @@ Other writing rules:
 - A block contains rooms. A resident is assigned to one room. The room's block is that resident's block.
 - A resident requests permissions. A permission can authorise one outing when the resident actually leaves.
 - An ordinary outing may name a destination from the hall's list.
-- A resident hosts guest stays.
+- A resident hosts guest stays. A guest stay keeps decision rows for a roommate and for the provost.
 - An outing can produce at most one late notice and one return notice.
 - A signed-in phone keeps one session record for that sign-in.
 - Actions people take are written to the audit log.
@@ -502,6 +504,24 @@ The state and the times agree:
 
 Payment is a separate act by a warden or the provost. It can be marked before or after approval, and not after departure. Marking it unpaid again is allowed only before arrival. Marking it paid requires a payment note (off-system proof) and does not require a file. Marking it unpaid clears the payment staff member, the payment time, the payment note, and any optional payment evidence. Optional payment evidence (a JPEG, PNG, or PDF of at most 2 MiB) may be uploaded before or after marking paid, while the stay is still pending or approved and the guest has not arrived. The type is read from the file header. The bytes are stored as given in `guest_stay_payment_evidence`. Lists use the metadata columns on this stay and do not read the blob. Uploading evidence never marks the stay paid and is never required to mark paid. Clearing evidence leaves payment_status unchanged.
 
+### Guest stay decisions
+
+One row for each roommate or provost who approves or rejects a stay. The stay's own status stays on the guest stay. These rows are the lasting record of who said what. They are not deleted.
+
+| Detail | Kept as | Required | Where it comes from | Rule |
+|---|---|---|---|---|
+| id | Identifier | Yes | System | Identifies this decision. |
+| guest_stay_id | Identifier | Yes | The stay | The guest stay this decision is about. |
+| actor_user_id | Identifier | Yes | The roommate or the provost | The person who decided. |
+| role | Choice | Yes | System, from the part she is playing | Roommate or provost. |
+| decision | Choice | Yes | That person | Approved or rejected. |
+| note | Text | Empty if she writes nothing | The roommate or the provost may type it | Optional. |
+| decided_at | Instant | Yes | System, at the decision | When she decided. |
+
+One person has at most one decision for one role on one stay. A second row for the same stay, person, and role is refused.
+
+The required roommates are worked out when someone looks. They are the other residents assigned to the host's room now whose accounts are active. The host is not her own roommate. A suspended resident who has not been moved still occupies a bed, and she is left out, the same way the register leaves suspended residents out of the inside and outside counts. A room with no other active resident has no roommate to ask.
+
 ### Guest stay payment evidence
 
 One row per stay. The blob is the receipt. The metadata columns on `guest_stays` say whether evidence is present, who uploaded it, and what type it is. A list does not join this table.
@@ -687,6 +707,7 @@ Besides the unique indexes that enforce one username, one open outside outing, a
 |---|---|---|
 | permissions_status_created | permissions (status, created_at) | Staff permission queue filtered by status and sorted by created_at. |
 | permissions_resident_created | permissions (resident_id, created_at) | A resident's own permission list. |
+| guest_stay_decisions_stay | guest_stay_decisions (guest_stay_id, decided_at) | A stay's decisions in time order. |
 | guest_stays_status_arrived | guest_stays (status, arrived_at) | Staff and gate guest lists by status and arrival. |
 | guest_stays_host_created | guest_stays (host_resident_id, created_at) | A resident's own guest stays. |
 | audit_log_occurred_at | audit_log (occurred_at) | Provost audit log newest first. |
