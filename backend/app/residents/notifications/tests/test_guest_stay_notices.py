@@ -90,6 +90,21 @@ def issue_people(path: Path) -> None:
         connection.close()
 
 
+QUIETER = "Noor Khan, 02 October 2026 to 04 October 2026"
+ZAYNAB_TOKEN = "ExponentPushToken[zaynab-notice]"
+NADIRA_TOKEN = "ExponentPushToken[nadira-notice]"
+HOST_TOKEN = "ExponentPushToken[aisha-notice]"
+
+
+def register_phone(client: TestClient, token: str, expo_token: str) -> None:
+    response = client.post(
+        "/api/v1/devices/push-token",
+        headers=auth(token),
+        json={"token": expo_token, "platform": "ios"},
+    )
+    assert response.status_code == 204, response.text
+
+
 def apply_stay(client: TestClient, token: str) -> str:
     response = client.post(
         "/api/v1/me/guest-stays",
@@ -132,14 +147,17 @@ def test_apply_writes_one_inbox_row_per_roommate(
     database_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from app.main import app
-    from app.shared import clock
+    from app.shared import clock, push
 
     monkeypatch.setattr(clock, "utc_now", FrozenClock().utc_now)
+    push.SENT.clear()
     with TestClient(app) as client:
         issue_people(database_path)
         host = sign_in(client, "24-GLLB-118", role_credential("resident"))
         zaynab = sign_in(client, "24-BA-014", role_credential("roommate"))
         nadira = sign_in(client, "24-BA-016", role_credential("roommate-2"))
+        register_phone(client, zaynab, ZAYNAB_TOKEN)
+        register_phone(client, nadira, NADIRA_TOKEN)
         stay_id = apply_stay(client, host)
 
         assert notice_rows(database_path, stay_id) == [
@@ -160,21 +178,42 @@ def test_apply_writes_one_inbox_row_per_roommate(
             assert item["outcome"] is None
             assert item["needs_action"] is True
             assert item["unread"] is True
+        zaynab_note = inbox(client, zaynab)[0]["id"]
+        nadira_note = inbox(client, nadira)[0]["id"]
+        asked = [
+            message
+            for message in push.SENT
+            if message["data"]["kind"] == "guest_stay_roommate_requested"
+        ]
+        assert len(asked) == 2
+        by_id = {message["data"]["notification_id"]: message for message in asked}
+        assert set(by_id) == {zaynab_note, nadira_note}
+        assert by_id[zaynab_note]["to"] == ZAYNAB_TOKEN
+        assert by_id[nadira_note]["to"] == NADIRA_TOKEN
+        for message in asked:
+            assert message["body"] == "Your roommate has requested a guest stay"
+            assert message["title"] == message["body"]
+            assert message["subtitle"] == QUIETER
+            assert message["data"]["record_id"] == stay_id
 
 
 def test_roommate_decision_tells_the_host_and_lasts_for_both(
     database_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from app.main import app
-    from app.shared import clock
+    from app.shared import clock, push
 
     monkeypatch.setattr(clock, "utc_now", FrozenClock().utc_now)
+    push.SENT.clear()
     with TestClient(app) as client:
         issue_people(database_path)
         host = sign_in(client, "24-GLLB-118", role_credential("resident"))
         zaynab = sign_in(client, "24-BA-014", role_credential("roommate"))
         provost = sign_in(client, "provost.halima", role_credential("provost"))
+        register_phone(client, host, HOST_TOKEN)
+        register_phone(client, zaynab, ZAYNAB_TOKEN)
         stay_id = apply_stay(client, host)
+        push.SENT.clear()
 
         decided = client.post(
             f"/api/v1/me/guest-stays/{stay_id}/roommate-decision",
@@ -218,6 +257,29 @@ def test_roommate_decision_tells_the_host_and_lasts_for_both(
             if item["kind"] == "guest_stay_roommate_requested"
         ]
         assert requested[0]["needs_action"] is False
+
+        told_push = [
+            message
+            for message in push.SENT
+            if message["data"]["kind"] == "guest_stay_roommate_decided"
+        ]
+        own_push = [
+            message
+            for message in push.SENT
+            if message["data"]["kind"] == "guest_stay_roommate_recorded"
+        ]
+        assert len(told_push) == 1
+        assert told_push[0]["to"] == HOST_TOKEN
+        assert told_push[0]["body"] == "Your roommate Zaynab Ali approved the guest stay"
+        assert told_push[0]["title"] == told_push[0]["body"]
+        assert told_push[0]["subtitle"] == QUIETER
+        assert told_push[0]["data"]["notification_id"] == told["id"]
+        assert len(own_push) == 1
+        assert own_push[0]["to"] == ZAYNAB_TOKEN
+        assert own_push[0]["body"] == "You approved Aisha Khan's guest stay"
+        assert own_push[0]["title"] == own_push[0]["body"]
+        assert own_push[0]["subtitle"] == QUIETER
+        assert own_push[0]["data"]["notification_id"] == lasting[0]["id"]
 
         host_history = client.get("/api/v1/me/history", headers=auth(host))
         assert host_history.status_code == 200

@@ -514,8 +514,15 @@ def test_roommate_lists_and_decides(database_path: Path, monkeypatch: pytest.Mon
         assert len(roommate_pushes) == 1
         assert roommate_pushes[0]["to"] == TOKEN
         assert roommate_pushes[0]["title"] == "Your roommate has requested a guest stay"
-        assert roommate_pushes[0]["body"] == "Noor Khan, 2026-10-02 to 2026-10-04"
+        assert roommate_pushes[0]["body"] == "Your roommate has requested a guest stay"
+        assert roommate_pushes[0]["subtitle"] == "Noor Khan, 02 October 2026 to 04 October 2026"
         assert roommate_pushes[0]["data"]["record_id"] == new_id
+        asked = [
+            item
+            for item in client.get("/api/v1/me/notifications", headers=auth(roommate)).json()["items"]
+            if item["kind"] == "guest_stay_roommate_requested" and item["record_id"] == new_id
+        ]
+        assert roommate_pushes[0]["data"]["notification_id"] == asked[0]["id"]
         assert [item["id"] for item in client.get(waiting, headers=auth(roommate)).json()["items"]] == [
             new_id
         ]

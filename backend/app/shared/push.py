@@ -40,6 +40,7 @@ class PushJob:
     notification_id: str
     user_ids: tuple[str, ...] = ()
     staff: bool = False
+    subtitle: str = ""
     extra: dict = field(default_factory=dict)
 
 
@@ -93,22 +94,23 @@ def _messages(connection, job: PushJob) -> list[dict]:
     for row in rows:
         if row["user_id"] not in badges:
             badges[row["user_id"]] = _badge(connection, row["user_id"], row["role"])
-        messages.append(
-            {
-                "to": row["token"],
-                "title": job.title,
-                "body": job.body,
-                "sound": "default",
-                "priority": "high",
-                "badge": badges[row["user_id"]],
-                "data": {
-                    "notification_id": job.notification_id,
-                    "kind": job.kind,
-                    "record_id": job.record_id,
-                    "resident_id": job.resident_id,
-                },
-            }
-        )
+        message = {
+            "to": row["token"],
+            "title": job.title,
+            "body": job.body,
+            "sound": "default",
+            "priority": "high",
+            "badge": badges[row["user_id"]],
+            "data": {
+                "notification_id": job.notification_id,
+                "kind": job.kind,
+                "record_id": job.record_id,
+                "resident_id": job.resident_id,
+            },
+        }
+        if job.subtitle:
+            message["subtitle"] = job.subtitle
+        messages.append(message)
     return messages
 
 

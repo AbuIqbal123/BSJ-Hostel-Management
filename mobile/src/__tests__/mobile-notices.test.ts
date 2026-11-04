@@ -107,6 +107,15 @@ describe("readNoticePage", () => {
             record_id: "stay",
           },
           {
+            id: "stay-yes",
+            kind: "guest_stay_decided",
+            outcome: "approved",
+            guest_name: "Noor",
+            decided_by_name: "Halima Begum",
+            occurred_at: when,
+            record_id: "stay-yes",
+          },
+          {
             id: "late",
             kind: "resident_late",
             outcome: "returned",
@@ -118,11 +127,12 @@ describe("readNoticePage", () => {
       },
       "resident",
     );
-    expect(page.items[0]?.title).toBe("Your guest stay was declined");
+    expect(page.items[0]?.title).toBe("Your guest stay has been rejected by Sara Malik");
     expect(page.items[0]?.detail).toBe("Amina");
-    expect(page.items[1]?.title).toBe("You were late back");
-    expect(page.items[1]?.status).toBe("Back");
-    expect(page.items[1]?.target).toBe("/pass");
+    expect(page.items[1]?.title).toBe("Your guest stay has been approved by Halima Begum");
+    expect(page.items[2]?.title).toBe("You were late back");
+    expect(page.items[2]?.status).toBe("Back");
+    expect(page.items[2]?.target).toBe("/pass");
   });
 
   it("reads a roommate request, her decision, and the host's notice", () => {

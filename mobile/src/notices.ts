@@ -84,8 +84,12 @@ export function guestStayNoticeTitle(input: {
   const host = input.hostName?.trim() ?? "";
   const actor = input.actorName?.trim() ?? "";
   switch (input.kind) {
-    case "guest_stay_decided":
-      return `Your guest stay was ${word}`;
+    case "guest_stay_decided": {
+      const verdict = input.outcome === "approved" ? "approved" : "rejected";
+      return actor
+        ? `Your guest stay has been ${verdict} by ${actor}`
+        : `Your guest stay has been ${verdict}`;
+    }
     case "guest_stay_roommate_requested":
       return "Your roommate has requested a guest stay";
     case "guest_stay_roommate_decided":
@@ -103,7 +107,7 @@ function residentTitle(item: Json): string | null {
     kind: str(item.kind),
     outcome: item.outcome === "approved" || item.outcome === "declined" ? item.outcome : null,
     hostName: str(item.host_name),
-    actorName: str(item.actor_name),
+    actorName: str(item.kind) === "guest_stay_decided" ? str(item.decided_by_name) : str(item.actor_name),
   });
   if (guest) {
     return guest;

@@ -8,6 +8,7 @@ row is also the sent-once marker for the late push to her and to staff.
 
 from __future__ import annotations
 
+import calendar
 import sqlite3
 import uuid
 from dataclasses import dataclass
@@ -127,36 +128,53 @@ def record_late_outings(connection: sqlite3.Connection, now_text: str) -> list[P
     return jobs
 
 
+def _hall_day(iso_date: str) -> str:
+    """`2026-10-02` becomes `02 October 2026`, the same shape as the inbox quieter line."""
+    year, month, day = iso_date.split("-")
+    return f"{int(day):02d} {calendar.month_name[int(month)]} {year}"
+
+
+def _guest_quieter(guest_name: str, guest_start_date: str, guest_end_date: str) -> str:
+    return f"{guest_name}, {_hall_day(guest_start_date)} to {_hall_day(guest_end_date)}"
+
+
 def record_roommate_requests(
     connection: sqlite3.Connection,
     *,
     record_id: str,
-    host_resident_id: str,
     roommate_user_ids: list[str],
     guest_name: str,
     guest_start_date: str,
     guest_end_date: str,
     now_text: str,
-) -> PushJob:
-    """One inbox row per current roommate, and one push to all of them."""
+) -> list[PushJob]:
+    """One inbox row and one push per current roommate. The push id is that row."""
+    sentence = "Your roommate has requested a guest stay"
+    quieter = _guest_quieter(guest_name, guest_start_date, guest_end_date)
+    jobs: list[PushJob] = []
     for roommate_id in roommate_user_ids:
+        notification_id = str(uuid.uuid4())
         connection.execute(
             """
             INSERT INTO resident_notifications (
               id, resident_id, kind, record_id, actor_user_id, decision, created_at
             ) VALUES (?, ?, 'guest_stay_roommate_requested', ?, '', NULL, ?)
             """,
-            (str(uuid.uuid4()), roommate_id, record_id, now_text),
+            (notification_id, roommate_id, record_id, now_text),
         )
-    return PushJob(
-        title="Your roommate has requested a guest stay",
-        body=f"{guest_name}, {guest_start_date} to {guest_end_date}",
-        kind="guest_stay_roommate_requested",
-        record_id=record_id,
-        resident_id=host_resident_id,
-        notification_id=f"guest_stay_roommate_requested:{record_id}",
-        user_ids=tuple(roommate_user_ids),
-    )
+        jobs.append(
+            PushJob(
+                title=sentence,
+                body=sentence,
+                subtitle=quieter,
+                kind="guest_stay_roommate_requested",
+                record_id=record_id,
+                resident_id=roommate_id,
+                notification_id=notification_id,
+                user_ids=(roommate_id,),
+            )
+        )
+    return jobs
 
 
 def _decision_word(decision: str) -> str:
@@ -179,7 +197,9 @@ def record_roommate_decision(
 ) -> list[PushJob]:
     """Tell the host, and keep a lasting row for the roommate who decided."""
     word = _decision_word(decision)
-    quieter = f"{guest_name}, {guest_start_date} to {guest_end_date}"
+    quieter = _guest_quieter(guest_name, guest_start_date, guest_end_date)
+    host_sentence = f"Your roommate {actor_name} {word} the guest stay"
+    own_sentence = f"You {word} {host_name}'s guest stay"
     host_notice = str(uuid.uuid4())
     own_notice = str(uuid.uuid4())
     connection.execute(
@@ -200,8 +220,9 @@ def record_roommate_decision(
     )
     return [
         PushJob(
-            title=f"Your roommate {actor_name} {word} the guest stay",
-            body=quieter,
+            title=host_sentence,
+            body=host_sentence,
+            subtitle=quieter,
             kind="guest_stay_roommate_decided",
             record_id=record_id,
             resident_id=host_resident_id,
@@ -209,8 +230,9 @@ def record_roommate_decision(
             user_ids=(host_resident_id,),
         ),
         PushJob(
-            title=f"You {word} {host_name}'s guest stay",
-            body=quieter,
+            title=own_sentence,
+            body=own_sentence,
+            subtitle=quieter,
             kind="guest_stay_roommate_recorded",
             record_id=record_id,
             resident_id=actor_user_id,

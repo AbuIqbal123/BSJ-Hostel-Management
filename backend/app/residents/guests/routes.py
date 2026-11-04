@@ -207,11 +207,10 @@ def submit_guest_stay(
     ]
     roommates = active_roommate_user_ids(connection, account.id)
     if roommates:
-        jobs.append(
+        jobs.extend(
             record_roommate_requests(
                 connection,
                 record_id=stay_id,
-                host_resident_id=account.id,
                 roommate_user_ids=roommates,
                 guest_name=guest_name,
                 guest_start_date=start,
