@@ -15,17 +15,17 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { goBackOr } from "@/back";
 import { BackMark } from "@/components/back-mark";
 import { HallButton } from "@/components/hall-button";
+import { StatusPill } from "@/components/status-pill";
 import { TextField } from "@/components/text-field";
 import { HALL_ZONE, formatClockDay, formatWhenParts, hallNow, utcInstant } from "@/format-when";
 import { WhenField, hallAt, hallDay, isNextHallMidnight, sameNight } from "@/outing-when";
-import { kindLabel, statusSentence, statusTone } from "@/requests";
+import { kindLabel } from "@/requests";
 import { paramText } from "@/route-param";
 import { syncResidentReminders } from "@/return-reminders";
 import {
   useSession,
   type HallPermission,
   type PermissionKind,
-  type PermissionStatus,
   type ResidentHomeResult,
 } from "@/session";
 import { useDark } from "@/theme/appearance";
@@ -116,16 +116,6 @@ function DateField({
           />
         </View>
       )}
-    </View>
-  );
-}
-
-function StatusPill({ status }: { status: PermissionStatus }) {
-  const colors = useHallColors();
-  const tone = statusTone(status, colors);
-  return (
-    <View style={[styles.status, { borderColor: tone.border, backgroundColor: tone.background }]}>
-      <Text style={[styles.statusText, { color: tone.color }]}>{statusSentence(status)}</Text>
     </View>
   );
 }
@@ -814,18 +804,6 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   titleFlex: { flex: 1 },
-  status: {
-    borderWidth: 1,
-    borderRadius: 8,
-    borderCurve: "continuous",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  statusText: {
-    fontFamily: "SourceSans3_600SemiBold",
-    fontSize: 13,
-    lineHeight: 18,
-  },
   fact: { paddingVertical: 12, gap: 4 },
   dateField: { gap: 8 },
   datePress: { minHeight: 44, justifyContent: "center" },

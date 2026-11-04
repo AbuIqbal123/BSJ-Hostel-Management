@@ -1,3 +1,4 @@
+import { type ReactNode } from "react";
 import { Feather } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
@@ -22,8 +23,8 @@ type PlainRowProps = {
   /** A third line under the subline. Muted is the quiet recorder line. */
   extra?: string | null;
   mutedExtra?: boolean;
-  /** One label on the title line, left of the time column. */
-  aside?: string | null;
+  /** One label on the title line, left of the time column. A node is the status pill. */
+  aside?: ReactNode;
   /** Date over time. The column keeps one width so every row shares its left edge. */
   time?: readonly [string, string] | null;
   onPress?: () => void;
@@ -56,9 +57,13 @@ export function PlainRow({
             {title}
           </Text>
           {aside ? (
-            <Text numberOfLines={1} style={[styles.aside, { color: colors.inkSoft }]}>
-              {aside}
-            </Text>
+            typeof aside === "string" ? (
+              <Text numberOfLines={1} style={[styles.aside, { color: colors.inkSoft }]}>
+                {aside}
+              </Text>
+            ) : (
+              <View style={styles.asideSlot}>{aside}</View>
+            )
           ) : null}
         </View>
         {parts && parts.length > 0 && stacked ? (
@@ -183,6 +188,7 @@ const styles = StyleSheet.create({
   titleLine: { flexDirection: "row", alignItems: "center", gap: 8, minWidth: 0 },
   title: { flex: 1, minWidth: 0, fontFamily: "SourceSans3_600SemiBold", fontSize: 17, lineHeight: 22 },
   aside: { flexShrink: 0, fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20 },
+  asideSlot: { flexShrink: 0 },
   parts: { flexDirection: "row", alignItems: "center", gap: 8, minWidth: 0, overflow: "hidden" },
   partsStack: { alignSelf: "stretch", minWidth: 0 },
   partsWrap: { flexWrap: "wrap", overflow: "visible" },

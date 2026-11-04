@@ -139,6 +139,8 @@ export type HistoryResult =
 export type GuestStayCard = {
   id: string;
   guestName: string;
+  hostName: string;
+  hostRoomLabel: string;
   startDate: string;
   endDate: string;
   status: "pending" | "approved" | "rejected" | "cancelled" | "departed";
@@ -146,11 +148,23 @@ export type GuestStayCard = {
   bucket: string;
 };
 
+export type GuestDecision = {
+  role: "roommate" | "provost";
+  actorName: string;
+  decision: "approved" | "rejected";
+  decidedAt: string;
+  note: string | null;
+};
+
 export type GuestStay = GuestStayCard & {
   relation: string;
   reason: string;
   arrivedAt: string | null;
   decisionNote: string | null;
+  decisions: GuestDecision[];
+  roommateApprovalRequired: boolean;
+  waitingOnRoommate: boolean;
+  waitingOnProvost: boolean;
 };
 
 export type GuestStayCreate = {
@@ -308,10 +322,12 @@ type SessionValue = {
     cursor?: string | null;
   }) => Promise<HistoryResult>;
   loadGuestStays: (when: GuestWhen, offset?: number) => Promise<GuestListResult>;
+  loadAwaitingGuestStays: () => Promise<GuestListResult>;
   loadGuestStay: (guestStayId: string) => Promise<GuestResult>;
   submitGuestStay: (body: GuestStayCreate) => Promise<string | null>;
   updateGuestStay: (guestStayId: string, body: GuestStayCreate) => Promise<string | null>;
   cancelGuestStay: (guestStayId: string) => Promise<HallFailure | null>;
+  decideGuestStay: (guestStayId: string, decision: "approved" | "rejected") => Promise<string | null>;
   /** Reads and writes under /api/v1 for any signed-in role. A body makes it a POST. Pass POST to write with no body, PATCH to update, or DELETE to remove. */
   staffRequest: (path: string, body?: unknown, method?: "POST" | "PATCH" | "DELETE") => Promise<StaffReply>;
   /** GET that returns text, such as the register CSV. */
@@ -643,6 +659,8 @@ function readGuestCard(item: Record<string, unknown>): GuestStayCard | null {
   if (
     typeof item.id !== "string" ||
     typeof item.guest_name !== "string" ||
+    typeof item.host_name !== "string" ||
+    typeof item.host_room_label !== "string" ||
     typeof item.guest_start_date !== "string" ||
     typeof item.guest_end_date !== "string" ||
     typeof item.bucket !== "string"
@@ -652,12 +670,58 @@ function readGuestCard(item: Record<string, unknown>): GuestStayCard | null {
   return {
     id: item.id,
     guestName: item.guest_name,
+    hostName: item.host_name,
+    hostRoomLabel: item.host_room_label,
     startDate: item.guest_start_date,
     endDate: item.guest_end_date,
     status,
     paymentStatus: item.payment_status,
     bucket: item.bucket,
   };
+}
+
+function readDecision(item: Record<string, unknown>): GuestDecision | null {
+  if (item.role !== "roommate" && item.role !== "provost") {
+    return null;
+  }
+  if (item.decision !== "approved" && item.decision !== "rejected") {
+    return null;
+  }
+  if (typeof item.actor_name !== "string" || typeof item.decided_at !== "string") {
+    return null;
+  }
+  if (item.note !== null && typeof item.note !== "string") {
+    return null;
+  }
+  return {
+    role: item.role,
+    actorName: item.actor_name,
+    decision: item.decision,
+    decidedAt: item.decided_at,
+    note: typeof item.note === "string" && item.note.length > 0 ? item.note : null,
+  };
+}
+
+function readDecisions(value: unknown): GuestDecision[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+  const decisions: GuestDecision[] = [];
+  for (const item of value) {
+    if (!isRecord(item)) {
+      return null;
+    }
+    const decision = readDecision(item);
+    if (!decision) {
+      return null;
+    }
+    decisions.push(decision);
+  }
+  return decisions;
+}
+
+function readFlag(value: unknown): boolean | null {
+  return typeof value === "boolean" ? value : null;
 }
 
 function guestListQuery(when: GuestWhen, offset: number): string {
@@ -694,7 +758,19 @@ function readGuestStay(value: unknown): GuestStay | null {
     return null;
   }
   const card = readGuestCard(value);
-  if (!card || typeof value.relation !== "string" || typeof value.reason !== "string") {
+  const decisions = readDecisions(value.decisions);
+  const roommateApprovalRequired = readFlag(value.roommate_approval_required);
+  const waitingOnRoommate = readFlag(value.waiting_on_roommate);
+  const waitingOnProvost = readFlag(value.waiting_on_provost);
+  if (
+    !card ||
+    !decisions ||
+    roommateApprovalRequired === null ||
+    waitingOnRoommate === null ||
+    waitingOnProvost === null ||
+    typeof value.relation !== "string" ||
+    typeof value.reason !== "string"
+  ) {
     return null;
   }
   return {
@@ -703,6 +779,10 @@ function readGuestStay(value: unknown): GuestStay | null {
     reason: value.reason,
     arrivedAt: textOrNull(value.arrived_at),
     decisionNote: textOrNull(value.decision_note),
+    decisions,
+    roommateApprovalRequired,
+    waitingOnRoommate,
+    waitingOnProvost,
   };
 }
 
@@ -1320,6 +1400,43 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const loadAwaitingGuestStays = useCallback(async (): Promise<GuestListResult> => {
+    if (!sessionRef.current) {
+      return { error: "Sign in again" };
+    }
+    try {
+      const items: GuestStayCard[] = [];
+      let offset = 0;
+      let total = 0;
+      do {
+        const response = await authorized(
+          `/api/v1/me/guest-stays/awaiting-my-approval?${pageQuery(offset)}`,
+          { method: "GET" },
+        );
+        if (!response.ok) {
+          return { error: await errorMessage(response) };
+        }
+        const body: unknown = await response.json();
+        const page = readGuestPage(body);
+        const pageTotal = readTotal(body);
+        if (!page || pageTotal === null) {
+          return { error: "The hall could not be reached" };
+        }
+        if (offset === 0) {
+          total = pageTotal;
+        }
+        items.push(...page);
+        if (page.length === 0) {
+          break;
+        }
+        offset += page.length;
+      } while (offset < total);
+      return { error: null, items, total };
+    } catch {
+      return { error: "The hall could not be reached" };
+    }
+  }, []);
+
   const loadGuestStay = useCallback(async (guestStayId: string): Promise<GuestResult> => {
     if (!sessionRef.current) {
       return { error: "Sign in again" };
@@ -1368,6 +1485,28 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
+      if (response.status === 200) {
+        return null;
+      }
+      return await errorMessage(response);
+    } catch {
+      return "The hall could not be reached";
+    }
+  }, []);
+
+  const decideGuestStay = useCallback(async (guestStayId: string, decision: "approved" | "rejected") => {
+    if (!sessionRef.current) {
+      return "Sign in again";
+    }
+    try {
+      const response = await authorized(
+        `/api/v1/me/guest-stays/${encodeURIComponent(guestStayId)}/roommate-decision`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ decision }),
+        },
+      );
       if (response.status === 200) {
         return null;
       }
@@ -1729,10 +1868,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       loadHallPass,
       loadHistory,
       loadGuestStays,
+      loadAwaitingGuestStays,
       loadGuestStay,
       submitGuestStay,
       updateGuestStay,
       cancelGuestStay,
+      decideGuestStay,
       staffRequest,
       staffText,
       staffFile,
@@ -1760,10 +1901,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       loadHallPass,
       loadHistory,
       loadGuestStays,
+      loadAwaitingGuestStays,
       loadGuestStay,
       submitGuestStay,
       updateGuestStay,
       cancelGuestStay,
+      decideGuestStay,
       staffRequest,
       staffText,
       staffFile,

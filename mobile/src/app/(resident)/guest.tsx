@@ -16,13 +16,14 @@ import { goBackOr } from "@/back";
 import { BackMark } from "@/components/back-mark";
 import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { HallButton } from "@/components/hall-button";
+import { StatusPill } from "@/components/status-pill";
 import { TextField } from "@/components/text-field";
 import { HALL_ZONE, formatChipDay, formatHallDate, hallNow } from "@/format-when";
 import { hallDay } from "@/outing-when";
 import { paymentLabel } from "@/payment-file";
 import { guestLine } from "@/requests";
 import { paramText } from "@/route-param";
-import { useSession, type GuestStay } from "@/session";
+import { useSession, type GuestStay, type GuestStayCard } from "@/session";
 import { useDark } from "@/theme/appearance";
 import { useHallColors } from "@/theme/colors";
 import { EASE_OUT } from "@/theme/motion";
@@ -125,6 +126,62 @@ function relationFields(relation: string): { id: string; other: string } {
     return { id: relation, other: "" };
   }
   return { id: OTHER_RELATION, other: relation };
+}
+
+function DecisionSummary({ stay }: { stay: GuestStay }) {
+  const colors = useHallColors();
+  const rows: {
+    key: string;
+    label: string;
+    value: string | null;
+    status: "pending" | "approved" | "rejected";
+    note: string | null;
+  }[] = stay.decisions.map((decision, index) => ({
+    key: `${decision.role}-${decision.decidedAt}-${index}`,
+    label: decision.role === "roommate" ? "Roommate" : "Provost",
+    value: decision.actorName,
+    status: decision.decision,
+    note: decision.note,
+  }));
+  if (stay.waitingOnRoommate) {
+    rows.push({ key: "waiting-roommate", label: "Roommate", value: null, status: "pending", note: null });
+  }
+  if (stay.waitingOnProvost) {
+    rows.push({ key: "waiting-provost", label: "Provost", value: null, status: "pending", note: null });
+  }
+  if (rows.length === 0) {
+    return null;
+  }
+  return (
+    <View>
+      {rows.map((row, index) => (
+        <View
+          key={row.key}
+          style={[
+            styles.fact,
+            index > 0 ? { borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth } : null,
+          ]}
+        >
+          <Text style={[text.label, { color: colors.inkSoft }]}>{row.label}</Text>
+          <View style={styles.factLine}>
+            {row.value ? (
+              <Text selectable style={[text.body, styles.factValue, { color: colors.ink }]}>
+                {row.value}
+              </Text>
+            ) : (
+              <View style={styles.factValue} />
+            )}
+            <StatusPill status={row.status} />
+          </View>
+          {row.note ? (
+            <Text selectable style={[text.body, { color: colors.inkSoft }]}>
+              {row.note}
+            </Text>
+          ) : null}
+        </View>
+      ))}
+    </View>
+  );
 }
 
 function GuestForm({ existing }: { existing?: GuestStay }) {
@@ -237,6 +294,7 @@ function GuestForm({ existing }: { existing?: GuestStay }) {
         <BackMark color={colors.inkSoft} />
       </Pressable>
       <Text style={[text.hallName, styles.title, { color: colors.ink }]}>Guest stay</Text>
+      {existing ? <DecisionSummary stay={existing} /> : null}
       <Pressable style={styles.block} onPress={dismissOpenChoice}>
         <TextField
           label="Name"
@@ -372,33 +430,164 @@ function GuestForm({ existing }: { existing?: GuestStay }) {
   );
 }
 
-function GuestDetail({ id }: { id: string }) {
+function RoommateDecide({ card, onDone }: { card: GuestStayCard; onDone: () => void }) {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
-  const { loadGuestStay, cancelGuestStay } = useSession();
+  const { decideGuestStay } = useSession();
+  const back = useLeave();
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const pending = useRef(false);
+  const dates = `${formatHallDate(card.startDate)} to ${formatHallDate(card.endDate)}`;
+
+  const choose = async (decision: "approved" | "rejected") => {
+    if (pending.current) {
+      return;
+    }
+    pending.current = true;
+    setBusy(true);
+    setError(null);
+    const failure = await decideGuestStay(card.id, decision);
+    pending.current = false;
+    setBusy(false);
+    if (!failure) {
+      onDone();
+      return;
+    }
+    setError(failure);
+  };
+
+  const decline = () => {
+    Alert.alert("Decline guest stay", undefined, [
+      { text: "Back", style: "cancel" },
+      {
+        text: "Decline",
+        style: "destructive",
+        onPress: () => {
+          void choose("rejected");
+        },
+      },
+    ]);
+  };
+
+  return (
+    <ScrollView
+      style={[styles.screen, { backgroundColor: colors.paper }]}
+      contentContainerStyle={[
+        styles.content,
+        { paddingTop: insets.top + 28, paddingBottom: insets.bottom + 28 },
+      ]}
+    >
+      <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={back} style={styles.back}>
+        <BackMark color={colors.inkSoft} />
+      </Pressable>
+      <View style={styles.block}>
+        <View style={styles.headingRow}>
+          <Text style={[text.hallName, styles.title, styles.titleFlex, { color: colors.ink }]}>{card.guestName}</Text>
+          <StatusPill status="pending" />
+        </View>
+        <Text style={[text.body, { color: colors.inkSoft }]}>{`${card.hostName}, ${card.hostRoomLabel}`}</Text>
+        <Text style={[text.body, { color: colors.inkSoft }]}>{dates}</Text>
+        <View style={styles.decide}>
+          <View style={styles.decideHalf}>
+            <HallButton label="Approve" busy={busy} onPress={() => void choose("approved")} />
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Decline"
+            accessibilityState={{ disabled: busy }}
+            disabled={busy}
+            onPress={decline}
+            style={({ pressed }) => [
+              styles.ghost,
+              { borderColor: colors.line, backgroundColor: colors.surface, opacity: busy || pressed ? 0.6 : 1 },
+            ]}
+          >
+            <Text style={[text.button, { color: colors.ink }]}>Decline</Text>
+          </Pressable>
+        </View>
+      </View>
+      {error ? (
+        <Text accessibilityLiveRegion="polite" selectable style={[text.error, { color: colors.danger }]}>
+          {error}
+        </Text>
+      ) : null}
+    </ScrollView>
+  );
+}
+
+function GuestDetail({ id, preferDecide }: { id: string; preferDecide: boolean }) {
+  const colors = useHallColors();
+  const insets = useSafeAreaInsets();
+  const { loadGuestStay, loadAwaitingGuestStays, cancelGuestStay } = useSession();
   const back = useLeave();
   const [stay, setStay] = useState<GuestStay | null>(null);
+  const [waiting, setWaiting] = useState<GuestStayCard | null>(null);
   const [error, setError] = useState<string | null>(null);
   const pending = useRef(false);
   const alertAt = useRef(0);
 
   const load = useCallback(() => {
     let active = true;
-    void loadGuestStay(id).then((result) => {
+    void (async () => {
+      const showWaiting = (listed: { error: string | null; items?: GuestStayCard[] }) => {
+        const match = listed.error === null ? listed.items?.find((item) => item.id === id) : undefined;
+        if (!match) {
+          return false;
+        }
+        setWaiting(match);
+        setStay(null);
+        setError(null);
+        return true;
+      };
+      if (preferDecide) {
+        const listed = await loadAwaitingGuestStays();
+        if (!active) {
+          return;
+        }
+        if (listed.error !== null) {
+          setWaiting(null);
+          setStay(null);
+          setError(listed.error);
+          return;
+        }
+        if (showWaiting(listed)) {
+          return;
+        }
+      }
+      const result = await loadGuestStay(id);
       if (!active) {
         return;
       }
-      if (result.error !== null) {
-        setError(result.error);
+      if (result.error === null) {
+        setStay(result.stay);
+        setWaiting(null);
+        setError(null);
         return;
       }
-      setError(null);
-      setStay(result.stay);
-    });
+      if (!preferDecide) {
+        const listed = await loadAwaitingGuestStays();
+        if (!active) {
+          return;
+        }
+        if (showWaiting(listed)) {
+          return;
+        }
+        if (listed.error !== null) {
+          setWaiting(null);
+          setStay(null);
+          setError(listed.error);
+          return;
+        }
+      }
+      setWaiting(null);
+      setStay(null);
+      setError(result.error);
+    })();
     return () => {
       active = false;
     };
-  }, [id, loadGuestStay]);
+  }, [id, loadAwaitingGuestStays, loadGuestStay, preferDecide]);
 
   useFocusEffect(load);
 
@@ -442,6 +631,10 @@ function GuestDetail({ id }: { id: string }) {
     stay.arrivedAt === null &&
     (stay.status === "pending" || stay.status === "approved");
 
+  if (waiting) {
+    return <RoommateDecide card={waiting} onDone={back} />;
+  }
+
   if (stay?.status === "pending") {
     return <GuestForm existing={stay} />;
   }
@@ -467,6 +660,7 @@ function GuestDetail({ id }: { id: string }) {
           <Text style={[text.body, { color: colors.ink }]}>{stay.reason}</Text>
           <Text style={[text.body, { color: colors.ink }]}>{guestLine(stay)}</Text>
           <Text style={[text.body, { color: colors.ink }]}>{paymentLabel(stay.paymentStatus)}</Text>
+          <DecisionSummary stay={stay} />
           {stay.decisionNote ? (
             <Text style={[text.body, { color: colors.inkSoft }]}>{stay.decisionNote}</Text>
           ) : null}
@@ -487,10 +681,11 @@ function GuestDetail({ id }: { id: string }) {
 }
 
 export default function GuestScreen() {
-  const params = useLocalSearchParams<{ id?: string | string[] }>();
+  const params = useLocalSearchParams<{ id?: string | string[]; decide?: string | string[] }>();
   const id = paramText(params.id).trim();
+  const preferDecide = paramText(params.decide).trim() === "1";
   if (id.length > 0) {
-    return <GuestDetail id={id} />;
+    return <GuestDetail id={id} preferDecide={preferDecide} />;
   }
   return <GuestForm />;
 }
@@ -504,7 +699,28 @@ const styles = StyleSheet.create({
   },
   back: { alignSelf: "flex-start", minHeight: 44, flexDirection: "row", alignItems: "center", gap: 2, marginLeft: -6 },
   title: { textAlign: "left" },
+  titleFlex: { flex: 1 },
+  headingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
   block: { gap: 16 },
+  fact: { paddingVertical: 12, gap: 4 },
+  factLine: { flexDirection: "row", alignItems: "center", gap: 12 },
+  factValue: { flex: 1 },
+  decide: { flexDirection: "row", gap: 12 },
+  decideHalf: { flex: 1 },
+  ghost: {
+    flex: 1,
+    minHeight: 50,
+    borderRadius: 12,
+    borderCurve: "continuous",
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   dateField: { gap: 8 },
   datePress: { minHeight: 44, justifyContent: "center" },
   chip: {

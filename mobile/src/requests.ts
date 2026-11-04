@@ -26,6 +26,22 @@ export function guestLine(item: GuestStayCard): string {
   return "Departed";
 }
 
+/** Pill colour for a guest row. The word on the pill stays `guestLine`. */
+export function guestPillStatus(item: GuestStayCard): PermissionStatus {
+  switch (item.status) {
+    case "pending":
+      return "pending";
+    case "approved":
+      return "approved";
+    case "rejected":
+      return "rejected";
+    case "cancelled":
+      return "cancelled";
+    case "departed":
+      return "completed";
+  }
+}
+
 export function kindLabel(kind: HistoryKind): string {
   switch (kind) {
     case "late_night":

@@ -9,10 +9,11 @@ import { SkeletonRows } from "@/components/skeleton";
 import { PagedList } from "@/components/paged-list";
 import { PlainRow, RowHairline } from "@/components/plain-row";
 import { SectionHead } from "@/components/section-head";
+import { StatusPill } from "@/components/status-pill";
 import { useListPage } from "@/use-list-page";
 import { formatHallDate, formatWhenParts } from "@/format-when";
 import { olderAvailable } from "@/list-page";
-import { guestLine, statusSentence } from "@/requests";
+import { guestLine, guestPillStatus, statusSentence } from "@/requests";
 import { useSession, type GuestStayCard, type HallPermission, type PermissionKind } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
@@ -67,7 +68,7 @@ function soonestFirst(items: HallPermission[]): HallPermission[] {
   });
 }
 
-function GuestStayRow({ item, first }: { item: GuestStayCard; first: boolean }) {
+function GuestStayRow({ item, first, decide = false }: { item: GuestStayCard; first: boolean; decide?: boolean }) {
   const status = guestLine(item);
   const dates = `${formatHallDate(item.startDate)} to ${formatHallDate(item.endDate)}`;
   return (
@@ -75,9 +76,14 @@ function GuestStayRow({ item, first }: { item: GuestStayCard; first: boolean }) 
       {first ? null : <RowHairline />}
       <PlainRow
         title={item.guestName}
-        aside={status}
+        aside={<StatusPill status={guestPillStatus(item)} label={status} />}
         parts={[dates]}
-        onPress={() => router.push({ pathname: "/guest", params: { id: item.id } })}
+        onPress={() =>
+          router.push({
+            pathname: "/guest",
+            params: decide ? { id: item.id, decide: "1" } : { id: item.id },
+          })
+        }
         label={`${item.guestName}. ${status}. ${dates}`}
       />
     </View>
@@ -111,7 +117,7 @@ function PermissionRow({ item, first }: { item: HallPermission; first: boolean }
 export default function PermissionsScreen() {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
-  const { loadPermissions, loadGuestStays } = useSession();
+  const { loadPermissions, loadGuestStays, loadAwaitingGuestStays } = useSession();
   const [tab, setTab] = useState<RequestTab>("late_night");
   const measured = useRef({ content: 0, view: 0 });
   const permissions = useListPage<HallPermission>({
@@ -129,6 +135,14 @@ export default function PermissionsScreen() {
       return result.error !== null ? { error: result.error } : { items: result.items, total: result.total };
     },
   });
+  const awaiting = useListPage<GuestStayCard>({
+    auto: false,
+    idOf: (item) => item.id,
+    loadPage: async () => {
+      const result = await loadAwaitingGuestStays();
+      return result.error !== null ? { error: result.error } : { items: result.items, total: result.total };
+    },
+  });
   const older = useListPage<GuestStayCard>({
     auto: false,
     idOf: (item) => item.id,
@@ -141,14 +155,16 @@ export default function PermissionsScreen() {
   const load = useCallback(() => {
     permissions.load();
     stays.load();
-  }, [permissions.load, stays.load]);
+    awaiting.load();
+  }, [awaiting.load, permissions.load, stays.load]);
   const refresh = useCallback(() => {
     permissions.refresh();
     stays.refresh();
+    awaiting.refresh();
     if (older.rows !== null) {
       older.refresh();
     }
-  }, [older.refresh, older.rows, permissions.refresh, stays.refresh]);
+  }, [awaiting.refresh, older.refresh, older.rows, permissions.refresh, stays.refresh]);
   useFocusEffect(load);
 
   const openForm = (kind: PermissionKind) => {
@@ -160,10 +176,11 @@ export default function PermissionsScreen() {
     tab === "guest" ? [] : soonestFirst(permissionRows.filter((item) => item.permissionType === tab));
   const shownStays = tab !== "guest" ? [] : stayRows;
   const olderRows = tab === "guest" ? (older.rows ?? []) : [];
+  const awaitingRows = tab === "guest" ? (awaiting.rows ?? []) : [];
   const active = tab === "guest" ? stays : permissions;
   const shown = tab === "guest" ? shownStays : shownPermissions;
   const visible = active.rows === null ? null : shown;
-  const refreshing = permissions.refreshing || stays.refreshing || older.refreshing;
+  const refreshing = permissions.refreshing || stays.refreshing || awaiting.refreshing || older.refreshing;
   const emptyCopy =
     tab === "guest" ? "No upcoming guests" : tab === "home_going" ? "No home-going requests" : "No late-night requests";
   const emptyAction = tab === "guest" ? "Request guest stay" : tab === "home_going" ? "Request home going" : "Request late-night";
@@ -267,6 +284,23 @@ export default function PermissionsScreen() {
         onRetryPage={() => permissions.loadNext(true)}
         skeletonCount={3}
         skeletonKind="card"
+        header={
+          tab === "guest" && (awaitingRows.length > 0 || awaiting.error) ? (
+            <View>
+              {awaiting.error ? <ListError message={awaiting.error} onRetry={() => awaiting.load()} /> : null}
+              {awaitingRows.length > 0 ? (
+                <View style={styles.requests}>
+                  <SectionHead title="Waiting for you" padTop={0} />
+                  <View>
+                    {awaitingRows.map((item, index) => (
+                      <GuestStayRow key={item.id} item={item} first={index === 0} decide />
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+            </View>
+          ) : null
+        }
         empty={
           <EmptyState
             message={emptyCopy}
@@ -325,7 +359,7 @@ export default function PermissionsScreen() {
       >
         {shown.length > 0 ? (
           <View style={styles.requests}>
-            <SectionHead title="Your requests" padTop={0} />
+            <SectionHead title="Your requests" padTop={awaitingRows.length > 0 ? 24 : 0} />
             <View>
               {shownPermissions.map((item, index) => (
                 <PermissionRow key={item.id} item={item} first={index === 0} />
