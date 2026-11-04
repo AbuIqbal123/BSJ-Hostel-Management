@@ -206,7 +206,7 @@ def notices(path: Path, stay_id: str) -> list[list[str]]:
                 SELECT resident_id, kind, decision
                 FROM resident_notifications
                 WHERE record_id = ?
-                ORDER BY created_at, resident_id
+                ORDER BY resident_id, kind, decision
                 """,
                 (stay_id,),
             )
@@ -376,7 +376,10 @@ def test_roommate_lists_and_decides(database_path: Path, monkeypatch: pytest.Mon
         assert host_waiting.json()["roommate_approval_required"] is True
         assert host_waiting.json()["waiting_on_roommate"] is False
         assert host_waiting.json()["waiting_on_provost"] is True
-        assert notices(database_path, NEWEST) == []
+        assert notices(database_path, NEWEST) == [
+            [HOST_ID, "guest_stay_roommate_decided", "approved"],
+            [ROOMMATE_ID, "guest_stay_roommate_recorded", "approved"],
+        ]
         assert audit_actions(database_path, NEWEST) == []
         after = client.get(waiting, headers=auth(roommate)).json()
         assert [item["id"] for item in after["items"]] == [PROVOST_FIRST, REJECT_STAY]
@@ -441,7 +444,11 @@ def test_roommate_lists_and_decides(database_path: Path, monkeypatch: pytest.Mon
         assert host_approved.json()["roommate_approval_required"] is True
         assert host_approved.json()["waiting_on_roommate"] is False
         assert host_approved.json()["waiting_on_provost"] is False
-        assert notices(database_path, PROVOST_FIRST) == [[HOST_ID, "guest_stay_decided", "approved"]]
+        assert notices(database_path, PROVOST_FIRST) == [
+            [HOST_ID, "guest_stay_decided", "approved"],
+            [HOST_ID, "guest_stay_roommate_decided", "approved"],
+            [ROOMMATE_ID, "guest_stay_roommate_recorded", "approved"],
+        ]
         assert audit_actions(database_path, PROVOST_FIRST) == ["guest_stay.approved"]
 
         rejected = client.post(
@@ -471,7 +478,11 @@ def test_roommate_lists_and_decides(database_path: Path, monkeypatch: pytest.Mon
         assert host_rejected.json()["roommate_approval_required"] is True
         assert host_rejected.json()["waiting_on_roommate"] is False
         assert host_rejected.json()["waiting_on_provost"] is False
-        assert notices(database_path, REJECT_STAY) == [[HOST_ID, "guest_stay_decided", "rejected"]]
+        assert notices(database_path, REJECT_STAY) == [
+            [HOST_ID, "guest_stay_decided", "rejected"],
+            [HOST_ID, "guest_stay_roommate_decided", "rejected"],
+            [ROOMMATE_ID, "guest_stay_roommate_recorded", "rejected"],
+        ]
         assert audit_actions(database_path, REJECT_STAY) == ["guest_stay.rejected"]
         assert client.get(waiting, headers=auth(roommate)).json()["items"] == []
 

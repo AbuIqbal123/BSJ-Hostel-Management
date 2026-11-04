@@ -110,6 +110,11 @@ export type HallPassResult =
 
 export type HistoryKind = "late_night" | "home_going" | "guest_stay" | "outing";
 
+export type HistoryNoticeKind =
+  | "guest_stay_decided"
+  | "guest_stay_roommate_decided"
+  | "guest_stay_roommate_recorded";
+
 export type HistoryItem = {
   id: string;
   kind: HistoryKind;
@@ -120,6 +125,11 @@ export type HistoryItem = {
   exitRecordedBy: string | null;
   returnRecordedBy: string | null;
   unused: boolean;
+  noticeKind: HistoryNoticeKind | null;
+  hostName: string | null;
+  actorName: string | null;
+  decision: "approved" | "rejected" | null;
+  guestStayId: string | null;
 };
 
 export type HistoryResult =
@@ -554,6 +564,16 @@ function textOrNull(field: unknown): string | null {
 
 const HISTORY_KINDS = ["late_night", "home_going", "guest_stay", "outing"] as const;
 
+const HISTORY_NOTICES = [
+  "guest_stay_decided",
+  "guest_stay_roommate_decided",
+  "guest_stay_roommate_recorded",
+] as const;
+
+function historyNotice(value: unknown): HistoryNoticeKind | null {
+  return HISTORY_NOTICES.find((kind) => kind === value) ?? null;
+}
+
 function historyKind(value: unknown): HistoryKind | null {
   return HISTORY_KINDS.find((kind) => kind === value) ?? null;
 }
@@ -599,6 +619,11 @@ function readHistory(value: unknown): HistoryItem[] | null {
       exitRecordedBy: typeof item.exit_recorded_by === "string" ? item.exit_recorded_by : null,
       returnRecordedBy: typeof item.return_recorded_by === "string" ? item.return_recorded_by : null,
       unused: item.unused,
+      noticeKind: historyNotice(item.notice_kind),
+      hostName: textOrNull(item.host_name),
+      actorName: textOrNull(item.actor_name),
+      decision: item.decision === "approved" || item.decision === "rejected" ? item.decision : null,
+      guestStayId: textOrNull(item.guest_stay_id),
     });
   }
   return items;

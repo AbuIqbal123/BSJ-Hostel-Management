@@ -10,6 +10,9 @@ export function pushTarget(role: HallRole, data: PushData): string | null {
       case "permission_decided":
         return id ? `/permission?id=${id}` : null;
       case "guest_stay_decided":
+      case "guest_stay_roommate_requested":
+      case "guest_stay_roommate_decided":
+      case "guest_stay_roommate_recorded":
         return id ? `/guest?id=${id}` : null;
       case "resident_late":
       case "outing_ending":

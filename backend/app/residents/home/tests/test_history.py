@@ -62,6 +62,11 @@ def _row(
         "exit_recorded_by": exit_recorded_by,
         "return_recorded_by": return_recorded_by,
         "unused": unused,
+        "notice_kind": None,
+        "host_name": None,
+        "actor_name": None,
+        "decision": None,
+        "guest_stay_id": None,
     }
 
 

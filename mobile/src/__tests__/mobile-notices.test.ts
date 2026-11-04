@@ -124,6 +124,53 @@ describe("readNoticePage", () => {
     expect(page.items[1]?.status).toBe("Back");
     expect(page.items[1]?.target).toBe("/pass");
   });
+
+  it("reads a roommate request, her decision, and the host's notice", () => {
+    const page = readNoticePage(
+      {
+        items: [
+          {
+            id: "ask",
+            kind: "guest_stay_roommate_requested",
+            guest_name: "Noor Khan",
+            guest_start_date: "2026-10-02",
+            guest_end_date: "2026-10-04",
+            host_name: "Aisha Khan",
+            occurred_at: when,
+            unread: true,
+            needs_action: true,
+            record_id: "stay",
+          },
+          {
+            id: "host",
+            kind: "guest_stay_roommate_decided",
+            outcome: "declined",
+            actor_name: "Zaynab Ali",
+            guest_name: "Noor Khan",
+            guest_start_date: "2026-10-02",
+            guest_end_date: "2026-10-04",
+            occurred_at: when,
+            record_id: "stay",
+          },
+          {
+            id: "own",
+            kind: "guest_stay_roommate_recorded",
+            outcome: "approved",
+            host_name: "Aisha Khan",
+            guest_name: "Noor Khan",
+            occurred_at: when,
+            record_id: "stay",
+          },
+        ],
+      },
+      "resident",
+    );
+    expect(page.items[0]?.title).toBe("Your roommate has requested a guest stay");
+    expect(page.items[0]?.detail).toBe("Noor Khan, 02 October 2026 to 04 October 2026");
+    expect(page.items[0]?.target).toBe("/guest?id=stay");
+    expect(page.items[1]?.title).toBe("Your roommate Zaynab Ali declined the guest stay");
+    expect(page.items[2]?.title).toBe("You approved Aisha Khan's guest stay");
+  });
 });
 
 describe("readUnreadCount", () => {

@@ -17,6 +17,7 @@ from app.shared.db import hall_settings
 from app.residents.outings.usable import find_usable_outing
 from app.shared.inbox import decode_cursor, encode_cursor
 from app.residents.outings.records import OutingBody, UpcomingOuting, expire_passed_plans, load_current_outing, load_upcoming_outings, ordinary_window_is_open
+from app.residents.notifications.records import guest_stay_history_lines
 from app.residents.permissions.records import PermissionBody, expire_passed_permissions, permission_from_row
 
 router = APIRouter(prefix="/api/v1", tags=["Resident"])
@@ -46,6 +47,15 @@ class HistoryItem(BaseModel):
     exit_recorded_by: str | None
     return_recorded_by: str | None
     unused: bool
+    notice_kind: Literal[
+        "guest_stay_decided",
+        "guest_stay_roommate_decided",
+        "guest_stay_roommate_recorded",
+    ] | None = None
+    host_name: str | None = None
+    actor_name: str | None = None
+    decision: Literal["approved", "rejected"] | None = None
+    guest_stay_id: str | None = None
 
 
 class HistoryList(BaseModel):
@@ -418,6 +428,25 @@ def _history_items(
                 exit_recorded_by=None,
                 return_recorded_by=None,
                 unused=row["status"] != "departed",
+            )
+        )
+    for line in guest_stay_history_lines(connection, resident_id):
+        items.append(
+            HistoryItem(
+                id=line.id,
+                kind="guest_stay",
+                place=None,
+                who=line.guest_name,
+                started_at=_hall_instant(line.guest_start_date, end=False),
+                ended_at=_hall_instant(line.guest_end_date, end=True),
+                exit_recorded_by=None,
+                return_recorded_by=None,
+                unused=False,
+                notice_kind=line.notice_kind,
+                host_name=line.host_name,
+                actor_name=line.actor_name,
+                decision=line.decision,
+                guest_stay_id=line.guest_stay_id,
             )
         )
     items.sort(key=lambda item: (item.ended_at, item.id), reverse=True)

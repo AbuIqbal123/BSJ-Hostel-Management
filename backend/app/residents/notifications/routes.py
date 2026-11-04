@@ -30,7 +30,14 @@ router = APIRouter(prefix="/api/v1", tags=["Resident"])
 class ResidentNotification(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: str
-    kind: Literal["permission_decided", "guest_stay_decided", "resident_late"]
+    kind: Literal[
+        "permission_decided",
+        "guest_stay_decided",
+        "resident_late",
+        "guest_stay_roommate_requested",
+        "guest_stay_roommate_decided",
+        "guest_stay_roommate_recorded",
+    ]
     record_id: str
     occurred_at: str
     read_at: str | None
@@ -41,6 +48,10 @@ class ResidentNotification(BaseModel):
     decided_by_name: str | None
     place: str | None
     guest_name: str | None
+    guest_start_date: str | None
+    guest_end_date: str | None
+    host_name: str | None
+    actor_name: str | None
     permission_id: str | None
     permission_type: Literal["late_night", "home_going"] | None
     decision: Literal["approved", "rejected"] | None
@@ -56,7 +67,27 @@ class ResidentNotificationPage(BaseModel):
     next_cursor: str | None
 
 
-_SELECT = """
+_GUEST_KINDS = (
+    "guest_stay_decided",
+    "guest_stay_roommate_requested",
+    "guest_stay_roommate_decided",
+    "guest_stay_roommate_recorded",
+)
+
+_OPEN_REQUEST = """
+(
+  notes.kind = 'guest_stay_roommate_requested'
+  AND guest_stays.status = 'pending'
+  AND NOT EXISTS (
+    SELECT 1 FROM guest_stay_decisions AS open_decision
+    WHERE open_decision.guest_stay_id = notes.record_id
+      AND open_decision.actor_user_id = notes.resident_id
+      AND open_decision.role = 'roommate'
+  )
+)
+"""
+
+_SELECT = f"""
 SELECT
   notes.id, notes.kind, notes.record_id, notes.decision, notes.created_at, notes.read_at,
   permissions.type AS permission_type,
@@ -64,20 +95,30 @@ SELECT
   COALESCE(permissions.short_place, outings.place) AS place,
   COALESCE(permissions.expected_return_at, outings.expected_return_at) AS expected_return_at,
   guest_stays.guest_name,
+  guest_stays.guest_start_date,
+  guest_stays.guest_end_date,
+  host_user.full_name AS host_name,
+  CASE WHEN notes.kind = 'guest_stay_roommate_decided' THEN decider.full_name END AS actor_name,
   outings.status AS outing_status,
   CASE notes.kind
     WHEN 'permission_decided' THEN permissions.decided_at
     WHEN 'guest_stay_decided' THEN guest_stays.decided_at
+    WHEN 'guest_stay_roommate_decided' THEN notes.created_at
+    WHEN 'guest_stay_roommate_recorded' THEN notes.created_at
     ELSE outings.returned_at
   END AS decided_at,
-  decider.full_name AS decided_by_name
+  decider.full_name AS decided_by_name,
+  {_OPEN_REQUEST} AS request_open
 FROM resident_notifications AS notes
 LEFT JOIN permissions ON notes.kind = 'permission_decided' AND permissions.id = notes.record_id
-LEFT JOIN guest_stays ON notes.kind = 'guest_stay_decided' AND guest_stays.id = notes.record_id
+LEFT JOIN guest_stays ON notes.kind IN ({", ".join(f"'{kind}'" for kind in _GUEST_KINDS)})
+  AND guest_stays.id = notes.record_id
+LEFT JOIN users AS host_user ON host_user.id = guest_stays.host_resident_id
 LEFT JOIN outings ON notes.kind = 'resident_late' AND outings.id = notes.record_id
 LEFT JOIN users AS decider ON decider.id = CASE notes.kind
     WHEN 'permission_decided' THEN permissions.decided_by
     WHEN 'guest_stay_decided' THEN guest_stays.decided_by
+    WHEN 'guest_stay_roommate_decided' THEN notes.actor_user_id
     ELSE outings.return_recorded_by
   END
 """
@@ -87,6 +128,8 @@ def _item(row) -> ResidentNotification:
     late = row["kind"] == "resident_late"
     if late:
         outcome = "returned" if row["outing_status"] == "returned" else None
+    elif row["decision"] is None:
+        outcome = None
     else:
         outcome = "approved" if row["decision"] == "approved" else "declined"
     is_permission = row["kind"] == "permission_decided"
@@ -97,12 +140,16 @@ def _item(row) -> ResidentNotification:
         occurred_at=row["created_at"],
         read_at=row["read_at"],
         unread=row["read_at"] is None,
-        needs_action=late and row["outing_status"] == "outside",
+        needs_action=(late and row["outing_status"] == "outside") or bool(row["request_open"]),
         outcome=outcome,
         decided_at=row["decided_at"] if outcome else None,
         decided_by_name=row["decided_by_name"] if outcome else None,
         place=row["place"],
         guest_name=row["guest_name"],
+        guest_start_date=row["guest_start_date"],
+        guest_end_date=row["guest_end_date"],
+        host_name=row["host_name"],
+        actor_name=row["actor_name"],
         permission_id=row["record_id"] if is_permission else None,
         permission_type=row["permission_type"] if is_permission else None,
         decision=row["decision"],
@@ -132,7 +179,9 @@ def list_notifications(
     if filter == "unread":
         where.append("notes.read_at IS NULL")
     elif filter == "needs_action":
-        where.append("notes.kind = 'resident_late' AND outings.status = 'outside'")
+        where.append(
+            f"(notes.kind = 'resident_late' AND outings.status = 'outside') OR {_OPEN_REQUEST}"
+        )
     if cursor:
         at, item_id = decode_cursor(cursor)
         where.append(

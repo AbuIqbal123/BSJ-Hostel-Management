@@ -992,10 +992,12 @@ Body: [ErrorResponse](#schema-errorresponse).
 **Who.** resident. Bearer access token.
 
 Caller: resident. Rows written for her when the provost
-approved or declined her permission or guest stay, and when an
-outing of hers passed grace while she was out (`resident_late`, once
-per outing). Only the last 90 days are listed; the records
-themselves are permanent and stay in GET /api/v1/me/history.
+approved or declined her permission or guest stay, when a roommate
+is asked to decide a guest stay, when that roommate decides, and
+when an outing of hers passed grace while she was out
+(`resident_late`, once per outing). Only the last 90 days are
+listed; the records themselves are permanent and the decision rows
+also stay in GET /api/v1/me/history.
 Ordered by (`occurred_at`, `id`) descending. Reading does not mark
 anything read.
 
@@ -1038,6 +1040,10 @@ Body: [ResidentNotificationPage](#schema-residentnotificationpage).
       "decided_by_name": "Sara Malik",
       "place": "Women's College",
       "guest_name": null,
+      "guest_start_date": null,
+      "guest_end_date": null,
+      "host_name": null,
+      "actor_name": null,
       "permission_id": "00000000-0000-4000-8000-0000000000b1",
       "permission_type": "late_night",
       "decision": "approved",
@@ -1373,6 +1379,17 @@ arrival (`unused` true), or when it was approved and then departed
 the start of `guest_start_date` and the end of `guest_end_date` in
 Asia/Kolkata. Pending stays, stays still inside the window, and an
 arrived stay that has not departed are not rows.
+
+A guest-stay decision is its own row as soon as it is recorded, even
+while the stay is still pending. `notice_kind` names it:
+`guest_stay_roommate_decided` (the host, one row per roommate),
+`guest_stay_roommate_recorded` (the roommate who decided), or
+`guest_stay_decided` (the provost's approval or rejection, unchanged).
+`who` is still the guest name. `guest_stay_id` is the stay that line
+opens. `host_name` is the host. `actor_name` is the roommate, or the
+provost on `guest_stay_decided`. `decision` is `approved` or
+`rejected`. `started_at` and `ended_at` are that stay's dates. Other
+rows leave those fields null.
 
 `who` is the guest name for a guest stay and null otherwise. `place`
 is null when the record has nowhere (a guest stay). `exit_recorded_by`
@@ -6668,17 +6685,21 @@ One of: `ordinary`, `late_night`, `home_going`.
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `id` | yes | uuid |  |
-| `kind` | yes | `permission_decided` or `guest_stay_decided` or `resident_late` |  |
+| `kind` | yes | `permission_decided` or `guest_stay_decided` or `resident_late` or `guest_stay_roommate_requested` or `guest_stay_roommate_decided` or `guest_stay_roommate_recorded` |  |
 | `record_id` | yes | uuid | The permission, guest stay, or outing. |
 | `occurred_at` | yes | string | When the row was written. |
 | `read_at` | yes | string or null |  |
 | `unread` | yes | boolean | Same as `read_at` being null. Kept for older clients. |
-| `needs_action` | yes | boolean | True for `resident_late` while she is still out. |
+| `needs_action` | yes | boolean | True for `resident_late` while she is still out, and for `guest_stay_roommate_requested` while that stay is still pending and she has not decided. |
 | `outcome` | yes | `approved` or `declined` or `returned` or `None` | The decision, or `returned` on a late row once she is back. Null while she is still out. |
 | `decided_at` | yes | string or null |  |
 | `decided_by_name` | yes | string or null | The provost who decided, or the gate staff who recorded her return. |
 | `place` | yes | string or null | Permission short place or outing place. Null for a guest stay. |
-| `guest_name` | yes | string or null | Set only for `guest_stay_decided`. |
+| `guest_name` | yes | string or null | Set for a guest-stay notice. |
+| `guest_start_date` | yes | string or null | Set for a guest-stay notice. The quieter line uses this with `guest_end_date`. |
+| `guest_end_date` | yes | string or null | Set for a guest-stay notice. |
+| `host_name` | yes | string or null | The host's display name on a guest-stay notice. |
+| `actor_name` | yes | string or null | The roommate who decided, on `guest_stay_roommate_decided`. Null on every other kind. |
 | `permission_id` | yes | string or null | Set only for `permission_decided`. Kept for older clients. |
 | `permission_type` | yes | `late_night` or `home_going` or `None` |  |
 | `decision` | yes | `approved` or `rejected` or `None` | Stored decision word. Kept for older clients; prefer `outcome`. |
@@ -6742,7 +6763,12 @@ One of: `ordinary`, `late_night`, `home_going`.
 | `ended_at` | yes | date-time | Outing: planned return when unused, gate return when finished. Permission: expected_return_at. Guest stay: end of guest_end_date in Asia/Kolkata (23:59:59). |
 | `exit_recorded_by` | yes | string or null | Display name of the staff member who recorded the gate exit. Null when there was no gate exit, including every unused row and every guest stay. |
 | `return_recorded_by` | yes | string or null | Display name of the staff member who recorded the gate return. Null when there was no gate return, including every unused row and every guest stay. |
-| `unused` | yes | boolean | True when an approved window or planned outing ended without use. False when the outing has both a gate exit and a gate return, the permission status is completed, or the guest stay status is departed. |
+| `unused` | yes | boolean | True when an approved window or planned outing ended without use. False when the outing has both a gate exit and a gate return, the permission status is completed, or the guest stay status is departed. False on a decision line. |
+| `notice_kind` | yes | `guest_stay_decided` or `guest_stay_roommate_decided` or `guest_stay_roommate_recorded` or `None` | Set on a guest-stay decision line. Null on an outing, a permission, and the guest stay's own finished or unused row. |
+| `host_name` | yes | string or null | The host's display name on a decision line. Null otherwise. |
+| `actor_name` | yes | string or null | The roommate on `guest_stay_roommate_decided`, or the provost on `guest_stay_decided`. Null otherwise. |
+| `decision` | yes | `approved` or `rejected` or `None` | The stored decision on a decision line. Null otherwise. |
+| `guest_stay_id` | yes | string or null | The guest stay a decision line opens. Null on every other row, whose `id` is already that record. |
 
 ### <a id="schema-historylist"></a>HistoryList
 

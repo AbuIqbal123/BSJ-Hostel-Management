@@ -31,8 +31,9 @@ from app.residents.guests.records import (
 from app.residents.home.routes import ResidentDep
 from app.residents.notifications.records import (
     record_decision,
+    record_roommate_decision,
+    record_roommate_requests,
     request_push,
-    roommate_request_push,
 )
 from app.shared import clock, push
 from app.shared.auth.routes import ConnectionDep
@@ -207,13 +208,15 @@ def submit_guest_stay(
     roommates = active_roommate_user_ids(connection, account.id)
     if roommates:
         jobs.append(
-            roommate_request_push(
+            record_roommate_requests(
+                connection,
                 record_id=stay_id,
                 host_resident_id=account.id,
                 roommate_user_ids=roommates,
                 guest_name=guest_name,
                 guest_start_date=start,
                 guest_end_date=end,
+                now_text=now_text,
             )
         )
     background_tasks.add_task(push.dispatch, jobs)
@@ -472,9 +475,17 @@ def decide_guest_stay_as_roommate(
     now_text = clock.format_instant(clock.utc_now())
     existing = connection.execute(
         """
-        SELECT id, status, host_resident_id, guest_name
+        SELECT
+          guest_stays.id,
+          guest_stays.status,
+          guest_stays.host_resident_id,
+          guest_stays.guest_name,
+          guest_stays.guest_start_date,
+          guest_stays.guest_end_date,
+          host.full_name AS host_name
         FROM guest_stays
-        WHERE id = ?
+        JOIN users AS host ON host.id = guest_stays.host_resident_id
+        WHERE guest_stays.id = ?
         """,
         (guest_stay_id,),
     ).fetchone()
@@ -501,6 +512,19 @@ def decide_guest_stay_as_roommate(
         raise ApiError(409, "not_pending", _pending_message(existing["status"])) from exc
     except DuplicateDecisionError as exc:
         raise ApiError(409, "already_decided", str(exc)) from exc
+    jobs = record_roommate_decision(
+        connection,
+        record_id=guest_stay_id,
+        host_resident_id=existing["host_resident_id"],
+        host_name=existing["host_name"],
+        actor_user_id=account.id,
+        actor_name=account.full_name,
+        decision=body.decision,
+        guest_name=existing["guest_name"],
+        guest_start_date=existing["guest_start_date"],
+        guest_end_date=existing["guest_end_date"],
+        now_text=now_text,
+    )
     if status in {"approved", "rejected"}:
         verb = "approved" if status == "approved" else "rejected"
         record_guest_stay(
@@ -511,18 +535,20 @@ def decide_guest_stay_as_roommate(
             guest_stay_id,
             f"{account.full_name} {verb} a guest stay for {existing['guest_name']}.",
         )
-        job = record_decision(
-            connection,
-            kind="guest_stay_decided",
-            record_id=guest_stay_id,
-            resident_id=existing["host_resident_id"],
-            decision=status,
-            now_text=now_text,
-            what=f"guest stay for {existing['guest_name']}",
-            noun="guest stay",
-            by_name=_settled_by_name(connection, guest_stay_id, account.full_name, status),
+        jobs.append(
+            record_decision(
+                connection,
+                kind="guest_stay_decided",
+                record_id=guest_stay_id,
+                resident_id=existing["host_resident_id"],
+                decision=status,
+                now_text=now_text,
+                what=f"guest stay for {existing['guest_name']}",
+                noun="guest stay",
+                by_name=_settled_by_name(connection, guest_stay_id, account.full_name, status),
+            )
         )
-        background_tasks.add_task(push.dispatch, [job])
+    background_tasks.add_task(push.dispatch, jobs)
     today = clock.hall_local_date(clock.utc_now())
     stay = load_guest_stay(connection, guest_stay_id, today=today)
     assert stay is not None

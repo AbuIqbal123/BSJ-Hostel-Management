@@ -1,4 +1,4 @@
-import { formatWhenParts } from "@/format-when";
+import { formatHallDate, formatWhenParts } from "@/format-when";
 import { isRecord } from "@/json";
 import { pushTarget } from "@/push-target";
 import type { HallRole } from "@/session";
@@ -73,13 +73,44 @@ function staffCard(item: Json, role: HallRole): Notice | null {
   };
 }
 
+/** Inbox and History sentences for a guest stay. No full stop. */
+export function guestStayNoticeTitle(input: {
+  kind: string;
+  outcome: "approved" | "declined" | null;
+  hostName?: string;
+  actorName?: string;
+}): string | null {
+  const word = input.outcome === "approved" ? "approved" : "declined";
+  const host = input.hostName?.trim() ?? "";
+  const actor = input.actorName?.trim() ?? "";
+  switch (input.kind) {
+    case "guest_stay_decided":
+      return `Your guest stay was ${word}`;
+    case "guest_stay_roommate_requested":
+      return "Your roommate has requested a guest stay";
+    case "guest_stay_roommate_decided":
+      return actor ? `Your roommate ${actor} ${word} the guest stay` : null;
+    case "guest_stay_roommate_recorded":
+      return host ? `You ${word} ${host}'s guest stay` : null;
+    default:
+      return null;
+  }
+}
+
 function residentTitle(item: Json): string | null {
   const word = item.outcome === "approved" ? "approved" : "declined";
+  const guest = guestStayNoticeTitle({
+    kind: str(item.kind),
+    outcome: item.outcome === "approved" || item.outcome === "declined" ? item.outcome : null,
+    hostName: str(item.host_name),
+    actorName: str(item.actor_name),
+  });
+  if (guest) {
+    return guest;
+  }
   switch (item.kind) {
     case "permission_decided":
       return `Your permission was ${word}`;
-    case "guest_stay_decided":
-      return `Your guest stay was ${word}`;
     case "resident_late":
       return item.outcome === "returned" ? "You were late back" : "You are late back";
     default:
@@ -87,12 +118,20 @@ function residentTitle(item: Json): string | null {
   }
 }
 
+function guestQuieter(item: Json): string {
+  const name = str(item.guest_name);
+  const start = str(item.guest_start_date);
+  const end = str(item.guest_end_date);
+  const dates = start && end ? `${formatHallDate(start)} to ${formatHallDate(end)}` : "";
+  return [name, dates].filter(Boolean).join(", ");
+}
+
 function residentCard(item: Json): Notice | null {
   const title = residentTitle(item);
   if (!title || !str(item.id)) {
     return null;
   }
-  const what = item.kind === "guest_stay_decided" ? str(item.guest_name) : str(item.place);
+  const what = str(item.kind).startsWith("guest_stay") ? guestQuieter(item) : str(item.place);
   const by = str(item.decided_by_name).trim();
   return {
     id: str(item.id),

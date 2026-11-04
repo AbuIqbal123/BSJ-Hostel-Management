@@ -602,10 +602,12 @@ paths:
       summary: Her inbox, newest first, one page
       description: |
         Caller: resident. Rows written for her when the provost
-        approved or declined her permission or guest stay, and when an
-        outing of hers passed grace while she was out (`resident_late`, once
-        per outing). Only the last 90 days are listed; the records
-        themselves are permanent and stay in GET /api/v1/me/history.
+        approved or declined her permission or guest stay, when a roommate
+        is asked to decide a guest stay, when that roommate decides, and
+        when an outing of hers passed grace while she was out
+        (`resident_late`, once per outing). Only the last 90 days are
+        listed; the records themselves are permanent and the decision rows
+        also stay in GET /api/v1/me/history.
         Ordered by (`occurred_at`, `id`) descending. Reading does not mark
         anything read.
       parameters:
@@ -650,6 +652,10 @@ paths:
                     decided_by_name: Sara Malik
                     place: Women's College
                     guest_name: null
+                    guest_start_date: null
+                    guest_end_date: null
+                    host_name: null
+                    actor_name: null
                     permission_id: 00000000-0000-4000-8000-0000000000b1
                     permission_type: late_night
                     decision: approved
@@ -867,6 +873,17 @@ paths:
         the start of `guest_start_date` and the end of `guest_end_date` in
         Asia/Kolkata. Pending stays, stays still inside the window, and an
         arrived stay that has not departed are not rows.
+
+        A guest-stay decision is its own row as soon as it is recorded, even
+        while the stay is still pending. `notice_kind` names it:
+        `guest_stay_roommate_decided` (the host, one row per roommate),
+        `guest_stay_roommate_recorded` (the roommate who decided), or
+        `guest_stay_decided` (the provost's approval or rejection, unchanged).
+        `who` is still the guest name. `guest_stay_id` is the stay that line
+        opens. `host_name` is the host. `actor_name` is the roommate, or the
+        provost on `guest_stay_decided`. `decision` is `approved` or
+        `rejected`. `started_at` and `ended_at` are that stay's dates. Other
+        rows leave those fields null.
 
         `who` is the guest name for a guest stay and null otherwise. `place`
         is null when the record has nowhere (a guest stay). `exit_recorded_by`
@@ -4473,14 +4490,20 @@ components:
     ResidentNotification:
       type: object
       additionalProperties: false
-      required: [id, kind, record_id, occurred_at, read_at, unread, needs_action, outcome, decided_at, decided_by_name, place, guest_name, permission_id, permission_type, decision, departure_at, expected_return_at, decided_by, created_at]
+      required: [id, kind, record_id, occurred_at, read_at, unread, needs_action, outcome, decided_at, decided_by_name, place, guest_name, guest_start_date, guest_end_date, host_name, actor_name, permission_id, permission_type, decision, departure_at, expected_return_at, decided_by, created_at]
       properties:
         id:
           type: string
           format: uuid
         kind:
           type: string
-          enum: [permission_decided, guest_stay_decided, resident_late]
+          enum:
+            - permission_decided
+            - guest_stay_decided
+            - resident_late
+            - guest_stay_roommate_requested
+            - guest_stay_roommate_decided
+            - guest_stay_roommate_recorded
         record_id:
           type: string
           format: uuid
@@ -4495,7 +4518,10 @@ components:
           description: Same as `read_at` being null. Kept for older clients.
         needs_action:
           type: boolean
-          description: True for `resident_late` while she is still out.
+          description: |
+            True for `resident_late` while she is still out, and for
+            `guest_stay_roommate_requested` while that stay is still pending
+            and she has not decided.
         outcome:
           type: [string, "null"]
           enum: [approved, declined, returned, null]
@@ -4510,7 +4536,23 @@ components:
           description: Permission short place or outing place. Null for a guest stay.
         guest_name:
           type: [string, "null"]
-          description: Set only for `guest_stay_decided`.
+          description: Set for a guest-stay notice.
+        guest_start_date:
+          type: [string, "null"]
+          format: date
+          description: Set for a guest-stay notice. The quieter line uses this with `guest_end_date`.
+        guest_end_date:
+          type: [string, "null"]
+          format: date
+          description: Set for a guest-stay notice.
+        host_name:
+          type: [string, "null"]
+          description: The host's display name on a guest-stay notice.
+        actor_name:
+          type: [string, "null"]
+          description: |
+            The roommate who decided, on `guest_stay_roommate_decided`.
+            Null on every other kind.
         permission_id:
           type: [string, "null"]
           description: Set only for `permission_decided`. Kept for older clients.
@@ -4681,6 +4723,11 @@ components:
         - exit_recorded_by
         - return_recorded_by
         - unused
+        - notice_kind
+        - host_name
+        - actor_name
+        - decision
+        - guest_stay_id
       properties:
         id:
           type: string
@@ -4734,6 +4781,35 @@ components:
             True when an approved window or planned outing ended without use.
             False when the outing has both a gate exit and a gate return, the
             permission status is completed, or the guest stay status is departed.
+            False on a decision line.
+        notice_kind:
+          type: [string, "null"]
+          enum:
+            - guest_stay_decided
+            - guest_stay_roommate_decided
+            - guest_stay_roommate_recorded
+            - null
+          description: |
+            Set on a guest-stay decision line. Null on an outing, a permission,
+            and the guest stay's own finished or unused row.
+        host_name:
+          type: [string, "null"]
+          description: The host's display name on a decision line. Null otherwise.
+        actor_name:
+          type: [string, "null"]
+          description: |
+            The roommate on `guest_stay_roommate_decided`, or the provost on
+            `guest_stay_decided`. Null otherwise.
+        decision:
+          type: [string, "null"]
+          enum: [approved, rejected, null]
+          description: The stored decision on a decision line. Null otherwise.
+        guest_stay_id:
+          type: [string, "null"]
+          format: uuid
+          description: |
+            The guest stay a decision line opens. Null on every other row,
+            whose `id` is already that record.
 
     HistoryList:
       type: object

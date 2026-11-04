@@ -10,6 +10,7 @@ import { DayRange, type DayRangeValue } from "@/components/day-range";
 import { PlainRow, RowHairline } from "@/components/plain-row";
 import { formatSpan } from "@/format-when";
 import { historyPartsLayout } from "@/row-layout";
+import { guestStayNoticeTitle } from "@/notices";
 import { kindLabel } from "@/requests";
 import { useSession, type HistoryItem, type HistoryKind } from "@/session";
 import { useListPage } from "@/use-list-page";
@@ -43,7 +44,7 @@ function recordedLine(item: HistoryItem): string | null {
 
 function openHistory(item: HistoryItem) {
   if (item.kind === "guest_stay") {
-    router.push({ pathname: "/guest", params: { id: item.id } });
+    router.push({ pathname: "/guest", params: { id: item.guestStayId ?? item.id } });
     return;
   }
   if (item.kind === "late_night" || item.kind === "home_going") {
@@ -63,25 +64,46 @@ function openHistory(item: HistoryItem) {
   });
 }
 
+function decisionTitle(item: HistoryItem): string | null {
+  if (!item.noticeKind) {
+    return null;
+  }
+  const outcome = item.decision === "approved" ? "approved" : item.decision === "rejected" ? "declined" : null;
+  return guestStayNoticeTitle({
+    kind: item.noticeKind,
+    outcome,
+    hostName: item.hostName ?? "",
+    actorName: item.actorName ?? "",
+  });
+}
+
 function HistoryRow({ item, first }: { item: HistoryItem; first: boolean }) {
   const { fontScale } = useWindowDimensions();
-  const title = item.who ?? item.place ?? kindLabel(item.kind);
+  const sentence = decisionTitle(item);
+  const title = sentence ?? item.who ?? item.place ?? kindLabel(item.kind);
   const recorded = recordedLine(item);
   const when = whenLine(item);
   const dateLayout = historyPartsLayout(when, fontScale);
+  const parts = sentence
+    ? [item.who, when].filter((part): part is string => part !== null && part.length > 0)
+    : item.unused
+      ? [when, "Unused"]
+      : [when];
   return (
     <View>
       {first ? null : <RowHairline />}
       <PlainRow
         title={title}
         aside={kindLabel(item.kind)}
-        parts={item.unused ? [when, "Unused"] : [when]}
+        parts={parts}
         keepParts={dateLayout.keepParts}
         wrapLines={dateLayout.wrapLines}
         extra={recorded}
         mutedExtra
         onPress={() => openHistory(item)}
-        label={[kindLabel(item.kind), when, item.unused ? "Unused" : null, recorded].filter(Boolean).join(", ")}
+        label={[sentence ?? kindLabel(item.kind), item.who, when, item.unused ? "Unused" : null, recorded]
+          .filter(Boolean)
+          .join(", ")}
       />
     </View>
   );

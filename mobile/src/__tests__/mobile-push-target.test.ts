@@ -8,6 +8,12 @@ describe("pushTarget", () => {
       "/permission?id=perm%201",
     );
     expect(pushTarget("resident", { kind: "guest_stay_decided", record_id: "stay" })).toBe("/guest?id=stay");
+    expect(pushTarget("resident", { kind: "guest_stay_roommate_requested", record_id: "stay" })).toBe(
+      "/guest?id=stay",
+    );
+    expect(pushTarget("resident", { kind: "guest_stay_roommate_recorded", record_id: "stay" })).toBe(
+      "/guest?id=stay",
+    );
     expect(pushTarget("resident", { kind: "resident_late", record_id: "outing" })).toBe("/pass");
     expect(pushTarget("resident", { kind: "outing_ending", record_id: "outing" })).toBe("/pass");
   });

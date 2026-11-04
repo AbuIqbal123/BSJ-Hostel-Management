@@ -10,7 +10,7 @@ The resident inbox on the phone. Each row is one sentence from this table, then 
 
 The quieter line is the short place, then the leave and return. Home going and a guest stay use the dates. Late-night and an ordinary outing use the time, then the date. A guest line uses the guest's name instead of a place.
 
-Written into the inbox today: the four permission decisions, the two guest-stay decisions, and "She has not returned by the time she was due" (once per outing). Each of these also goes to her phone as a push whose body is the sentence. The others are the sentences for when that notice is added. Her own submit, edit, plan, and cancel do not notify her. A request that is still waiting, and a trip she is still on, do not notify her.
+Written into the inbox today: the four permission decisions, the two guest-stay decisions, a roommate's request to decide a guest stay, that roommate's own record of her yes or no, the host's notice of that yes or no, and "She has not returned by the time she was due" (once per outing). Each of these also goes to her phone as a push whose body is the sentence. The others are the sentences for when that notice is added. Her own submit, edit, plan, and cancel do not notify her. A request that is still waiting, and a trip she is still on, do not notify her. The roommate's own decision and the host's notice of it also stay on History, with the same sentence and the same quieter line. The provost's approval and rejection lines stay as they are.
 
 The phone also keeps its own return reminder, 15 minutes before she is due back. The hall does not send that one. While she is out, only that outing is reminded. Otherwise each ordinary plan and each approved late-night permission has its own reminder, from the moment the permission is approved. An ordinary plan that overlaps an approved permission is dropped, because the gate uses the permission. Home-going has no return reminder. The hall clock is fixed at UTC+5:30, so there is no daylight-saving change. One known limit: a reminder still fires if she returns early or does not use the outing. The phone drops it on the next Home load. Settings shows "Notifications are off" and "Turn on in Settings" when a resident, warden, or provost has denied notification permission. Gate accounts are not asked. Android hides that row while push is switched off, so a phone without Firebase never sees it.
 
@@ -27,6 +27,11 @@ The phone also keeps its own return reminder, 15 minutes before she is due back.
 | She has not returned by the time she was due | You have not returned by the time you were due | Place, then the time she was due |
 | A guest stay is approved | Your guest stay has been approved by {name} | Guest name, then the dates |
 | A guest stay is rejected | Your guest stay has been rejected by {name} | Guest name, then the dates |
+| A roommate is asked to decide a guest stay | Your roommate has requested a guest stay | Guest name, then the dates |
+| A roommate approves the host's guest stay | Your roommate {name} approved the guest stay | Guest name, then the dates |
+| A roommate declines the host's guest stay | Your roommate {name} declined the guest stay | Guest name, then the dates |
+| She approves the host's guest stay | You approved {name}'s guest stay | Guest name, then the dates |
+| She declines the host's guest stay | You declined {name}'s guest stay | Guest name, then the dates |
 | A guest is marked paid | Your guest stay has been marked paid by {name} | Guest name, then the dates |
 | The gate records a guest's arrival | Your guest has arrived, recorded by {name} | Guest name, then the time |
 | The gate records a guest's departure | Your guest has left, recorded by {name} | Guest name, then the time |
