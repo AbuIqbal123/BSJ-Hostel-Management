@@ -1,0 +1,4 @@
+# Firebase Android client API key in google-services.json (gcp-api-key).
+# This key is shipped in the APK by design and is restricted to package
+# com.abuiqbal.bsjhall; the FCM service account stays out of the repo.
+mobile/google-services.json:gcp-api-key:18
