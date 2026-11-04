@@ -120,6 +120,34 @@ def test_ready_uses_turso_and_does_not_create_a_file(
     assert not hosted_env.exists()
 
 
+def test_fly_uses_turso_like_render(
+    hosted_env: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Fly sets FLY_APP_NAME instead of RENDER=true; hosted mode still opens Turso."""
+    monkeypatch.delenv("RENDER", raising=False)
+    monkeypatch.setenv("FLY_APP_NAME", "bsj-hostel-api")
+    monkeypatch.delenv("DATABASE_PATH", raising=False)
+    monkeypatch.setenv("TURSO_DATABASE_URL", TURSO_URL)
+    monkeypatch.setenv("TURSO_AUTH_TOKEN", TURSO_TOKEN)
+    opened: list[tuple[str, str]] = []
+    remote = _Connection()
+
+    def connect(url: str, *, auth_token: str | None = None, **kwargs: object) -> _Connection:
+        opened.append((url, auth_token or ""))
+        return remote
+
+    monkeypatch.setattr("turso_serverless.connect", connect)
+    from app.shared.config import get_settings, is_hosted
+    from app.shared.db import create_connection
+
+    get_settings.cache_clear()
+    assert is_hosted() is True
+    connection = create_connection()
+    assert opened == [(TURSO_URL, TURSO_TOKEN)]
+    assert connection.row_factory is not None
+    assert not hosted_env.exists()
+
+
 def test_a_laptop_ignores_turso_and_opens_the_file(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -133,6 +161,7 @@ def test_a_laptop_ignores_turso_and_opens_the_file(
     monkeypatch.setenv("CORS_ORIGINS", "")
     monkeypatch.setenv("APP_SECRET_KEY", production_signing_key_for_tests())
     monkeypatch.delenv("RENDER", raising=False)
+    monkeypatch.delenv("FLY_APP_NAME", raising=False)
     called: list[str] = []
 
     def connect(url: str, *, auth_token: str | None = None, **kwargs: object) -> None:

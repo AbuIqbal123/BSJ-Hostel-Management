@@ -122,8 +122,12 @@ _DEFAULT_SECRETS = frozenset(
 
 
 def is_hosted() -> bool:
-    """Render sets RENDER=true. Every other process uses the local SQLite file."""
-    return os.environ.get("RENDER", "").strip().lower() == "true"
+    """Hosted API uses Turso. Render sets RENDER=true; Fly sets FLY_APP_NAME.
+    A laptop uses neither and opens the local SQLite file.
+    """
+    if os.environ.get("RENDER", "").strip().lower() == "true":
+        return True
+    return bool(os.environ.get("FLY_APP_NAME", "").strip())
 
 
 @lru_cache

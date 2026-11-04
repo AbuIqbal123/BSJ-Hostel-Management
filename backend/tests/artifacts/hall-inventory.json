@@ -60,6 +60,20 @@
       "error",
       "created_at"
     ],
+    "guest_stay_decisions": [
+      "id",
+      "guest_stay_id",
+      "actor_user_id",
+      "role",
+      "decision",
+      "note",
+      "decided_at"
+    ],
+    "guest_stay_payment_evidence": [
+      "guest_stay_id",
+      "content",
+      "size_bytes"
+    ],
     "guest_stays": [
       "id",
       "host_resident_id",
@@ -87,20 +101,6 @@
       "payment_evidence_content_type",
       "payment_evidence_uploaded_at",
       "payment_evidence_uploaded_by"
-    ],
-    "guest_stay_decisions": [
-      "id",
-      "guest_stay_id",
-      "actor_user_id",
-      "role",
-      "decision",
-      "note",
-      "decided_at"
-    ],
-    "guest_stay_payment_evidence": [
-      "guest_stay_id",
-      "content",
-      "size_bytes"
     ],
     "hall_settings": [
       "id",
@@ -171,6 +171,7 @@
       "resident_id",
       "kind",
       "record_id",
+      "actor_user_id",
       "decision",
       "created_at",
       "read_at"

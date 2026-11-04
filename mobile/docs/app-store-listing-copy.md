@@ -1,6 +1,6 @@
 # App Store listing copy
 
-Paste-ready fields for Begum Sultan Jahan Hall. Bundle `com.abuiqbal.bsjhall`, version `1.0.0`. The production build calls `https://bsj-hostel-api.onrender.com`.
+Paste-ready fields for Begum Sultan Jahan Hall. Bundle `com.abuiqbal.bsjhall`, version `1.0.0`. The production build calls `https://bsj-hostel-api.fly.dev`.
 
 Do not push this with `eas metadata:push` until the privacy policy and support pages are live HTTPS URLs. Those fields are left empty on purpose.
 
@@ -43,7 +43,7 @@ First release for residents. Sign in, plan an outing, show the hall pass, and re
 
 ## Review notes
 
-The app needs a username and password from the hall office. There is nothing to browse before sign-in. A release build talks to https://bsj-hostel-api.onrender.com. Give App Review a resident account before you submit. The app does not work as a public demo.
+The app needs a username and password from the hall office. There is nothing to browse before sign-in. A release build talks to https://bsj-hostel-api.fly.dev. Give App Review a resident account before you submit. The app does not work as a public demo.
 
 Encryption is only HTTPS. `ITSAppUsesNonExemptEncryption` is false.
 

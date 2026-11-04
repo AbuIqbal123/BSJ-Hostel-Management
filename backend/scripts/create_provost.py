@@ -9,7 +9,7 @@ argument, and this script never prints it. If a provost account already
 exists, the script stops and leaves that password unchanged.
 
 A laptop writes the local SQLite file. To write the hosted hall, run this
-where `RENDER=true` and the Turso URL and token are already in the
+where the process is hosted (`RENDER=true` or Fly) and the Turso URL and token are already in the
 environment. Do not put the password or the token on the command line.
 
 On a laptop only, `--dev-defaults` creates username provost123 with password
@@ -57,7 +57,7 @@ def reject_password_flag(argv: list[str]) -> None:
 def database_is_turso_url() -> bool:
     """True when this process would open a Turso URL.
 
-    Render sets RENDER=true and then opens TURSO_DATABASE_URL. A laptop ignores
+    Hosted processes (Render or Fly) open TURSO_DATABASE_URL. A laptop ignores
     that URL and opens the local SQLite file, so a copied Turso URL in `.env`
     does not by itself make the local database a Turso URL. A file URL on a
     hosted process is still refused by the caller.

@@ -51,6 +51,7 @@ def test_startup_refuses_unsafe_production(monkeypatch: pytest.MonkeyPatch, tmp_
     monkeypatch.setenv("DEBUG", "false")
     monkeypatch.setenv("CORS_ORIGINS", "")
     monkeypatch.delenv("RENDER", raising=False)
+    monkeypatch.delenv("FLY_APP_NAME", raising=False)
     monkeypatch.delenv("DATABASE_PATH", raising=False)
     monkeypatch.delenv("DOCS_ENABLED", raising=False)
 
@@ -95,6 +96,7 @@ def test_startup_refuses_unsafe_production(monkeypatch: pytest.MonkeyPatch, tmp_
         get_settings()
 
     monkeypatch.delenv("RENDER", raising=False)
+    monkeypatch.delenv("FLY_APP_NAME", raising=False)
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("SMS_DRIVER", "mock")
     monkeypatch.setenv("APP_SECRET_KEY", signing_key_for_tests())
@@ -140,6 +142,7 @@ def test_production_boot_refuses_each_unsafe_setting(
         monkeypatch.setenv("APP_SECRET_KEY", production_signing_key_for_tests())
         monkeypatch.setenv("DATABASE_PATH", str(tmp_path / f"{name}.db"))
         monkeypatch.delenv("RENDER", raising=False)
+        monkeypatch.delenv("FLY_APP_NAME", raising=False)
         monkeypatch.delenv("TURSO_DATABASE_URL", raising=False)
         monkeypatch.delenv("TURSO_AUTH_TOKEN", raising=False)
         monkeypatch.delenv("DOCS_ENABLED", raising=False)

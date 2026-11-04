@@ -153,7 +153,7 @@ repeat the column list. The reading copy of this contract is `docs/api/api.md`.
 | Server | Use |
 |---|---|
 | `http://localhost:8000` | Local development |
-| `https://bsj-hostel-api.onrender.com` | Hall API used by release phone builds |
+| `https://bsj-hostel-api.fly.dev` | Hall API used by release phone builds (Fly, Singapore) |
 
 JSON names are snake_case. Send `Authorization: Bearer` plus the access token, except where an operation says no token.
 
