@@ -16,11 +16,16 @@ Before changing API behavior, the database, or the shape of the system, follow `
 | HTTP contract served at `/docs` | `backend/openapi.yaml` |
 | Test specifications | `docs/tests/tests.md` |
 | Local engineering notes | `docs/engineering/` |
+| Coding principles (DRY, layers, shy code, vendor seams) | `docs/engineering/coding-principles.md` |
 | Pre-ship security checklist | `docs/security/pre-ship-checklist.md` |
 
 ## Engineering rules
 
 These rules apply to every change in this repository.
+
+### Coding principles
+
+Structure and coupling follow `docs/engineering/coding-principles.md`: DRY; orthogonal, shy modules; layered abstractions; small change blast radius; no reliance on what we cannot control; tests that do not drag in the whole system; third-party and persistence vendors behind our own abstractions; flexibility at architecture, deployment, and vendor seams.
 
 ### Spec-driven development
 

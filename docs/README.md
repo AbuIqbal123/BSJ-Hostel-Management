@@ -10,7 +10,7 @@ Organised by domain. Prefer these folders over dumping new files at the `docs/` 
 | **Database** | [`database/`](database/) | What the hall keeps, lifecycles, and product rules for stored data |
 | **Architecture** | [`architecture/`](architecture/) | System shape as it stands |
 | **Tests** | [`tests/`](tests/) | Test catalog / specifications |
-| **Engineering** | [`engineering/`](engineering/) | Local engineering notes (pre-commit, tooling) |
+| **Engineering** | [`engineering/`](engineering/) | Coding principles, pre-commit, tooling |
 | **Security** | [`security/`](security/) | Pre-ship checklist before production |
 
 ## Files
@@ -24,6 +24,7 @@ Organised by domain. Prefer these folders over dumping new files at the `docs/` 
 | [`database/database.md`](database/database.md) | Schema, rules, open hall decisions |
 | [`architecture/system-architecture.md`](architecture/system-architecture.md) | Diagram and parts in use |
 | [`tests/tests.md`](tests/tests.md) | Every test entry |
+| [`engineering/coding-principles.md`](engineering/coding-principles.md) | DRY, layers, shy code, vendor seams |
 | [`engineering/dev-pre-commit.md`](engineering/dev-pre-commit.md) | Gitleaks via pre-commit |
 | [`engineering/open-questions.md`](engineering/open-questions.md) | Deferred product and engineering decisions |
 | [`security/pre-ship-checklist.md`](security/pre-ship-checklist.md) | Don't ship until you check this |
