@@ -16,6 +16,7 @@ import { kindLabel } from "@/requests";
 import { useSession, type PermissionKind } from "@/session";
 import {
   decidesRequests,
+  guestDecisionFacts,
   readGuestDetail,
   readGuestReviews,
   readPermissionReviews,
@@ -198,12 +199,15 @@ export default function RequestsScreen() {
       }
       void staffRequest(`/guest-stays/${encodeURIComponent(item.row.id)}`).then((reply) => {
         const detail = reply.ok ? readGuestDetail(reply.data) : null;
-        setGuestFacts([
-          { label: "Host", value: `${item.row.hostName}, ${item.row.hostRoom}` },
-          { label: "Relation", value: detail?.relation ?? "" },
-          { label: "Dates", value: `${formatHallDate(item.row.start)} to ${formatHallDate(item.row.end)}` },
-          { label: "Reason", value: detail?.reason ?? "" },
-        ].filter((fact) => fact.value.length > 0));
+        setGuestFacts(
+          [
+            { label: "Host", value: `${item.row.hostName}, ${item.row.hostRoom}` },
+            { label: "Relation", value: detail?.relation ?? "" },
+            { label: "Dates", value: `${formatHallDate(item.row.start)} to ${formatHallDate(item.row.end)}` },
+            { label: "Reason", value: detail?.reason ?? "" },
+            ...(detail ? guestDecisionFacts(detail) : []),
+          ].filter((fact) => fact.value.length > 0),
+        );
       });
     },
     [staffRequest],

@@ -98,8 +98,8 @@ export function ReviewSheet({ title, subtitle, facts, error, busy, onDecide, onC
           {subtitle}
         </Text>
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.line }]}>
-          {facts.map((fact) => (
-            <View key={fact.label} style={styles.fact}>
+          {facts.map((fact, index) => (
+            <View key={`${fact.label}-${index}`} style={styles.fact}>
               <Text style={[styles.factLabel, { color: colors.inkFaint }]}>{fact.label}</Text>
               <Text numberOfLines={3} style={[text.body, { color: colors.ink }]}>
                 {fact.value}

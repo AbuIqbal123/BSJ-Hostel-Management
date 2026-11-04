@@ -1,6 +1,7 @@
-import type { HallRole, PermissionKind } from "@/session";
 import { formatWhen, formatWhenParts, hallNow } from "@/format-when";
+import { readGuestDecisions, type GuestDecision } from "@/guest-decisions";
 import { record, text as str, type Json } from "@/json";
+import type { HallRole, PermissionKind } from "@/session";
 
 export function homePath(role: HallRole): "/home" | "/staff" {
   return role === "resident" ? "/home" : "/staff";
@@ -227,7 +228,15 @@ export function readGuestReviews(value: unknown): GuestReview[] {
   });
 }
 
-export type GuestDetail = { relation: string; reason: string; days: number };
+export type GuestDetail = {
+  relation: string;
+  reason: string;
+  days: number;
+  decisions: GuestDecision[];
+  roommateApprovalRequired: boolean;
+  waitingOnRoommate: boolean;
+  waitingOnProvost: boolean;
+};
 
 export function readGuestDetail(value: unknown): GuestDetail | null {
   const body = record(value);
@@ -238,7 +247,31 @@ export function readGuestDetail(value: unknown): GuestDetail | null {
     relation: str(body.relation) ?? "",
     reason: str(body.reason) ?? "",
     days: num(body.inclusive_days),
+    decisions: readGuestDecisions(body.decisions) ?? [],
+    roommateApprovalRequired: body.roommate_approval_required === true,
+    waitingOnRoommate: body.waiting_on_roommate === true,
+    waitingOnProvost: body.waiting_on_provost === true,
   };
+}
+
+function decisionFact(decision: GuestDecision): { label: string; value: string } {
+  const word = decision.decision === "approved" ? "approved" : "declined";
+  return {
+    label: decision.role === "roommate" ? "Roommate" : "Provost",
+    value: `${decision.actorName} ${word} · ${formatWhen(decision.decidedAt)}`,
+  };
+}
+
+/** Fact rows for the staff review sheet: recorded decisions, then who is still waiting. */
+export function guestDecisionFacts(detail: GuestDetail): { label: string; value: string }[] {
+  const facts = detail.decisions.map(decisionFact);
+  if (detail.roommateApprovalRequired && detail.waitingOnRoommate) {
+    facts.push({ label: "Roommate", value: "waiting" });
+  }
+  if (detail.waitingOnProvost) {
+    facts.push({ label: "Provost", value: "waiting" });
+  }
+  return facts;
 }
 
 /** Section title for the hall day a request was submitted. */

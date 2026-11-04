@@ -13,6 +13,7 @@ import * as SecureStore from "expo-secure-store";
 import * as Notifications from "expo-notifications";
 import { AppState, Platform } from "react-native";
 
+import { readGuestDecisions, type GuestDecision } from "@/guest-decisions";
 import { pageQuery } from "@/list-page";
 import { allowReturnReminders, clearNotificationSurface, PUSH_TOKEN_KEY, pushToken } from "@/push";
 import { refreshEffect, registerPushToken, singleFlight } from "@/session-refresh";
@@ -148,13 +149,7 @@ export type GuestStayCard = {
   bucket: string;
 };
 
-export type GuestDecision = {
-  role: "roommate" | "provost";
-  actorName: string;
-  decision: "approved" | "rejected";
-  decidedAt: string;
-  note: string | null;
-};
+export type { GuestDecision };
 
 export type GuestStay = GuestStayCard & {
   relation: string;
@@ -680,46 +675,6 @@ function readGuestCard(item: Record<string, unknown>): GuestStayCard | null {
   };
 }
 
-function readDecision(item: Record<string, unknown>): GuestDecision | null {
-  if (item.role !== "roommate" && item.role !== "provost") {
-    return null;
-  }
-  if (item.decision !== "approved" && item.decision !== "rejected") {
-    return null;
-  }
-  if (typeof item.actor_name !== "string" || typeof item.decided_at !== "string") {
-    return null;
-  }
-  if (item.note !== null && typeof item.note !== "string") {
-    return null;
-  }
-  return {
-    role: item.role,
-    actorName: item.actor_name,
-    decision: item.decision,
-    decidedAt: item.decided_at,
-    note: typeof item.note === "string" && item.note.length > 0 ? item.note : null,
-  };
-}
-
-function readDecisions(value: unknown): GuestDecision[] | null {
-  if (!Array.isArray(value)) {
-    return null;
-  }
-  const decisions: GuestDecision[] = [];
-  for (const item of value) {
-    if (!isRecord(item)) {
-      return null;
-    }
-    const decision = readDecision(item);
-    if (!decision) {
-      return null;
-    }
-    decisions.push(decision);
-  }
-  return decisions;
-}
-
 function readFlag(value: unknown): boolean | null {
   return typeof value === "boolean" ? value : null;
 }
@@ -758,7 +713,7 @@ function readGuestStay(value: unknown): GuestStay | null {
     return null;
   }
   const card = readGuestCard(value);
-  const decisions = readDecisions(value.decisions);
+  const decisions = readGuestDecisions(value.decisions);
   const roommateApprovalRequired = readFlag(value.roommate_approval_required);
   const waitingOnRoommate = readFlag(value.waiting_on_roommate);
   const waitingOnProvost = readFlag(value.waiting_on_provost);
