@@ -3159,8 +3159,17 @@ Caller: provost. Only while `pending`. Wardens may list and read guest
 stays but cannot decide them. A resident cannot edit an approved stay,
 and cannot edit after arrival, so those stays are not sent back for
 another decision. When the guest has already arrived, only `approved`
-is allowed — reject is refused (the guest is in the hall). Approval does
-not mark payment and does not clear or set arrival.
+is allowed — reject is refused (the guest is in the hall).
+
+The provost's yes is stored as a decision. The stay becomes `approved`
+only when every roommate required now has also approved. If the host
+has no other active roommate, this yes approves the stay. If a
+roommate is still required, the response is 200 and `status` stays
+`pending`, and `decided_by` stays empty. The host is not notified that
+the stay is approved until `status` is `approved`. A no sets
+`rejected` at once. Approval does not mark payment and does not clear
+or set arrival. The same provost deciding again, while the stay is
+still pending, returns 409 `already_decided`.
 
 **Parameters**
 
@@ -3233,7 +3242,8 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 #### 409
 
-Not pending. Code `not_pending`.
+Not pending. Code `not_pending`. The same provost deciding again
+while the stay is still pending returns code `already_decided`.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
@@ -6173,7 +6183,7 @@ Each JSON object used above. An operation section already shows the fields for i
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `code` | yes | string | Stable machine code. Known codes: `unauthenticated`, `rate_limited`, `not_ready`, `forbidden`, `not_found`, `validation_error`, `duplicate_username`, `duplicate_block`, `duplicate_room`, `duplicate_destination`, `room_in_use`, `room_inactive`, `other_exists`, `already_outside`, `return_already_planned`, `open_outing_exists`, `outside_ordinary_hours`, `permission_required`, `no_outing_planned`, `permission_not_yet_valid`, `outing_not_yet_open`, `permission_overlap`, `duplicate_scan`, `resident_suspended`, `unknown_hall_pass`, `not_pending`, `permission_in_use`, `not_cancellable`, `not_editable`, `guest_not_expected`, `guest_not_in_hall`, `payment_required`, `payment_locked`, `account_in_use`. |
+| `code` | yes | string | Stable machine code. Known codes: `unauthenticated`, `rate_limited`, `not_ready`, `forbidden`, `not_found`, `validation_error`, `duplicate_username`, `duplicate_block`, `duplicate_room`, `duplicate_destination`, `room_in_use`, `room_inactive`, `other_exists`, `already_outside`, `return_already_planned`, `open_outing_exists`, `outside_ordinary_hours`, `permission_required`, `no_outing_planned`, `permission_not_yet_valid`, `outing_not_yet_open`, `permission_overlap`, `duplicate_scan`, `resident_suspended`, `unknown_hall_pass`, `not_pending`, `already_decided`, `permission_in_use`, `not_cancellable`, `not_editable`, `guest_not_expected`, `guest_not_in_hall`, `payment_required`, `payment_locked`, `account_in_use`. |
 | `message` | yes | string | Sentence the phone can show. Not a stack trace. |
 | `request_id` | no | string | The X-Request-ID echoed on this response. Always present. The same value is on the response header. |
 | `details` | no | object |  |

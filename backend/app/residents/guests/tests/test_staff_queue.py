@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from app.shared.testing_env import role_credential
 
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "guest-stays-staff.json"
+WAITS_ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "guest-stay-provost-waits.json"
 BLOCK_B = "d032aad6-a203-5ea0-ba9a-3a9257edbfc8"
 GATE_ID = "a11ce000-0000-4000-8000-000000000001"
 WARDEN_ID = "e55fa000-0000-4000-8000-000000000005"
@@ -31,6 +32,10 @@ SHOULD_LEFT = "bb100000-0000-4000-8000-0000000000b5"
 DEPARTED = "bb100000-0000-4000-8000-0000000000b6"
 REJECTED = "bb100000-0000-4000-8000-0000000000b7"
 CANCELLED = "bb100000-0000-4000-8000-0000000000b9"
+ROOMMATE_ID = "b22de000-0000-4000-8000-000000000012"
+SHARED_STAY = "bb100000-0000-4000-8000-0000000000c1"
+SOLO_STAY = "bb100000-0000-4000-8000-0000000000c2"
+REJECT_STAY = "bb100000-0000-4000-8000-0000000000c3"
 
 
 class FrozenClock:
@@ -308,6 +313,114 @@ def seed_stays(path: Path) -> None:
             [(*row, row[-1]) for row in rows],
         )
         connection.commit()
+    finally:
+        connection.close()
+
+
+def seed_roommate(path: Path) -> None:
+    from app.shared.auth.security import hash_password
+
+    connection = sqlite3.connect(path)
+    try:
+        connection.execute("PRAGMA foreign_keys=ON;")
+        connection.execute(
+            """
+            INSERT INTO users (
+              id, role, username, full_name, password_hash, status, created_at, updated_at
+            ) VALUES (?, 'resident', '24-BA-014', 'Zaynab Ali', ?, 'active', ?, ?)
+            """,
+            (ROOMMATE_ID, hash_password(role_credential("roommate")), CREATED, CREATED),
+        )
+        connection.execute(
+            """
+            INSERT INTO residents (
+              user_id, enrolment_number, course, room_id, guardian_name, guardian_phone,
+              qr_token, presence, created_at, updated_at
+            ) VALUES (?, '24-BA-014', 'B.A.', ?, 'Imran Ali',
+               '+919876543212', 'bsj:v1:test-zaynab-ali', 'inside', ?, ?)
+            """,
+            (ROOMMATE_ID, ROOM_ID, CREATED, CREATED),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+
+def insert_pending(path: Path, stay_id: str, host_id: str, guest_name: str) -> None:
+    connection = sqlite3.connect(path)
+    try:
+        connection.execute("PRAGMA foreign_keys=ON;")
+        connection.execute(
+            """
+            INSERT INTO guest_stays (
+              id, host_resident_id, guest_name, relation, guest_start_date, guest_end_date, reason,
+              status, payment_status, created_at, updated_at
+            ) VALUES (?, ?, ?, 'Cousin', '2026-10-12', '2026-10-14', 'Family visit.',
+              'pending', 'unpaid', ?, ?)
+            """,
+            (stay_id, host_id, guest_name, CREATED, CREATED),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+
+def decision_rows(path: Path, stay_id: str) -> list[dict[str, str | None]]:
+    connection = sqlite3.connect(path)
+    try:
+        rows = connection.execute(
+            """
+            SELECT actor_user_id, role, decision, note, decided_at
+            FROM guest_stay_decisions
+            WHERE guest_stay_id = ?
+            ORDER BY decided_at, role
+            """,
+            (stay_id,),
+        ).fetchall()
+    finally:
+        connection.close()
+    return [
+        {
+            "actor_user_id": row[0],
+            "role": row[1],
+            "decision": row[2],
+            "note": row[3],
+            "decided_at": row[4],
+        }
+        for row in rows
+    ]
+
+
+def notices_for(path: Path, stay_id: str) -> list[tuple[str, str, str | None]]:
+    connection = sqlite3.connect(path)
+    try:
+        return connection.execute(
+            """
+            SELECT resident_id, kind, decision
+            FROM resident_notifications
+            WHERE record_id = ?
+            ORDER BY created_at, resident_id
+            """,
+            (stay_id,),
+        ).fetchall()
+    finally:
+        connection.close()
+
+
+def audit_actions(path: Path, stay_id: str) -> list[str]:
+    connection = sqlite3.connect(path)
+    try:
+        return [
+            row[0]
+            for row in connection.execute(
+                """
+                SELECT action FROM audit_log
+                WHERE entity_id = ?
+                ORDER BY occurred_at, rowid
+                """,
+                (stay_id,),
+            )
+        ]
     finally:
         connection.close()
 
@@ -655,3 +768,103 @@ def test_guest_stays_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch)
             "guest_stay.payment_marked",
             "guest_stay.departed",
         ]
+
+
+def test_provost_approve_waits_for_roommate(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    expected = json.loads(WAITS_ARTIFACT.read_text(encoding="utf-8"))
+    from app.main import app
+    from app.shared import clock
+
+    monkeypatch.setattr(clock, "utc_now", FrozenClock().utc_now)
+    with TestClient(app) as client:
+        issue_people(database_path)
+        seed_roommate(database_path)
+        insert_pending(database_path, SHARED_STAY, RESIDENT_ID, "Shared Room Guest")
+        insert_pending(database_path, SOLO_STAY, OTHER_ID, "Solo Room Guest")
+        insert_pending(database_path, REJECT_STAY, RESIDENT_ID, "Rejected With Roommate")
+
+        warden = sign_in(client, "warden.sara", role_credential("warden"))
+        provost = sign_in(client, "provost.halima", role_credential("provost"))
+        warden_headers = {"Authorization": f"Bearer {warden}"}
+        provost_headers = {"Authorization": f"Bearer {provost}"}
+
+        assert_error(
+            client.post(
+                f"/api/v1/guest-stays/{SHARED_STAY}/decision",
+                headers=warden_headers,
+                json={"decision": "approved"},
+            ),
+            403,
+            "forbidden",
+            "This account cannot do that.",
+        )
+
+        waiting = client.post(
+            f"/api/v1/guest-stays/{SHARED_STAY}/decision",
+            headers=provost_headers,
+            json={"decision": "approved", "note": "Fine with me."},
+        )
+        assert waiting.status_code == 200
+        body = waiting.json()
+        assert body["status"] == expected["waiting"]["status"]
+        assert body["bucket"] == expected["waiting"]["bucket"]
+        assert body["payment_status"] == expected["waiting"]["payment_status"]
+        assert body["decided_by"] is None
+        assert body["decision_note"] is None
+        assert decision_rows(database_path, SHARED_STAY) == [expected["waiting"]["decision"]]
+        assert notices_for(database_path, SHARED_STAY) == []
+        assert audit_actions(database_path, SHARED_STAY) == []
+
+        assert_error(
+            client.post(
+                f"/api/v1/guest-stays/{SHARED_STAY}/decision",
+                headers=provost_headers,
+                json={"decision": "rejected"},
+            ),
+            409,
+            "already_decided",
+            expected["duplicate_message"],
+        )
+        assert decision_rows(database_path, SHARED_STAY) == [expected["waiting"]["decision"]]
+        still = client.get(
+            f"/api/v1/guest-stays/{SHARED_STAY}",
+            headers=provost_headers,
+        )
+        assert still.status_code == 200
+        assert still.json()["status"] == "pending"
+        assert still.json()["decided_by"] is None
+
+        solo = client.post(
+            f"/api/v1/guest-stays/{SOLO_STAY}/decision",
+            headers=provost_headers,
+            json={"decision": "approved", "note": ""},
+        )
+        assert solo.status_code == 200
+        assert solo.json()["status"] == expected["solo_approved"]["status"]
+        assert solo.json()["decided_by"] == expected["solo_approved"]["decided_by"]
+        assert solo.json()["decision_note"] is None
+        assert solo.json()["bucket"] == expected["solo_approved"]["bucket"]
+        assert solo.json()["payment_status"] == "unpaid"
+        assert decision_rows(database_path, SOLO_STAY) == [expected["solo_approved"]["decision"]]
+        assert notices_for(database_path, SOLO_STAY) == [
+            (OTHER_ID, "guest_stay_decided", "approved")
+        ]
+        assert audit_actions(database_path, SOLO_STAY) == ["guest_stay.approved"]
+
+        rejected = client.post(
+            f"/api/v1/guest-stays/{REJECT_STAY}/decision",
+            headers=provost_headers,
+            json={"decision": "rejected", "note": "Not this week."},
+        )
+        assert rejected.status_code == 200
+        assert rejected.json()["status"] == expected["rejected"]["status"]
+        assert rejected.json()["decision_note"] == expected["rejected"]["decision_note"]
+        assert rejected.json()["decided_by"] == expected["rejected"]["decided_by"]
+        assert rejected.json()["bucket"] == "rejected"
+        assert decision_rows(database_path, REJECT_STAY) == [expected["rejected"]["decision"]]
+        assert notices_for(database_path, REJECT_STAY) == [
+            (RESIDENT_ID, "guest_stay_decided", "rejected")
+        ]
+        assert audit_actions(database_path, REJECT_STAY) == ["guest_stay.rejected"]

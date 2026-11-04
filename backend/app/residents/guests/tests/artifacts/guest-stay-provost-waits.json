@@ -1,0 +1,39 @@
+{
+  "waiting": {
+    "status": "pending",
+    "bucket": "pending",
+    "payment_status": "unpaid",
+    "decision": {
+      "actor_user_id": "f66fb000-0000-4000-8000-000000000006",
+      "role": "provost",
+      "decision": "approved",
+      "note": "Fine with me.",
+      "decided_at": "2026-09-30T13:00:00Z"
+    }
+  },
+  "solo_approved": {
+    "status": "approved",
+    "decided_by": "f66fb000-0000-4000-8000-000000000006",
+    "bucket": "upcoming",
+    "decision": {
+      "actor_user_id": "f66fb000-0000-4000-8000-000000000006",
+      "role": "provost",
+      "decision": "approved",
+      "note": null,
+      "decided_at": "2026-09-30T13:00:00Z"
+    }
+  },
+  "rejected": {
+    "status": "rejected",
+    "decision_note": "Not this week.",
+    "decided_by": "f66fb000-0000-4000-8000-000000000006",
+    "decision": {
+      "actor_user_id": "f66fb000-0000-4000-8000-000000000006",
+      "role": "provost",
+      "decision": "rejected",
+      "note": "Not this week.",
+      "decided_at": "2026-09-30T13:00:00Z"
+    }
+  },
+  "duplicate_message": "This person already recorded a decision for this stay in this role."
+}

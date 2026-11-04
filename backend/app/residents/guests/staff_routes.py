@@ -9,6 +9,12 @@ from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.shared.page import PageDep
+from app.residents.guests.decisions import (
+    DuplicateDecisionError,
+    GuestStayNotFoundError,
+    StayNotPendingError,
+    apply_decision,
+)
 from app.residents.guests.payment_evidence import (
     clear_evidence,
     display_filename,
@@ -120,10 +126,9 @@ def decide_guest_stay(
     background_tasks: BackgroundTasks,
 ) -> GuestStayBody:
     now_text = clock.format_instant(clock.utc_now())
-    note = None if body.note is None else body.note.strip() or None
     existing = connection.execute(
         """
-        SELECT id, status, arrived_at, guest_name
+        SELECT id, status, arrived_at, guest_name, host_resident_id
         FROM guest_stays
         WHERE id = ?
         """,
@@ -144,49 +149,49 @@ def decide_guest_stay(
             "not_pending",
             "A guest stay cannot be rejected after the guest has arrived.",
         )
-    row = connection.execute(
-        """
-        UPDATE guest_stays
-        SET
-          status = ?,
-          decided_by = ?,
-          decided_at = ?,
-          decision_note = ?,
-          updated_at = ?
-        WHERE id = ? AND status = 'pending'
-        RETURNING id, guest_name, host_resident_id
-        """,
-        (body.decision, account.id, now_text, note, now_text, guest_stay_id),
-    ).fetchone()
-    if row is None:
+    try:
+        status = apply_decision(
+            connection,
+            guest_stay_id=guest_stay_id,
+            actor_user_id=account.id,
+            role="provost",
+            decision=body.decision,
+            note=body.note,
+            now_text=now_text,
+        )
+    except GuestStayNotFoundError as exc:
+        raise ApiError(404, "not_found", "That record was not found.") from exc
+    except StayNotPendingError as exc:
         raise ApiError(
             409,
             "not_pending",
             "Only a pending guest stay can be approved or rejected "
             f"(current status: {existing['status']}).",
+        ) from exc
+    except DuplicateDecisionError as exc:
+        raise ApiError(409, "already_decided", str(exc)) from exc
+    if status in {"approved", "rejected"}:
+        verb = "approved" if status == "approved" else "rejected"
+        record_guest_stay(
+            connection,
+            now_text,
+            account.id,
+            f"guest_stay.{verb}",
+            guest_stay_id,
+            f"{account.full_name} {verb} a guest stay for {existing['guest_name']}.",
         )
-    action = "guest_stay.approved" if body.decision == "approved" else "guest_stay.rejected"
-    verb = "approved" if body.decision == "approved" else "rejected"
-    record_guest_stay(
-        connection,
-        now_text,
-        account.id,
-        action,
-        guest_stay_id,
-        f"{account.full_name} {verb} a guest stay for {row['guest_name']}.",
-    )
-    job = record_decision(
-        connection,
-        kind="guest_stay_decided",
-        record_id=guest_stay_id,
-        resident_id=row["host_resident_id"],
-        decision=body.decision,
-        now_text=now_text,
-        what=f"guest stay for {row['guest_name']}",
-        noun="guest stay",
-        by_name=account.full_name,
-    )
-    background_tasks.add_task(push.dispatch, [job])
+        job = record_decision(
+            connection,
+            kind="guest_stay_decided",
+            record_id=guest_stay_id,
+            resident_id=existing["host_resident_id"],
+            decision=status,
+            now_text=now_text,
+            what=f"guest stay for {existing['guest_name']}",
+            noun="guest stay",
+            by_name=account.full_name,
+        )
+        background_tasks.add_task(push.dispatch, [job])
     today = clock.hall_local_date(clock.utc_now())
     stay = load_guest_stay(connection, guest_stay_id, today=today)
     assert stay is not None

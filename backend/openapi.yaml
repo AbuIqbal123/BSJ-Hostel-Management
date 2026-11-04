@@ -2652,8 +2652,17 @@ paths:
         stays but cannot decide them. A resident cannot edit an approved stay,
         and cannot edit after arrival, so those stays are not sent back for
         another decision. When the guest has already arrived, only `approved`
-        is allowed — reject is refused (the guest is in the hall). Approval does
-        not mark payment and does not clear or set arrival.
+        is allowed — reject is refused (the guest is in the hall).
+
+        The provost's yes is stored as a decision. The stay becomes `approved`
+        only when every roommate required now has also approved. If the host
+        has no other active roommate, this yes approves the stay. If a
+        roommate is still required, the response is 200 and `status` stays
+        `pending`, and `decided_by` stays empty. The host is not notified that
+        the stay is approved until `status` is `approved`. A no sets
+        `rejected` at once. Approval does not mark payment and does not clear
+        or set arrival. The same provost deciding again, while the stay is
+        still pending, returns 409 `already_decided`.
       parameters:
         - $ref: "#/components/parameters/GuestStayId"
       requestBody:
@@ -2676,7 +2685,9 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
-          description: Not pending. Code `not_pending`.
+          description: |
+            Not pending. Code `not_pending`. The same provost deciding again
+            while the stay is still pending returns code `already_decided`.
           content:
             application/json:
               schema:
@@ -3749,7 +3760,7 @@ components:
             `outside_ordinary_hours`, `permission_required`, `no_outing_planned`,
             `permission_not_yet_valid`, `outing_not_yet_open`, `permission_overlap`,
             `duplicate_scan`, `resident_suspended`, `unknown_hall_pass`,
-            `not_pending`, `permission_in_use`, `not_cancellable`, `not_editable`, `guest_not_expected`, `guest_not_in_hall`,
+            `not_pending`, `already_decided`, `permission_in_use`, `not_cancellable`, `not_editable`, `guest_not_expected`, `guest_not_in_hall`,
             `payment_required`, `payment_locked`, `account_in_use`.
         message:
           type: string
