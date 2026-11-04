@@ -63,9 +63,10 @@ tags:
       warden or provost queue under /api/v1/permissions; only the provost decides.
   - name: Guest Stays
     description: >
-      Guest applications. Resident applies and edits under /api/v1/me/guest-stays;
-      warden or provost queue under /api/v1/guest-stays; only the provost decides. A resident may edit only
-      while the stay is pending and before arrival; the stay stays pending.
+      Guest applications. Resident applies and edits under /api/v1/me/guest-stays.
+      A current roommate lists stays awaiting her and records her yes or no.
+      Warden or provost queue under /api/v1/guest-stays; only the provost records the hall decision.
+      A resident may edit only while the stay is pending and before arrival; the stay stays pending.
       Gate arrival and departure stay under Gate.
   - name: Gate
     description: Scan the permanent hall pass, and record guest arrival and departure. Guests have no hall pass.
@@ -1487,6 +1488,98 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+
+  /api/v1/me/guest-stays/awaiting-my-approval:
+    get:
+      tags: [Guest Stays]
+      operationId: list_guest_stays_awaiting_my_approval
+      summary: Guest stays awaiting my approval
+      description: |
+        Caller: resident.
+
+        Stays where she is a current active roommate of the host, the stay is
+        still `pending`, and she has not yet recorded a roommate decision.
+        Newest first. Each item is a GuestStaySummary card, including the
+        host's name and room. Her own stays are absent. A stay leaves this
+        list once she has decided, even while it is still pending on the
+        provost.
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Guest stay page of GuestStaySummary cards.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuestStayPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/me/guest-stays/{guest_stay_id}/roommate-decision:
+    post:
+      tags: [Guest Stays]
+      operationId: decide_guest_stay_as_roommate
+      summary: Approve or reject as a roommate
+      description: |
+        Caller: resident who is a current roommate of the host.
+
+        Her yes or no is stored as a roommate decision. The stay stays
+        `pending` until every roommate required now and the provost have
+        approved. Her no rejects the stay at once and leaves the staff
+        decision empty. Her yes approves the stay only when the provost has
+        already approved and no other current roommate is still required;
+        `decided_by` is then that provost. Someone who is not a current
+        roommate receives 403 `forbidden`. A missing stay receives 404
+        `not_found`. A stay that is not pending receives 409 `not_pending`.
+        The same roommate deciding again while the stay is still pending
+        receives 409 `already_decided`.
+      parameters:
+        - $ref: "#/components/parameters/GuestStayId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DecisionRequest"
+            example:
+              decision: approved
+              note: Fine with me.
+      responses:
+        "200":
+          description: Decision stored. The stay may still be pending.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuestStay"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: |
+            Not a resident, or not a current active roommate of the host.
+            Code `forbidden`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: That guest stay was not found. Code `not_found`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: |
+            Not pending. Code `not_pending`. The same roommate deciding again
+            while the stay is still pending returns code `already_decided`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "422":
           $ref: "#/components/responses/Unprocessable"
 

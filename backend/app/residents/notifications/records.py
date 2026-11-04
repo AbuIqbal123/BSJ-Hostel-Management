@@ -123,6 +123,27 @@ def record_late_outings(connection: sqlite3.Connection, now_text: str) -> list[P
     return jobs
 
 
+def roommate_request_push(
+    *,
+    record_id: str,
+    host_resident_id: str,
+    roommate_user_ids: list[str],
+    guest_name: str,
+    guest_start_date: str,
+    guest_end_date: str,
+) -> PushJob:
+    """Tell each current roommate a stay is waiting. Task 6 owns the inbox copy."""
+    return PushJob(
+        title="Your roommate has requested a guest stay",
+        body=f"{guest_name}, {guest_start_date} to {guest_end_date}",
+        kind="guest_stay_roommate_requested",
+        record_id=record_id,
+        resident_id=host_resident_id,
+        notification_id=f"guest_stay_roommate_requested:{record_id}",
+        user_ids=tuple(roommate_user_ids),
+    )
+
+
 def request_push(
     *, kind: Literal["permission_requested", "guest_stay_requested"], record_id: str,
     resident_id: str, resident_name: str, room_label: str | None, what: str,

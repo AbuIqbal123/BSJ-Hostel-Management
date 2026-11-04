@@ -1,0 +1,5 @@
+$kind: collection
+name: Awaiting
+order: 4000
+description: |-
+  Guest stays waiting on this resident as a current roommate.

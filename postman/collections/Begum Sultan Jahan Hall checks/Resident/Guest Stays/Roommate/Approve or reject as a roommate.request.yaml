@@ -1,0 +1,16 @@
+$kind: http-request
+method: POST
+url: '{{baseUrl}}/api/v1/me/guest-stays/{{guestStayId}}/roommate-decision'
+order: 1000
+description: |-
+  Caller: resident, and only when she is a current active roommate of the host. Her yes leaves the stay pending until the provost has also approved. Her no rejects it at once.
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "decision": "approved",
+      "note": "Fine with me."
+    }

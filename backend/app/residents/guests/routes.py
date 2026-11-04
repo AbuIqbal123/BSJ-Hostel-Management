@@ -10,26 +10,40 @@ from fastapi import APIRouter, BackgroundTasks
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.shared.page import PageDep
+from app.residents.guests.decisions import (
+    DuplicateDecisionError,
+    GuestStayNotFoundError,
+    StayNotPendingError,
+    active_roommate_user_ids,
+    apply_decision,
+)
 from app.residents.guests.records import (
     GuestStayBody,
     GuestStayPageBody,
     earliest_start_date,
     inclusive_days,
     GuestPhase,
+    list_awaiting_roommate_approval,
     list_guest_stays,
     load_guest_stay,
     record_guest_stay,
 )
 from app.residents.home.routes import ResidentDep
-from app.residents.notifications.records import request_push
+from app.residents.notifications.records import (
+    record_decision,
+    request_push,
+    roommate_request_push,
+)
 from app.shared import clock, push
 from app.shared.auth.routes import ConnectionDep
 from app.shared.db import hall_settings
 from app.shared.errors import ApiError
+from app.shared.schemas import DecisionRequest
 
 router = APIRouter(prefix="/api/v1", tags=["Guest Stays"])
 
 _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_NOT_ROOMMATE = "Only a current roommate of the host can decide this guest stay."
 
 
 class GuestStayCreate(BaseModel):
@@ -119,6 +133,22 @@ def list_own_guest_stays(
     )
 
 
+@router.get("/me/guest-stays/awaiting-my-approval", response_model=GuestStayPageBody)
+def list_guest_stays_awaiting_my_approval(
+    account: ResidentDep,
+    connection: ConnectionDep,
+    page: PageDep,
+) -> GuestStayPageBody:
+    today = clock.hall_local_date(clock.utc_now())
+    return list_awaiting_roommate_approval(
+        connection,
+        roommate_user_id=account.id,
+        limit=page.limit,
+        offset=page.offset,
+        today=today,
+    )
+
+
 @router.post("/me/guest-stays", status_code=201, response_model=GuestStayBody)
 def submit_guest_stay(
     body: GuestStayCreate,
@@ -164,19 +194,29 @@ def submit_guest_stay(
         stay_id,
         f"{account.full_name} applied for a guest stay for {guest_name}.",
     )
-    background_tasks.add_task(
-        push.dispatch,
-        [
-            request_push(
-                kind="guest_stay_requested",
+    jobs = [
+        request_push(
+            kind="guest_stay_requested",
+            record_id=stay_id,
+            resident_id=account.id,
+            resident_name=account.full_name,
+            room_label=account.room_label,
+            what=f"a guest stay for {guest_name}",
+        )
+    ]
+    roommates = active_roommate_user_ids(connection, account.id)
+    if roommates:
+        jobs.append(
+            roommate_request_push(
                 record_id=stay_id,
-                resident_id=account.id,
-                resident_name=account.full_name,
-                room_label=account.room_label,
-                what=f"a guest stay for {guest_name}",
+                host_resident_id=account.id,
+                roommate_user_ids=roommates,
+                guest_name=guest_name,
+                guest_start_date=start,
+                guest_end_date=end,
             )
-        ],
-    )
+        )
+    background_tasks.add_task(push.dispatch, jobs)
     stay = load_guest_stay(
         connection,
         stay_id,
@@ -390,5 +430,100 @@ def cancel_guest_stay(
         host_resident_id=account.id,
         today=today,
     )
+    assert stay is not None
+    return stay
+
+
+def _pending_message(status: str) -> str:
+    return (
+        "Only a pending guest stay can be approved or rejected "
+        f"(current status: {status})."
+    )
+
+
+def _settled_by_name(connection, guest_stay_id: str, actor_name: str, status: str) -> str:
+    if status != "approved":
+        return actor_name
+    row = connection.execute(
+        """
+        SELECT users.full_name
+        FROM guest_stays
+        JOIN users ON users.id = guest_stays.decided_by
+        WHERE guest_stays.id = ?
+        """,
+        (guest_stay_id,),
+    ).fetchone()
+    if row is None:
+        return actor_name
+    return row["full_name"]
+
+
+@router.post(
+    "/me/guest-stays/{guest_stay_id}/roommate-decision",
+    response_model=GuestStayBody,
+)
+def decide_guest_stay_as_roommate(
+    guest_stay_id: str,
+    body: DecisionRequest,
+    account: ResidentDep,
+    connection: ConnectionDep,
+    background_tasks: BackgroundTasks,
+) -> GuestStayBody:
+    now_text = clock.format_instant(clock.utc_now())
+    existing = connection.execute(
+        """
+        SELECT id, status, host_resident_id, guest_name
+        FROM guest_stays
+        WHERE id = ?
+        """,
+        (guest_stay_id,),
+    ).fetchone()
+    if existing is None:
+        raise ApiError(404, "not_found", "That record was not found.")
+    roommates = active_roommate_user_ids(connection, existing["host_resident_id"])
+    if account.id not in roommates:
+        raise ApiError(403, "forbidden", _NOT_ROOMMATE)
+    if existing["status"] != "pending":
+        raise ApiError(409, "not_pending", _pending_message(existing["status"]))
+    try:
+        status = apply_decision(
+            connection,
+            guest_stay_id=guest_stay_id,
+            actor_user_id=account.id,
+            role="roommate",
+            decision=body.decision,
+            note=body.note,
+            now_text=now_text,
+        )
+    except GuestStayNotFoundError as exc:
+        raise ApiError(404, "not_found", "That record was not found.") from exc
+    except StayNotPendingError as exc:
+        raise ApiError(409, "not_pending", _pending_message(existing["status"])) from exc
+    except DuplicateDecisionError as exc:
+        raise ApiError(409, "already_decided", str(exc)) from exc
+    if status in {"approved", "rejected"}:
+        verb = "approved" if status == "approved" else "rejected"
+        record_guest_stay(
+            connection,
+            now_text,
+            account.id,
+            f"guest_stay.{verb}",
+            guest_stay_id,
+            f"{account.full_name} {verb} a guest stay for {existing['guest_name']}.",
+        )
+        job = record_decision(
+            connection,
+            kind="guest_stay_decided",
+            record_id=guest_stay_id,
+            resident_id=existing["host_resident_id"],
+            decision=status,
+            now_text=now_text,
+            what=f"guest stay for {existing['guest_name']}",
+            noun="guest stay",
+            by_name=_settled_by_name(connection, guest_stay_id, account.full_name, status),
+        )
+        background_tasks.add_task(push.dispatch, [job])
+    today = clock.hall_local_date(clock.utc_now())
+    stay = load_guest_stay(connection, guest_stay_id, today=today)
     assert stay is not None
     return stay

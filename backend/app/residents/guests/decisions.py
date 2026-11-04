@@ -26,6 +26,34 @@ class StayNotPendingError(Exception):
     """Only a pending guest stay can take a decision."""
 
 
+def awaiting_roommate_sql() -> str:
+    """Pending stays this resident still has to decide as a current roommate.
+
+    Bind her user id twice: once for the room, then for the missing decision.
+    """
+    return """
+    guest_stays.status = 'pending'
+    AND EXISTS (
+      SELECT 1
+      FROM residents AS host_resident
+      JOIN residents AS roommate
+        ON roommate.room_id = host_resident.room_id
+       AND roommate.user_id <> host_resident.user_id
+      JOIN users AS roommate_user ON roommate_user.id = roommate.user_id
+      WHERE host_resident.user_id = guest_stays.host_resident_id
+        AND roommate.user_id = ?
+        AND roommate_user.status = 'active'
+    )
+    AND NOT EXISTS (
+      SELECT 1
+      FROM guest_stay_decisions
+      WHERE guest_stay_id = guest_stays.id
+        AND actor_user_id = ?
+        AND role = 'roommate'
+    )
+    """
+
+
 def active_roommate_user_ids(
     connection: sqlite3.Connection, host_resident_id: str
 ) -> list[str]:

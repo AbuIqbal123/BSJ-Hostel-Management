@@ -7,6 +7,7 @@ from datetime import date, timedelta
 from typing import Literal
 from pydantic import BaseModel, ConfigDict
 
+from app.residents.guests.decisions import awaiting_roommate_sql
 from app.shared.audit import record_audit
 from app.shared.like import like_contains
 
@@ -339,6 +340,37 @@ def _summary_from_row(row: sqlite3.Row, today: str) -> GuestStaySummaryBody:
             departed_at=row["departed_at"],
             today=today,
         ),
+    )
+
+
+def list_awaiting_roommate_approval(
+    connection: sqlite3.Connection,
+    *,
+    roommate_user_id: str,
+    limit: int,
+    offset: int,
+    today: str,
+) -> GuestStayPageBody:
+    where = f"WHERE {awaiting_roommate_sql()}"
+    params: list[object] = [roommate_user_id, roommate_user_id]
+    total = connection.execute(
+        f"SELECT COUNT(*) AS n {_STAY_FROM} {where}",
+        params,
+    ).fetchone()["n"]
+    rows = connection.execute(
+        f"""
+        {_STAY_SELECT}
+        {where}
+        ORDER BY guest_stays.created_at DESC, guest_stays.id DESC
+        LIMIT ? OFFSET ?
+        """,
+        [*params, limit, offset],
+    ).fetchall()
+    return GuestStayPageBody(
+        total=int(total),
+        limit=limit,
+        offset=offset,
+        items=[_summary_from_row(row, today) for row in rows],
     )
 
 

@@ -1,0 +1,11 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/api/v1/me/guest-stays/awaiting-my-approval?limit=50&offset=0'
+order: 1000
+queryParams:
+  - key: limit
+    value: '50'
+  - key: offset
+    value: '0'
+description: |-
+  Caller: resident. Pending stays where she is a current active roommate of the host and has not yet recorded a roommate decision. Newest first. Each item is a GuestStaySummary card, including the host's name and room.

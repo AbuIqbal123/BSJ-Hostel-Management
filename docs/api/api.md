@@ -53,6 +53,8 @@ Do not edit this page by hand.
 - [Guest Stays](#tag-guest-stays)
   - [GET `/api/v1/me/guest-stays` — Own guest applications](#get-api-v1-me-guest-stays)
   - [POST `/api/v1/me/guest-stays` — Apply for a guest stay](#post-api-v1-me-guest-stays)
+  - [GET `/api/v1/me/guest-stays/awaiting-my-approval` — Guest stays awaiting my approval](#get-api-v1-me-guest-stays-awaiting-my-approval)
+  - [POST `/api/v1/me/guest-stays/{guest_stay_id}/roommate-decision` — Approve or reject as a roommate](#post-api-v1-me-guest-stays-guest_stay_id-roommate-decision)
   - [GET `/api/v1/me/guest-stays/{guest_stay_id}` — Own guest stay](#get-api-v1-me-guest-stays-guest_stay_id)
   - [PATCH `/api/v1/me/guest-stays/{guest_stay_id}` — Edit own guest stay](#patch-api-v1-me-guest-stays-guest_stay_id)
   - [POST `/api/v1/me/guest-stays/{guest_stay_id}/cancel` — Cancel own guest application](#post-api-v1-me-guest-stays-guest_stay_id-cancel)
@@ -2601,12 +2603,14 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 ## <a id="tag-guest-stays"></a>Guest Stays
 
-Guest applications. Resident applies and edits under /api/v1/me/guest-stays; warden or provost queue under /api/v1/guest-stays; only the provost decides. A resident may edit only while the stay is pending and before arrival; the stay stays pending. Gate arrival and departure stay under Gate.
+Guest applications. Resident applies and edits under /api/v1/me/guest-stays. A current roommate lists stays awaiting her and records her yes or no. Warden or provost queue under /api/v1/guest-stays; only the provost records the hall decision. A resident may edit only while the stay is pending and before arrival; the stay stays pending. Gate arrival and departure stay under Gate.
 
 | Method | Path | Purpose | Who |
 |---|---|---|---|
 | GET | `/api/v1/me/guest-stays` | [Own guest applications](#get-api-v1-me-guest-stays) | resident |
 | POST | `/api/v1/me/guest-stays` | [Apply for a guest stay](#post-api-v1-me-guest-stays) | resident |
+| GET | `/api/v1/me/guest-stays/awaiting-my-approval` | [Guest stays awaiting my approval](#get-api-v1-me-guest-stays-awaiting-my-approval) | resident |
+| POST | `/api/v1/me/guest-stays/{guest_stay_id}/roommate-decision` | [Approve or reject as a roommate](#post-api-v1-me-guest-stays-guest_stay_id-roommate-decision) | resident who is a current roommate of the host |
 | GET | `/api/v1/me/guest-stays/{guest_stay_id}` | [Own guest stay](#get-api-v1-me-guest-stays-guest_stay_id) | resident, and only for a stay they host |
 | PATCH | `/api/v1/me/guest-stays/{guest_stay_id}` | [Edit own guest stay](#patch-api-v1-me-guest-stays-guest_stay_id) | resident, and only for a stay they host |
 | POST | `/api/v1/me/guest-stays/{guest_stay_id}/cancel` | [Cancel own guest application](#post-api-v1-me-guest-stays-guest_stay_id-cancel) | resident |
@@ -2748,6 +2752,168 @@ Body: [ErrorResponse](#schema-errorresponse).
 #### 403
 
 The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 422
+
+The JSON is the wrong shape, or a field fails a constraint that does not depend on existing rows.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
+### <a id="get-api-v1-me-guest-stays-awaiting-my-approval"></a>GET `/api/v1/me/guest-stays/awaiting-my-approval` — Guest stays awaiting my approval
+
+`list_guest_stays_awaiting_my_approval`
+
+**Who.** resident. Bearer access token.
+
+Caller: resident.
+
+Stays where she is a current active roommate of the host, the stay is
+still `pending`, and she has not yet recorded a roommate decision.
+Newest first. Each item is a GuestStaySummary card, including the
+host's name and room. Her own stays are absent. A stay leaves this
+list once she has decided, even while it is still pending on the
+provost.
+
+**Parameters**
+
+| Name | In | Required | Type | Notes |
+|---|---|---|---|---|
+| `limit` | query | no | integer | 1–500. default `50`. |
+| `offset` | query | no | integer | minimum 0. default `0`. |
+
+**Responses**
+
+#### 200
+
+Guest stay page of GuestStaySummary cards.
+
+Body: [GuestStayPage](#schema-gueststaypage).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `total` | yes | integer | minimum 0. |
+| `limit` | yes | integer |  |
+| `offset` | yes | integer |  |
+| `items` | yes | list of [GuestStaySummary](#schema-gueststaysummary) |  |
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
+### <a id="post-api-v1-me-guest-stays-guest_stay_id-roommate-decision"></a>POST `/api/v1/me/guest-stays/{guest_stay_id}/roommate-decision` — Approve or reject as a roommate
+
+`decide_guest_stay_as_roommate`
+
+**Who.** resident who is a current roommate of the host. Bearer access token.
+
+Caller: resident who is a current roommate of the host.
+
+Her yes or no is stored as a roommate decision. The stay stays
+`pending` until every roommate required now and the provost have
+approved. Her no rejects the stay at once and leaves the staff
+decision empty. Her yes approves the stay only when the provost has
+already approved and no other current roommate is still required;
+`decided_by` is then that provost. Someone who is not a current
+roommate receives 403 `forbidden`. A missing stay receives 404
+`not_found`. A stay that is not pending receives 409 `not_pending`.
+The same roommate deciding again while the stay is still pending
+receives 409 `already_decided`.
+
+**Parameters**
+
+| Name | In | Required | Type | Notes |
+|---|---|---|---|---|
+| `guest_stay_id` | path | yes | uuid |  |
+
+**Request.** Required.
+
+Body: [DecisionRequest](#schema-decisionrequest).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `decision` | yes | `approved` or `rejected` |  |
+| `note` | no | string | at most 500 characters. |
+
+**Example**
+
+```json
+{
+  "decision": "approved",
+  "note": "Fine with me."
+}
+```
+
+**Responses**
+
+#### 200
+
+Decision stored. The stay may still be pending.
+
+Body: [GuestStay](#schema-gueststay).
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `id` | yes | uuid |  |
+| `host_resident_id` | yes | uuid |  |
+| `host_name` | yes | string |  |
+| `host_room_label` | yes | string |  |
+| `guest_name` | yes | string |  |
+| `relation` | yes | string |  |
+| `guest_start_date` | yes | date |  |
+| `guest_end_date` | yes | date |  |
+| `inclusive_days` | yes | integer |  |
+| `reason` | yes | string |  |
+| `status` | yes | `pending` or `approved` or `rejected` or `cancelled` or `departed` |  |
+| `payment_status` | yes | `unpaid` or `paid` |  |
+| `payment_note` | no | string or null | Off-system payment proof (transaction reference, who collected cash, screenshot mention, and similar). Set when payment is marked paid; null when unpaid. |
+| `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
+| `decision_note` | no | string or null |  |
+| `decided_by` | no | uuid or null | UUID of the provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once the provost approves or rejects. |
+| `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
+| `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
+| `arrived_at` | no | date-time or null |  |
+| `departed_at` | no | date-time or null |  |
+| `payment_evidence_original_name` | no | string or null | Original client filename when optional payment evidence was uploaded. Empty when no evidence is stored. Never a filesystem path. |
+| `payment_evidence_content_type` | no | string or null | Stored content type when evidence exists (`image/jpeg`, `image/png`, or `application/pdf`). Empty when no evidence is stored. |
+| `payment_evidence_uploaded_at` | no | date-time or null | UTC instant when evidence was last uploaded. Empty when none. |
+| `payment_evidence_uploaded_by` | no | uuid or null | UUID of the warden or provost who uploaded the evidence. Empty when no evidence is stored. |
+| `created_at` | yes | date-time |  |
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+Not a resident, or not a current active roommate of the host.
+Code `forbidden`.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 404
+
+That guest stay was not found. Code `not_found`.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 409
+
+Not pending. Code `not_pending`. The same roommate deciding again
+while the stay is still pending returns code `already_decided`.
 
 Body: [ErrorResponse](#schema-errorresponse).
 

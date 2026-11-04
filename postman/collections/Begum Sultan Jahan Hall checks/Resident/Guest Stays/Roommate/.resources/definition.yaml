@@ -1,0 +1,5 @@
+$kind: collection
+name: Roommate
+order: 5000
+description: |-
+  Approve or reject a guest stay as a current roommate.
