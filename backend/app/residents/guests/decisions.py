@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 import uuid
+from dataclasses import dataclass
 from typing import Literal
 
 from app.shared.db import INTEGRITY_ERRORS
@@ -24,6 +25,24 @@ class GuestStayNotFoundError(Exception):
 
 class StayNotPendingError(Exception):
     """Only a pending guest stay can take a decision."""
+
+
+@dataclass(frozen=True)
+class RecordedDecision:
+    role: str
+    actor_user_id: str
+    actor_name: str
+    decision: str
+    decided_at: str
+    note: str | None
+
+
+@dataclass(frozen=True)
+class DecisionSummary:
+    decisions: tuple[RecordedDecision, ...]
+    roommate_approval_required: bool
+    waiting_on_roommate: bool
+    waiting_on_provost: bool
 
 
 def awaiting_roommate_sql() -> str:
@@ -52,6 +71,55 @@ def awaiting_roommate_sql() -> str:
         AND role = 'roommate'
     )
     """
+
+
+def decision_summary(
+    connection: sqlite3.Connection,
+    *,
+    guest_stay_id: str,
+    host_resident_id: str,
+    status: str,
+) -> DecisionSummary:
+    """Who has decided, and who must still say yes, from current roommates."""
+    rows = connection.execute(
+        """
+        SELECT
+          guest_stay_decisions.role,
+          guest_stay_decisions.actor_user_id,
+          users.full_name AS actor_name,
+          guest_stay_decisions.decision,
+          guest_stay_decisions.decided_at,
+          guest_stay_decisions.note
+        FROM guest_stay_decisions
+        JOIN users ON users.id = guest_stay_decisions.actor_user_id
+        WHERE guest_stay_decisions.guest_stay_id = ?
+        ORDER BY guest_stay_decisions.decided_at,
+                 guest_stay_decisions.role,
+                 guest_stay_decisions.actor_user_id
+        """,
+        (guest_stay_id,),
+    ).fetchall()
+    decisions = tuple(
+        RecordedDecision(
+            role=row["role"],
+            actor_user_id=row["actor_user_id"],
+            actor_name=row["actor_name"],
+            decision=row["decision"],
+            decided_at=row["decided_at"],
+            note=row["note"],
+        )
+        for row in rows
+    )
+    pending = status == "pending"
+    return DecisionSummary(
+        decisions=decisions,
+        roommate_approval_required=bool(
+            active_roommate_user_ids(connection, host_resident_id)
+        ),
+        waiting_on_roommate=pending
+        and not _roommates_have_approved(connection, guest_stay_id, host_resident_id),
+        waiting_on_provost=pending and _approving_provost(connection, guest_stay_id) is None,
+    )
 
 
 def active_roommate_user_ids(

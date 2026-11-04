@@ -333,6 +333,10 @@ def test_guest_stays_resident(database_path: Path, monkeypatch: pytest.MonkeyPat
             "payment_evidence_content_type",
             "payment_evidence_uploaded_at",
             "payment_evidence_uploaded_by",
+            "decisions",
+            "roommate_approval_required",
+            "waiting_on_roommate",
+            "waiting_on_provost",
         }
         for item in page["items"]:
             assert set(item) == summary_keys
@@ -344,6 +348,10 @@ def test_guest_stays_resident(database_path: Path, monkeypatch: pytest.MonkeyPat
         got = client.get(f"/api/v1/me/guest-stays/{stay_id}", headers=headers)
         assert got.status_code == 200
         assert got.json() == created_body
+        assert got.json()["decisions"] == []
+        assert got.json()["roommate_approval_required"] is False
+        assert got.json()["waiting_on_roommate"] is False
+        assert got.json()["waiting_on_provost"] is True
 
         edited_pending = client.patch(
             f"/api/v1/me/guest-stays/{stay_id}",

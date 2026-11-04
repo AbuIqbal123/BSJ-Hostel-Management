@@ -1588,7 +1588,10 @@ paths:
       tags: [Guest Stays]
       operationId: get_own_guest_stay
       summary: Own guest stay
-      description: "Caller: resident, and only for a stay they host."
+      description: |
+        Caller: resident, and only for a stay they host. The body includes
+        each recorded decision and whether the stay is still waiting on a
+        roommate or the provost.
       parameters:
         - $ref: "#/components/parameters/GuestStayId"
       responses:
@@ -2723,7 +2726,7 @@ paths:
         - $ref: "#/components/parameters/GuestStayId"
       responses:
         "200":
-          description: Guest stay, including the host.
+          description: Guest stay, including the host and the decision summary.
           content:
             application/json:
               schema:
@@ -5255,9 +5258,48 @@ components:
           minLength: 1
           maxLength: 500
 
+    GuestStayDecision:
+      type: object
+      additionalProperties: false
+      description: |
+        One recorded yes or no on a guest stay. `actor_name` is the person's
+        name. `note` is empty when she left none.
+      required:
+        - role
+        - actor_user_id
+        - actor_name
+        - decision
+        - decided_at
+        - note
+      properties:
+        role:
+          type: string
+          enum: [roommate, provost]
+        actor_user_id:
+          type: string
+          format: uuid
+        actor_name:
+          type: string
+        decision:
+          type: string
+          enum: [approved, rejected]
+        decided_at:
+          type: string
+          format: date-time
+        note:
+          oneOf:
+            - type: string
+            - type: "null"
+
     GuestStay:
       type: object
       additionalProperties: false
+      description: |
+        One guest stay. `decisions` lists each recorded yes or no, oldest
+        first. `roommate_approval_required` is true when another active
+        resident currently shares the host's room. `waiting_on_roommate` and
+        `waiting_on_provost` are true only while the stay is still pending
+        and that party has not yet approved.
       required:
         - id
         - host_resident_id
@@ -5272,6 +5314,10 @@ components:
         - status
         - payment_status
         - bucket
+        - decisions
+        - roommate_approval_required
+        - waiting_on_roommate
+        - waiting_on_provost
         - created_at
       properties:
         id:
@@ -5324,6 +5370,28 @@ components:
               format: uuid
             - type: "null"
           description: UUID of the provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once the provost approves or rejects.
+        decisions:
+          type: array
+          description: |
+            Recorded yeses and nos for this stay, oldest first. Empty when
+            nobody has decided yet. A roommate's no is here even though
+            `decided_by` stays empty.
+          items:
+            $ref: "#/components/schemas/GuestStayDecision"
+        roommate_approval_required:
+          type: boolean
+          description: |
+            True when another active resident currently shares the host's room.
+        waiting_on_roommate:
+          type: boolean
+          description: |
+            True while the stay is pending and a current roommate has not yet
+            approved. False when she has no roommate, after every current
+            roommate has approved, or once the stay is no longer pending.
+        waiting_on_provost:
+          type: boolean
+          description: |
+            True while the stay is pending and the provost has not yet approved.
         arrived_recorded_by:
           oneOf:
             - type: string
@@ -5383,8 +5451,8 @@ components:
       additionalProperties: false
       description: |
         Card fields for guest-stay list rows. Full stay detail (reason, decision
-        note, decided_by / recorder staff ids, arrival/departure instants) is on
-        GuestStay via GET by id.
+        note, decided_by / recorder staff ids, the decision summary,
+        arrival/departure instants) is on GuestStay via GET by id.
       required:
         - id
         - guest_name

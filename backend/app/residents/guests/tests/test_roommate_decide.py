@@ -361,6 +361,21 @@ def test_roommate_lists_and_decides(database_path: Path, monkeypatch: pytest.Mon
         assert body["guest_name"] == "Newest Guest"
         assert "reason" in body
         assert decision_rows(database_path, NEWEST) == [expected["approve_while_waiting"]]
+        host_waiting = client.get(f"/api/v1/me/guest-stays/{NEWEST}", headers=auth(host))
+        assert host_waiting.status_code == 200
+        assert host_waiting.json()["decisions"] == [
+            {
+                "role": "roommate",
+                "actor_user_id": ROOMMATE_ID,
+                "actor_name": "Zaynab Ali",
+                "decision": "approved",
+                "decided_at": NOW,
+                "note": "Sounds fine.",
+            }
+        ]
+        assert host_waiting.json()["roommate_approval_required"] is True
+        assert host_waiting.json()["waiting_on_roommate"] is False
+        assert host_waiting.json()["waiting_on_provost"] is True
         assert notices(database_path, NEWEST) == []
         assert audit_actions(database_path, NEWEST) == []
         after = client.get(waiting, headers=auth(roommate)).json()
@@ -401,6 +416,31 @@ def test_roommate_lists_and_decides(database_path: Path, monkeypatch: pytest.Mon
         assert done["decided_by"] == PROVOST_ID
         assert done["decision_note"] == "Fine with me."
         assert decision_rows(database_path, PROVOST_FIRST) == expected["approved_decisions"]
+        host_approved = client.get(
+            f"/api/v1/me/guest-stays/{PROVOST_FIRST}", headers=auth(host)
+        )
+        assert host_approved.status_code == 200
+        assert host_approved.json()["decisions"] == [
+            {
+                "role": "provost",
+                "actor_user_id": PROVOST_ID,
+                "actor_name": "Halima Begum",
+                "decision": "approved",
+                "decided_at": NOW,
+                "note": "Fine with me.",
+            },
+            {
+                "role": "roommate",
+                "actor_user_id": ROOMMATE_ID,
+                "actor_name": "Zaynab Ali",
+                "decision": "approved",
+                "decided_at": NOW,
+                "note": None,
+            },
+        ]
+        assert host_approved.json()["roommate_approval_required"] is True
+        assert host_approved.json()["waiting_on_roommate"] is False
+        assert host_approved.json()["waiting_on_provost"] is False
         assert notices(database_path, PROVOST_FIRST) == [[HOST_ID, "guest_stay_decided", "approved"]]
         assert audit_actions(database_path, PROVOST_FIRST) == ["guest_stay.approved"]
 
@@ -416,6 +456,21 @@ def test_roommate_lists_and_decides(database_path: Path, monkeypatch: pytest.Mon
         assert refused["decided_by"] is None
         assert refused["decision_note"] is None
         assert decision_rows(database_path, REJECT_STAY) == [expected["rejected_decision"]]
+        host_rejected = client.get(f"/api/v1/me/guest-stays/{REJECT_STAY}", headers=auth(host))
+        assert host_rejected.status_code == 200
+        assert host_rejected.json()["decisions"] == [
+            {
+                "role": "roommate",
+                "actor_user_id": ROOMMATE_ID,
+                "actor_name": "Zaynab Ali",
+                "decision": "rejected",
+                "decided_at": NOW,
+                "note": "Not this week.",
+            }
+        ]
+        assert host_rejected.json()["roommate_approval_required"] is True
+        assert host_rejected.json()["waiting_on_roommate"] is False
+        assert host_rejected.json()["waiting_on_provost"] is False
         assert notices(database_path, REJECT_STAY) == [[HOST_ID, "guest_stay_decided", "rejected"]]
         assert audit_actions(database_path, REJECT_STAY) == ["guest_stay.rejected"]
         assert client.get(waiting, headers=auth(roommate)).json()["items"] == []

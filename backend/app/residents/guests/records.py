@@ -7,12 +7,14 @@ from datetime import date, timedelta
 from typing import Literal
 from pydantic import BaseModel, ConfigDict
 
-from app.residents.guests.decisions import awaiting_roommate_sql
+from app.residents.guests.decisions import awaiting_roommate_sql, decision_summary
 from app.shared.audit import record_audit
 from app.shared.like import like_contains
 
 GuestStatus = Literal["pending", "approved", "rejected", "cancelled", "departed"]
 PaymentStatus = Literal["unpaid", "paid"]
+DecisionRole = Literal["roommate", "provost"]
+DecisionOutcome = Literal["approved", "rejected"]
 GuestBucket = Literal[
     "pending",
     "upcoming",
@@ -24,6 +26,16 @@ GuestBucket = Literal[
     "rejected",
     "cancelled",
 ]
+
+
+class GuestStayDecisionBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    role: DecisionRole
+    actor_user_id: str
+    actor_name: str
+    decision: DecisionOutcome
+    decided_at: str
+    note: str | None
 
 
 class GuestStayBody(BaseModel):
@@ -44,6 +56,10 @@ class GuestStayBody(BaseModel):
     bucket: GuestBucket
     decision_note: str | None = None
     decided_by: str | None = None
+    decisions: list[GuestStayDecisionBody]
+    roommate_approval_required: bool
+    waiting_on_roommate: bool
+    waiting_on_provost: bool
     arrived_recorded_by: str | None = None
     departed_recorded_by: str | None = None
     payment_evidence_original_name: str | None = None
@@ -279,9 +295,19 @@ SELECT
 """ + _STAY_FROM
 
 
-def _body_from_row(row: sqlite3.Row, today: str) -> GuestStayBody:
+def _body_from_row(
+    row: sqlite3.Row,
+    today: str,
+    connection: sqlite3.Connection,
+) -> GuestStayBody:
     start = row["guest_start_date"]
     end = row["guest_end_date"]
+    summary = decision_summary(
+        connection,
+        guest_stay_id=row["id"],
+        host_resident_id=row["host_resident_id"],
+        status=row["status"],
+    )
     return GuestStayBody(
         id=row["id"],
         host_resident_id=row["host_resident_id"],
@@ -307,6 +333,13 @@ def _body_from_row(row: sqlite3.Row, today: str) -> GuestStayBody:
         ),
         decision_note=row["decision_note"],
         decided_by=row["decided_by"],
+        decisions=[
+            GuestStayDecisionBody.model_validate(item, from_attributes=True)
+            for item in summary.decisions
+        ],
+        roommate_approval_required=summary.roommate_approval_required,
+        waiting_on_roommate=summary.waiting_on_roommate,
+        waiting_on_provost=summary.waiting_on_provost,
         arrived_recorded_by=row["arrived_recorded_by"],
         departed_recorded_by=row["departed_recorded_by"],
         payment_evidence_original_name=row["payment_evidence_original_name"],
@@ -392,7 +425,7 @@ def load_guest_stay(
     ).fetchone()
     if row is None:
         return None
-    return _body_from_row(row, today)
+    return _body_from_row(row, today, connection)
 
 
 def list_guest_stays(

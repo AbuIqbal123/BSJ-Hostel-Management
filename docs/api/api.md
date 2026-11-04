@@ -2733,6 +2733,10 @@ Body: [GuestStay](#schema-gueststay).
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
 | `decided_by` | no | uuid or null | UUID of the provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once the provost approves or rejects. |
+| `decisions` | yes | list of [GuestStayDecision](#schema-gueststaydecision) | Recorded yeses and nos for this stay, oldest first. Empty when nobody has decided yet. A roommate's no is here even though `decided_by` stays empty. |
+| `roommate_approval_required` | yes | boolean | True when another active resident currently shares the host's room. |
+| `waiting_on_roommate` | yes | boolean | True while the stay is pending and a current roommate has not yet approved. False when she has no roommate, after every current roommate has approved, or once the stay is no longer pending. |
+| `waiting_on_provost` | yes | boolean | True while the stay is pending and the provost has not yet approved. |
 | `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
 | `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
@@ -2881,6 +2885,10 @@ Body: [GuestStay](#schema-gueststay).
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
 | `decided_by` | no | uuid or null | UUID of the provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once the provost approves or rejects. |
+| `decisions` | yes | list of [GuestStayDecision](#schema-gueststaydecision) | Recorded yeses and nos for this stay, oldest first. Empty when nobody has decided yet. A roommate's no is here even though `decided_by` stays empty. |
+| `roommate_approval_required` | yes | boolean | True when another active resident currently shares the host's room. |
+| `waiting_on_roommate` | yes | boolean | True while the stay is pending and a current roommate has not yet approved. False when she has no roommate, after every current roommate has approved, or once the stay is no longer pending. |
+| `waiting_on_provost` | yes | boolean | True while the stay is pending and the provost has not yet approved. |
 | `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
 | `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
@@ -2930,7 +2938,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** resident, and only for a stay they host. Bearer access token.
 
-Caller: resident, and only for a stay they host.
+Caller: resident, and only for a stay they host. The body includes
+each recorded decision and whether the stay is still waiting on a
+roommate or the provost.
 
 **Parameters**
 
@@ -2964,6 +2974,10 @@ Body: [GuestStay](#schema-gueststay).
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
 | `decided_by` | no | uuid or null | UUID of the provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once the provost approves or rejects. |
+| `decisions` | yes | list of [GuestStayDecision](#schema-gueststaydecision) | Recorded yeses and nos for this stay, oldest first. Empty when nobody has decided yet. A roommate's no is here even though `decided_by` stays empty. |
+| `roommate_approval_required` | yes | boolean | True when another active resident currently shares the host's room. |
+| `waiting_on_roommate` | yes | boolean | True while the stay is pending and a current roommate has not yet approved. False when she has no roommate, after every current roommate has approved, or once the stay is no longer pending. |
+| `waiting_on_provost` | yes | boolean | True while the stay is pending and the provost has not yet approved. |
 | `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
 | `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
@@ -3072,6 +3086,10 @@ Body: [GuestStay](#schema-gueststay).
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
 | `decided_by` | no | uuid or null | UUID of the provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once the provost approves or rejects. |
+| `decisions` | yes | list of [GuestStayDecision](#schema-gueststaydecision) | Recorded yeses and nos for this stay, oldest first. Empty when nobody has decided yet. A roommate's no is here even though `decided_by` stays empty. |
+| `roommate_approval_required` | yes | boolean | True when another active resident currently shares the host's room. |
+| `waiting_on_roommate` | yes | boolean | True while the stay is pending and a current roommate has not yet approved. False when she has no roommate, after every current roommate has approved, or once the stay is no longer pending. |
+| `waiting_on_provost` | yes | boolean | True while the stay is pending and the provost has not yet approved. |
 | `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
 | `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
@@ -3155,6 +3173,10 @@ Body: [GuestStay](#schema-gueststay).
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
 | `decided_by` | no | uuid or null | UUID of the provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once the provost approves or rejects. |
+| `decisions` | yes | list of [GuestStayDecision](#schema-gueststaydecision) | Recorded yeses and nos for this stay, oldest first. Empty when nobody has decided yet. A roommate's no is here even though `decided_by` stays empty. |
+| `roommate_approval_required` | yes | boolean | True when another active resident currently shares the host's room. |
+| `waiting_on_roommate` | yes | boolean | True while the stay is pending and a current roommate has not yet approved. False when she has no roommate, after every current roommate has approved, or once the stay is no longer pending. |
+| `waiting_on_provost` | yes | boolean | True while the stay is pending and the provost has not yet approved. |
 | `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
 | `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
@@ -3264,7 +3286,7 @@ Caller: warden or provost.
 
 #### 200
 
-Guest stay, including the host.
+Guest stay, including the host and the decision summary.
 
 Body: [GuestStay](#schema-gueststay).
 
@@ -3286,6 +3308,10 @@ Body: [GuestStay](#schema-gueststay).
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
 | `decided_by` | no | uuid or null | UUID of the provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once the provost approves or rejects. |
+| `decisions` | yes | list of [GuestStayDecision](#schema-gueststaydecision) | Recorded yeses and nos for this stay, oldest first. Empty when nobody has decided yet. A roommate's no is here even though `decided_by` stays empty. |
+| `roommate_approval_required` | yes | boolean | True when another active resident currently shares the host's room. |
+| `waiting_on_roommate` | yes | boolean | True while the stay is pending and a current roommate has not yet approved. False when she has no roommate, after every current roommate has approved, or once the stay is no longer pending. |
+| `waiting_on_provost` | yes | boolean | True while the stay is pending and the provost has not yet approved. |
 | `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
 | `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
@@ -3378,6 +3404,10 @@ Body: [GuestStay](#schema-gueststay).
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
 | `decided_by` | no | uuid or null | UUID of the provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once the provost approves or rejects. |
+| `decisions` | yes | list of [GuestStayDecision](#schema-gueststaydecision) | Recorded yeses and nos for this stay, oldest first. Empty when nobody has decided yet. A roommate's no is here even though `decided_by` stays empty. |
+| `roommate_approval_required` | yes | boolean | True when another active resident currently shares the host's room. |
+| `waiting_on_roommate` | yes | boolean | True while the stay is pending and a current roommate has not yet approved. False when she has no roommate, after every current roommate has approved, or once the stay is no longer pending. |
+| `waiting_on_provost` | yes | boolean | True while the stay is pending and the provost has not yet approved. |
 | `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
 | `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
@@ -3479,6 +3509,10 @@ Body: [GuestStay](#schema-gueststay).
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
 | `decided_by` | no | uuid or null | UUID of the provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once the provost approves or rejects. |
+| `decisions` | yes | list of [GuestStayDecision](#schema-gueststaydecision) | Recorded yeses and nos for this stay, oldest first. Empty when nobody has decided yet. A roommate's no is here even though `decided_by` stays empty. |
+| `roommate_approval_required` | yes | boolean | True when another active resident currently shares the host's room. |
+| `waiting_on_roommate` | yes | boolean | True while the stay is pending and a current roommate has not yet approved. False when she has no roommate, after every current roommate has approved, or once the stay is no longer pending. |
+| `waiting_on_provost` | yes | boolean | True while the stay is pending and the provost has not yet approved. |
 | `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
 | `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
@@ -3572,6 +3606,10 @@ Body: [GuestStay](#schema-gueststay).
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
 | `decided_by` | no | uuid or null | UUID of the provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once the provost approves or rejects. |
+| `decisions` | yes | list of [GuestStayDecision](#schema-gueststaydecision) | Recorded yeses and nos for this stay, oldest first. Empty when nobody has decided yet. A roommate's no is here even though `decided_by` stays empty. |
+| `roommate_approval_required` | yes | boolean | True when another active resident currently shares the host's room. |
+| `waiting_on_roommate` | yes | boolean | True while the stay is pending and a current roommate has not yet approved. False when she has no roommate, after every current roommate has approved, or once the stay is no longer pending. |
+| `waiting_on_provost` | yes | boolean | True while the stay is pending and the provost has not yet approved. |
 | `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
 | `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
@@ -3712,6 +3750,10 @@ Body: [GuestStay](#schema-gueststay).
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
 | `decided_by` | no | uuid or null | UUID of the provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once the provost approves or rejects. |
+| `decisions` | yes | list of [GuestStayDecision](#schema-gueststaydecision) | Recorded yeses and nos for this stay, oldest first. Empty when nobody has decided yet. A roommate's no is here even though `decided_by` stays empty. |
+| `roommate_approval_required` | yes | boolean | True when another active resident currently shares the host's room. |
+| `waiting_on_roommate` | yes | boolean | True while the stay is pending and a current roommate has not yet approved. False when she has no roommate, after every current roommate has approved, or once the stay is no longer pending. |
+| `waiting_on_provost` | yes | boolean | True while the stay is pending and the provost has not yet approved. |
 | `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
 | `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
@@ -6949,7 +6991,27 @@ arrival, is refused.
 | `guest_end_date` | no | date |  |
 | `reason` | no | string | 1–500 characters. |
 
+### <a id="schema-gueststaydecision"></a>GuestStayDecision
+
+One recorded yes or no on a guest stay. `actor_name` is the person's
+name. `note` is empty when she left none.
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `role` | yes | `roommate` or `provost` |  |
+| `actor_user_id` | yes | uuid |  |
+| `actor_name` | yes | string |  |
+| `decision` | yes | `approved` or `rejected` |  |
+| `decided_at` | yes | date-time |  |
+| `note` | yes | string or null |  |
+
 ### <a id="schema-gueststay"></a>GuestStay
+
+One guest stay. `decisions` lists each recorded yes or no, oldest
+first. `roommate_approval_required` is true when another active
+resident currently shares the host's room. `waiting_on_roommate` and
+`waiting_on_provost` are true only while the stay is still pending
+and that party has not yet approved.
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
@@ -6969,6 +7031,10 @@ arrival, is refused.
 | `bucket` | yes | `pending` or `upcoming` or `expected` or `not_expected` or `in_hall` or `should_have_left` or `departed` or `rejected` or `cancelled` |  |
 | `decision_note` | no | string or null |  |
 | `decided_by` | no | uuid or null | UUID of the provost who decided. Empty while waiting, and empty if the resident cancels before a decision. Set once the provost approves or rejects. |
+| `decisions` | yes | list of [GuestStayDecision](#schema-gueststaydecision) | Recorded yeses and nos for this stay, oldest first. Empty when nobody has decided yet. A roommate's no is here even though `decided_by` stays empty. |
+| `roommate_approval_required` | yes | boolean | True when another active resident currently shares the host's room. |
+| `waiting_on_roommate` | yes | boolean | True while the stay is pending and a current roommate has not yet approved. False when she has no roommate, after every current roommate has approved, or once the stay is no longer pending. |
+| `waiting_on_provost` | yes | boolean | True while the stay is pending and the provost has not yet approved. |
 | `arrived_recorded_by` | no | uuid or null | UUID of the staff member who recorded arrival. Empty until arrival is recorded. |
 | `departed_recorded_by` | no | uuid or null | UUID of the staff member who recorded departure. Empty until departure is recorded. |
 | `arrived_at` | no | date-time or null |  |
@@ -6982,8 +7048,8 @@ arrival, is refused.
 ### <a id="schema-gueststaysummary"></a>GuestStaySummary
 
 Card fields for guest-stay list rows. Full stay detail (reason, decision
-note, decided_by / recorder staff ids, arrival/departure instants) is on
-GuestStay via GET by id.
+note, decided_by / recorder staff ids, the decision summary,
+arrival/departure instants) is on GuestStay via GET by id.
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
