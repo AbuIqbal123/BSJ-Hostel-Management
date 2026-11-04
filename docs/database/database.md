@@ -64,7 +64,7 @@ The rules in this document are the contract. The room inventory is taken from th
 - The register shows who is inside, outside, or late, and the permissions still waiting. It shows those counts for the whole hall and again for each block. Search is by name or room. A register list row names the outside destination when the resident is outside. A resident record includes the open outside outing when she is outside — place, exit, expected return, grace, outing type — and whether the guardian was told. When she is inside, that outing field is null; cancelled, returned, and planned outings are not shown there.
 - The provost sees the whole hall and can export the register.
 - A guest stay is applied for by the host resident at least one day before the start date, for at most 7 days counting the first and last day. 18 September 2026 through 21 September 2026 is 4 days. Payment is marked at the hall office, not collected in the app. Guests have no hall pass. Gate staff record arrival and departure from a list. A guest stays on the dining count until departure is recorded, including when the end date has passed.
-- A guest stay keeps one decision row for each roommate or provost who approves or rejects it. The required roommates are the other residents on the host's room now whose accounts are active. The host is not among them. A suspended resident who has not been moved still occupies a bed, and she is not a required roommate. When no other active resident shares the room, there is no roommate to ask. The rows stay.
+- A guest stay keeps one decision row for each roommate or provost who approves or rejects it. The required roommates are the other residents on the host's room now whose accounts are active. The host is not among them. A suspended resident who has not been moved still occupies a bed, and she is not a required roommate. When no other active resident shares the room, there is no roommate to ask. The stay stays waiting until every roommate required now and the provost have approved, in either order. Either no rejects it at once. A roommate's no leaves the staff decision on the stay empty. The provost's no, and the yes that completes approval, name that provost on the stay. The rows stay, including after a roommate moves, and a host edit does not clear them.
 - Emergency alerts are not in this version. An alert must not approve leave or change whether a resident is outside.
 - Parents and guardians do not use the app. A text message is the only channel to them.
 - A resident may self-onboard with her full name, enrolment number, chosen password, own phone, guardian name and phone, and a selected block and room. On that form the resident phone and the guardian phone are Indian mobiles: +91 followed by exactly 10 digits. The account starts **active**, can sign in immediately, and receives its hall pass. Staff (gate, warden, provost) are never self-onboarded. She can delete that account from the phone. Deletion asks for her current password, revokes her sessions, cancels planned outings and permissions and guest stays that have not arrived, and frees her room. Her name, phone, guardian, enrolment, and hall pass are removed. The account is suspended under a new username she does not know, so the old enrolment can be used again and sign-in with it fails. Outings, permissions, guest stays, and audit rows the hall already kept stay, without her name. Deletion is refused while she is outside or a guest of hers is still in the hall. The first deletion creates an inactive Utility room, `Utility-former`, that holds these accounts and is not offered at signup.
@@ -475,9 +475,9 @@ Guests are not accounts and have no hall pass.
 | payment_evidence_content_type | Text | Empty when no file. | System, from the file header | `image/jpeg`, `image/png`, or `application/pdf`. |
 | payment_evidence_uploaded_at | Instant | Empty when no file. | System, when the bytes are stored | |
 | payment_evidence_uploaded_by | Identifier | Empty when no file. | The warden or provost who uploaded it | |
-| decided_by | Identifier | Empty while waiting, and empty if the resident cancels. Yes once approved or rejected. | The provost who decided | The audit of the decision. A waiting stay has no decision yet. A resident edit is allowed only while waiting and before arrival, and it leaves this field empty. |
-| decided_at | Instant | Empty in the same cases as decided_by. Yes once approved or rejected. | System, at the decision | |
-| decision_note | Text | Empty if they write nothing | The provost may type it | Optional. |
+| decided_by | Identifier | Empty while waiting, empty if the resident cancels, and empty when a roommate rejects. Yes when the provost rejects, and yes when the stay becomes approved. | The provost who rejected, or the provost whose yes completed approval | A waiting stay has no staff decision yet, even if the provost has already said yes and a roommate is still required. A resident edit is allowed only while waiting and before arrival, and it leaves this field empty. It does not remove decision rows. |
+| decided_at | Instant | Empty in the same cases as decided_by. Yes when the provost rejects, and yes when the stay becomes approved. | System, at that moment | When a roommate's yes is the one that completes approval, this is that moment, and decided_by is still the provost. |
+| decision_note | Text | Empty if the provost writes nothing, empty while waiting, and empty when a roommate rejects | The provost may type it | Stored on the stay when her no rejects it, or when approval completes. A roommate's note stays on her decision row. |
 | arrived_at | Instant | Yes once arrival is recorded. Empty before that. | The gate scan, or the gate, warden, or provost recording the arrival | |
 | arrived_recorded_by | Identifier | Yes whenever arrived_at is set | The staff member who recorded the arrival | |
 | departed_at | Instant | Yes once departure is recorded. Empty before that. | The staff member's record of departure | At or after arrival. |
@@ -489,15 +489,17 @@ The length of the stay counts the start date and the end date. It must be at lea
 
 The state and the times agree:
 
-- Waiting: no decision and no departure. Arrival is usually empty. The resident may edit only when arrival is also empty.
-- Rejected and cancelled: no arrival and no departure. Rejected has a decision and a staff member. Cancelled by the resident has neither.
-- Approved: a decision and a staff member are recorded, and the guest has not departed. Arrival may still be empty, or already recorded.
+- Waiting: no staff decision and no departure. Arrival is usually empty. The resident may edit only when arrival is also empty. Decision rows may already exist.
+- Rejected and cancelled: no arrival and no departure. Rejected by the provost names that provost. Rejected by a roommate leaves the staff decision empty. Cancelled by the resident has neither.
+- Approved: the provost is recorded, and the guest has not departed. Arrival may still be empty, or already recorded.
 - Departed: arrival and departure are both recorded, each with a staff member, and departure is at or after arrival. The decision may be empty when departure was recorded while the stay was still waiting and the guest had already arrived.
 
 ### Guest lifecycle
 
-- From waiting, before arrival, the resident may edit name, relation, dates, and reason. The stay stays waiting and the decision stays empty. The provost may approve or reject, or the resident may cancel.
-- An approved stay cannot be edited. Before arrival the resident may still cancel it.
+- From waiting, before arrival, the resident may edit name, relation, dates, and reason. The stay stays waiting and the staff decision stays empty. Decision rows already recorded stay.
+- A roommate or the provost may reject a waiting stay. That rejects it at once. A roommate's no leaves the staff decision empty. The provost's no records the provost.
+- The stay becomes approved only when every roommate required at that moment has approved and a provost has approved, in either order. Until then it stays waiting, and the staff decision stays empty. When it becomes approved, decided_by is that provost. A roommate who already decided still has her row after she moves; the roommates still required are whoever shares the room now. When no roommate is required, the provost's yes approves the stay.
+- The resident may cancel while waiting. An approved stay cannot be edited. Before arrival the resident may still cancel it.
 - After arrival the resident cannot edit the stay, whether it is waiting or approved, and cannot cancel it.
 - Approved is the stay that can be in the hall. Arrival is a time on that stay, not a new state.
 - Departure moves an approved stay to departed. Gate may also record departure while a stay is waiting and the guest has already arrived, so the guest is not trapped in the hall. That departure leaves the decision empty.
@@ -506,7 +508,9 @@ Payment is a separate act by a warden or the provost. It can be marked before or
 
 ### Guest stay decisions
 
-One row for each roommate or provost who approves or rejects a stay. The stay's own status stays on the guest stay. These rows are the lasting record of who said what. They are not deleted.
+One row for each roommate or provost who approves or rejects a stay. The stay's own status stays on the guest stay. These rows are the lasting record of who said what. They are not edited and not deleted. A host edit does not clear them.
+
+The stay becomes approved only when the rows show a yes from every roommate required at that moment and a yes from a provost. A no rejects the stay at once. Who is required is worked out then, not stored on the row.
 
 | Detail | Kept as | Required | Where it comes from | Rule |
 |---|---|---|---|---|
@@ -649,15 +653,15 @@ What a person may do comes from her or his role.
 
 Gate staff scan a hall pass and record a guest's arrival and departure. They do not approve a permission, they do not approve a guest stay, and they do not change residents, rooms, or settings. Their screens are the scan result, recent gate activity, and the guest lists.
 
-A warden or the provost sees the register and the late list, views waiting permission and guest-stay queues, and marks a guest paid. Only the **provost** approves or rejects a permission or a guest stay. The provost also creates and edits residents, creates staff, rooms, destinations, and settings, issues a new hall pass, resets a password, exports the register, and reads guardian messages and the audit log. A resident can delete her own account. A deleted account is left off the provost's resident list and off the register counts.
+A warden or the provost sees the register and the late list, views waiting permission and guest-stay queues, and marks a guest paid. Only the **provost** approves or rejects a permission, and only the provost records the hall's yes or no on a guest stay. A resident who currently shares the host's room may also record a yes or no on that stay. The provost also creates and edits residents, creates staff, rooms, destinations, and settings, issues a new hall pass, resets a password, exports the register, and reads guardian messages and the audit log. A resident can delete her own account. A deleted account is left off the provost's resident list and off the register counts.
 
 | Action | Resident | Gate | Warden | Provost |
 |---|---|---|---|---|
 | Self-onboard (active account) | Yes | | | |
-| Own outing, own permission, own guest application, own hall pass, own permission-decision inbox | Yes (active only) | | | |
+| Own outing, own permission, own guest application, own hall pass, own permission-decision inbox, and a yes or no on a guest stay while she is a required roommate | Yes (active only) | | | |
 | Scan a hall pass, record a guest's arrival and departure | | Yes | Yes | Yes |
 | Register, late list, view waiting queues, mark a guest paid, upload or clear optional payment evidence | | | Yes | Yes |
-| Approve or reject late-night, home going, or guest stay | | | | Yes |
+| Approve or reject late-night, home going, or the hall decision on a guest stay | | | | Yes |
 | Export the register | | | | Yes |
 | Create and edit residents, create staff, rooms, blocks, destinations, and settings | | | | Yes |
 | Issue a new hall pass, reset a password | | | | Yes |
