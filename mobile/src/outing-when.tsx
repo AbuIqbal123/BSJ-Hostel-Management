@@ -44,6 +44,30 @@ export function hallDay(date: Date): string {
   return `${hallPart(date, "year")}-${hallPart(date, "month")}-${hallPart(date, "day")}`;
 }
 
+function pad2(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+/** First and last hall calendar days of the month that contains `when`, shifted by `monthsAgo`. */
+export function hallMonthRange(when: Date, monthsAgo = 0): { from: string; to: string } {
+  const [yearText, monthText] = hallDay(when).split("-");
+  let year = Number(yearText);
+  let month = Number(monthText) - monthsAgo;
+  while (month < 1) {
+    month += 12;
+    year -= 1;
+  }
+  while (month > 12) {
+    month -= 12;
+    year += 1;
+  }
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return {
+    from: `${year}-${pad2(month)}-01`,
+    to: `${year}-${pad2(month)}-${pad2(lastDay)}`,
+  };
+}
+
 function hallClock(date: Date): string {
   return `${hallPart(date, "hour")}:${hallPart(date, "minute")}:${hallPart(date, "second")}`;
 }

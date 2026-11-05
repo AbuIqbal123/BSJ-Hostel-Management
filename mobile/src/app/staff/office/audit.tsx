@@ -1,16 +1,26 @@
 import { useCallback, useMemo, useState } from "react";
-import { Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 import { DayRange, type DayRangeValue } from "@/components/day-range";
 import { DenseRow } from "@/components/dense-row";
 import { FilterChip } from "@/components/filter-chip";
 import { FilterChipRow } from "@/components/filter-chip-row";
-import { OfficeFrame, replyError } from "@/components/office-frame";
+import { HallButton } from "@/components/hall-button";
+import { OfficeError, OfficeFrame, replyError } from "@/components/office-frame";
 import { PagedList } from "@/components/paged-list";
 import { SearchField } from "@/components/search-field";
-import { formatWhenParts } from "@/format-when";
-import { pageQuery } from "@/list-page";
-import { readAudit, readPage, type AuditRow } from "@/office";
+import { formatWhenParts, hallNow } from "@/format-when";
+import { PAGE_SIZE, pageQuery } from "@/list-page";
+import {
+  auditCsv,
+  auditExportFileName,
+  auditExportQuery,
+  readAudit,
+  readPage,
+  type AuditRow,
+} from "@/office";
+import { hallDay } from "@/outing-when";
+import { shareLocalFile, writeCacheText } from "@/share-file";
 import { useSession } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
@@ -59,12 +69,14 @@ function auditPath(filters: AuditFilters, offset: number): string {
 
 export default function OfficeAudit() {
   const colors = useHallColors();
-  const { staffRequest } = useSession();
+  const { staffRequest, staffText } = useSession();
   const [open, setOpen] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const q = useDebouncedValue(query);
   const [entityType, setEntityType] = useState<string | null>(null);
   const [range, setRange] = useState<DayRangeValue>({ from: null, to: null });
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [exportBusy, setExportBusy] = useState(false);
   const filters = useMemo<AuditFilters>(() => ({ entityType, q, range }), [entityType, q, range]);
 
   const list = useFilteredPagedList<AuditRow, AuditFilters>({
@@ -84,9 +96,48 @@ export default function OfficeAudit() {
 
   const rows = list.rows ?? [];
   const selected = rows.find((row) => row.id === open) ?? null;
+  const total = list.total ?? rows.length;
+  const moreOffline = total > rows.length;
+
+  const exportAudit = async () => {
+    if (exportBusy) {
+      return;
+    }
+    setExportBusy(true);
+    setExportError(null);
+    const reply = await staffText(`/admin/audit/export${auditExportQuery(filters)}`);
+    const refused = replyError(reply);
+    if (refused || !reply.ok || typeof reply.data !== "string") {
+      setExportError(refused ?? "The audit export was not a CSV");
+      setExportBusy(false);
+      return;
+    }
+    const csv = auditCsv(reply.data);
+    if (!csv) {
+      setExportError("The audit export was not a CSV");
+      setExportBusy(false);
+      return;
+    }
+    try {
+      const uri = await writeCacheText(auditExportFileName(hallDay(hallNow())), csv);
+      const result = await shareLocalFile(uri, {
+        mimeType: "text/csv",
+        uti: "public.comma-separated-values-text",
+        dialogTitle: "Export audit",
+      });
+      if (result === "unavailable") {
+        setExportError("Sharing is not available on this device");
+      } else if (result === "failed") {
+        setExportError("The audit log could not be shared");
+      }
+    } catch {
+      setExportError("The audit log could not be shared");
+    }
+    setExportBusy(false);
+  };
 
   return (
-    <OfficeFrame title="Audit" refreshing={list.refreshing} onRefresh={list.refresh} onNearEnd={() => list.loadNext()}>
+    <OfficeFrame title="Audit" refreshing={list.refreshing} onRefresh={list.refresh}>
       <SearchField value={query} placeholder="Summary, action, or actor" onChange={setQuery} />
       <FilterChipRow>
         {ENTITY_TYPES.map((item) => (
@@ -99,15 +150,17 @@ export default function OfficeAudit() {
         ))}
       </FilterChipRow>
       <DayRange value={range} onChange={setRange} />
+      <HallButton label="Export audit" busy={exportBusy} onPress={() => void exportAudit()} />
+      <OfficeError message={exportError} />
       <PagedList
         rows={list.rows}
         error={list.error}
-        pageError={list.pageError}
+        pageError={null}
         showListSkeleton={list.showListSkeleton}
-        showPageSkeleton={list.showPageSkeleton}
+        showPageSkeleton={false}
         filling={list.filling}
         onRetry={list.retry}
-        onRetryPage={() => list.loadNext(true)}
+        onRetryPage={() => undefined}
         empty="No matching audit lines"
       >
         {!list.showListSkeleton && selected ? (
@@ -131,7 +184,20 @@ export default function OfficeAudit() {
             );
           })}
         </View>
+        {!list.showListSkeleton && rows.length > 0 ? (
+          <Text style={[text.error, styles.footer, { color: colors.inkSoft }]}>
+            {moreOffline
+              ? total > 10_000
+                ? `Showing the newest ${PAGE_SIZE} of ${total}. Export includes up to 10,000 newest matching lines.`
+                : `Showing the newest ${PAGE_SIZE}. Export for the full filtered log (${total}).`
+              : `Showing ${rows.length} ${rows.length === 1 ? "line" : "lines"}.`}
+          </Text>
+        ) : null}
       </PagedList>
     </OfficeFrame>
   );
 }
+
+const styles = StyleSheet.create({
+  footer: { marginTop: 12 },
+});

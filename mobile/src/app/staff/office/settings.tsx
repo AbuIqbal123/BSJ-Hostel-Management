@@ -5,6 +5,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { HallButton } from "@/components/hall-button";
 import { OfficeError, OfficeFrame, replyError } from "@/components/office-frame";
 import { TextField } from "@/components/text-field";
+import { hallFeatures } from "@/hall-features";
 import {
   LATE_PLACEHOLDERS,
   RETURN_PLACEHOLDERS,
@@ -67,6 +68,7 @@ function fieldsFrom(hours: HallHours): HoursFields {
 export default function OfficeSettings() {
   const colors = useHallColors();
   const { staffRequest } = useSession();
+  const showSms = hallFeatures.guardianSmsUi;
   const cachedHours = readOfficeHoursCache();
   const cachedNotices = readOfficeNoticesCache();
   const [savedHours, setSavedHours] = useState<HallHours | null>(cachedHours);
@@ -100,6 +102,11 @@ export default function OfficeSettings() {
         setSavedHours(hours);
         setFields(fieldsFrom(hours));
       });
+      if (!showSms) {
+        return () => {
+          active = false;
+        };
+      }
       void staffRequest("/admin/notifications").then((reply) => {
         if (!active) {
           return;
@@ -119,11 +126,14 @@ export default function OfficeSettings() {
       return () => {
         active = false;
       };
-    }, [staffRequest]),
+    }, [showSms, staffRequest]),
   );
 
   const save = async () => {
-    if (busy || !savedHours || !savedNotices) {
+    if (busy || !savedHours) {
+      return;
+    }
+    if (showSms && !savedNotices) {
       return;
     }
     const next = hoursFromFields(savedHours, fields);
@@ -131,14 +141,17 @@ export default function OfficeSettings() {
       setError(next);
       return;
     }
-    const lateProblem = templateProblem(late, LATE_PLACEHOLDERS);
-    const backProblem = templateProblem(back, RETURN_PLACEHOLDERS);
-    if (lateProblem || backProblem) {
-      setError(lateProblem ?? backProblem);
-      return;
+    if (showSms) {
+      const lateProblem = templateProblem(late, LATE_PLACEHOLDERS);
+      const backProblem = templateProblem(back, RETURN_PLACEHOLDERS);
+      if (lateProblem || backProblem) {
+        setError(lateProblem ?? backProblem);
+        return;
+      }
     }
     const hoursBody = hoursPatch(savedHours, next);
-    const noticeBody = noticesPatch(savedNotices, { late, back });
+    const noticeBody =
+      showSms && savedNotices ? noticesPatch(savedNotices, { late, back }) : {};
     if (Object.keys(hoursBody).length === 0 && Object.keys(noticeBody).length === 0) {
       return;
     }
@@ -191,14 +204,16 @@ export default function OfficeSettings() {
       <TextField label="Guest stay, days" value={fields.guestMax} onChangeText={set("guestMax")} keyboardType="number-pad" />
       <TextField label="Guest lead, days" value={fields.guestLead} onChangeText={set("guestLead")} keyboardType="number-pad" />
       <TextField label="Scan window, seconds" value={fields.scanWindow} onChangeText={set("scanWindow")} keyboardType="number-pad" />
-      <View style={styles.templates}>
-        <Text style={[text.label, { color: colors.inkSoft }]}>Late text</Text>
-        <Text style={[text.error, { color: colors.inkFaint }]}>{LATE_PLACEHOLDERS.join("  ")}</Text>
-        <TextField label="Late message" value={late} onChangeText={(value) => { setLate(value); setError(null); }} multiline />
-        <Text style={[text.label, { color: colors.inkSoft }]}>Return text</Text>
-        <Text style={[text.error, { color: colors.inkFaint }]}>{RETURN_PLACEHOLDERS.join("  ")}</Text>
-        <TextField label="Return message" value={back} onChangeText={(value) => { setBack(value); setError(null); }} multiline />
-      </View>
+      {showSms ? (
+        <View style={styles.templates}>
+          <Text style={[text.label, { color: colors.inkSoft }]}>Late text</Text>
+          <Text style={[text.error, { color: colors.inkFaint }]}>{LATE_PLACEHOLDERS.join("  ")}</Text>
+          <TextField label="Late message" value={late} onChangeText={(value) => { setLate(value); setError(null); }} multiline />
+          <Text style={[text.label, { color: colors.inkSoft }]}>Return text</Text>
+          <Text style={[text.error, { color: colors.inkFaint }]}>{RETURN_PLACEHOLDERS.join("  ")}</Text>
+          <TextField label="Return message" value={back} onChangeText={(value) => { setBack(value); setError(null); }} multiline />
+        </View>
+      ) : null}
       <HallButton label="Save settings" busy={busy} disabled={!savedHours} onPress={() => void save()} />
       <OfficeError message={error} />
     </OfficeFrame>

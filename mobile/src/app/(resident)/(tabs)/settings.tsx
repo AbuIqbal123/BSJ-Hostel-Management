@@ -1,5 +1,4 @@
 import { useCallback, useState } from "react";
-import Constants from "expo-constants";
 import { router, useFocusEffect } from "expo-router";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -7,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BiometricSettingsRow } from "@/components/biometric-settings-row";
 import { NotificationsOffRow } from "@/components/notifications-off-row";
 import { SettingsRow } from "@/components/settings-row";
+import { hallBundleLabel } from "@/hall-update";
 import { useSession } from "@/session";
 import { SIGNED_OUT_PARAM, confirmSignOut } from "@/sign-out";
 import { useAppearance } from "@/theme/appearance";
@@ -19,7 +19,7 @@ export default function SettingsScreen() {
   const { dark, setDark } = useAppearance();
   const { user, loadResidentHome, signOut } = useSession();
   const [roomLabel, setRoomLabel] = useState<string | null>(null);
-  const version = Constants.expoConfig?.version ?? "1.0.0";
+  const bundle = hallBundleLabel();
 
   useFocusEffect(
     useCallback(() => {
@@ -89,7 +89,9 @@ export default function SettingsScreen() {
           }}
         />
       </View>
-      <Text style={[text.body, styles.version, { color: colors.inkFaint }]}>{`Version ${version}`}</Text>
+      <Text selectable style={[text.body, styles.version, { color: colors.inkFaint }]}>
+        {bundle}
+      </Text>
     </ScrollView>
   );
 }

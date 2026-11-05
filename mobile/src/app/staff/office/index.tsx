@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text } from "react-native";
 import { HallButton } from "@/components/hall-button";
 import { OfficeError, OfficeFrame, replyError } from "@/components/office-frame";
 import { hallNow } from "@/format-when";
+import { hallFeatures } from "@/hall-features";
 import { registerCsv, registerExportFileName } from "@/office";
 import { hallDay } from "@/outing-when";
 import { shareLocalFile, writeCacheText } from "@/share-file";
@@ -12,13 +13,33 @@ import { useSession } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
-const LINKS: { href: "/staff/office/settings" | "/staff/office/blocks" | "/staff/office/destinations" | "/staff/office/residents" | "/staff/office/staff" | "/staff/office/sms" | "/staff/office/audit"; label: string; detail: string }[] = [
-  { href: "/staff/office/settings", label: "Settings", detail: "Hours, grace, seasons, guest rules, and texts" },
+type OfficeHref =
+  | "/staff/office/settings"
+  | "/staff/office/blocks"
+  | "/staff/office/destinations"
+  | "/staff/office/residents"
+  | "/staff/office/staff"
+  | "/staff/office/sms"
+  | "/staff/office/audit";
+
+const LINKS: { href: OfficeHref; label: string; detail: string; feature?: "guardianSmsUi" }[] = [
+  {
+    href: "/staff/office/settings",
+    label: "Settings",
+    detail: hallFeatures.guardianSmsUi
+      ? "Hours, grace, seasons, guest rules, and texts"
+      : "Hours, grace, seasons, and guest rules",
+  },
   { href: "/staff/office/blocks", label: "Blocks and rooms", detail: "Add a block or a room, or retire one" },
   { href: "/staff/office/destinations", label: "Destinations", detail: "Inactive places stay here and stay off the resident list" },
   { href: "/staff/office/residents", label: "Residents", detail: "Create, edit, suspend, reissue a pass, or reset a password" },
   { href: "/staff/office/staff", label: "Staff", detail: "Create, edit, or reset a password" },
-  { href: "/staff/office/sms", label: "Text messages", detail: "Late and return notices that were sent" },
+  {
+    href: "/staff/office/sms",
+    label: "Text messages",
+    detail: "Late and return notices that were sent",
+    feature: "guardianSmsUi",
+  },
   { href: "/staff/office/audit", label: "Audit", detail: "What the hall recorded" },
 ];
 
@@ -27,6 +48,7 @@ export default function OfficeHome() {
   const { staffText } = useSession();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const links = LINKS.filter((link) => !link.feature || hallFeatures[link.feature]);
 
   const exportRegister = async () => {
     if (busy) {
@@ -67,7 +89,7 @@ export default function OfficeHome() {
 
   return (
     <OfficeFrame title="Office settings">
-      {LINKS.map((link) => (
+      {links.map((link) => (
         <Pressable
           key={link.href}
           accessibilityRole="button"

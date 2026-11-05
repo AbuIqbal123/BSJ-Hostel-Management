@@ -7,7 +7,7 @@ import uuid
 from datetime import date, timedelta
 from typing import Annotated, Literal, NoReturn
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.shared.page import PageDep
@@ -547,4 +547,33 @@ def gate_activity(
         event=event,
         from_at=start,
         to_at=end,
+    )
+
+
+@router.get("/activity/export")
+def export_gate_activity(
+    _account: GateDep,
+    connection: ConnectionDep,
+    q: Annotated[str | None, Query(max_length=80)] = None,
+    event: Annotated[
+        Literal["exit", "return", "guest_arrival", "guest_departure"] | None, Query()
+    ] = None,
+    from_day: Annotated[date | None, Query(alias="from")] = None,
+    to_day: Annotated[date | None, Query(alias="to")] = None,
+) -> Response:
+    from app.shared.inbox import hall_day_bounds
+    from app.staff.gate.records import build_gate_activity_csv
+
+    start, end = hall_day_bounds(from_day, to_day)
+    body = build_gate_activity_csv(
+        connection,
+        q=q,
+        event=event,
+        from_at=start,
+        to_at=end,
+    )
+    return Response(
+        content=body,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="gate-activity.csv"'},
     )

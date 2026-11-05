@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import { Redirect } from "expo-router";
 import { Text, View } from "react-native";
 
 import { DayRange, type DayRangeValue } from "@/components/day-range";
@@ -9,6 +10,7 @@ import { OfficeFrame, replyError } from "@/components/office-frame";
 import { PagedList } from "@/components/paged-list";
 import { SearchField } from "@/components/search-field";
 import { formatWhenParts } from "@/format-when";
+import { hallFeatures } from "@/hall-features";
 import { pageQuery } from "@/list-page";
 import { noticeLabel, readPage, readSms, type SmsRow } from "@/office";
 import { useSession } from "@/session";
@@ -52,6 +54,13 @@ function smsPath(filters: SmsFilters, offset: number): string {
 }
 
 export default function OfficeSms() {
+  if (!hallFeatures.guardianSmsUi) {
+    return <Redirect href="/staff/office" />;
+  }
+  return <OfficeSmsScreen />;
+}
+
+function OfficeSmsScreen() {
   const colors = useHallColors();
   const { staffRequest } = useSession();
   const [open, setOpen] = useState<string | null>(null);

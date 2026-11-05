@@ -9,11 +9,24 @@ import { DayRange, type DayRangeValue } from "@/components/day-range";
 import { DenseRow } from "@/components/dense-row";
 import { FilterChip } from "@/components/filter-chip";
 import { FilterChipRow } from "@/components/filter-chip-row";
+import { HallButton } from "@/components/hall-button";
+import { OfficeError, replyError } from "@/components/office-frame";
 import { PagedList } from "@/components/paged-list";
 import { SearchField } from "@/components/search-field";
+import { hallNow } from "@/format-when";
 import { pageQuery } from "@/list-page";
+import { hallDay, hallMonthRange } from "@/outing-when";
+import { shareLocalFile, writeCacheText } from "@/share-file";
 import { useSession } from "@/session";
-import { readActivity, readTotal, trimStop, type GateEvent } from "@/staff";
+import {
+  gateActivityCsv,
+  gateActivityExportFileName,
+  gateActivityExportQuery,
+  readActivity,
+  readTotal,
+  trimStop,
+  type GateEvent,
+} from "@/staff";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 import { useDebouncedValue } from "@/use-debounced-value";
@@ -27,6 +40,8 @@ type HistoryFilters = {
   range: DayRangeValue;
 };
 
+type MonthPreset = "this" | "last" | "all" | "custom";
+
 const EVENTS: { value: EventFilter; label: string }[] = [
   { value: null, label: "All" },
   { value: "exit", label: "Exit" },
@@ -34,6 +49,23 @@ const EVENTS: { value: EventFilter; label: string }[] = [
   { value: "guest_arrival", label: "Guest in" },
   { value: "guest_departure", label: "Guest out" },
 ];
+
+function sameRange(left: DayRangeValue, right: DayRangeValue): boolean {
+  return left.from === right.from && left.to === right.to;
+}
+
+function monthPreset(range: DayRangeValue, now: Date): MonthPreset {
+  if (range.from === null && range.to === null) {
+    return "all";
+  }
+  if (sameRange(range, hallMonthRange(now, 0))) {
+    return "this";
+  }
+  if (sameRange(range, hallMonthRange(now, 1))) {
+    return "last";
+  }
+  return "custom";
+}
 
 function historyKey(filters: HistoryFilters): string {
   return `${filters.event ?? ""}|${filters.q}|${filters.range.from ?? ""}|${filters.range.to ?? ""}`;
@@ -60,12 +92,15 @@ export default function GateHistoryScreen() {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const { staffRequest } = useSession();
+  const { staffRequest, staffText } = useSession();
   const [query, setQuery] = useState("");
   const q = useDebouncedValue(query);
   const [event, setEvent] = useState<EventFilter>(null);
-  const [range, setRange] = useState<DayRangeValue>({ from: null, to: null });
+  const [range, setRange] = useState<DayRangeValue>(() => hallMonthRange(hallNow(), 0));
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [exportBusy, setExportBusy] = useState(false);
   const filters = useMemo<HistoryFilters>(() => ({ event, q, range }), [event, q, range]);
+  const preset = monthPreset(range, hallNow());
 
   const list = useFilteredPagedList<GateEvent, HistoryFilters>({
     idOf: (item) => item.key,
@@ -82,6 +117,43 @@ export default function GateHistoryScreen() {
   });
 
   const back = () => goBackOr(navigation, "/staff/settings");
+
+  const exportActivity = async () => {
+    if (exportBusy) {
+      return;
+    }
+    setExportBusy(true);
+    setExportError(null);
+    const reply = await staffText(`/gate/activity/export${gateActivityExportQuery(filters)}`);
+    const refused = replyError(reply);
+    if (refused || !reply.ok || typeof reply.data !== "string") {
+      setExportError(refused ?? "The gate export was not a CSV");
+      setExportBusy(false);
+      return;
+    }
+    const csv = gateActivityCsv(reply.data);
+    if (!csv) {
+      setExportError("The gate export was not a CSV");
+      setExportBusy(false);
+      return;
+    }
+    try {
+      const uri = await writeCacheText(gateActivityExportFileName(hallDay(hallNow())), csv);
+      const result = await shareLocalFile(uri, {
+        mimeType: "text/csv",
+        uti: "public.comma-separated-values-text",
+        dialogTitle: "Export gate history",
+      });
+      if (result === "unavailable") {
+        setExportError("Sharing is not available on this device");
+      } else if (result === "failed") {
+        setExportError("Gate history could not be shared");
+      }
+    } catch {
+      setExportError("Gate history could not be shared");
+    }
+    setExportBusy(false);
+  };
 
   return (
     <ScrollView
@@ -117,7 +189,29 @@ export default function GateHistoryScreen() {
           />
         ))}
       </FilterChipRow>
+      <FilterChipRow>
+        <FilterChip
+          label="This month"
+          on={preset === "this"}
+          onPress={() => setRange(hallMonthRange(hallNow(), 0))}
+        />
+        <FilterChip
+          label="Last month"
+          on={preset === "last"}
+          onPress={() => setRange(hallMonthRange(hallNow(), 1))}
+        />
+        <FilterChip
+          label="All time"
+          on={preset === "all"}
+          onPress={() => setRange({ from: null, to: null })}
+        />
+      </FilterChipRow>
       <DayRange value={range} onChange={setRange} />
+      <HallButton label="Export" busy={exportBusy} onPress={() => void exportActivity()} />
+      <Text style={[text.error, { color: colors.inkSoft }]}>
+        Export includes up to 10,000 newest matching lines for the filters above
+      </Text>
+      <OfficeError message={exportError} />
       <View style={styles.list}>
         <PagedList
           rows={list.rows}

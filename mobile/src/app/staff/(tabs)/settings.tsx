@@ -1,4 +1,3 @@
-import Constants from "expo-constants";
 import { router } from "expo-router";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -6,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BiometricSettingsRow } from "@/components/biometric-settings-row";
 import { NotificationsOffRow } from "@/components/notifications-off-row";
 import { SettingsRow } from "@/components/settings-row";
+import { hallBundleLabel } from "@/hall-update";
 import { runsOffice } from "@/office";
 import { roleLabel, useSession } from "@/session";
 import { SIGNED_OUT_PARAM, confirmSignOut } from "@/sign-out";
@@ -18,7 +18,7 @@ export default function StaffSettingsScreen() {
   const insets = useSafeAreaInsets();
   const { dark, setDark } = useAppearance();
   const { user, signOut } = useSession();
-  const version = Constants.expoConfig?.version ?? "1.0.0";
+  const bundle = hallBundleLabel();
 
   return (
     <ScrollView
@@ -77,7 +77,9 @@ export default function StaffSettingsScreen() {
           }}
         />
       </View>
-      <Text style={[text.body, styles.version, { color: colors.inkFaint }]}>{`Version ${version}`}</Text>
+      <Text selectable style={[text.body, styles.version, { color: colors.inkFaint }]}>
+        {bundle}
+      </Text>
     </ScrollView>
   );
 }

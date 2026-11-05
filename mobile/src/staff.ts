@@ -5,9 +5,13 @@ import type { HallRole, PermissionKind } from "@/session";
 import { shortDay, type OutingKind } from "@/staff-gate";
 
 export {
+  GATE_ACTIVITY_CSV_HEADER,
   lateDetail,
   lateFor,
   dueLabel,
+  gateActivityCsv,
+  gateActivityExportFileName,
+  gateActivityExportQuery,
   readActivity,
   readLateReturns,
   readScan,

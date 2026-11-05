@@ -46,7 +46,7 @@ npx eas-cli@latest update --channel testflight --message "…" --environment pre
 
 Use `--channel preview` for internal APKs and `--channel production` for store builds. Native module or config changes still need a new `eas build`.
 
-A build only receives updates if it was compiled with this Update config and that channel. Builds made before Update was configured must be replaced once. After that, a published update usually needs **up to two cold launches** (fully quit, reopen to download; quit and reopen again to run it).
+A build only receives updates if it was compiled with this Update config and that channel. Builds made before Update was configured must be replaced once. Release builds **check, fetch, and reload** on launch (same idea as ICACON), so one cold open usually applies a waiting update. Settings shows `Version 1.0.0 · <8-char id>` from `Updates.updateId`; after an OTA that short id changes. Compare it to the update id in the EAS dashboard or `eas update:list`.
 
 ### Local Android APK
 

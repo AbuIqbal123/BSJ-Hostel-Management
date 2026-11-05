@@ -19,8 +19,10 @@ import { IBMPlexMono_500Medium } from "@expo-google-fonts/ibm-plex-mono";
 
 import { HallMark } from "@/components/hall-mark";
 import { PushRouter } from "@/components/push-router";
+import { applyHallUpdate } from "@/hall-update";
 import { leavesWhenSignedIn, routeSettled } from "@/launch";
 import { pushSupported } from "@/push";
+import { ignore } from "@/safe";
 import { SessionProvider, useSession } from "@/session";
 import { homePath } from "@/staff";
 import { AppearanceProvider, useDark } from "@/theme/appearance";
@@ -183,6 +185,10 @@ export default function RootLayout() {
     SourceSerif4_600SemiBold,
     IBMPlexMono_500Medium,
   });
+
+  useEffect(() => {
+    void applyHallUpdate().catch(ignore);
+  }, []);
 
   return (
     <AppearanceProvider>

@@ -1,0 +1,6 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/api/v1/admin/audit/export'
+order: 1100
+description: |-
+  Caller: provost. One CSV file. UTF-8, comma separated, header row required. Same filters as the audit list (`q`, `entity_type`, `entity_id`, hall-day `from` / `to`). Newest first. At most 10000 data rows. Detail is omitted. Header, in this order: `occurred_at,actor_name,actor_user_id,action,entity_type,entity_id,summary`. A data cell whose text starts with `=`, `+`, `-`, `@`, a tab, or a carriage return is prefixed with one single quote so a spreadsheet keeps the text. The header row is not prefixed.

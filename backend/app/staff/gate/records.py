@@ -2,10 +2,25 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import sqlite3
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
+
+# Spreadsheet export stays bounded so a long gate night cannot stall the phone.
+EXPORT_ROW_CAP = 10_000
+
+GATE_ACTIVITY_CSV_HEADER = [
+    "occurred_at",
+    "event",
+    "resident_name",
+    "room_label",
+    "guest_name",
+    "host_name",
+    "host_room_label",
+]
 
 
 class GateActivityItem(BaseModel):
@@ -108,16 +123,13 @@ FROM (
 """
 
 
-def list_gate_activity(
-    connection: sqlite3.Connection,
+def _activity_where(
     *,
-    limit: int,
-    offset: int,
-    q: str | None = None,
-    event: Literal["exit", "return", "guest_arrival", "guest_departure"] | None = None,
-    from_at: str | None = None,
-    to_at: str | None = None,
-) -> GateActivityPage:
+    q: str | None,
+    event: Literal["exit", "return", "guest_arrival", "guest_departure"] | None,
+    from_at: str | None,
+    to_at: str | None,
+) -> tuple[str, list[object]]:
     from app.shared.like import like_contains
 
     filters: list[str] = []
@@ -146,6 +158,20 @@ def list_gate_activity(
         )
         params.extend([needle, needle, needle, needle, needle])
     where = f"WHERE {' AND '.join(filters)}" if filters else ""
+    return where, params
+
+
+def list_gate_activity(
+    connection: sqlite3.Connection,
+    *,
+    limit: int,
+    offset: int,
+    q: str | None = None,
+    event: Literal["exit", "return", "guest_arrival", "guest_departure"] | None = None,
+    from_at: str | None = None,
+    to_at: str | None = None,
+) -> GateActivityPage:
+    where, params = _activity_where(q=q, event=event, from_at=from_at, to_at=to_at)
     base = f"SELECT * FROM ({_GATE_ACTIVITY_UNION}) AS gate_activity {where}"
     total = connection.execute(
         f"SELECT COUNT(*) AS n FROM ({base})",
@@ -177,3 +203,40 @@ def list_gate_activity(
         offset=offset,
         items=items,
     )
+
+
+def _spreadsheet_cell(value: str) -> str:
+    if value.startswith(("=", "+", "-", "@", "\t", "\r")):
+        return "'" + value
+    return value
+
+
+def build_gate_activity_csv(
+    connection: sqlite3.Connection,
+    *,
+    q: str | None = None,
+    event: Literal["exit", "return", "guest_arrival", "guest_departure"] | None = None,
+    from_at: str | None = None,
+    to_at: str | None = None,
+) -> str:
+    where, params = _activity_where(q=q, event=event, from_at=from_at, to_at=to_at)
+    base = f"SELECT * FROM ({_GATE_ACTIVITY_UNION}) AS gate_activity {where}"
+    rows = connection.execute(
+        f"""
+        {base}
+        ORDER BY occurred_at DESC, event, COALESCE(resident_name, guest_name), source_id
+        LIMIT ?
+        """,
+        (*params, EXPORT_ROW_CAP),
+    ).fetchall()
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=GATE_ACTIVITY_CSV_HEADER, lineterminator="\n")
+    writer.writeheader()
+    for row in rows:
+        writer.writerow(
+            {
+                key: _spreadsheet_cell("" if row[key] is None else str(row[key]))
+                for key in GATE_ACTIVITY_CSV_HEADER
+            }
+        )
+    return buffer.getvalue()

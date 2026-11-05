@@ -67,6 +67,7 @@ Do not edit this page by hand.
   - [DELETE `/api/v1/guest-stays/{guest_stay_id}/payment/evidence` — Clear guest payment evidence](#delete-api-v1-guest-stays-guest_stay_id-payment-evidence)
 - [Gate](#tag-gate)
   - [POST `/api/v1/gate/scans` — Scan a hall pass](#post-api-v1-gate-scans)
+  - [GET `/api/v1/gate/activity/export` — Export gate activity](#get-api-v1-gate-activity-export)
   - [GET `/api/v1/gate/activity` — Recent gate activity](#get-api-v1-gate-activity)
   - [GET `/api/v1/gate/occupancy` — Guest dining occupancy at the gate](#get-api-v1-gate-occupancy)
   - [GET `/api/v1/gate/guests` — Guests for the gate](#get-api-v1-gate-guests)
@@ -109,6 +110,7 @@ Do not edit this page by hand.
   - [PATCH `/api/v1/admin/notifications` — Update hall notification settings](#patch-api-v1-admin-notifications)
   - [GET `/api/v1/admin/register/export` — Export the register](#get-api-v1-admin-register-export)
   - [GET `/api/v1/admin/sms` — SMS log](#get-api-v1-admin-sms)
+  - [GET `/api/v1/admin/audit/export` — Export the audit log](#get-api-v1-admin-audit-export)
   - [GET `/api/v1/admin/audit` — Audit log](#get-api-v1-admin-audit)
 - [Payloads](#tag-payloads)
 
@@ -3813,6 +3815,7 @@ Scan the permanent hall pass, and record guest arrival and departure. Guests hav
 | Method | Path | Purpose | Who |
 |---|---|---|---|
 | POST | `/api/v1/gate/scans` | [Scan a hall pass](#post-api-v1-gate-scans) | gate, warden, or provost |
+| GET | `/api/v1/gate/activity/export` | [Export gate activity](#get-api-v1-gate-activity-export) | gate, warden, or provost |
 | GET | `/api/v1/gate/activity` | [Recent gate activity](#get-api-v1-gate-activity) | gate, warden, or provost |
 | GET | `/api/v1/gate/occupancy` | [Guest dining occupancy at the gate](#get-api-v1-gate-occupancy) | gate, warden, or provost |
 | GET | `/api/v1/gate/guests` | [Guests for the gate](#get-api-v1-gate-guests) | gate, warden, or provost |
@@ -4004,6 +4007,55 @@ Body: [ErrorResponse](#schema-errorresponse).
 ```
 
 
+### <a id="get-api-v1-gate-activity-export"></a>GET `/api/v1/gate/activity/export` — Export gate activity
+
+`export_gate_activity`
+
+**Who.** gate, warden, or provost. Bearer access token.
+
+Caller: gate, warden, or provost. One CSV file. UTF-8, comma separated,
+header row required. Same filters as the activity list (`q`, `event`,
+hall-day `from` / `to`). Newest first. At most 10000 data rows. A data
+cell whose text starts with `=`, `+`, `-`, `@`, a tab, or a carriage
+return is prefixed with one single quote so a spreadsheet keeps the
+text. The header row is not prefixed.
+
+Header, in this order:
+
+`occurred_at,event,resident_name,room_label,guest_name,host_name,host_room_label`
+
+**Parameters**
+
+| Name | In | Required | Type | Notes |
+|---|---|---|---|---|
+| `q` | query | no | string | at most 80 characters. |
+| `event` | query | no | `exit` or `return` or `guest_arrival` or `guest_departure` |  |
+| `from` | query | no | date |  |
+| `to` | query | no | date |  |
+
+**Responses**
+
+#### 200
+
+CSV file.
+
+Body: string.
+
+No fields.
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
 ### <a id="get-api-v1-gate-activity"></a>GET `/api/v1/gate/activity` — Recent gate activity
 
 `gate_activity`
@@ -4013,7 +4065,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 Caller: gate, warden, or provost. Newest first. Lines are resident exits,
 resident returns, guest arrivals, and guest departures. Optional `q` matches
 resident, room, guest, host, or host room. Optional `event` limits the line
-type. Optional `from` and `to` are hall calendar dates (Asia/Kolkata).
+type. Optional `from` and `to` are hall calendar dates (Asia/Kolkata). The
+phone Gate history screen defaults to the current hall month; use
+`GET /api/v1/gate/activity/export` for a spreadsheet of the filtered log.
 
 **Parameters**
 
@@ -5028,6 +5082,7 @@ Provost only. Residents, staff, rooms, destinations, settings, export, SMS log, 
 | PATCH | `/api/v1/admin/notifications` | [Update hall notification settings](#patch-api-v1-admin-notifications) | provost only (same gate as hall settings) |
 | GET | `/api/v1/admin/register/export` | [Export the register](#get-api-v1-admin-register-export) | provost |
 | GET | `/api/v1/admin/sms` | [SMS log](#get-api-v1-admin-sms) | provost |
+| GET | `/api/v1/admin/audit/export` | [Export the audit log](#get-api-v1-admin-audit-export) | provost |
 | GET | `/api/v1/admin/audit` | [Audit log](#get-api-v1-admin-audit) | provost |
 
 ### <a id="get-api-v1-admin-residents"></a>GET `/api/v1/admin/residents` — List resident accounts
@@ -6361,6 +6416,56 @@ The signed-in role cannot call this operation.
 Body: [ErrorResponse](#schema-errorresponse).
 
 
+### <a id="get-api-v1-admin-audit-export"></a>GET `/api/v1/admin/audit/export` — Export the audit log
+
+`export_audit`
+
+**Who.** provost. Bearer access token.
+
+Caller: provost. One CSV file. UTF-8, comma separated, header row required.
+Same filters as the audit list (`q`, `entity_type`, `entity_id`, hall-day
+`from` / `to`). Newest first. At most 10000 data rows. Detail is omitted.
+A data cell whose text starts with `=`, `+`, `-`, `@`, a tab, or a
+carriage return is prefixed with one single quote so a spreadsheet keeps
+the text. The header row is not prefixed.
+
+Header, in this order:
+
+`occurred_at,actor_name,actor_user_id,action,entity_type,entity_id,summary`
+
+**Parameters**
+
+| Name | In | Required | Type | Notes |
+|---|---|---|---|---|
+| `q` | query | no | string | at most 80 characters. |
+| `entity_type` | query | no | string |  |
+| `entity_id` | query | no | string |  |
+| `from` | query | no | date |  |
+| `to` | query | no | date |  |
+
+**Responses**
+
+#### 200
+
+CSV file.
+
+Body: string.
+
+No fields.
+
+#### 401
+
+The access token is missing or expired, or the username and password were refused.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+#### 403
+
+The signed-in role cannot call this operation.
+
+Body: [ErrorResponse](#schema-errorresponse).
+
+
 ### <a id="get-api-v1-admin-audit"></a>GET `/api/v1/admin/audit` — Audit log
 
 `list_audit`
@@ -6370,7 +6475,8 @@ Body: [ErrorResponse](#schema-errorresponse).
 Caller: provost. Newest first. Detail never contains a password, a refresh
 token, or a hall-pass token. Optional `q` matches summary, action, or
 actor name. Optional `entity_type` / `entity_id`. Optional hall-day
-`from` / `to`.
+`from` / `to`. The phone office screen shows the first page only; use
+`GET /api/v1/admin/audit/export` for the full filtered log.
 
 **Parameters**
 

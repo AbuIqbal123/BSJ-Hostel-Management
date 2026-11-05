@@ -34,6 +34,9 @@ export const RESET_CONFIRM = {
 export const REGISTER_CSV_HEADER =
   "record_type,full_name,enrolment_number,room_label,block_code,course,presence,state,place,exited_at,expected_return_at,grace_ends_at,returned_at,outing_type,guardian_name,guardian_phone,guest_name,relation,host_name,host_room_label,guest_start_date,guest_end_date,payment_status,guest_bucket,arrived_at,departed_at";
 
+export const AUDIT_CSV_HEADER =
+  "occurred_at,actor_name,actor_user_id,action,entity_type,entity_id,summary";
+
 function int(value: unknown): number | null {
   return typeof value === "number" && Number.isInteger(value) ? value : null;
 }
@@ -581,6 +584,39 @@ export function registerCsv(value: string): string | null {
 /** Download name for the register CSV (`register-2026-11-04.csv`). */
 export function registerExportFileName(hallDay: string): string {
   return `register-${hallDay}.csv`;
+}
+
+export function auditCsv(value: string): string | null {
+  const header = value.split(/\r?\n/, 1)[0];
+  return header === AUDIT_CSV_HEADER ? value : null;
+}
+
+/** Download name for the audit CSV (`audit-2026-11-04.csv`). */
+export function auditExportFileName(hallDay: string): string {
+  return `audit-${hallDay}.csv`;
+}
+
+/** Query string for audit CSV export (same filters as the list, no paging). */
+export function auditExportQuery(filters: {
+  entityType: string | null;
+  q: string;
+  range: { from: string | null; to: string | null };
+}): string {
+  const search = new URLSearchParams();
+  if (filters.entityType) {
+    search.set("entity_type", filters.entityType);
+  }
+  if (filters.q.trim()) {
+    search.set("q", filters.q.trim());
+  }
+  if (filters.range.from) {
+    search.set("from", filters.range.from);
+  }
+  if (filters.range.to) {
+    search.set("to", filters.range.to);
+  }
+  const text = search.toString();
+  return text ? `?${text}` : "";
 }
 
 export function noticeLabel(notice: SmsRow["notice"]): string {

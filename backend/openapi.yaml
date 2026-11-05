@@ -1842,6 +1842,59 @@ paths:
                     room_label: B-204
                     presence: outside
 
+  /api/v1/gate/activity/export:
+    get:
+      tags: [Gate]
+      operationId: export_gate_activity
+      summary: Export gate activity
+      description: |
+        Caller: gate, warden, or provost. One CSV file. UTF-8, comma separated,
+        header row required. Same filters as the activity list (`q`, `event`,
+        hall-day `from` / `to`). Newest first. At most 10000 data rows. A data
+        cell whose text starts with `=`, `+`, `-`, `@`, a tab, or a carriage
+        return is prefixed with one single quote so a spreadsheet keeps the
+        text. The header row is not prefixed.
+
+        Header, in this order:
+
+        `occurred_at,event,resident_name,room_label,guest_name,host_name,host_room_label`
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 80
+        - name: event
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [exit, return, guest_arrival, guest_departure]
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: CSV file.
+          content:
+            text/csv:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /api/v1/gate/activity:
     get:
       tags: [Gate]
@@ -1851,7 +1904,9 @@ paths:
         Caller: gate, warden, or provost. Newest first. Lines are resident exits,
         resident returns, guest arrivals, and guest departures. Optional `q` matches
         resident, room, guest, host, or host room. Optional `event` limits the line
-        type. Optional `from` and `to` are hall calendar dates (Asia/Kolkata).
+        type. Optional `from` and `to` are hall calendar dates (Asia/Kolkata). The
+        phone Gate history screen defaults to the current hall month; use
+        `GET /api/v1/gate/activity/export` for a spreadsheet of the filtered log.
       parameters:
         - name: q
           in: query
@@ -3732,6 +3787,63 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /api/v1/admin/audit/export:
+    get:
+      tags: [Hall office]
+      operationId: export_audit
+      summary: Export the audit log
+      description: |
+        Caller: provost. One CSV file. UTF-8, comma separated, header row required.
+        Same filters as the audit list (`q`, `entity_type`, `entity_id`, hall-day
+        `from` / `to`). Newest first. At most 10000 data rows. Detail is omitted.
+        A data cell whose text starts with `=`, `+`, `-`, `@`, a tab, or a
+        carriage return is prefixed with one single quote so a spreadsheet keeps
+        the text. The header row is not prefixed.
+
+        Header, in this order:
+
+        `occurred_at,actor_name,actor_user_id,action,entity_type,entity_id,summary`
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 80
+        - name: entity_type
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: entity_id
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: CSV file.
+          content:
+            text/csv:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /api/v1/admin/audit:
     get:
       tags: [Hall office]
@@ -3741,7 +3853,8 @@ paths:
         Caller: provost. Newest first. Detail never contains a password, a refresh
         token, or a hall-pass token. Optional `q` matches summary, action, or
         actor name. Optional `entity_type` / `entity_id`. Optional hall-day
-        `from` / `to`.
+        `from` / `to`. The phone office screen shows the first page only; use
+        `GET /api/v1/admin/audit/export` for the full filtered log.
       parameters:
         - name: q
           in: query

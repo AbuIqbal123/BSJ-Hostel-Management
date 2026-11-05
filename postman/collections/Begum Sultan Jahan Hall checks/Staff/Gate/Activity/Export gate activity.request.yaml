@@ -1,0 +1,6 @@
+$kind: http-request
+method: GET
+url: '{{baseUrl}}/api/v1/gate/activity/export'
+order: 2100
+description: |-
+  Caller: gate, warden, or provost. One CSV file. UTF-8, comma separated, header row required. Same filters as the activity list (`q`, `event`, hall-day `from` / `to`). Newest first. At most 10000 data rows. Header, in this order: `occurred_at,event,resident_name,room_label,guest_name,host_name,host_room_label`. A data cell whose text starts with `=`, `+`, `-`, `@`, a tab, or a carriage return is prefixed with one single quote so a spreadsheet keeps the text. The header row is not prefixed.

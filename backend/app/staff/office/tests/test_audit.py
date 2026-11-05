@@ -167,3 +167,23 @@ def test_admin_audit(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
         assert page.status_code == 200
         assert page.json()["limit"] == 1
         assert len(page.json()["items"]) == 1
+
+        assert_error(client.get("/api/v1/admin/audit/export"), 401, "unauthenticated")
+        assert_error(
+            client.get("/api/v1/admin/audit/export", headers={"Authorization": f"Bearer {warden}"}),
+            403,
+            "forbidden",
+        )
+        exported = client.get(
+            "/api/v1/admin/audit/export?entity_type=settings&entity_id=hall",
+            headers=headers,
+        )
+        assert exported.status_code == 200
+        assert exported.headers["content-type"].startswith("text/csv")
+        lines = exported.text.strip().split("\n")
+        assert lines[0] == (
+            "occurred_at,actor_name,actor_user_id,action,entity_type,entity_id,summary"
+        )
+        assert len(lines) == 2
+        assert "settings.updated" in lines[1]
+        assert "Halima Begum" in lines[1]

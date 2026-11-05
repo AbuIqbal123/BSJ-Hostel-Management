@@ -1,6 +1,7 @@
 import { describe, expect, it } from "@jest/globals";
 
 import {
+  AUDIT_CSV_HEADER,
   LATE_PLACEHOLDERS,
   REGISTER_CSV_HEADER,
   REISSUE_CONFIRM,
@@ -8,6 +9,9 @@ import {
   RETURN_PLACEHOLDERS,
   clockLabel,
   activeFreeTextPlace,
+  auditCsv,
+  auditExportFileName,
+  auditExportQuery,
   canAddFreeTextPlace,
   hiddenFromResidents,
   hoursFromFields,
@@ -344,6 +348,19 @@ describe("hall office display", () => {
     expect(registerCsv(`${REGISTER_CSV_HEADER}\nresident,Amina`)).toContain("Amina");
     expect(registerCsv("name\nAmina")).toBeNull();
     expect(registerExportFileName("2026-11-04")).toBe("register-2026-11-04.csv");
+    expect(auditCsv(`${AUDIT_CSV_HEADER}\n2026-11-04T12:00:00Z,Halima,,,settings.updated,settings,hall,Updated`)).toContain(
+      "Halima",
+    );
+    expect(auditCsv("name\nHalima")).toBeNull();
+    expect(auditExportFileName("2026-11-04")).toBe("audit-2026-11-04.csv");
+    expect(
+      auditExportQuery({
+        entityType: "settings",
+        q: " hours ",
+        range: { from: "2026-11-01", to: "2026-11-04" },
+      }),
+    ).toBe("?entity_type=settings&q=hours&from=2026-11-01&to=2026-11-04");
+    expect(auditExportQuery({ entityType: null, q: "", range: { from: null, to: null } })).toBe("");
     expect(officeMessage("That room is not in use.")).toBe("That room is not in use");
     expect(officeMessage("Check the fields", { phone: ["Enter a phone with the country code."] })).toBe(
       "Enter a phone with the country code",

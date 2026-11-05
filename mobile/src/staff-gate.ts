@@ -232,3 +232,39 @@ export function lateDetail(row: LateReturn): string {
   const back = row.returnedAt ? `back ${clockDay(row.returnedAt)}` : "";
   return [row.room, OUTING_WORDS[row.kind], dueLabel(row.dueAt), back].filter(Boolean).join(" · ");
 }
+
+export const GATE_ACTIVITY_CSV_HEADER =
+  "occurred_at,event,resident_name,room_label,guest_name,host_name,host_room_label";
+
+export function gateActivityCsv(value: string): string | null {
+  const header = value.split(/\r?\n/, 1)[0];
+  return header === GATE_ACTIVITY_CSV_HEADER ? value : null;
+}
+
+/** Download name for the gate activity CSV (`gate-activity-2026-11-04.csv`). */
+export function gateActivityExportFileName(hallDay: string): string {
+  return `gate-activity-${hallDay}.csv`;
+}
+
+/** Query string for gate activity CSV export (same filters as the list, no paging). */
+export function gateActivityExportQuery(filters: {
+  event: string | null;
+  q: string;
+  range: { from: string | null; to: string | null };
+}): string {
+  const search = new URLSearchParams();
+  if (filters.event) {
+    search.set("event", filters.event);
+  }
+  if (filters.q.trim()) {
+    search.set("q", filters.q.trim());
+  }
+  if (filters.range.from) {
+    search.set("from", filters.range.from);
+  }
+  if (filters.range.to) {
+    search.set("to", filters.range.to);
+  }
+  const text = search.toString();
+  return text ? `?${text}` : "";
+}

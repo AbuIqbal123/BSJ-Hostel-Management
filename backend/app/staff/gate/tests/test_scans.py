@@ -272,6 +272,21 @@ def test_gate_scans_and_activity(
         assert warden_activity.status_code == 200
         assert warden_activity.json()["total"] == 2
 
+        assert_error(client.get("/api/v1/gate/activity/export"), 401, "unauthenticated")
+        exported = client.get(
+            "/api/v1/gate/activity/export?event=return",
+            headers=headers,
+        )
+        assert exported.status_code == 200
+        assert exported.headers["content-type"].startswith("text/csv")
+        lines = exported.text.strip().split("\n")
+        assert lines[0] == (
+            "occurred_at,event,resident_name,room_label,guest_name,host_name,host_room_label"
+        )
+        assert len(lines) == 2
+        assert "return" in lines[1]
+        assert "Aisha Khan" in lines[1]
+
         connection = sqlite3.connect(database_path)
         try:
             presence = connection.execute(
