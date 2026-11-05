@@ -1,0 +1,14 @@
+{
+  "name": "secure-qr",
+  "version": "1.0.0",
+  "description": "Hall-pass QR drawn on a capture-secure surface.",
+  "license": "UNLICENSED",
+  "author": "Begum Sultan Jahan Hall",
+  "homepage": "https://docs.expo.dev/modules/",
+  "main": "index.js",
+  "peerDependencies": {
+    "expo": "*",
+    "react": "*",
+    "react-native": "*"
+  }
+}

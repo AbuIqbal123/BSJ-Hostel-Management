@@ -3,9 +3,9 @@ import { useFocusEffect } from "expo-router";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
-import QRCode from "react-native-qrcode-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { SecureQr } from "@/components/secure-qr";
 import { formatWhen, formatWhenParts } from "@/format-when";
 import { useSession, type DestinationItem, type HallPass } from "@/session";
 import { useDark } from "@/theme/appearance";
@@ -123,7 +123,7 @@ function PassCode({ value, size }: { value: string; size: number }) {
       accessibilityLabel="Hall pass"
     >
       <View style={[styles.plate, { width: qrSize, height: qrSize }]}>
-        <QRCode value={value} size={qrSize} color="#000000" backgroundColor="#FFFFFF" quietZone={16} />
+        <SecureQr value={value} size={qrSize} />
         {(["tl", "tr", "bl", "br"] as const).map((at) => (
           <Corner key={at} at={at} color={bracket} />
         ))}
