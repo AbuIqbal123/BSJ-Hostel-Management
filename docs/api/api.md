@@ -1624,9 +1624,9 @@ outing so the phone can show when the guardian would be told.
 
 `starts_at` and `expected_return_at` must both be in the future, the
 return after the start, on the same hall day, and inside ordinary hours
-on that hall date. The start of ordinary hours is not included. The end
-is included. For now both seasons use 6:00 AM to 6:30 PM (posted hall
-rules). Season columns remain so the hall can split them later. A time at or
+on that hall date. The start and the end of ordinary hours are both
+included. For now both seasons use 6:00 AM to 6:30 PM (posted hall
+rules). Season columns remain so the hall can split them later. A time
 before the start is outside ordinary hours. A time after the end needs
 late-night permission or home going. When the chosen destination is the
 Other row, `destination_text` is required. A planned outing whose

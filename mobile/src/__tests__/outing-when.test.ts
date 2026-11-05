@@ -52,8 +52,8 @@ describe("ordinary hours from hall settings", () => {
   it("matches backend edges on 1 October", () => {
     expect(leaveNote(hallAt("2026-10-01", 18, 30), artifactHours)).toBeNull();
     expect(leaveNote(hallAt("2026-10-01", 18, 31), artifactHours)).toBe(AFTER);
-    expect(leaveNote(hallAt("2026-10-01", 6, 0), artifactHours)).toBe(BEFORE);
-    expect(leaveNote(hallAt("2026-10-01", 6, 1), artifactHours)).toBeNull();
+    expect(leaveNote(hallAt("2026-10-01", 5, 59), artifactHours)).toBe(BEFORE);
+    expect(leaveNote(hallAt("2026-10-01", 6, 0), artifactHours)).toBeNull();
   });
 
   it("allows 18:00 on a summer day under the same seeded window", () => {
@@ -73,7 +73,7 @@ describe("ordinary hours from hall settings", () => {
   });
 
   it("keeps before-start copy free of Permissions", () => {
-    const note = leaveNote(hallAt("2026-10-01", 6, 0), artifactHours);
+    const note = leaveNote(hallAt("2026-10-01", 5, 59), artifactHours);
     expect(note).toBe(BEFORE);
     expect(note).not.toMatch(/Permissions/);
   });
@@ -84,7 +84,7 @@ describe("ordinary hours from hall settings", () => {
     );
   });
 
-  it("proposes Leave at the first minute after start and Return at the end", () => {
+  it("proposes Leave at the ordinary start and Return at the end", () => {
     const day = hallAt("2026-11-05", 12, 0);
     const leave = proposalLeave(artifactHours, day);
     const back = proposalReturn(artifactHours, day);
@@ -92,7 +92,7 @@ describe("ordinary hours from hall settings", () => {
     expect(hallDay(back)).toBe("2026-11-05");
     expect(leaveNote(leave, artifactHours)).toBeNull();
     expect(returnNote(leave, back, artifactHours)).toBeNull();
-    expect(leave.toISOString()).toBe(hallAt("2026-11-05", 6, 1).toISOString());
+    expect(leave.toISOString()).toBe(hallAt("2026-11-05", 6, 0).toISOString());
     expect(back.toISOString()).toBe(hallAt("2026-11-05", 18, 30).toISOString());
   });
 

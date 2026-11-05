@@ -372,7 +372,7 @@ def expire_passed_plans(connection: sqlite3.Connection, resident_id: str, now_te
 def hours_refusal(moment: datetime, settings: sqlite3.Row) -> str | None:
     """None when the instant is inside that hall date's ordinary hours.
 
-    The start is not included. The end is included. A later return needs a
+    The start and the end are both included. A later return needs a
     permission. An earlier return is outside ordinary hours.
     """
     local = moment.astimezone(clock.HALL_ZONE)
@@ -390,7 +390,7 @@ def hours_refusal(moment: datetime, settings: sqlite3.Row) -> str | None:
         start = settings["winter_outing_start"]
         end = settings["winter_outing_end"]
     clock_time = local.strftime("%H:%M:%S")
-    if clock_time <= f"{start}:00":
+    if clock_time < f"{start}:00":
         return "outside_ordinary_hours"
     if clock_time > f"{end}:00":
         return "permission_required"

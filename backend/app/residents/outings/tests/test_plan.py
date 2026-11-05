@@ -236,7 +236,7 @@ def test_plan_outing(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
             "The expected return must be in the future.",
         )
         assert_error(
-            plan(client, resident, {"destination_id": LIBRARY, "starts_at": "2026-10-01T00:00:00Z", "expected_return_at": "2026-10-01T00:30:00Z"}),
+            plan(client, resident, {"destination_id": LIBRARY, "starts_at": "2026-10-01T00:00:00Z", "expected_return_at": "2026-10-01T00:29:00Z"}),
             409,
             "outside_ordinary_hours",
             "That return is outside ordinary hours.",
@@ -278,7 +278,7 @@ def test_plan_outing(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
             "The expected return must be after the start.",
         )
         assert_error(
-            plan(client, resident, {"destination_id": LIBRARY, "starts_at": "2026-10-01T00:30:00Z", "expected_return_at": "2026-10-01T12:00:00Z"}),
+            plan(client, resident, {"destination_id": LIBRARY, "starts_at": "2026-10-01T00:29:00Z", "expected_return_at": "2026-10-01T12:00:00Z"}),
             409,
             "outside_ordinary_hours",
             "That start is outside ordinary hours.",
@@ -433,7 +433,7 @@ def test_plan_outing(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
 
 
 def test_ordinary_hours_edges(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Ordinary hours are 06:00–18:30; the start is excluded and the end is included."""
+    """Ordinary hours are 06:00–18:30; the start and the end are both included."""
     from app.shared import clock
     from app.main import app
 
@@ -441,21 +441,19 @@ def test_ordinary_hours_edges(database_path: Path, monkeypatch: pytest.MonkeyPat
     with TestClient(app) as client:
         issue_people(database_path)
         resident = sign_in(client, "24-GLLB-118", role_credential("resident"))
-        # Exactly 06:00 IST on 1 October (00:30Z): start of the window is not included.
-        assert_error(
-            plan(
-                client,
-                resident,
-                {
-                    "destination_id": LIBRARY,
-                    "starts_at": "2026-10-01T00:00:00Z",
-                    "expected_return_at": "2026-10-01T00:30:00Z",
-                },
-            ),
-            409,
-            "outside_ordinary_hours",
-            "That return is outside ordinary hours.",
+        # Exactly 06:00 IST on 1 October (00:30Z): start of the window is included.
+        at_start = plan(
+            client,
+            resident,
+            {
+                "destination_id": LIBRARY,
+                "starts_at": "2026-10-01T00:30:00Z",
+                "expected_return_at": "2026-10-01T12:00:00Z",
+            },
         )
+        assert at_start.status_code == 201
+        assert at_start.json()["starts_at"] == "2026-10-01T00:30:00Z"
+        clear_planned(database_path)
         # One minute before 06:00 IST (00:29Z).
         assert_error(
             plan(

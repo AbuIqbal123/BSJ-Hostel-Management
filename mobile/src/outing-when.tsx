@@ -13,9 +13,9 @@ import { useDark } from "@/theme/appearance";
 import { useHallColors, type HallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
-// Ordinary hours come from hall settings on resident home. The start is not
-// included. The end is included. Any other time stays selectable; after the
-// end the plan asks her to use the Permissions tab.
+// Ordinary hours come from hall settings on resident home. The start and the
+// end are both included. Any other time stays selectable; after the end the
+// plan asks her to use the Permissions tab.
 const BEFORE_HOURS = "These hours fall outside ordinary hours.";
 const AFTER_HOURS =
   "These hours fall outside ordinary hours. Please request permission from the Permissions tab";
@@ -102,7 +102,7 @@ function hoursNote(date: Date, hours: OrdinaryHours | null): string | null {
   }
   const { start, end } = seasonWindow(date, hours);
   const clock = hallClock(date);
-  if (clock <= `${start}:00`) {
+  if (clock < `${start}:00`) {
     return BEFORE_HOURS;
   }
   if (clock > `${end}:00`) {
@@ -111,18 +111,14 @@ function hoursNote(date: Date, hours: OrdinaryHours | null): string | null {
   return null;
 }
 
-/** First minute after ordinary start on this hall day. */
+/** Ordinary start clock on this hall day. */
 export function proposalLeave(hours: OrdinaryHours | null, daySource: Date = hallNow()): Date {
   if (!hours) {
     return hallInstant(daySource, 7, 0);
   }
   const { start } = seasonWindow(daySource, hours);
   const { hour, minute } = parseClock(start);
-  const nextMinute = minute + 1;
-  if (nextMinute >= 60) {
-    return hallInstant(daySource, hour + 1, 0);
-  }
-  return hallInstant(daySource, hour, nextMinute);
+  return hallInstant(daySource, hour, minute);
 }
 
 /** Ordinary end clock on this hall day. */
