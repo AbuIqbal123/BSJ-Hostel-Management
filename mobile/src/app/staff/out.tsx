@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocalSearchParams, useNavigation } from "expo-router";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
@@ -8,6 +8,7 @@ import { BackMark } from "@/components/back-mark";
 import { DayRange, type DayRangeValue } from "@/components/day-range";
 import { DenseRow } from "@/components/dense-row";
 import { FilterChip } from "@/components/filter-chip";
+import { FilterChipRow } from "@/components/filter-chip-row";
 import { PagedList } from "@/components/paged-list";
 import { SearchField } from "@/components/search-field";
 import { SectionHead } from "@/components/section-head";
@@ -233,25 +234,25 @@ export default function OutNowScreen() {
       </View>
       {tab === "late" ? (
         <>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+          <FilterChipRow>
             <FilterChip label="Still out" on={lateState === "now"} onPress={() => setLateState("now")} />
             <FilterChip label="Came back late" on={lateState === "past"} onPress={() => setLateState("past")} />
             <View style={[styles.divider, { backgroundColor: colors.line }]} />
             {SOURCES.map((item) => (
               <FilterChip key={item.label} label={item.label} on={source === item.value} onPress={() => setSource(item.value)} />
             ))}
-          </ScrollView>
+          </FilterChipRow>
           {lateState === "past" ? <DayRange value={range} onChange={setRange} /> : null}
         </>
       ) : (
         <>
           <SearchField value={query} placeholder="Name or room" onChange={setQuery} />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+          <FilterChipRow>
             <FilterChip label="All blocks" on={blockId === null} onPress={() => setBlockId(null)} />
             {blocks.map((block) => (
               <FilterChip key={block.id} label={block.name} on={blockId === block.id} onPress={() => setBlockId(block.id)} />
             ))}
-          </ScrollView>
+          </FilterChipRow>
         </>
       )}
     </View>
@@ -339,7 +340,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 6,
   },
-  chips: { gap: 8, alignItems: "center" },
   divider: { width: 1, height: 20, marginHorizontal: 4 },
   empty: { alignItems: "center", gap: 8, paddingTop: 96 },
   place: { fontFamily: "SourceSerif4_600SemiBold", fontSize: 20, letterSpacing: -0.2 },

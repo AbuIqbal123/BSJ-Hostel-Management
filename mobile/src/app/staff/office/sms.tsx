@@ -1,9 +1,10 @@
 import { useCallback, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 
 import { DayRange, type DayRangeValue } from "@/components/day-range";
 import { DenseRow } from "@/components/dense-row";
 import { FilterChip } from "@/components/filter-chip";
+import { FilterChipRow } from "@/components/filter-chip-row";
 import { OfficeFrame, replyError } from "@/components/office-frame";
 import { PagedList } from "@/components/paged-list";
 import { SearchField } from "@/components/search-field";
@@ -65,6 +66,7 @@ export default function OfficeSms() {
     idOf: (row) => row.id,
     filters,
     filterKey: smsKey(filters),
+    cacheScope: "office-sms",
     loadPage: useCallback(async (current, offset) => {
       const reply = await staffRequest(smsPath(current, offset));
       const page = reply.ok ? readPage(reply.data, readSms) : null;
@@ -86,12 +88,7 @@ export default function OfficeSms() {
       onNearEnd={() => list.loadNext()}
     >
       <SearchField value={query} placeholder="Name, phone, or text" onChange={setQuery} />
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterScroll}
-        contentContainerStyle={styles.filters}
-      >
+      <FilterChipRow>
         {(
           [
             { value: null, label: "All notices" },
@@ -120,7 +117,7 @@ export default function OfficeSms() {
             onPress={() => setStatus(item.value)}
           />
         ))}
-      </ScrollView>
+      </FilterChipRow>
       <DayRange value={range} onChange={setRange} />
       <PagedList
         rows={list.rows}
@@ -162,8 +159,3 @@ export default function OfficeSms() {
     </OfficeFrame>
   );
 }
-
-const styles = StyleSheet.create({
-  filterScroll: { flexGrow: 0 },
-  filters: { gap: 8, paddingVertical: 4 },
-});

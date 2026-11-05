@@ -1,6 +1,13 @@
 import { describe, expect, it } from "@jest/globals";
 
-import { forgetCachedLists, openCachedList, rememberFirstPage, type ListSnapshot } from "@/list-cache";
+import {
+  forgetAllScopedListCaches,
+  forgetCachedLists,
+  openCachedList,
+  rememberFirstPage,
+  scopedListCache,
+  type ListSnapshot,
+} from "@/list-cache";
 
 type Row = { id: string };
 
@@ -47,5 +54,14 @@ describe("list cache", () => {
     ]);
     forgetCachedLists(cache, ["a"]);
     expect([...cache.keys()]).toEqual(["b"]);
+  });
+
+  it("keeps a scoped cache across callers until sign-out clears it", () => {
+    forgetAllScopedListCaches();
+    const a = scopedListCache<Row>("office-audit");
+    a.set("all", { rows: [{ id: "1" }], total: 1, error: null });
+    expect(scopedListCache<Row>("office-audit").get("all")?.rows).toEqual([{ id: "1" }]);
+    forgetAllScopedListCaches();
+    expect(scopedListCache<Row>("office-audit").size).toBe(0);
   });
 });

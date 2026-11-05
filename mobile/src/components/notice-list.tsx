@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { router, useFocusEffect, useNavigation, type Href } from "expo-router";
-import { AppState, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { AppState, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/list-state";
 import { PagedList } from "@/components/paged-list";
 import { DayRange, type DayRangeValue } from "@/components/day-range";
 import { FilterChip } from "@/components/filter-chip";
+import { FilterChipRow } from "@/components/filter-chip-row";
 import { SearchField } from "@/components/search-field";
 import { openCachedList, rememberFirstPage, type ListSnapshot } from "@/list-cache";
 import {
@@ -211,7 +212,7 @@ export function NoticeList({ base, role, back, staff }: { base: string; role: Ha
         ) : null}
       </View>
       {staff ? <SearchField value={query} placeholder="Name or room" onChange={setQuery} /> : null}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+      <FilterChipRow>
         {FILTERS.map((chip) => (
           <FilterChip
             key={chip.value}
@@ -220,7 +221,7 @@ export function NoticeList({ base, role, back, staff }: { base: string; role: Ha
             onPress={() => setFilter(chip.value)}
           />
         ))}
-      </ScrollView>
+      </FilterChipRow>
       {staff ? <DayRange value={range} onChange={setRange} /> : null}
     </View>
   );
@@ -265,7 +266,6 @@ const styles = StyleSheet.create({
   back: { alignSelf: "flex-start", minHeight: 44, flexDirection: "row", alignItems: "center", gap: 2, marginLeft: -6 },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 16 },
   heading: { flex: 1, textAlign: "left" },
-  chips: { gap: 8, alignItems: "center" },
   card: {
     borderWidth: 1,
     borderRadius: 12,

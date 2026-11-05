@@ -1,9 +1,10 @@
 import { useCallback, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 
 import { DayRange, type DayRangeValue } from "@/components/day-range";
 import { DenseRow } from "@/components/dense-row";
 import { FilterChip } from "@/components/filter-chip";
+import { FilterChipRow } from "@/components/filter-chip-row";
 import { OfficeFrame, replyError } from "@/components/office-frame";
 import { PagedList } from "@/components/paged-list";
 import { SearchField } from "@/components/search-field";
@@ -70,6 +71,7 @@ export default function OfficeAudit() {
     idOf: (row) => row.id,
     filters,
     filterKey: auditKey(filters),
+    cacheScope: "office-audit",
     loadPage: useCallback(async (current, offset) => {
       const reply = await staffRequest(auditPath(current, offset));
       const page = reply.ok ? readPage(reply.data, readAudit) : null;
@@ -86,12 +88,7 @@ export default function OfficeAudit() {
   return (
     <OfficeFrame title="Audit" refreshing={list.refreshing} onRefresh={list.refresh} onNearEnd={() => list.loadNext()}>
       <SearchField value={query} placeholder="Summary, action, or actor" onChange={setQuery} />
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterScroll}
-        contentContainerStyle={styles.filters}
-      >
+      <FilterChipRow>
         {ENTITY_TYPES.map((item) => (
           <FilterChip
             key={item.label}
@@ -100,7 +97,7 @@ export default function OfficeAudit() {
             onPress={() => setEntityType(item.value)}
           />
         ))}
-      </ScrollView>
+      </FilterChipRow>
       <DayRange value={range} onChange={setRange} />
       <PagedList
         rows={list.rows}
@@ -138,8 +135,3 @@ export default function OfficeAudit() {
     </OfficeFrame>
   );
 }
-
-const styles = StyleSheet.create({
-  filterScroll: { flexGrow: 0 },
-  filters: { gap: 8, paddingVertical: 4 },
-});

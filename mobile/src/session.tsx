@@ -25,6 +25,7 @@ import {
 import { pageQuery } from "@/list-page";
 import { errorMessage, hallFailure, hallFetch, type HallFailure } from "@/hall-http";
 import { isRecord } from "@/json";
+import { forgetAllScopedListCaches } from "@/list-cache";
 import { forgetOfficeSettings } from "@/office-settings-cache";
 import { phoneDelete, phoneGet, phoneSet } from "@/phone-store";
 import { allowReturnReminders, clearNotificationSurface, PUSH_TOKEN_KEY, pushToken } from "@/push";
@@ -385,6 +386,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     sessionRef.current = null;
     setSession(null);
     forgetOfficeSettings();
+    forgetAllScopedListCaches();
     try {
       await phoneDelete(SESSION_KEY);
     } catch {

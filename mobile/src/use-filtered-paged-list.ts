@@ -10,6 +10,7 @@ import {
   forgetCachedLists,
   openCachedList,
   rememberFirstPage,
+  scopedListCache,
   type ListSnapshot,
 } from "@/list-cache";
 import { useListPage, type OffsetPage, type PageFailure } from "@/use-list-page";
@@ -25,14 +26,22 @@ type Args<T, F> = {
   loadPage: (filters: F, offset: number) => Promise<FilteredPage<T>>;
   /** When true (default), each focus reloads the current filter. */
   reloadOnFocus?: boolean;
+  /**
+   * When set, first-page snapshots survive leaving the screen (Office Audit,
+   * SMS, Gate history). Cleared on sign-out via forgetAllScopedListCaches.
+   */
+  cacheScope?: string;
 };
 
 export function useFilteredPagedList<T, F>(args: Args<T, F>) {
-  const { idOf, filters, filterKey, loadPage, reloadOnFocus = true } = args;
+  const { idOf, filters, filterKey, loadPage, reloadOnFocus = true, cacheScope } = args;
   const filtersRef = useRef(filters);
   const loadRef = useRef(loadPage);
   const keyRef = useRef(filterKey);
-  const cacheRef = useRef(new Map<string, ListSnapshot<T>>());
+  const cacheRef = useRef<Map<string, ListSnapshot<T>> | null>(null);
+  if (cacheRef.current === null) {
+    cacheRef.current = cacheScope ? scopedListCache<T>(cacheScope) : new Map();
+  }
   filtersRef.current = filters;
   loadRef.current = loadPage;
   keyRef.current = filterKey;
@@ -43,13 +52,13 @@ export function useFilteredPagedList<T, F>(args: Args<T, F>) {
       const key = keyRef.current;
       const current = filtersRef.current;
       const result = await loadRef.current(current, offset);
-      rememberFirstPage(cacheRef.current, key, offset, result);
+      rememberFirstPage(cacheRef.current!, key, offset, result);
       return result;
     },
   });
 
   useEffect(() => {
-    openCachedList(cacheRef.current, filterKey, list);
+    openCachedList(cacheRef.current!, filterKey, list);
   }, [filterKey, list.clear, list.load, list.revise]);
 
   useFocusEffect(
@@ -57,16 +66,21 @@ export function useFilteredPagedList<T, F>(args: Args<T, F>) {
       if (!reloadOnFocus) {
         return;
       }
+      // Scoped screens already reopen via openCachedList; a second load on every
+      // focus would flash. Pull-to-refresh still calls list.refresh.
+      if (cacheScope) {
+        return;
+      }
       list.load();
-    }, [list.load, reloadOnFocus]),
+    }, [cacheScope, list.load, reloadOnFocus]),
   );
 
   const forget = useCallback((keys: string[]) => {
-    forgetCachedLists(cacheRef.current, keys);
+    forgetCachedLists(cacheRef.current!, keys);
   }, []);
 
   const remember = useCallback((key: string, snapshot: ListSnapshot<T>) => {
-    cacheRef.current.set(key, snapshot);
+    cacheRef.current!.set(key, snapshot);
   }, []);
 
   return {

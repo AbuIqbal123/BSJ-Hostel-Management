@@ -45,11 +45,13 @@ export function FilterMark({ label, on, onPress }: { label: string; on: boolean;
 
 const styles = StyleSheet.create({
   chip: {
+    alignSelf: "center",
     minHeight: 32,
     borderWidth: 1,
     borderRadius: 8,
     borderCurve: "continuous",
     paddingHorizontal: 10,
+    paddingVertical: 6,
     justifyContent: "center",
   },
   label: { fontFamily: "SourceSans3_600SemiBold", fontSize: 15, lineHeight: 20 },

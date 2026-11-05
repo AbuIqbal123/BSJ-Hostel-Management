@@ -8,6 +8,7 @@ import { BackMark } from "@/components/back-mark";
 import { DayRange, type DayRangeValue } from "@/components/day-range";
 import { DenseRow } from "@/components/dense-row";
 import { FilterChip } from "@/components/filter-chip";
+import { FilterChipRow } from "@/components/filter-chip-row";
 import { PagedList } from "@/components/paged-list";
 import { SearchField } from "@/components/search-field";
 import { pageQuery } from "@/list-page";
@@ -70,6 +71,7 @@ export default function GateHistoryScreen() {
     idOf: (item) => item.key,
     filters,
     filterKey: historyKey(filters),
+    cacheScope: "gate-history",
     loadPage: useCallback(async (current, offset) => {
       const reply = await staffRequest(historyPath(current, offset));
       if (!reply.ok) {
@@ -105,7 +107,7 @@ export default function GateHistoryScreen() {
       <Text style={[text.hallName, styles.title, { color: colors.ink }]}>Gate history</Text>
       <Text style={[text.body, { color: colors.inkSoft }]}>Everyone recorded at the gate, newest first</Text>
       <SearchField value={query} placeholder="Name or room" onChange={setQuery} />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+      <FilterChipRow>
         {EVENTS.map((item) => (
           <FilterChip
             key={item.label}
@@ -114,7 +116,7 @@ export default function GateHistoryScreen() {
             onPress={() => setEvent(item.value)}
           />
         ))}
-      </ScrollView>
+      </FilterChipRow>
       <DayRange value={range} onChange={setRange} />
       <View style={styles.list}>
         <PagedList
@@ -151,6 +153,5 @@ const styles = StyleSheet.create({
   content: { flexGrow: 1, paddingHorizontal: 28, gap: 16 },
   back: { flexDirection: "row", alignItems: "center", gap: 2, alignSelf: "flex-start", marginLeft: -6 },
   title: { textAlign: "left" },
-  chips: { gap: 8, paddingVertical: 4 },
   list: { marginTop: 4 },
 });

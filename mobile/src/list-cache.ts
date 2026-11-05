@@ -8,6 +8,23 @@ export type ListSnapshot<T> = {
   error: string | null;
 };
 
+/** Survives screen unmount so Office Audit / SMS / Gate history reopen without a blank flash. */
+const scopedCaches = new Map<string, Map<string, ListSnapshot<unknown>>>();
+
+export function scopedListCache<T>(scope: string): Map<string, ListSnapshot<T>> {
+  let cache = scopedCaches.get(scope);
+  if (!cache) {
+    cache = new Map();
+    scopedCaches.set(scope, cache);
+  }
+  return cache as Map<string, ListSnapshot<T>>;
+}
+
+/** Call on sign-out so the next account does not see prior list rows. */
+export function forgetAllScopedListCaches(): void {
+  scopedCaches.clear();
+}
+
 type CachedList<T> = {
   revise: (change: (current: Listed<T>) => Listed<T>) => void;
   clear: () => void;

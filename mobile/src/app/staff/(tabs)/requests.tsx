@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { FilterMark } from "@/components/filter-chip";
+import { FilterChipRow } from "@/components/filter-chip-row";
 import { SearchField } from "@/components/search-field";
 import { SectionHead } from "@/components/section-head";
 import { PagedList } from "@/components/paged-list";
@@ -344,7 +345,7 @@ export default function RequestsScreen() {
         placeholder={tab === "permissions" ? "Name or room" : "Guest, host or room"}
         onChange={setQuery}
       />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+      <FilterChipRow contentStyle={styles.chips}>
         {tab === "permissions" ? (
           <>
             <FilterMark label="All" on={kind === null} onPress={() => setKind(null)} />
@@ -357,7 +358,7 @@ export default function RequestsScreen() {
         {blocks.map((block) => (
           <FilterMark key={block.id} label={block.name} on={blockId === block.id} onPress={() => setBlockId(block.id)} />
         ))}
-      </ScrollView>
+      </FilterChipRow>
     </View>
   );
 
