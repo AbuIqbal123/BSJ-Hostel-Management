@@ -23,3 +23,11 @@ backend/data/*.db-wal
 backend/data/*.db-shm
 backend/data/payment-evidence/
 .superpowers/
+
+# pstack verify skills: run state, proof artifacts, TLC jar/scratch (skill text stays tracked)
+.cursor/skills/verify-bsj-hall/artifacts/
+.cursor/skills/verify-bsj-hall/.last-state
+.cursor/skills/verify-bsj-presence/formal/tools/
+.cursor/skills/verify-bsj-presence/formal/states/
+.cursor/skills/verify-bsj-presence/formal/Presence_TTrace_*
+

@@ -5,7 +5,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
 import { BackMark } from "@/components/back-mark";
-import { DayRange, type DayRangeValue } from "@/components/day-range";
 import { DenseRow } from "@/components/dense-row";
 import { FilterChip } from "@/components/filter-chip";
 import { FilterChipRow } from "@/components/filter-chip-row";
@@ -15,7 +14,7 @@ import { PagedList } from "@/components/paged-list";
 import { SearchField } from "@/components/search-field";
 import { hallNow } from "@/format-when";
 import { pageQuery } from "@/list-page";
-import { hallDay, hallMonthRange } from "@/outing-when";
+import { hallDay } from "@/outing-when";
 import { shareLocalFile, writeCacheText } from "@/share-file";
 import { useSession } from "@/session";
 import {
@@ -37,10 +36,7 @@ type EventFilter = "exit" | "return" | "guest_arrival" | "guest_departure" | nul
 type HistoryFilters = {
   event: EventFilter;
   q: string;
-  range: DayRangeValue;
 };
-
-type MonthPreset = "this" | "last" | "all" | "custom";
 
 const EVENTS: { value: EventFilter; label: string }[] = [
   { value: null, label: "All" },
@@ -50,25 +46,8 @@ const EVENTS: { value: EventFilter; label: string }[] = [
   { value: "guest_departure", label: "Guest out" },
 ];
 
-function sameRange(left: DayRangeValue, right: DayRangeValue): boolean {
-  return left.from === right.from && left.to === right.to;
-}
-
-function monthPreset(range: DayRangeValue, now: Date): MonthPreset {
-  if (range.from === null && range.to === null) {
-    return "all";
-  }
-  if (sameRange(range, hallMonthRange(now, 0))) {
-    return "this";
-  }
-  if (sameRange(range, hallMonthRange(now, 1))) {
-    return "last";
-  }
-  return "custom";
-}
-
 function historyKey(filters: HistoryFilters): string {
-  return `${filters.event ?? ""}|${filters.q}|${filters.range.from ?? ""}|${filters.range.to ?? ""}`;
+  return `${filters.event ?? ""}|${filters.q}`;
 }
 
 function historyPath(filters: HistoryFilters, offset: number): string {
@@ -78,12 +57,6 @@ function historyPath(filters: HistoryFilters, offset: number): string {
   }
   if (filters.q.trim()) {
     search.set("q", filters.q.trim());
-  }
-  if (filters.range.from) {
-    search.set("from", filters.range.from);
-  }
-  if (filters.range.to) {
-    search.set("to", filters.range.to);
   }
   return `/gate/activity?${search.toString()}`;
 }
@@ -96,11 +69,9 @@ export default function GateHistoryScreen() {
   const [query, setQuery] = useState("");
   const q = useDebouncedValue(query);
   const [event, setEvent] = useState<EventFilter>(null);
-  const [range, setRange] = useState<DayRangeValue>(() => hallMonthRange(hallNow(), 0));
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportBusy, setExportBusy] = useState(false);
-  const filters = useMemo<HistoryFilters>(() => ({ event, q, range }), [event, q, range]);
-  const preset = monthPreset(range, hallNow());
+  const filters = useMemo<HistoryFilters>(() => ({ event, q }), [event, q]);
 
   const list = useFilteredPagedList<GateEvent, HistoryFilters>({
     idOf: (item) => item.key,
@@ -189,29 +160,6 @@ export default function GateHistoryScreen() {
           />
         ))}
       </FilterChipRow>
-      <FilterChipRow>
-        <FilterChip
-          label="This month"
-          on={preset === "this"}
-          onPress={() => setRange(hallMonthRange(hallNow(), 0))}
-        />
-        <FilterChip
-          label="Last month"
-          on={preset === "last"}
-          onPress={() => setRange(hallMonthRange(hallNow(), 1))}
-        />
-        <FilterChip
-          label="All time"
-          on={preset === "all"}
-          onPress={() => setRange({ from: null, to: null })}
-        />
-      </FilterChipRow>
-      <DayRange value={range} onChange={setRange} />
-      <HallButton label="Export" busy={exportBusy} onPress={() => void exportActivity()} />
-      <Text style={[text.error, { color: colors.inkSoft }]}>
-        Export includes up to 10,000 newest matching lines for the filters above
-      </Text>
-      <OfficeError message={exportError} />
       <View style={styles.list}>
         <PagedList
           rows={list.rows}
@@ -238,6 +186,11 @@ export default function GateHistoryScreen() {
           </View>
         </PagedList>
       </View>
+      <HallButton label="Export" busy={exportBusy} onPress={() => void exportActivity()} />
+      <Text style={[text.error, { color: colors.inkSoft }]}>
+        Export includes up to 10,000 newest lines for the search and event type above
+      </Text>
+      <OfficeError message={exportError} />
     </ScrollView>
   );
 }

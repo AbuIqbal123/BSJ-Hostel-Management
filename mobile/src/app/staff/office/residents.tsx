@@ -1,5 +1,5 @@
-import { useCallback, useRef, useState } from "react";
-import { router, useFocusEffect } from "expo-router";
+import { useCallback, useMemo, useState } from "react";
+import { router } from "expo-router";
 import { View } from "react-native";
 
 import { DenseRow } from "@/components/dense-row";
@@ -11,35 +11,37 @@ import { SearchField } from "@/components/search-field";
 import { pageQuery } from "@/list-page";
 import { readPage, readResident, type OfficeResident } from "@/office";
 import { useSession } from "@/session";
-import { useListPage } from "@/use-list-page";
+import { useDebouncedValue } from "@/use-debounced-value";
+import { useFilteredPagedList } from "@/use-filtered-paged-list";
 
 export default function OfficeResidents() {
   const { staffRequest } = useSession();
   const [query, setQuery] = useState("");
-  const queryRef = useRef(query);
-  queryRef.current = query;
-  const list = useListPage<OfficeResident>({
-    idOf: (resident) => resident.id,
-    loadPage: async (offset) => {
-      const search = new URLSearchParams(pageQuery(offset));
-      const needle = queryRef.current.trim().slice(0, 80);
-      if (needle) {
-        search.set("q", needle);
-      }
-      const reply = await staffRequest(`/admin/residents?${search.toString()}`);
-      const page = reply.ok ? readPage(reply.data, readResident) : null;
-      return page
-        ? { items: page.items, total: page.total }
-        : { error: replyError(reply) ?? "Residents didn't load" };
-    },
-  });
+  const q = useDebouncedValue(query);
+  const filters = useMemo(() => ({ q }), [q]);
 
-  useFocusEffect(
-    useCallback(() => {
-      const timer = setTimeout(() => list.load(), query ? 300 : 0);
-      return () => clearTimeout(timer);
-    }, [list.load, query]),
-  );
+  const list = useFilteredPagedList<OfficeResident, { q: string }>({
+    idOf: (resident) => resident.id,
+    filters,
+    filterKey: q.trim(),
+    cacheScope: "office-residents",
+    refreshOnFocusWhenCached: true,
+    loadPage: useCallback(
+      async (current, offset) => {
+        const search = new URLSearchParams(pageQuery(offset));
+        const needle = current.q.trim().slice(0, 80);
+        if (needle) {
+          search.set("q", needle);
+        }
+        const reply = await staffRequest(`/admin/residents?${search.toString()}`);
+        const page = reply.ok ? readPage(reply.data, readResident) : null;
+        return page
+          ? { items: page.items, total: page.total }
+          : { error: replyError(reply) ?? "Residents didn't load" };
+      },
+      [staffRequest],
+    ),
+  });
 
   const rows = list.rows ?? [];
   const searching = query.trim().length > 0;

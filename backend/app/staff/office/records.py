@@ -484,9 +484,6 @@ class ResidentCreated(BaseModel):
 
 class ResidentUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    full_name: str | None = Field(default=None, min_length=1, max_length=120)
-    enrolment_number: str | None = Field(default=None, min_length=1, max_length=40)
-    course: str | None = Field(default=None, max_length=120)
     room_id: str | None = None
     phone: str | None = Field(default=None, pattern=r"^\+[1-9][0-9]{7,14}$")
     guardian_name: str | None = Field(default=None, min_length=1, max_length=120)

@@ -212,9 +212,11 @@ describe("hall office display", () => {
     expect(created).not.toHaveProperty("password");
     expect(residentCreate(draft({ phone: "9811112222" }))).toBe("Enter her phone with the country code");
     expect(residentPatch(RESIDENT, draft({ course: "", status: "suspended" }))).toEqual({
-      course: null,
       status: "suspended",
     });
+    expect(residentPatch(RESIDENT, draft({ fullName: "Other", enrolmentNumber: "99-XX-001", course: "Changed" }))).toEqual(
+      {},
+    );
     expect(residentPatch(RESIDENT, draft())).toEqual({});
     const account = readResident({
       id: RESIDENT.id,

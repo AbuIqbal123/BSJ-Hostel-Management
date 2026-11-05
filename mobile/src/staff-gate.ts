@@ -247,23 +247,13 @@ export function gateActivityExportFileName(hallDay: string): string {
 }
 
 /** Query string for gate activity CSV export (same filters as the list, no paging). */
-export function gateActivityExportQuery(filters: {
-  event: string | null;
-  q: string;
-  range: { from: string | null; to: string | null };
-}): string {
+export function gateActivityExportQuery(filters: { event: string | null; q: string }): string {
   const search = new URLSearchParams();
   if (filters.event) {
     search.set("event", filters.event);
   }
   if (filters.q.trim()) {
     search.set("q", filters.q.trim());
-  }
-  if (filters.range.from) {
-    search.set("from", filters.range.from);
-  }
-  if (filters.range.to) {
-    search.set("to", filters.range.to);
   }
   const text = search.toString();
   return text ? `?${text}` : "";

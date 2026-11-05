@@ -4,6 +4,10 @@ Begum Sultan Jahan Hall hostel management. Residents, wardens, gate staff, and t
 
 Before changing API behavior, the database, or the shape of the system, follow `.grok/skills/contract-maintenance/SKILL.md` and the rules below.
 
+### pstack (workflow)
+
+pstack is installed in Cursor globally. For non-trivial work, use `/poteto-mode`. This hall’s preferred principles and playbooks are in `.cursor/rules/pstack-bsj.mdc`. Product contracts in this file and the docs table still win; pstack does not replace OpenAPI, `docs/database/database.md`, or `docs/tests/tests.md`.
+
 | Concern | File |
 |---|---|
 | Docs map by domain | `docs/README.md` |

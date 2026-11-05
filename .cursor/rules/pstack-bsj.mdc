@@ -1,0 +1,40 @@
+---
+description: BSJ-curated pstack principles and skills. Full pstack is global; this rule names what this hall uses.
+alwaysApply: true
+---
+
+# pstack on Begum Sultan Jahan Hall
+
+pstack is installed globally. Use `/poteto-mode` for non-trivial work. Product contracts in `AGENTS.md`, `backend/openapi.yaml`, `docs/database/database.md`, and `docs/tests/tests.md` still win. pstack is the workflow layer, not a second spec.
+
+## Prefer these on this project
+
+| Hall rule | pstack to apply |
+|---|---|
+| DRY, shy modules, small blast radius | `principle-laziness-protocol`, `principle-minimize-reader-load`, `principle-subtract-before-you-add`, `/blast-radius` |
+| Spec before code (OpenAPI, database.md) | `principle-model-the-domain`, `principle-type-system-discipline`, feature playbook “named data shape” |
+| TDD / E2E + artifacts | `/tdd`, `principle-test-behavior-not-implementation`, `principle-prove-it-works`, `principle-sequence-verifiable-units` |
+| Enforce rules in structure (ruff TID251, check_docs) | `/correct`, `principle-encode-lessons-in-structure` |
+| Contract maintenance (HTTP / schema edge) | `principle-boundary-discipline` |
+
+## Playbooks that fit this hall
+
+| Work | Playbook |
+|---|---|
+| New or changed API/phone behavior | **feature** — name the data shape in OpenAPI / records first |
+| Structure without behavior change | **refactoring** — pin with an E2E or artifact before moving |
+| Defect with a repro | **bug fix** — runtime evidence, then `/tdd` when a cheap local path exists |
+| “How does X work?” | **investigation** or `/how` |
+| Ready to open a PR | **opening a pr** — small commits; Why / Scope / Verification |
+
+## Default verification surfaces
+
+- Backend: `.venv/bin/pytest` (narrow first), `.venv/bin/ruff check .`, `.venv/bin/python scripts/check_docs.py`
+- Phone: `npx tsc --noEmit`, `npm run lint`, `npm test -- --watchAll=false` (narrow when possible)
+- Contract edit: update owning doc in the same change; regenerate `docs/api/api.md` from OpenAPI
+- User-path HTTP proof: `.cursor/skills/verify-bsj-hall/` (`/verify-bsj-hall`) on a scratch API (port 8020+)
+- Presence/outing invariant: `.cursor/skills/verify-bsj-presence/` (`/verify-bsj-presence`) via TLC; keep with `/maintain-formal-verification-skill`
+
+## Do not treat as primary here
+
+Overnight autopilot/shipping stacks and visual-parity pixel loops unless the task names them. Reach for `/poteto-help` if unsure.

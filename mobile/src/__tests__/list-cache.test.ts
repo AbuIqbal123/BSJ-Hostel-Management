@@ -6,6 +6,7 @@ import {
   openCachedList,
   rememberFirstPage,
   scopedListCache,
+  shouldQuietFocusLoad,
   type ListSnapshot,
 } from "@/list-cache";
 
@@ -63,5 +64,18 @@ describe("list cache", () => {
     expect(scopedListCache<Row>("office-audit").get("all")?.rows).toEqual([{ id: "1" }]);
     forgetAllScopedListCaches();
     expect(scopedListCache<Row>("office-audit").size).toBe(0);
+  });
+
+  it("loads on focus for unscoped lists, skips scoped unless refreshWhenCached", () => {
+    expect(shouldQuietFocusLoad({ reloadOnFocus: true })).toBe(true);
+    expect(shouldQuietFocusLoad({ reloadOnFocus: false })).toBe(false);
+    expect(shouldQuietFocusLoad({ reloadOnFocus: true, cacheScope: "office-audit" })).toBe(false);
+    expect(
+      shouldQuietFocusLoad({
+        reloadOnFocus: true,
+        cacheScope: "office-residents",
+        refreshOnFocusWhenCached: true,
+      }),
+    ).toBe(true);
   });
 });

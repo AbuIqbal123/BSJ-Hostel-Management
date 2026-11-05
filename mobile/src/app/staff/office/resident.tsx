@@ -7,7 +7,9 @@ import { HallButton } from "@/components/hall-button";
 import { ListError } from "@/components/list-state";
 import { ChoiceLine, OfficeError, OfficeFrame, replyError } from "@/components/office-frame";
 import { SearchField } from "@/components/search-field";
+import { SkeletonRows } from "@/components/skeleton";
 import { TextField } from "@/components/text-field";
+import { useDelayedLoading } from "@/use-delayed-loading";
 import { pageQuery } from "@/list-page";
 import {
   REISSUE_CONFIRM,
@@ -96,6 +98,7 @@ export default function OfficeResident() {
 
   const loadAccount = useCallback(
     (residentId: string) => {
+      setError(null);
       void staffRequest(`/admin/residents/${encodeURIComponent(residentId)}`).then((reply) => {
         const next = reply.ok ? readResident(reply.data) : null;
         if (!next) {
@@ -105,6 +108,7 @@ export default function OfficeResident() {
         setAccount(next);
         setDraft(fromAccount(next));
         setRoomQuery(next.roomLabel);
+        setError(null);
       });
     },
     [staffRequest],
@@ -245,11 +249,46 @@ export default function OfficeResident() {
     ]);
   };
 
+  const showAccountSkeleton =
+    useDelayedLoading(Boolean(id) && account === null && error === null) && error === null;
+
+  if (id && !account) {
+    return (
+      <OfficeFrame title="Resident">
+        {error ? (
+          <ListError message={error} onRetry={() => loadAccount(id)} />
+        ) : showAccountSkeleton ? (
+          <SkeletonRows count={4} kind="row" />
+        ) : null}
+      </OfficeFrame>
+    );
+  }
+
   return (
     <OfficeFrame title={account?.fullName ?? "New resident"}>
-      <TextField label="Name" value={draft.fullName} onChangeText={fill("fullName")} autoCapitalize="sentences" maxLength={120} />
-      <TextField label="Enrolment number" value={draft.enrolmentNumber} onChangeText={fill("enrolmentNumber")} maxLength={40} />
-      <TextField label="Course" value={draft.course} onChangeText={fill("course")} autoCapitalize="sentences" maxLength={120} />
+      <TextField
+        label="Name"
+        value={draft.fullName}
+        onChangeText={fill("fullName")}
+        autoCapitalize="sentences"
+        maxLength={120}
+        editable={!account}
+      />
+      <TextField
+        label="Enrolment number"
+        value={draft.enrolmentNumber}
+        onChangeText={fill("enrolmentNumber")}
+        maxLength={40}
+        editable={!account}
+      />
+      <TextField
+        label="Course"
+        value={draft.course}
+        onChangeText={fill("course")}
+        autoCapitalize="sentences"
+        maxLength={120}
+        editable={!account}
+      />
       <TextField label="Phone" value={draft.phone} onChangeText={fill("phone")} keyboardType="default" maxLength={16} />
       <TextField label="Guardian" value={draft.guardianName} onChangeText={fill("guardianName")} autoCapitalize="sentences" maxLength={120} />
       <TextField label="Guardian phone" value={draft.guardianPhone} onChangeText={fill("guardianPhone")} maxLength={16} />

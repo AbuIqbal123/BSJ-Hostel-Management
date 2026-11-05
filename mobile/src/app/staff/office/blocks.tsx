@@ -1,5 +1,5 @@
-import { useCallback, useState } from "react";
-import { router, useFocusEffect } from "expo-router";
+import { useCallback, useMemo, useState } from "react";
+import { router } from "expo-router";
 import { View } from "react-native";
 
 import { DenseRow } from "@/components/dense-row";
@@ -9,7 +9,7 @@ import { PagedList } from "@/components/paged-list";
 import { TextField } from "@/components/text-field";
 import { blockRoomsDetail, bounded, readBlock, readBlocks, type OfficeBlock } from "@/office";
 import { useSession } from "@/session";
-import { useListPage } from "@/use-list-page";
+import { useFilteredPagedList } from "@/use-filtered-paged-list";
 
 export default function OfficeBlocks() {
   const { staffRequest } = useSession();
@@ -20,22 +20,20 @@ export default function OfficeBlocks() {
   const [rooms, setRooms] = useState("");
   const [beds, setBeds] = useState("");
   const [busy, setBusy] = useState(false);
+  const filters = useMemo(() => ({}), []);
 
-  const list = useListPage<OfficeBlock>({
-    auto: false,
+  const list = useFilteredPagedList<OfficeBlock, Record<string, never>>({
     idOf: (block) => block.id,
-    loadPage: async () => {
+    filters,
+    filterKey: "all",
+    cacheScope: "office-blocks",
+    refreshOnFocusWhenCached: true,
+    loadPage: useCallback(async () => {
       const reply = await staffRequest("/admin/blocks");
       const next = reply.ok ? readBlocks(reply.data) : null;
       return next ? { items: next, total: next.length } : { error: replyError(reply) ?? "Blocks didn't load" };
-    },
+    }, [staffRequest]),
   });
-
-  useFocusEffect(
-    useCallback(() => {
-      list.load();
-    }, [list.load]),
-  );
 
   const create = async () => {
     if (busy) {

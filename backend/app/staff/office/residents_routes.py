@@ -38,8 +38,6 @@ _DUPLICATE = "Enrolment number already in use."
 _ROOM_FULL = "This room already has as many residents as it has beds."
 _ROOM_INACTIVE = "That room is not in use."
 _NOT_CLEARABLE = {
-    "full_name",
-    "enrolment_number",
     "room_id",
     "guardian_name",
     "guardian_phone",
@@ -179,20 +177,16 @@ def admin_update_resident(
                 f"{field_name.replace('_', ' ').capitalize()} is required.",
                 field=field_name,
             )
-        if field_name in {"full_name", "enrolment_number", "guardian_name"}:
+        if field_name == "guardian_name":
             assert isinstance(value, str)
             value = value.strip()
             if not value:
                 raise ApiError(
                     422,
                     "validation_error",
-                    f"{field_name.replace('_', ' ').capitalize()} is required.",
+                    "Guardian name is required.",
                     field=field_name,
                 )
-        if field_name == "course":
-            if value is not None:
-                assert isinstance(value, str)
-                value = value.strip() or None
         if getattr(current, field_name) != value:
             changes[field_name] = value
 
@@ -214,20 +208,9 @@ def admin_update_resident(
     resident_sets: list[str] = []
     resident_values: list[object] = []
 
-    if "full_name" in changes:
-        user_sets.append("full_name = ?")
-        user_values.append(changes["full_name"])
-    if "enrolment_number" in changes:
-        user_sets.append("username = ?")
-        user_values.append(changes["enrolment_number"])
-        resident_sets.append("enrolment_number = ?")
-        resident_values.append(changes["enrolment_number"])
     if "status" in changes:
         user_sets.append("status = ?")
         user_values.append(changes["status"])
-    if "course" in changes:
-        resident_sets.append("course = ?")
-        resident_values.append(changes["course"])
     if "room_id" in changes:
         resident_sets.append("room_id = ?")
         resident_values.append(changes["room_id"])
@@ -258,8 +241,6 @@ def admin_update_resident(
             )
     except INTEGRITY_ERRORS as exc:
         message = str(exc).lower()
-        if "unique" in message:
-            raise ApiError(409, "duplicate_username", _DUPLICATE) from exc
         if "beds" in message:
             raise ApiError(422, "validation_error", _ROOM_FULL) from exc
         raise

@@ -52,6 +52,8 @@ type TextFieldProps = {
   prefix?: ReactNode;
   /** Taller field for a message the provost edits. */
   multiline?: boolean;
+  /** When false, the field shows its value but does not accept edits. */
+  editable?: boolean;
 };
 
 export const TextField = memo(function TextField({
@@ -73,6 +75,7 @@ export const TextField = memo(function TextField({
   maxLength,
   prefix,
   multiline = false,
+  editable = true,
 }: TextFieldProps) {
   const colors = useHallColors();
   const [focused, setFocused] = useState(false);
@@ -89,7 +92,7 @@ export const TextField = memo(function TextField({
     ],
     [colors, multiline, prefix],
   );
-  const painted = focused && showOutline;
+  const painted = editable && focused && showOutline;
   const shellStyle = useMemo(
     () => [
       styles.shell,
@@ -133,6 +136,7 @@ export const TextField = memo(function TextField({
           ref={inputRef}
           value={value}
           onChangeText={changeText}
+          editable={editable}
           secureTextEntry={secureTextEntry}
           autoCapitalize={autoCapitalize}
           autoCorrect={false}
@@ -153,6 +157,7 @@ export const TextField = memo(function TextField({
           selectionColor={colors.forest}
           cursorColor={colors.forest}
           accessibilityLabel={label}
+          accessibilityState={{ disabled: !editable }}
           style={inputStyle}
         />
       </View>

@@ -203,19 +203,18 @@ def test_admin_residents(database_path: Path, monkeypatch: pytest.MonkeyPatch) -
             f"/api/v1/admin/residents/{maryam_id}",
             headers=headers,
             json={
-                "course": None,
-                "enrolment_number": "26-BA-002",
                 "room_id": ROOM_B204,
+                "phone": "+919833334444",
             },
         )
         assert patched.status_code == 200
-        assert patched.json()["course"] is None
-        assert patched.json()["enrolment_number"] == "26-BA-002"
+        assert patched.json()["course"] == "B.A."
+        assert patched.json()["enrolment_number"] == "26-BA-001"
         assert patched.json()["room_label"] == "B-204"
+        assert patched.json()["phone"] == "+919833334444"
 
-        # Username follows enrolment
-        moved_login = sign_in(client, "26-BA-002", role_credential("resident-temp"))
-        assert moved_login["access_token"]
+        still_login = sign_in(client, "26-BA-001", role_credential("resident-temp"))
+        assert still_login["access_token"]
 
         suspended = client.patch(
             f"/api/v1/admin/residents/{maryam_id}",
@@ -279,9 +278,9 @@ def test_admin_residents(database_path: Path, monkeypatch: pytest.MonkeyPatch) -
         finally:
             connection.close()
         assert stored[0] == new_qr
-        assert stored[1] == "26-BA-002"
-        assert stored[2] is None
-        assert username == ("26-BA-002", "active")
+        assert stored[1] == "26-BA-001"
+        assert stored[2] == "B.A."
+        assert username == ("26-BA-001", "active")
         assert old_alive == 0
         assert actions[0] == "resident.created"
         assert "resident.updated" in actions
@@ -327,28 +326,33 @@ def test_null_resident_fields_and_retired_room(
         )
         assert_error(refused_phone, 422, "validation_error")
 
-        cleared_name = client.patch(
+        refused_name = client.patch(
             f"/api/v1/admin/residents/{AISHA_ID}",
             headers=headers,
-            json={"full_name": None},
+            json={"full_name": "Someone Else"},
         )
-        assert_error(cleared_name, 422, "validation_error")
-        assert cleared_name.json()["error"]["message"] == "Full name is required."
+        assert_error(refused_name, 422, "validation_error")
+
+        refused_enrolment = client.patch(
+            f"/api/v1/admin/residents/{AISHA_ID}",
+            headers=headers,
+            json={"enrolment_number": "26-XX-999"},
+        )
+        assert_error(refused_enrolment, 422, "validation_error")
+
+        refused_course = client.patch(
+            f"/api/v1/admin/residents/{AISHA_ID}",
+            headers=headers,
+            json={"course": None},
+        )
+        assert_error(refused_course, 422, "validation_error")
 
         kept = client.get(f"/api/v1/admin/residents/{AISHA_ID}", headers=headers)
         assert kept.status_code == 200
         assert kept.json()["full_name"] == "Aisha Khan"
         assert kept.json()["course"] == "B.A. LL.B. (Hons.)"
+        assert kept.json()["enrolment_number"] == "24-GLLB-118"
         assert kept.json()["phone"] is None
-
-        cleared_course = client.patch(
-            f"/api/v1/admin/residents/{AISHA_ID}",
-            headers=headers,
-            json={"course": None},
-        )
-        assert cleared_course.status_code == 200
-        assert cleared_course.json()["course"] is None
-        assert cleared_course.json()["full_name"] == "Aisha Khan"
 
         set_phone = client.patch(
             f"/api/v1/admin/residents/{AISHA_ID}",

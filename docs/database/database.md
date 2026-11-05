@@ -237,7 +237,7 @@ At most one active destination is the free-text choice.
 | id | Identifier | Yes | System | Identifies this person. |
 | role | Choice | Yes | Provost for staff and office-created residents. System sets resident on self-onboard. | One of resident, gate, warden, provost. What the person may do comes from this role. The table is under Who can do what. |
 | username | Text | Yes | Provost for staff and office-created residents. Self-onboard uses the enrolment number. | Unique, ignoring capitals. |
-| full_name | Text | Yes | Provost, or the resident on self-onboard | The name people see. |
+| full_name | Text | Yes | Provost on create, or the resident on self-onboard | The name people see. Fixed after create; the office cannot change it. |
 | password_hash | Protected value | Yes | System, from the password she chooses on self-onboard, or the temporary password the provost sets, using Argon2id | Never the password itself. |
 | status | Choice | Yes | Self-onboard and office-created residents and staff start **active**. The provost may suspend or reinstate. | Active or suspended. |
 | created_at | Instant | Yes | System | When the account was created. |
@@ -257,12 +257,12 @@ The resident's own phone is separate from the guardian phone. Self-onboard and o
 | Detail | Kept as | Required | Where it comes from | Rule |
 |---|---|---|---|---|
 | user_id | Identifier | Yes | The person's id | One profile for that person. |
-| enrolment_number | Text | Yes | Self-onboard, or provost. Same value as the username. | Unique, ignoring capitals. Shown on the warden record, for example `24-GLLB-118`. |
-| course | Text | Empty if not entered | Self-onboard (optional) or provost | For example `B.A. LL.B. (Hons.)`. |
-| room_id | Identifier | Yes for an active resident. | Resident on self-onboard, or provost | The room the resident lives in. It must be active; its block is the resident's block. |
-| phone | Phone | Yes on self-onboard and office create. | Self-onboard, or provost | The resident's own number. Country code required. Not used for guardian late or return messages. |
-| guardian_name | Text | Yes | Self-onboard, or provost from the hall's record | The person the hall contacts about this resident. |
-| guardian_phone | Phone | Yes | Self-onboard, or provost from that same record | Country code required. Late and return messages go to this number. |
+| enrolment_number | Text | Yes | Self-onboard, or provost on create. Same value as the username. | Unique, ignoring capitals. Shown on the warden record, for example `24-GLLB-118`. Fixed after create; the office cannot change it. |
+| course | Text | Empty if not entered | Self-onboard (optional) or provost on create | For example `B.A. LL.B. (Hons.)`. Fixed after create; the office cannot change it. |
+| room_id | Identifier | Yes for an active resident. | Resident on self-onboard, or provost | The room the resident lives in. It must be active; its block is the resident's block. The provost may move her later. |
+| phone | Phone | Yes on self-onboard and office create. | Self-onboard, or provost | The resident's own number. Country code required. Not used for guardian late or return messages. The provost may correct or clear it later. |
+| guardian_name | Text | Yes | Self-onboard, or provost from the hall's record | The person the hall contacts about this resident. The provost may correct it later. |
+| guardian_phone | Phone | Yes | Self-onboard, or provost from that same record | Country code required. Late and return messages go to this number. The provost may correct it later. |
 | qr_token | Text | Yes when active. | System, when the account is created active (including self-onboard and office create), and again when the provost issues a new hall pass | The hall-pass code. Unique. |
 | presence | Choice | Yes | System. Starts as inside. Changes when a gate scan records an exit or a return. | Inside or outside. This is presence in the hall, not sign-in. |
 | created_at | Instant | Yes | System | When the profile was created. |

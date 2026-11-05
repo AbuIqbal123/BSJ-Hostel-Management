@@ -74,3 +74,24 @@ export function forgetCachedLists(cache: Map<string, unknown>, keys: string[]): 
     cache.delete(key);
   }
 }
+
+/**
+ * Whether a filtered list should quietly `load()` on focus.
+ * Scoped screens (Audit, SMS, Gate history) skip focus reload by default —
+ * remount already restores + refreshes via openCachedList. Lists that stay
+ * mounted under a detail screen (Residents, Staff, Blocks) pass
+ * refreshOnFocusWhenCached so a return still refetches without clearing.
+ */
+export function shouldQuietFocusLoad(args: {
+  reloadOnFocus: boolean;
+  cacheScope?: string;
+  refreshOnFocusWhenCached?: boolean;
+}): boolean {
+  if (!args.reloadOnFocus) {
+    return false;
+  }
+  if (args.cacheScope && !args.refreshOnFocusWhenCached) {
+    return false;
+  }
+  return true;
+}

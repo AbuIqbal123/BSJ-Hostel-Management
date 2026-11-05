@@ -1905,7 +1905,7 @@ paths:
         resident returns, guest arrivals, and guest departures. Optional `q` matches
         resident, room, guest, host, or host room. Optional `event` limits the line
         type. Optional `from` and `to` are hall calendar dates (Asia/Kolkata). The
-        phone Gate history screen defaults to the current hall month; use
+        phone Gate history screen opens on the newest page with no date filter; use
         `GET /api/v1/gate/activity/export` for a spreadsheet of the filtered log.
       parameters:
         - name: q
@@ -3156,11 +3156,12 @@ paths:
       operationId: admin_update_resident
       summary: Update a resident
       description: |
-        Caller: provost. Send only the fields that change. `course` and `phone`
-        may be set to null to clear them. `guardian_name` and `guardian_phone`
-        may be replaced and may not be cleared. A phone includes the country
-        code. Changing `enrolment_number` changes the username. `status`
-        suspends or reinstates. Suspension revokes refresh tokens.
+        Caller: provost. Send only the fields that change. Name, enrolment
+        number, and course are set at create or onboard and are not editable
+        here. `phone` may be set to null to clear it. `guardian_name` and
+        `guardian_phone` may be replaced and may not be cleared. A phone
+        includes the country code. `status` suspends or reinstates.
+        Suspension revokes refresh tokens.
       parameters:
         - $ref: "#/components/parameters/ResidentId"
       requestBody:
@@ -3184,7 +3185,6 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           description: |
-            Enrolment number already in use. Code `duplicate_username`.
             That room is not in use. Code `room_inactive`.
           content:
             application/json:
@@ -6451,20 +6451,10 @@ components:
     ResidentUpdate:
       type: object
       additionalProperties: false
+      description: |
+        Contact, room, and status only. `full_name`, `enrolment_number`, and
+        `course` are refused (extra fields).
       properties:
-        full_name:
-          type: string
-          minLength: 1
-          maxLength: 120
-        enrolment_number:
-          type: string
-          minLength: 1
-          maxLength: 40
-        course:
-          oneOf:
-            - type: string
-              maxLength: 120
-            - type: "null"
         room_id:
           type: string
           format: uuid

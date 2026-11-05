@@ -24,6 +24,8 @@ export default function OfficeStaffList() {
     idOf: (member) => member.id,
     filters,
     filterKey: q.trim(),
+    cacheScope: "office-staff",
+    refreshOnFocusWhenCached: true,
     loadPage: useCallback(async (current, offset) => {
       const needle = current.q.trim();
       const search = needle ? `&q=${encodeURIComponent(needle)}` : "";

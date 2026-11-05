@@ -1,5 +1,4 @@
-import { useCallback, useState } from "react";
-import { useFocusEffect } from "expo-router";
+import { useCallback, useMemo, useState } from "react";
 import { Text, View } from "react-native";
 
 import { DenseRow } from "@/components/dense-row";
@@ -15,7 +14,7 @@ import {
   type OfficePlace,
 } from "@/office";
 import { useSession } from "@/session";
-import { useListPage } from "@/use-list-page";
+import { useFilteredPagedList } from "@/use-filtered-paged-list";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
@@ -28,24 +27,21 @@ export default function OfficeDestinations() {
   const [editName, setEditName] = useState("");
   const [status, setStatus] = useState<"active" | "inactive">("active");
   const [busy, setBusy] = useState<"preset" | "custom" | "save" | null>(null);
+  const filters = useMemo(() => ({}), []);
 
-  const list = useListPage<OfficePlace>({
-    auto: false,
+  const list = useFilteredPagedList<OfficePlace, Record<string, never>>({
     idOf: (place) => place.id,
-    loadPage: async () => {
+    filters,
+    filterKey: "all",
+    cacheScope: "office-destinations",
+    loadPage: useCallback(async () => {
       const reply = await staffRequest("/admin/destinations");
       const next = reply.ok ? readPlaces(reply.data) : null;
       return next
         ? { items: next, total: next.length }
         : { error: replyError(reply) ?? "Destinations didn't load" };
-    },
+    }, [staffRequest]),
   });
-
-  useFocusEffect(
-    useCallback(() => {
-      list.load();
-    }, [list.load]),
-  );
 
   const create = async (source: "preset" | "custom") => {
     if (busy) {

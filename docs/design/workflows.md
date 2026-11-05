@@ -143,7 +143,7 @@ Provost may also export CSV via `GET /api/v1/admin/register/export`.
 
 1. Scan CTA → camera. The hall pass QR is read anywhere in the frame; the corner guide is only a hint. No confirm button.
 2. Result card (exit / return / refusal) with the leave or return line. Dismiss with the top-right close control or Scan next. The card also clears on its own after 30 seconds so the next pass is ready.
-3. Home shows Recent at the gate: the latest eight lines from `GET /api/v1/gate/activity`. Settings → Gate history pages the list (search, event type, hall-day range), newest first. The screen opens on the current hall month, with chips for This month, Last month, and All time. Export writes `gate-activity-YYYY-MM-DD.csv` for the current filters (`GET /api/v1/gate/activity/export`, at most 10000 rows) and opens the system share sheet.
+3. Home shows Recent at the gate: the latest eight lines from `GET /api/v1/gate/activity`. Settings → Gate history opens on the newest page, with search and event type and no date filter. Export sits under the list and writes `gate-activity-YYYY-MM-DD.csv` for that search and event type (`GET /api/v1/gate/activity/export`, at most 10000 rows) and opens the system share sheet.
 
 **Critical states:** exit recorded; return recorded; `duplicate_scan` inside `scan_duplicate_window_seconds` (she is already recorded as outside and should present the same pass on return); `already_outside` only when she cancels an outing that is already outside ("You are already outside."); `no_outing_planned`; `outside_ordinary_hours`; `permission_not_yet_valid`; `resident_suspended`; `unknown_hall_pass` (404).
 
@@ -183,7 +183,7 @@ Provost may also export CSV via `GET /api/v1/admin/register/export`.
 
 **Entry:** Settings → Office settings (not on Home).
 
-**Screens:** settings (hours, grace, seasons, guest rules; SMS templates when `hallFeatures.guardianSmsUi` is on; show 12-hour + day-month as contract) → blocks/rooms → destinations → residents (create/edit; suspend; reissue pass) → staff → password reset → (SMS log when that flag is on) → audit → CSV export. Register export writes a temporary `register-YYYY-MM-DD.csv` and opens the system share sheet as a **file** (WhatsApp, Files, Mail), not as pasted CSV text. Audit shows the newest page only (50 rows); Export audit writes `audit-YYYY-MM-DD.csv` with the same filters (at most 10000 rows).
+**Screens:** settings (hours, grace, seasons, guest rules; SMS templates when `hallFeatures.guardianSmsUi` is on; show 12-hour + day-month as contract) → blocks/rooms → destinations → residents (create; edit contact/room/status — name, enrolment, and course stay as set; suspend; reissue pass) → staff → password reset → (SMS log when that flag is on) → audit → CSV export. Register export writes a temporary `register-YYYY-MM-DD.csv` and opens the system share sheet as a **file** (WhatsApp, Files, Mail), not as pasted CSV text. Audit shows the newest page only (50 rows); Export audit writes `audit-YYYY-MM-DD.csv` with the same filters (at most 10000 rows).
 
 **Critical states:** destructive confirms (reissue pass invalidates old QR; reset revokes sessions); inactive destinations hidden from resident catalog but visible in admin; Destinations offers at most one active free-text (Other) place — when one is already active the form does not offer adding another; the API refuses a second with `other_exists`.
 

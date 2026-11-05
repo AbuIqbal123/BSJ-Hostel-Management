@@ -11,6 +11,7 @@ import {
   openCachedList,
   rememberFirstPage,
   scopedListCache,
+  shouldQuietFocusLoad,
   type ListSnapshot,
 } from "@/list-cache";
 import { useListPage, type OffsetPage, type PageFailure } from "@/use-list-page";
@@ -31,10 +32,24 @@ type Args<T, F> = {
    * SMS, Gate history). Cleared on sign-out via forgetAllScopedListCaches.
    */
   cacheScope?: string;
+  /**
+   * With cacheScope, also quietly load on focus (no clear). Use when a detail
+   * screen stays mounted over this list (Residents, Staff, Blocks). Leave off
+   * for Audit / SMS / Gate history — remount already restores and refreshes.
+   */
+  refreshOnFocusWhenCached?: boolean;
 };
 
 export function useFilteredPagedList<T, F>(args: Args<T, F>) {
-  const { idOf, filters, filterKey, loadPage, reloadOnFocus = true, cacheScope } = args;
+  const {
+    idOf,
+    filters,
+    filterKey,
+    loadPage,
+    reloadOnFocus = true,
+    cacheScope,
+    refreshOnFocusWhenCached = false,
+  } = args;
   const filtersRef = useRef(filters);
   const loadRef = useRef(loadPage);
   const keyRef = useRef(filterKey);
@@ -63,16 +78,17 @@ export function useFilteredPagedList<T, F>(args: Args<T, F>) {
 
   useFocusEffect(
     useCallback(() => {
-      if (!reloadOnFocus) {
-        return;
-      }
-      // Scoped screens already reopen via openCachedList; a second load on every
-      // focus would flash. Pull-to-refresh still calls list.refresh.
-      if (cacheScope) {
+      if (
+        !shouldQuietFocusLoad({
+          reloadOnFocus,
+          cacheScope,
+          refreshOnFocusWhenCached,
+        })
+      ) {
         return;
       }
       list.load();
-    }, [cacheScope, list.load, reloadOnFocus]),
+    }, [cacheScope, list.load, refreshOnFocusWhenCached, reloadOnFocus]),
   );
 
   const forget = useCallback((keys: string[]) => {

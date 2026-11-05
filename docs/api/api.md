@@ -4066,7 +4066,7 @@ Caller: gate, warden, or provost. Newest first. Lines are resident exits,
 resident returns, guest arrivals, and guest departures. Optional `q` matches
 resident, room, guest, host, or host room. Optional `event` limits the line
 type. Optional `from` and `to` are hall calendar dates (Asia/Kolkata). The
-phone Gate history screen defaults to the current hall month; use
+phone Gate history screen opens on the newest page with no date filter; use
 `GET /api/v1/gate/activity/export` for a spreadsheet of the filtered log.
 
 **Parameters**
@@ -5256,11 +5256,12 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** provost. Bearer access token.
 
-Caller: provost. Send only the fields that change. `course` and `phone`
-may be set to null to clear them. `guardian_name` and `guardian_phone`
-may be replaced and may not be cleared. A phone includes the country
-code. Changing `enrolment_number` changes the username. `status`
-suspends or reinstates. Suspension revokes refresh tokens.
+Caller: provost. Send only the fields that change. Name, enrolment
+number, and course are set at create or onboard and are not editable
+here. `phone` may be set to null to clear it. `guardian_name` and
+`guardian_phone` may be replaced and may not be cleared. A phone
+includes the country code. `status` suspends or reinstates.
+Suspension revokes refresh tokens.
 
 **Parameters**
 
@@ -5274,9 +5275,6 @@ Body: [ResidentUpdate](#schema-residentupdate).
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `full_name` | no | string | 1–120 characters. |
-| `enrolment_number` | no | string | 1–40 characters. |
-| `course` | no | string or null |  |
 | `room_id` | no | uuid |  |
 | `phone` | no | string or null | The resident's own phone. Set to null to clear. Same E.164 pattern as guardian_phone when present. |
 | `guardian_name` | no | string | 1–120 characters. |
@@ -5325,7 +5323,6 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 #### 409
 
-Enrolment number already in use. Code `duplicate_username`.
 That room is not in use. Code `room_inactive`.
 
 Body: [ErrorResponse](#schema-errorresponse).
@@ -7549,11 +7546,11 @@ One of: `not_due`, `sent`, `failed`.
 
 ### <a id="schema-residentupdate"></a>ResidentUpdate
 
+Contact, room, and status only. `full_name`, `enrolment_number`, and
+`course` are refused (extra fields).
+
 | Field | Required | Type | Notes |
 |---|---|---|---|
-| `full_name` | no | string | 1–120 characters. |
-| `enrolment_number` | no | string | 1–40 characters. |
-| `course` | no | string or null |  |
 | `room_id` | no | uuid |  |
 | `phone` | no | string or null | The resident's own phone. Set to null to clear. Same E.164 pattern as guardian_phone when present. |
 | `guardian_name` | no | string | 1–120 characters. |

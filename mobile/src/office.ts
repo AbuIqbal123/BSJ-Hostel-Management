@@ -407,12 +407,6 @@ export function residentCreate(draft: ResidentDraft): Json | string {
 export function residentPatch(before: OfficeResident, draft: ResidentDraft): Json | string {
   const phone = draft.phone.trim() === "" ? null : e164(draft.phone);
   const guardianPhone = e164(draft.guardianPhone);
-  if (draft.fullName.trim().length < 1 || draft.fullName.trim().length > 120) {
-    return "Enter her name";
-  }
-  if (draft.enrolmentNumber.trim().length < 1 || draft.enrolmentNumber.trim().length > 40) {
-    return "Enter her enrolment number";
-  }
   if (!draft.roomId) {
     return "Choose a room";
   }
@@ -425,19 +419,7 @@ export function residentPatch(before: OfficeResident, draft: ResidentDraft): Jso
   if (!guardianPhone) {
     return "Enter the guardian phone with the country code";
   }
-  if (draft.course.trim().length > 120) {
-    return "Use 120 characters or fewer for the course";
-  }
   const body: Json = {};
-  if (draft.fullName.trim() !== before.fullName) {
-    body.full_name = draft.fullName.trim();
-  }
-  if (draft.enrolmentNumber.trim() !== before.enrolmentNumber) {
-    body.enrolment_number = draft.enrolmentNumber.trim();
-  }
-  if ((draft.course.trim() || null) !== before.course) {
-    body.course = draft.course.trim() || null;
-  }
   if (draft.roomId !== before.roomId) {
     body.room_id = draft.roomId;
   }
