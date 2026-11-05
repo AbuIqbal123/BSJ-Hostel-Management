@@ -19,6 +19,14 @@
     "active_permission": null,
     "recent_history": [],
     "ordinary_outing_active": false,
+    "ordinary_hours": {
+      "summer_outing_start": "06:00",
+      "summer_outing_end": "18:30",
+      "winter_outing_start": "06:00",
+      "winter_outing_end": "18:30",
+      "summer_season_start": "04-01",
+      "winter_season_start": "10-01"
+    },
     "hall_pass_outing_type": null,
     "upcoming_outings": [],
     "notifications_unread": false,
@@ -157,6 +165,14 @@
       }
     ],
     "ordinary_outing_active": true,
+    "ordinary_hours": {
+      "summer_outing_start": "06:00",
+      "summer_outing_end": "18:30",
+      "winter_outing_start": "06:00",
+      "winter_outing_end": "18:30",
+      "summer_season_start": "04-01",
+      "winter_season_start": "10-01"
+    },
     "hall_pass_outing_type": "ordinary",
     "upcoming_outings": [],
     "notifications_unread": false,

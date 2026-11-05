@@ -110,7 +110,6 @@ export default function HomeScreen() {
   const [fullName, setFullName] = useState<string | null>(null);
   const [roomLabel, setRoomLabel] = useState<string | null>(null);
   const [out, setOut] = useState(false);
-  const [windowOpen, setWindowOpen] = useState(false);
   const [upcoming, setUpcoming] = useState<UpcomingOuting[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [notificationsUnread, setNotificationsUnread] = useState(0);
@@ -144,7 +143,6 @@ export default function HomeScreen() {
       setFullName(result.home.fullName);
       setRoomLabel(result.home.roomLabel);
       setOut(result.home.out);
-      setWindowOpen(result.home.windowOpen);
       setUpcoming(result.home.upcoming);
       setNotificationsUnread(result.home.notificationsUnread);
       setBadge(result.home.notificationsUnread);
@@ -207,7 +205,7 @@ export default function HomeScreen() {
     return () => subscription.remove();
   }, []);
 
-  const mayPlan = loaded && !out && !windowOpen;
+  const mayPlan = loaded;
   const chosen = places?.find((item) => item.id === destinationId) ?? null;
   const other = chosen?.other ?? false;
 
@@ -338,6 +336,7 @@ export default function HomeScreen() {
       <WhenField
         label="Back by"
         value={backBy}
+        kind="return"
         note={returnProblem}
         onAdjust={holdPlan}
         onChange={(date) => {
@@ -391,11 +390,6 @@ export default function HomeScreen() {
           {homeError ? <ListError message={homeError} onRetry={() => { refresh(); }} /> : null}
           {loaded && out ? (
             <Text style={[text.body, { color: colors.ink }]}>You are out</Text>
-          ) : null}
-          {loaded && !out && windowOpen ? (
-            <Text style={[text.body, { color: colors.ink }]}>
-              You can plan another outing once your current one ends
-            </Text>
           ) : null}
           {planCard}
           {today.length > 0 || later.length > 0 ? (

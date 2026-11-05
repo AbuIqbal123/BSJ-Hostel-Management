@@ -61,18 +61,33 @@ def qr_window(
     expected_return_at: str,
     exited_at: str | None,
     now: datetime,
+    hall_date: str | None = None,
 ) -> tuple[bool, str | None, str | None]:
     """QR show window for one outing.
 
     An ordinary outing opens 30 minutes before starts_at. A planned outing
     closes at expected_return_at. An outside outing of any type stays open
     until the return scan. A permission has no plan row until the gate scan;
-    its window is in usable.py.
+    its window is in usable.py. Older ordinary plans with no starts_at stay
+    open for their hall day until the expected return (same as usable.py).
     """
     if status == "outside" and not (outing_type == "ordinary" and starts_at is not None):
         return True, exited_at, None
-    if outing_type != "ordinary" or starts_at is None:
+    if outing_type != "ordinary":
         return False, None, None
+    if starts_at is None:
+        if status == "outside":
+            return True, None, None
+        if status != "planned":
+            return False, None, expected_return_at
+        if now >= clock.parse_instant(expected_return_at):
+            return False, None, expected_return_at
+        today = clock.hall_local_date(now)
+        if hall_date is not None and hall_date != today:
+            return False, None, expected_return_at
+        if hall_date is None and clock.hall_local_date(clock.parse_instant(expected_return_at)) != today:
+            return False, None, expected_return_at
+        return True, None, expected_return_at
     start = clock.parse_instant(starts_at)
     visible_from = clock.format_instant(start - _QR_LEAD)
     if status == "outside":
@@ -147,7 +162,7 @@ def ordinary_window_is_open(
 ) -> bool:
     rows = connection.execute(
         """
-        SELECT id, type, status, starts_at, expected_return_at, exited_at
+        SELECT id, type, status, starts_at, expected_return_at, exited_at, hall_date
         FROM outings
         WHERE resident_id = ?
           AND type = 'ordinary'
@@ -165,6 +180,7 @@ def ordinary_window_is_open(
             expected_return_at=row["expected_return_at"],
             exited_at=row["exited_at"],
             now=now,
+            hall_date=row["hall_date"],
         )
         if visible:
             return True

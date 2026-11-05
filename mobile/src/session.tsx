@@ -27,6 +27,7 @@ import { errorMessage, hallFailure, hallFetch, type HallFailure } from "@/hall-h
 import { isRecord } from "@/json";
 import { forgetAllScopedListCaches } from "@/list-cache";
 import { forgetOfficeSettings } from "@/office-settings-cache";
+import { forgetOrdinaryHours, rememberOrdinaryHours } from "@/ordinary-hours";
 import { phoneDelete, phoneGet, phoneSet } from "@/phone-store";
 import { allowReturnReminders, clearNotificationSurface, PUSH_TOKEN_KEY, pushToken } from "@/push";
 import {
@@ -386,6 +387,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     sessionRef.current = null;
     setSession(null);
     forgetOfficeSettings();
+    forgetOrdinaryHours();
     forgetAllScopedListCaches();
     try {
       await phoneDelete(SESSION_KEY);
@@ -634,6 +636,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (!home) {
         return { error: "The hall could not be reached" };
       }
+      rememberOrdinaryHours(home.ordinaryHours);
       let approvedPermissions: HallPermission[] | null = null;
       try {
         const gathered: HallPermission[] = [];

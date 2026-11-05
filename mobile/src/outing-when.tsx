@@ -5,25 +5,24 @@ import { useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { HALL_ZONE, formatChipDay, formatWhenParts, hallNow, utcInstant } from "@/format-when";
+import {
+  readOrdinaryHoursCache,
+  type OrdinaryHours,
+} from "@/ordinary-hours";
 import { useDark } from "@/theme/appearance";
 import { useHallColors, type HallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
-// Ordinary hours are the seeded summer and winter outing clocks. The start is
-// not included. The end is included. Any other time stays selectable, and the
-// plan asks her to use the Permissions tab.
-const SUMMER_START = "04-01";
-const WINTER_START = "10-01";
-const DAY_START = "06:30";
-const SUMMER_END = "18:30";
-const WINTER_END = "17:30";
-
+// Ordinary hours come from hall settings on resident home. The start is not
+// included. The end is included. Any other time stays selectable; after the
+// end the plan asks her to use the Permissions tab.
+const BEFORE_HOURS = "These hours fall outside ordinary hours.";
+const AFTER_HOURS =
+  "These hours fall outside ordinary hours. Please request permission from the Permissions tab";
 const START_FUTURE = "The outing start must be in the future";
 const RETURN_FUTURE = "The expected return must be in the future";
 const RETURN_AFTER = "The expected return must be after the start";
 const SAME_DAY = "An ordinary outing starts and returns on the same hall day";
-const OUTSIDE_HOURS =
-  "These hours fall outside ordinary hours. Please request permission from the Permissions tab";
 
 const hallFormat = new Intl.DateTimeFormat("en-GB", {
   timeZone: HALL_ZONE,
@@ -77,26 +76,68 @@ function withHallDay(daySource: Date, timeSource: Date): Date {
   );
 }
 
-function proposalWhen(): Date {
-  return hallInstant(hallNow(), Number(DAY_START.slice(0, 2)) + 1, 0);
+function parseClock(value: string): { hour: number; minute: number } {
+  const [hour, minute] = value.split(":").map(Number);
+  return { hour, minute };
 }
 
-function seasonEnd(date: Date): string {
+function seasonWindow(date: Date, hours: OrdinaryHours): { start: string; end: string } {
   const day = monthDay(date);
-  const summer = SUMMER_START <= day && day < WINTER_START;
-  return summer ? SUMMER_END : WINTER_END;
+  const summerStart = hours.summerSeasonStart;
+  const winterStart = hours.winterSeasonStart;
+  // Match hours_refusal: when summer starts after winter in the calendar year,
+  // summer wraps the new year (e.g. 1 Nov–28 Feb).
+  const summer =
+    summerStart < winterStart
+      ? summerStart <= day && day < winterStart
+      : day >= summerStart || day < winterStart;
+  return summer
+    ? { start: hours.summerOutingStart, end: hours.summerOutingEnd }
+    : { start: hours.winterOutingStart, end: hours.winterOutingEnd };
 }
 
-function hoursNote(date: Date): string | null {
+function hoursNote(date: Date, hours: OrdinaryHours | null): string | null {
+  if (!hours) {
+    return null;
+  }
+  const { start, end } = seasonWindow(date, hours);
   const clock = hallClock(date);
-  if (clock <= `${DAY_START}:00` || clock > `${seasonEnd(date)}:00`) {
-    return OUTSIDE_HOURS;
+  if (clock <= `${start}:00`) {
+    return BEFORE_HOURS;
+  }
+  if (clock > `${end}:00`) {
+    return AFTER_HOURS;
   }
   return null;
 }
 
+/** First minute after ordinary start on this hall day. */
+export function proposalLeave(hours: OrdinaryHours | null, daySource: Date = hallNow()): Date {
+  if (!hours) {
+    return hallInstant(daySource, 7, 0);
+  }
+  const { start } = seasonWindow(daySource, hours);
+  const { hour, minute } = parseClock(start);
+  const nextMinute = minute + 1;
+  if (nextMinute >= 60) {
+    return hallInstant(daySource, hour + 1, 0);
+  }
+  return hallInstant(daySource, hour, nextMinute);
+}
+
+/** Ordinary end clock on this hall day. */
+export function proposalReturn(hours: OrdinaryHours | null, daySource: Date = hallNow()): Date {
+  if (!hours) {
+    return hallInstant(daySource, 18, 30);
+  }
+  const { end } = seasonWindow(daySource, hours);
+  const { hour, minute } = parseClock(end);
+  return hallInstant(daySource, hour, minute);
+}
+
 export function notBefore(floor: Date, current: Date | null): Date | null {
-  const base = current ?? proposalWhen();
+  const hours = readOrdinaryHoursCache();
+  const base = current ?? proposalReturn(hours, floor);
   if (hallDay(base) >= hallDay(floor)) {
     return current;
   }
@@ -154,17 +195,21 @@ function commitClock(shown: Date, date: Date | undefined, onChange: (next: Date)
   applyWhen(withHallDay(shown, date), shown, onChange);
 }
 
-export function leaveNote(leaveAt: Date | null): string | null {
+export function leaveNote(leaveAt: Date | null, hours: OrdinaryHours | null = readOrdinaryHoursCache()): string | null {
   if (!leaveAt) {
     return null;
   }
   if (leaveAt.getTime() <= Date.now()) {
     return START_FUTURE;
   }
-  return hoursNote(leaveAt);
+  return hoursNote(leaveAt, hours);
 }
 
-export function returnNote(leaveAt: Date | null, backBy: Date | null): string | null {
+export function returnNote(
+  leaveAt: Date | null,
+  backBy: Date | null,
+  hours: OrdinaryHours | null = readOrdinaryHoursCache(),
+): string | null {
   if (!backBy) {
     return null;
   }
@@ -177,7 +222,7 @@ export function returnNote(leaveAt: Date | null, backBy: Date | null): string | 
   if (leaveAt && hallDay(leaveAt) !== hallDay(backBy)) {
     return SAME_DAY;
   }
-  return hoursNote(backBy);
+  return hoursNote(backBy, hours);
 }
 
 function sameHallMinute(left: Date, right: Date): boolean {
@@ -344,6 +389,7 @@ export function WhenField({
   onAdjust,
   note,
   clockFirst = false,
+  kind = "leave",
 }: {
   label: string;
   value: Date | null;
@@ -351,9 +397,11 @@ export function WhenField({
   onAdjust?: () => void;
   note: string | null;
   clockFirst?: boolean;
+  kind?: "leave" | "return";
 }) {
   const colors = useHallColors();
-  const shown = value ?? proposalWhen();
+  const hours = readOrdinaryHoursCache();
+  const shown = value ?? (kind === "return" ? proposalReturn(hours) : proposalLeave(hours));
   const change = (date: Date) => {
     onAdjust?.();
     onChange(date);

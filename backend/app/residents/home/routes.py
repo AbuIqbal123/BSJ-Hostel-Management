@@ -12,6 +12,7 @@ from app.shared.page import PageDep
 from app.shared import clock
 from app.shared.auth.roles import RESIDENT, require_roles
 from app.shared.auth.routes import Account, ConnectionDep
+from app.shared.db import hall_settings
 from app.shared.inbox import decode_cursor, encode_cursor
 from app.residents.outings.records import OutingBody, UpcomingOuting, expire_passed_plans, load_current_outing, load_upcoming_outings, ordinary_window_is_open
 from app.residents.permissions.records import PermissionBody, expire_passed_permissions
@@ -53,10 +54,21 @@ class HomeResident(BaseModel):
     guest_stays: int
 
 
+class OrdinaryHours(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    summer_outing_start: str
+    summer_outing_end: str
+    winter_outing_start: str
+    winter_outing_end: str
+    summer_season_start: str
+    winter_season_start: str
+
+
 class ResidentHome(BaseModel):
     model_config = ConfigDict(extra="forbid")
     resident: HomeResident
     ordinary_outing_active: bool
+    ordinary_hours: OrdinaryHours
     hall_pass_outing_type: Literal["ordinary", "late_night", "home_going"] | None
     current_outing: OutingBody | None
     upcoming_outings: list[UpcomingOuting]
@@ -75,9 +87,7 @@ ResidentDep = Annotated[Account, Depends(resident_account)]
 @router.get("/me/home", response_model=ResidentHome)
 def resident_home(account: ResidentDep, connection: ConnectionDep) -> ResidentHome:
     now = clock.utc_now()
-    hall_name = connection.execute(
-        "SELECT hall_name FROM hall_settings WHERE id = 'hall'"
-    ).fetchone()["hall_name"]
+    settings = hall_settings(connection)
     counts = connection.execute(
         """
         SELECT
@@ -109,7 +119,7 @@ def resident_home(account: ResidentDep, connection: ConnectionDep) -> ResidentHo
             room_label=account.room_label or "",
             block_name=account.block_name or "",
             presence=account.presence or "inside",
-            hall_name=hall_name,
+            hall_name=str(settings["hall_name"]),
             permissions_requested=int(counts["permissions_requested"]),
             permissions_rejected=int(counts["permissions_rejected"]),
             ordinary_returns=int(counts["ordinary_returns"]),
@@ -118,6 +128,14 @@ def resident_home(account: ResidentDep, connection: ConnectionDep) -> ResidentHo
             guest_stays=int(counts["guest_stays"]),
         ),
         ordinary_outing_active=ordinary_window_is_open(connection, account.id, now),
+        ordinary_hours=OrdinaryHours(
+            summer_outing_start=str(settings["summer_outing_start"]),
+            summer_outing_end=str(settings["summer_outing_end"]),
+            winter_outing_start=str(settings["winter_outing_start"]),
+            winter_outing_end=str(settings["winter_outing_end"]),
+            summer_season_start=str(settings["summer_season_start"]),
+            winter_season_start=str(settings["winter_season_start"]),
+        ),
         hall_pass_outing_type=hall_pass_outing_type(connection, account.id, now),
         current_outing=load_current_outing(connection, account.id, now),
         upcoming_outings=load_upcoming_outings(connection, account.id, now),

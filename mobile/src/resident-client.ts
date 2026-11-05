@@ -3,8 +3,9 @@
  */
 
 import { readGuestDecisions, type GuestDecision } from "@/guest-decisions";
-import { pageQuery } from "@/list-page";
 import { isRecord } from "@/json";
+import { pageQuery } from "@/list-page";
+import { readOrdinaryHours, type OrdinaryHours } from "@/ordinary-hours";
 
 export type HallRole = "resident" | "gate" | "warden" | "provost";
 
@@ -65,6 +66,7 @@ export type ResidentHome = {
   homeGoingReturns: number;
   guestStays: number;
   windowOpen: boolean;
+  ordinaryHours: OrdinaryHours;
   upcoming: UpcomingOuting[];
   notificationsUnread: number;
   currentOuting: CurrentOuting | null;
@@ -344,6 +346,10 @@ export function readResidentHome(value: unknown): ResidentHome | null {
   if (typeof resident.full_name !== "string" || resident.full_name.length === 0) {
     return null;
   }
+  const ordinaryHours = readOrdinaryHours(value.ordinary_hours);
+  if (!ordinaryHours) {
+    return null;
+  }
   const roomLabel = typeof resident.room_label === "string" ? resident.room_label : null;
   const count = (value: unknown) =>
     typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : 0;
@@ -362,6 +368,7 @@ export function readResidentHome(value: unknown): ResidentHome | null {
     homeGoingReturns: count(resident.home_going_returns),
     guestStays: count(resident.guest_stays),
     windowOpen: value.ordinary_outing_active,
+    ordinaryHours,
     upcoming: readUpcoming(value),
     notificationsUnread: count(value.notifications_unread_count),
     currentOuting: readCurrentOuting(value.current_outing),

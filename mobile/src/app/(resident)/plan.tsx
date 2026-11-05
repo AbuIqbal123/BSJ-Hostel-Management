@@ -317,6 +317,7 @@ export default function PlanScreen() {
             <WhenField
               label="Back by"
               value={backBy}
+              kind="return"
               note={returnProblem}
               onAdjust={holdPlan}
               onChange={(date) => {

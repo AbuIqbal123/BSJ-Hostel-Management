@@ -176,7 +176,15 @@ def plan_outing(
     destination_id, place = _remembered_place(connection, body)
     expire_passed_plans(connection, account.id, now_text)
     day = clock.hall_local_date(moment)
-    if ordinary_window_is_open(connection, account.id, now):
+    opening, _, _ = qr_window(
+        outing_type="ordinary",
+        status="planned",
+        starts_at=body.starts_at,
+        expected_return_at=body.expected_return_at,
+        exited_at=None,
+        now=now,
+    )
+    if opening and ordinary_window_is_open(connection, account.id, now):
         connection.commit()
         raise ApiError(
             409,

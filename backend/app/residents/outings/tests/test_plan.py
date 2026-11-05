@@ -506,7 +506,7 @@ class LaterClock:
         return datetime(2026, 9, 30, 2, 0, tzinfo=timezone.utc)
 
 
-def test_cannot_plan_while_an_outing_window_is_open(
+def test_plan_while_an_outing_window_is_open(
     database_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from app.shared import clock
@@ -531,14 +531,25 @@ def test_cannot_plan_while_an_outing_window_is_open(
         assert body["qr_visible_from"] == "2026-09-30T01:34:00Z"
         assert body["qr_visible_until"] == "2026-09-30T06:00:00Z"
         assert body["starts_at"] == "2026-09-30T02:04:00Z"
+        # A later future plan is allowed while the first window is open.
+        later = plan(
+            client,
+            resident,
+            {
+                "destination_id": SHAMSHAD,
+                "starts_at": "2026-09-30T04:00:00Z",
+                "expected_return_at": "2026-09-30T08:00:00Z",
+            },
+        )
+        assert later.status_code == 201
         assert_error(
             plan(
                 client,
                 resident,
                 {
                     "destination_id": SHAMSHAD,
-                    "starts_at": "2026-09-30T04:00:00Z",
-                    "expected_return_at": "2026-09-30T08:00:00Z",
+                    "starts_at": "2026-09-30T02:10:00Z",
+                    "expected_return_at": "2026-09-30T07:00:00Z",
                 },
             ),
             409,
@@ -554,14 +565,61 @@ def test_cannot_plan_while_an_outing_window_is_open(
             "outing_window_open",
             "You cannot change this outing while its window is open.",
         )
+
+
+def test_startless_plan_blocks_a_second_open_window(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An older ordinary plan with no starts_at is open for its hall day."""
+    from app.shared import clock
+    from app.main import app
+
+    monkeypatch.setattr(
+        clock,
+        "utc_now",
+        lambda: datetime(2026, 9, 30, 8, 0, tzinfo=timezone.utc),
+    )
+    legacy_id = "e7700000-0000-4000-8000-0000000000cc"
+    with TestClient(app) as client:
+        issue_people(database_path)
+        connection = sqlite3.connect(database_path)
+        connection.execute(
+            """
+            INSERT INTO outings (
+              id, resident_id, permission_id, type, status, destination_id, place,
+              expected_return_at, grace_ends_at, exited_at, exit_recorded_by,
+              returned_at, return_recorded_by, created_at, updated_at, cancelled_at,
+              hall_date, starts_at
+            ) VALUES (
+              ?, ?, NULL, 'ordinary', 'planned', ?, 'Maulana Azad Library',
+              '2026-09-30T12:00:00Z', '2026-09-30T12:30:00Z', NULL, NULL,
+              NULL, NULL, '2026-09-30T02:00:00Z', '2026-09-30T02:00:00Z', NULL,
+              '2026-09-30', NULL
+            )
+            """,
+            (legacy_id, RESIDENT_ID, LIBRARY),
+        )
+        connection.commit()
+        connection.close()
+        resident = sign_in(client, "24-GLLB-118", role_credential("resident"))
+        hall_pass = client.get(
+            "/api/v1/me/hall-pass",
+            headers={"Authorization": f"Bearer {resident}"},
+        )
+        assert hall_pass.status_code == 200
+        assert hall_pass.json()["qr_visible"] is True
+        assert hall_pass.json()["outing_id"] == legacy_id
+        home = client.get("/api/v1/me/home", headers={"Authorization": f"Bearer {resident}"})
+        assert home.status_code == 200
+        assert home.json()["ordinary_outing_active"] is True
         assert_error(
             plan(
                 client,
                 resident,
                 {
                     "destination_id": SHAMSHAD,
-                    "starts_at": "2026-09-30T04:00:00Z",
-                    "expected_return_at": "2026-09-30T08:00:00Z",
+                    "starts_at": "2026-09-30T08:10:00Z",
+                    "expected_return_at": "2026-09-30T10:00:00Z",
                 },
             ),
             409,

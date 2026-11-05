@@ -889,9 +889,10 @@ outings, late-night outings, and home-going outings she has returned
 from, how many permissions she has sent and how many were rejected,
 and how many guest stays she has requested, whether an ordinary
 outing is inside its show window now (`ordinary_outing_active`),
-presence, the open outing if there is one, her planned future ordinary
-outings (`upcoming_outings`), the permission the resident is waiting
-on or cleared to use, the last ten exit and return lines, and
+the posted ordinary-hours clocks (`ordinary_hours`) for the phone
+picker, presence, the open outing if there is one, her planned future
+ordinary outings (`upcoming_outings`), the permission the resident is
+waiting on or cleared to use, the last ten exit and return lines, and
 `notifications_unread` and `notifications_unread_count` for her inbox.
 `current_outing` carries `expected_return_at` and `grace_ends_at`.
 The phone schedules its own return reminder 15 minutes before an
@@ -919,7 +920,8 @@ Body: [ResidentHome](#schema-residenthome).
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `resident` | yes | [HomeResident](#schema-homeresident) |  |
-| `ordinary_outing_active` | yes | boolean | True when one of her ordinary outings is inside its show window now. That window opens 30 minutes before `starts_at` (a plan made inside that lead is open as soon as it exists) and lasts until the outing ends. Planning another is refused while this is true. It is about ordinary outings only; `hall_pass_outing_type` covers all types. |
+| `ordinary_outing_active` | yes | boolean | True when one of her ordinary outings is inside its show window now. That window opens 30 minutes before `starts_at` (a plan made inside that lead is open as soon as it exists) and lasts until the outing ends. Planning a second outing whose window would also be open now is refused while this is true. A later future plan is allowed. About ordinary outings only; `hall_pass_outing_type` covers all types. |
+| `ordinary_hours` | yes | [OrdinaryHours](#schema-ordinaryhours) |  |
 | `hall_pass_outing_type` | yes | `ordinary` or `late_night` or `home_going` or null | The type of outing whose hall-pass QR is showing now, by the same rule as `GET /api/v1/me/hall-pass`. Null when the QR is hidden. |
 | `current_outing` | yes | [Outing](#schema-outing) or null |  |
 | `upcoming_outings` | yes | list of [UpcomingOuting](#schema-upcomingouting) | Planned ordinary outings whose expected return is still in the future. Soonest start first. Not returned, cancelled, outside, or already past. |
@@ -948,6 +950,14 @@ Body: [ResidentHome](#schema-residenthome).
     "guest_stays": 0
   },
   "ordinary_outing_active": false,
+  "ordinary_hours": {
+    "summer_outing_start": "06:00",
+    "summer_outing_end": "18:30",
+    "winter_outing_start": "06:00",
+    "winter_outing_end": "18:30",
+    "summer_season_start": "04-01",
+    "winter_season_start": "10-01"
+  },
   "current_outing": null,
   "upcoming_outings": [
     {
@@ -1602,8 +1612,10 @@ Body: [ErrorResponse](#schema-errorresponse).
 Caller: resident. This is required before an ordinary exit scan. The
 scan does not ask for a destination or an expected return. She may hold
 several future ordinary outings, including two on the same hall day.
-She cannot start another while one ordinary outing is inside its show
-window. Two planned or outside outings cannot end at the same instant.
+She may plan another future outing while one ordinary outing is inside
+its show window, including while she is outside on it. She cannot plan
+a second outing whose show window would also be open now. Two planned
+or outside outings cannot end at the same instant.
 
 Sets destination, start, and expected return. Does not record the exit.
 The gate scan does that. No warden approval. Grace is the hall's
@@ -1684,12 +1696,13 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 #### 409
 
-`outing_window_open` says she cannot start another outing while one
-is inside its window. `return_already_planned` says she already has
-an outing ending at that time. `outside_ordinary_hours` says that
-start or return is outside ordinary hours. `permission_required`
-says that start or return is outside ordinary hours. Please submit
-a permission request.
+`outing_window_open` says the new plan's show window would also be
+open while another ordinary outing is already inside its window.
+`return_already_planned` says she already has an outing ending at
+that time. `outside_ordinary_hours` says that start or return is
+outside ordinary hours. `permission_required` says that start or
+return is outside ordinary hours. Please submit a permission
+request.
 
 Body: [ErrorResponse](#schema-errorresponse).
 
@@ -6802,12 +6815,28 @@ One of: `ordinary`, `late_night`, `home_going`.
 | `home_going_returns` | yes | integer | Home-going outings she has returned from. minimum 0. |
 | `guest_stays` | yes | integer | Guest stays she has requested. minimum 0. |
 
+### <a id="schema-ordinaryhours"></a>OrdinaryHours
+
+Posted ordinary outing clocks from hall settings. Summer and winter
+may differ later; for now both seasons use 6:00 AM to 6:30 PM. The
+phone uses these for Leave/Return defaults and the pre-submit preview.
+
+| Field | Required | Type | Notes |
+|---|---|---|---|
+| `summer_outing_start` | yes | string | pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `summer_outing_end` | yes | string | pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `winter_outing_start` | yes | string | pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `winter_outing_end` | yes | string | pattern `^([01][0-9]|2[0-3]):[0-5][0-9]$`. |
+| `summer_season_start` | yes | string | pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
+| `winter_season_start` | yes | string | pattern `^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`. |
+
 ### <a id="schema-residenthome"></a>ResidentHome
 
 | Field | Required | Type | Notes |
 |---|---|---|---|
 | `resident` | yes | [HomeResident](#schema-homeresident) |  |
-| `ordinary_outing_active` | yes | boolean | True when one of her ordinary outings is inside its show window now. That window opens 30 minutes before `starts_at` (a plan made inside that lead is open as soon as it exists) and lasts until the outing ends. Planning another is refused while this is true. It is about ordinary outings only; `hall_pass_outing_type` covers all types. |
+| `ordinary_outing_active` | yes | boolean | True when one of her ordinary outings is inside its show window now. That window opens 30 minutes before `starts_at` (a plan made inside that lead is open as soon as it exists) and lasts until the outing ends. Planning a second outing whose window would also be open now is refused while this is true. A later future plan is allowed. About ordinary outings only; `hall_pass_outing_type` covers all types. |
+| `ordinary_hours` | yes | [OrdinaryHours](#schema-ordinaryhours) |  |
 | `hall_pass_outing_type` | yes | `ordinary` or `late_night` or `home_going` or null | The type of outing whose hall-pass QR is showing now, by the same rule as `GET /api/v1/me/hall-pass`. Null when the QR is hidden. |
 | `current_outing` | yes | [Outing](#schema-outing) or null |  |
 | `upcoming_outings` | yes | list of [UpcomingOuting](#schema-upcomingouting) | Planned ordinary outings whose expected return is still in the future. Soonest start first. Not returned, cancelled, outside, or already past. |
