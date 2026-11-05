@@ -22,6 +22,7 @@ import { HallButton } from "@/components/hall-button";
 import { EmptyState, ListError, RetryRow } from "@/components/list-state";
 import { PagedList } from "@/components/paged-list";
 import { SkeletonRows } from "@/components/skeleton";
+import { useKeyedButtonFeedback } from "@/button-feedback";
 import { useDelayedLoading } from "@/use-delayed-loading";
 import { useDebouncedValue } from "@/use-debounced-value";
 import { useFilteredPagedList } from "@/use-filtered-paged-list";
@@ -173,7 +174,7 @@ function PaymentDetail({ id }: { id: string }) {
   const [storedPreview, setStoredPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [action, setAction] = useState<"paid" | "unpaid" | "upload" | "remove" | null>(null);
+  const cue = useKeyedButtonFeedback<"paid" | "unpaid" | "upload" | "remove">();
   const [preparing, setPreparing] = useState(false);
   const [preparingPhoto, setPreparingPhoto] = useState(false);
   const [prepareError, setPrepareError] = useState<string | null>(null);
@@ -321,52 +322,69 @@ function PaymentDetail({ id }: { id: string }) {
   };
 
   const savePayment = async (status: "paid" | "unpaid") => {
+    if (cue.held) {
+      return;
+    }
     if (status === "paid" && note.trim().length === 0) {
       setError(NOTE_REQUIRED);
       return;
     }
-    setAction(status);
+    cue.markBusy(status);
     const reply = await staffRequest(`/guest-stays/${encodeURIComponent(id)}/payment`, {
       payment_status: status,
       ...(status === "paid" ? { payment_note: note.trim() } : {}),
     });
-    setAction(null);
+    if (!reply.ok) {
+      apply(reply);
+      cue.markFailure();
+      return;
+    }
     apply(reply);
-    if (reply.ok && status === "unpaid") {
+    if (status === "unpaid") {
       setDraft(null);
     }
+    cue.markSuccess(status);
   };
 
   const upload = async () => {
-    if (!draft) {
+    if (!draft || cue.held) {
       return;
     }
-    setAction("upload");
+    cue.markBusy("upload");
     const reply = await staffFile(`/guest-stays/${encodeURIComponent(id)}/payment/evidence`, {
       uri: draft.uri,
       name: draft.name,
       type: draft.type,
     });
-    setAction(null);
-    if (reply.ok) {
-      setDraft(null);
+    if (!reply.ok) {
+      apply(reply);
+      cue.markFailure();
+      return;
     }
+    setDraft(null);
     apply(reply);
+    cue.markSuccess("upload");
   };
 
   const removeEvidence = async () => {
-    setAction("remove");
-    const reply = await staffRequest(`/guest-stays/${encodeURIComponent(id)}/payment/evidence`, undefined, "DELETE");
-    setAction(null);
-    if (reply.ok) {
-      setDraft(null);
-      setStoredPreview(null);
+    if (cue.held) {
+      return;
     }
+    cue.markBusy("remove");
+    const reply = await staffRequest(`/guest-stays/${encodeURIComponent(id)}/payment/evidence`, undefined, "DELETE");
+    if (!reply.ok) {
+      apply(reply);
+      cue.markFailure();
+      return;
+    }
+    setDraft(null);
+    setStoredPreview(null);
     apply(reply);
+    cue.markSuccess("remove");
   };
 
   const locked = stay ? lockCopy(stay) : null;
-  const busy = action !== null || preparing;
+  const busy = cue.held || preparing;
   const previewUri = draft?.preview ? draft.uri : storedPreview;
   const evidenceLabel = draft?.name ?? stay?.evidenceName;
 
@@ -406,9 +424,15 @@ function PaymentDetail({ id }: { id: string }) {
                 maxLength={500}
                 style={[text.field, styles.note, { backgroundColor: colors.surface, borderColor: colors.line, color: colors.ink }]}
               />
-              <HallButton label="Mark paid" busy={action === "paid"} disabled={busy} onPress={() => void savePayment("paid")} />
+              <HallButton
+                label="Mark paid"
+                busy={cue.busy("paid")}
+                succeeded={cue.succeeded("paid")}
+                disabled={busy}
+                onPress={() => void savePayment("paid")}
+              />
               <Pressable accessibilityRole="button" disabled={busy} onPress={() => void savePayment("unpaid")} style={styles.textButton}>
-                {action === "unpaid" ? (
+                {cue.busy("unpaid") ? (
                   <ActivityIndicator color={colors.ink} />
                 ) : (
                   <Text style={[text.button, { color: colors.ink }]}>Mark unpaid</Text>
@@ -460,10 +484,18 @@ function PaymentDetail({ id }: { id: string }) {
               <Pressable accessibilityRole="button" disabled={busy} onPress={() => void choosePdf()} style={styles.textButton}>
                 <Text style={[text.button, { color: colors.forest }]}>Choose a PDF</Text>
               </Pressable>
-              {draft ? <HallButton label="Upload receipt" busy={action === "upload"} disabled={busy} onPress={() => void upload()} /> : null}
+              {draft ? (
+                <HallButton
+                  label="Upload receipt"
+                  busy={cue.busy("upload")}
+                  succeeded={cue.succeeded("upload")}
+                  disabled={busy}
+                  onPress={() => void upload()}
+                />
+              ) : null}
               {stay.evidenceName ? (
                 <Pressable accessibilityRole="button" disabled={busy} onPress={() => void removeEvidence()} style={styles.textButton}>
-                  {action === "remove" ? (
+                  {cue.busy("remove") ? (
                     <ActivityIndicator color={colors.danger} />
                   ) : (
                     <Text style={[text.button, { color: colors.danger }]}>Remove receipt</Text>

@@ -14,6 +14,8 @@ type ReviewSheetProps = {
   facts: Fact[];
   error: string | null;
   busy: boolean;
+  /** Brief check on Approve after the hall accepts the decision. */
+  succeeded?: boolean;
   /** Provost only. When omitted, the sheet is read-only (warden may still mark payment via `extra`). */
   onDecide?: (decision: "approved" | "rejected", note: string) => void;
   onClose: () => void;
@@ -21,7 +23,17 @@ type ReviewSheetProps = {
 };
 
 /** A pending request opened over the list; Approve and Reject when `onDecide` is set. */
-export function ReviewSheet({ title, subtitle, facts, error, busy, onDecide, onClose, extra }: ReviewSheetProps) {
+export function ReviewSheet({
+  title,
+  subtitle,
+  facts,
+  error,
+  busy,
+  succeeded = false,
+  onDecide,
+  onClose,
+  extra,
+}: ReviewSheetProps) {
   const colors = useHallColors();
   const insets = useSafeAreaInsets();
   const [rejecting, setRejecting] = useState(false);
@@ -64,7 +76,12 @@ export function ReviewSheet({ title, subtitle, facts, error, busy, onDecide, onC
     actions = (
       <View style={styles.buttons}>
         <View style={styles.half}>
-          <HallButton label="Approve" busy={busy} onPress={() => onDecide("approved", "")} />
+          <HallButton
+            label="Approve"
+            busy={busy}
+            succeeded={succeeded}
+            onPress={() => onDecide("approved", "")}
+          />
         </View>
         <Pressable
           accessibilityRole="button"

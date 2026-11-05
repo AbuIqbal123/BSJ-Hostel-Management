@@ -8,6 +8,7 @@ import { ChoiceLine, OfficeError, OfficeFrame, replyError } from "@/components/o
 import { SkeletonRows } from "@/components/skeleton";
 import { useDelayedLoading } from "@/use-delayed-loading";
 import { TextField } from "@/components/text-field";
+import { useKeyedButtonFeedback } from "@/button-feedback";
 import { pageQuery } from "@/list-page";
 import { RESET_CONFIRM, passwordBody, readPage, readStaffAccount, staffCreate, staffPatch, type OfficeStaff, type StaffDraft } from "@/office";
 import { PASSWORD_RULES } from "@/password-rules";
@@ -46,7 +47,7 @@ export default function OfficeMember() {
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<"save" | "reset" | null>(null);
+  const cue = useKeyedButtonFeedback<"save" | "reset">();
 
   const fill = (key: "fullName" | "username" | "jobTitle" | "temporaryPassword") => (value: string) => {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -85,7 +86,7 @@ export default function OfficeMember() {
   }, [load]);
 
   const save = async () => {
-    if (busy) {
+    if (cue.held) {
       return;
     }
     const body = account ? staffPatch(account, draft) : staffCreate(draft);
@@ -97,19 +98,20 @@ export default function OfficeMember() {
       return;
     }
     const send = async () => {
-      setBusy("save");
+      cue.markBusy("save");
       const reply = account
         ? await staffRequest(`/admin/staff/${encodeURIComponent(account.id)}`, body, "PATCH")
         : await staffRequest("/admin/staff", body);
-      setBusy(null);
       const saved = reply.ok ? readStaffAccount(reply.data) : null;
       if (!saved) {
         setError(replyError(reply) ?? "The account didn't save");
+        cue.markFailure();
         return;
       }
       setAccount(saved);
       setDraft(fromAccount(saved));
       setError(null);
+      cue.markSuccess("save");
     };
     if (account && draft.status === "suspended" && account.status !== "suspended") {
       Alert.alert("Suspend account", "Sign-in stops until you reinstate this account", [
@@ -122,7 +124,7 @@ export default function OfficeMember() {
   };
 
   const resetPassword = () => {
-    if (!account || busy) {
+    if (!account || cue.held) {
       return;
     }
     const body = passwordBody(reset);
@@ -137,16 +139,17 @@ export default function OfficeMember() {
         style: "destructive",
         onPress: () => {
           void (async () => {
-            setBusy("reset");
+            cue.markBusy("reset");
             const reply = await staffRequest(`/admin/users/${encodeURIComponent(account.id)}/password`, body, "POST");
-            setBusy(null);
             setReset("");
             if (!reply.ok) {
               setError(replyError(reply) ?? "The password didn't reset");
+              cue.markFailure();
               return;
             }
             setNote("Password set, and sessions have ended");
             setError(null);
+            cue.markSuccess("reset");
           })();
         },
       },
@@ -217,7 +220,13 @@ export default function OfficeMember() {
           ) : null}
         </View>
       )}
-      <HallButton label={account ? "Save staff" : "Add staff"} busy={busy === "save"} disabled={busy !== null} onPress={() => void save()} />
+      <HallButton
+        label={account ? "Save staff" : "Add staff"}
+        busy={cue.busy("save")}
+        succeeded={cue.succeeded("save")}
+        disabled={cue.held}
+        onPress={() => void save()}
+      />
       {account ? (
         <View style={styles.block}>
           <TextField
@@ -230,7 +239,13 @@ export default function OfficeMember() {
             secureTextEntry
             maxLength={200}
           />
-          <HallButton label="Reset password" busy={busy === "reset"} disabled={busy !== null} onPress={resetPassword} />
+          <HallButton
+            label="Reset password"
+            busy={cue.busy("reset")}
+            succeeded={cue.succeeded("reset")}
+            disabled={cue.held}
+            onPress={resetPassword}
+          />
         </View>
       ) : null}
       {note ? <Text style={[text.body, { color: colors.inkSoft }]}>{note}</Text> : null}

@@ -6,6 +6,7 @@ import { HallButton } from "@/components/hall-button";
 import { ChoiceLine, OfficeError, OfficeFrame, replyError } from "@/components/office-frame";
 import { PagedList } from "@/components/paged-list";
 import { TextField } from "@/components/text-field";
+import { useKeyedButtonFeedback } from "@/button-feedback";
 import {
   canAddFreeTextPlace,
   hiddenFromResidents,
@@ -26,7 +27,7 @@ export default function OfficeDestinations() {
   const [editing, setEditing] = useState<OfficePlace | null>(null);
   const [editName, setEditName] = useState("");
   const [status, setStatus] = useState<"active" | "inactive">("active");
-  const [busy, setBusy] = useState<"preset" | "custom" | "save" | null>(null);
+  const cue = useKeyedButtonFeedback<"preset" | "custom" | "save">();
   const filters = useMemo(() => ({}), []);
 
   const list = useFilteredPagedList<OfficePlace, Record<string, never>>({
@@ -44,7 +45,7 @@ export default function OfficeDestinations() {
   });
 
   const create = async (source: "preset" | "custom") => {
-    if (busy) {
+    if (cue.held) {
       return;
     }
     const place = name.trim();
@@ -52,20 +53,20 @@ export default function OfficeDestinations() {
       setFormError("Enter the place");
       return;
     }
-    setBusy(source);
+    cue.markBusy(source);
     const reply = await staffRequest("/admin/destinations", { name: place, source });
-    setBusy(null);
     if (!reply.ok || !readPlace(reply.data)) {
       setFormError(replyError(reply) ?? "The place didn't save");
+      cue.markFailure();
       return;
     }
     setName("");
     setFormError(null);
-    list.load();
+    cue.markSuccess(source, () => list.load());
   };
 
   const save = async () => {
-    if (busy || !editing) {
+    if (cue.held || !editing) {
       return;
     }
     const place = editName.trim();
@@ -84,20 +85,22 @@ export default function OfficeDestinations() {
       setEditing(null);
       return;
     }
-    setBusy("save");
+    cue.markBusy("save");
     const reply = await staffRequest(`/admin/destinations/${encodeURIComponent(editing.id)}`, body, "PATCH");
-    setBusy(null);
     if (!reply.ok || !readPlace(reply.data)) {
       setFormError(replyError(reply) ?? "The place didn't save");
+      cue.markFailure();
       return;
     }
-    setEditing(null);
     setFormError(null);
-    list.load();
+    cue.markSuccess("save", () => {
+      setEditing(null);
+      list.load();
+    });
   };
 
   const rows = list.rows ?? [];
-  const held = busy !== null;
+  const held = cue.held;
   const offerFreeText = canAddFreeTextPlace(rows);
 
   return (
@@ -118,11 +121,18 @@ export default function OfficeDestinations() {
               place (Other) is enough
             </Text>
             <TextField label="Place" value={name} onChangeText={setName} maxLength={80} autoCapitalize="sentences" />
-            <HallButton label="Add place" busy={busy === "preset"} disabled={held} onPress={() => void create("preset")} />
+            <HallButton
+              label="Add place"
+              busy={cue.busy("preset")}
+              succeeded={cue.succeeded("preset")}
+              disabled={held}
+              onPress={() => void create("preset")}
+            />
             {offerFreeText ? (
               <HallButton
                 label="Add free-text place"
-                busy={busy === "custom"}
+                busy={cue.busy("custom")}
+                succeeded={cue.succeeded("custom")}
                 disabled={held}
                 onPress={() => void create("custom")}
               />
@@ -169,7 +179,13 @@ export default function OfficeDestinations() {
                   ]}
                   onChange={(value) => setStatus(value === "inactive" ? "inactive" : "active")}
                 />
-                <HallButton label="Save place" busy={busy === "save"} disabled={held} onPress={() => void save()} />
+                <HallButton
+                  label="Save place"
+                  busy={cue.busy("save")}
+                  succeeded={cue.succeeded("save")}
+                  disabled={held}
+                  onPress={() => void save()}
+                />
               </View>
             ) : null}
           </View>

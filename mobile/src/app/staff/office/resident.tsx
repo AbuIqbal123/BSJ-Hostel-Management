@@ -9,6 +9,7 @@ import { ChoiceLine, OfficeError, OfficeFrame, replyError } from "@/components/o
 import { SearchField } from "@/components/search-field";
 import { SkeletonRows } from "@/components/skeleton";
 import { TextField } from "@/components/text-field";
+import { useKeyedButtonFeedback } from "@/button-feedback";
 import { useDelayedLoading } from "@/use-delayed-loading";
 import { pageQuery } from "@/list-page";
 import {
@@ -71,7 +72,7 @@ export default function OfficeResident() {
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [roomsError, setRoomsError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<"save" | "reissue" | "reset" | null>(null);
+  const cue = useKeyedButtonFeedback<"save" | "reissue" | "reset">();
 
   const fill = (key: keyof ResidentDraft) => (value: string) => {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -131,7 +132,7 @@ export default function OfficeResident() {
     : rooms.slice(0, 8);
 
   const write = async (nextStatus: ResidentDraft["status"]) => {
-    if (busy) {
+    if (cue.held) {
       return;
     }
     const next = { ...draft, status: nextStatus, temporaryPassword: account ? "" : draft.temporaryPassword };
@@ -143,19 +144,20 @@ export default function OfficeResident() {
     if (account && Object.keys(body).length === 0) {
       return;
     }
-    setBusy("save");
+    cue.markBusy("save");
     const reply = account
       ? await staffRequest(`/admin/residents/${encodeURIComponent(account.id)}`, body, "PATCH")
       : await staffRequest("/admin/residents", body);
-    setBusy(null);
     if (!reply.ok) {
       setError(replyError(reply) ?? "The resident didn't save");
+      cue.markFailure();
       return;
     }
     if (account) {
       const updated = readResident(reply.data);
       if (!updated) {
         setError("The resident didn't save");
+        cue.markFailure();
         return;
       }
       setAccount(updated);
@@ -164,6 +166,7 @@ export default function OfficeResident() {
       const created = readCreatedResident(reply.data);
       if (!created) {
         setError("The resident didn't save");
+        cue.markFailure();
         return;
       }
       setAccount(created.account);
@@ -172,6 +175,7 @@ export default function OfficeResident() {
       setNote("Shown once");
     }
     setError(null);
+    cue.markSuccess("save");
   };
 
   const save = () => {
@@ -186,7 +190,7 @@ export default function OfficeResident() {
   };
 
   const reissue = () => {
-    if (!account || busy) {
+    if (!account || cue.held) {
       return;
     }
     Alert.alert(REISSUE_CONFIRM.title, REISSUE_CONFIRM.message, [
@@ -196,21 +200,22 @@ export default function OfficeResident() {
         style: "destructive",
         onPress: () => {
           void (async () => {
-            setBusy("reissue");
+            cue.markBusy("reissue");
             const reply = await staffRequest(
               `/admin/residents/${encodeURIComponent(account.id)}/hall-pass/reissue`,
               undefined,
               "POST",
             );
-            setBusy(null);
             const issued = reply.ok ? readPass(reply.data) : null;
             if (!issued) {
               setError(replyError(reply) ?? "The hall pass didn't reissue");
+              cue.markFailure();
               return;
             }
             setPass(issued);
             setNote("Shown once, and the previous QR no longer works");
             setError(null);
+            cue.markSuccess("reissue");
           })();
         },
       },
@@ -218,7 +223,7 @@ export default function OfficeResident() {
   };
 
   const resetPassword = () => {
-    if (!account || busy) {
+    if (!account || cue.held) {
       return;
     }
     const body = passwordBody(reset);
@@ -233,16 +238,17 @@ export default function OfficeResident() {
         style: "destructive",
         onPress: () => {
           void (async () => {
-            setBusy("reset");
+            cue.markBusy("reset");
             const reply = await staffRequest(`/admin/users/${encodeURIComponent(account.id)}/password`, body, "POST");
-            setBusy(null);
             setReset("");
             if (!reply.ok) {
               setError(replyError(reply) ?? "The password didn't reset");
+              cue.markFailure();
               return;
             }
             setNote("Password set, and sessions have ended");
             setError(null);
+            cue.markSuccess("reset");
           })();
         },
       },
@@ -337,12 +343,30 @@ export default function OfficeResident() {
           ) : null}
         </View>
       )}
-      <HallButton label={account ? "Save resident" : "Add resident"} busy={busy === "save"} disabled={busy !== null} onPress={save} />
+      <HallButton
+        label={account ? "Save resident" : "Add resident"}
+        busy={cue.busy("save")}
+        succeeded={cue.succeeded("save")}
+        disabled={cue.held}
+        onPress={save}
+      />
       {account ? (
         <View style={styles.password}>
-          <HallButton label="Reissue hall pass" busy={busy === "reissue"} disabled={busy !== null} onPress={reissue} />
+          <HallButton
+            label="Reissue hall pass"
+            busy={cue.busy("reissue")}
+            succeeded={cue.succeeded("reissue")}
+            disabled={cue.held}
+            onPress={reissue}
+          />
           <TextField label="New temporary password" value={reset} onChangeText={(value) => { setReset(value); setError(null); }} secureTextEntry maxLength={200} />
-          <HallButton label="Reset password" busy={busy === "reset"} disabled={busy !== null} onPress={resetPassword} />
+          <HallButton
+            label="Reset password"
+            busy={cue.busy("reset")}
+            succeeded={cue.succeeded("reset")}
+            disabled={cue.held}
+            onPress={resetPassword}
+          />
         </View>
       ) : null}
       {pass ? (

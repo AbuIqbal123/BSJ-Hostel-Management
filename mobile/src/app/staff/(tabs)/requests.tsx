@@ -10,6 +10,7 @@ import { SectionHead } from "@/components/section-head";
 import { PagedList } from "@/components/paged-list";
 import { PlainRow, RowHairline } from "@/components/plain-row";
 import { ReviewSheet, type Fact } from "@/components/review-sheet";
+import { useButtonFeedback } from "@/button-feedback";
 import { pageQuery } from "@/list-page";
 import { formatHallDate, formatSpan, formatWhen, formatWhenParts } from "@/format-when";
 import { kindLabel } from "@/requests";
@@ -161,7 +162,7 @@ export default function RequestsScreen() {
   const [open, setOpen] = useState<Item | null>(null);
   const [guestFacts, setGuestFacts] = useState<Fact[] | null>(null);
   const [sheetError, setSheetError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const decideCue = useButtonFeedback();
   const [decidedNote, setDecidedNote] = useState<string | null>(null);
   const guestDetailEpoch = useRef(0);
   type RequestFilters = {
@@ -270,19 +271,19 @@ export default function RequestsScreen() {
 
   const decide = useCallback(
     async (decision: "approved" | "rejected", note: string) => {
-      if (!open) {
+      if (!open || decideCue.held) {
         return;
       }
-      setBusy(true);
+      decideCue.markBusy();
       setSheetError(null);
       const base = open.tab === "permissions" ? "/permissions" : "/guest-stays";
       const reply = await staffRequest(`${base}/${encodeURIComponent(open.row.id)}/decision`, {
         decision,
         note: note || null,
       });
-      setBusy(false);
       if (!reply.ok) {
         setSheetError(trimStop(reply.message));
+        decideCue.markFailure();
         return;
       }
       if (open.tab === "guests" && !shouldRemoveGuestAfterDecision(responseStatus(reply.data))) {
@@ -291,22 +292,25 @@ export default function RequestsScreen() {
           guestDetailEpoch.current += 1;
           setGuestFacts(guestSheetFacts(open.row, detail));
         }
+        decideCue.markSuccess();
         return;
       }
-      list.revise((state) => {
-        const rows = (state.rows ?? []).filter((item) => item.row.id !== open.row.id);
-        const total = Math.max(0, state.total - 1);
-        list.remember(requestListKey(tab, kind, blockId, q), {
-          rows,
-          total,
-          error: null,
+      decideCue.markSuccess(() => {
+        list.revise((state) => {
+          const rows = (state.rows ?? []).filter((item) => item.row.id !== open.row.id);
+          const total = Math.max(0, state.total - 1);
+          list.remember(requestListKey(tab, kind, blockId, q), {
+            rows,
+            total,
+            error: null,
+          });
+          return { ...state, rows, total };
         });
-        return { ...state, rows, total };
+        setOpen(null);
+        void loadCounts();
       });
-      setOpen(null);
-      void loadCounts();
     },
-    [blockId, kind, list, loadCounts, open, q, staffRequest, tab],
+    [blockId, decideCue, kind, list, loadCounts, open, q, staffRequest, tab],
   );
 
   const rows = list.rows ?? [];
@@ -420,7 +424,8 @@ export default function RequestsScreen() {
           }
           facts={open.tab === "permissions" ? permissionFacts(open.row) : (guestFacts ?? [])}
           error={sheetError}
-          busy={busy}
+          busy={decideCue.busy}
+          succeeded={decideCue.succeeded}
           onDecide={canDecide ? (decision, note) => void decide(decision, note) : undefined}
           onClose={() => setOpen(null)}
           extra={

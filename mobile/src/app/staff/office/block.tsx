@@ -9,6 +9,7 @@ import { ChoiceLine, OfficeError, OfficeFrame, replyError } from "@/components/o
 import { PagedList } from "@/components/paged-list";
 import { SkeletonRows } from "@/components/skeleton";
 import { TextField } from "@/components/text-field";
+import { useKeyedButtonFeedback } from "@/button-feedback";
 import { pageQuery } from "@/list-page";
 import { useDelayedLoading } from "@/use-delayed-loading";
 import { bounded, readBlock, readBlocks, readPage, readRoom, type OfficeBlock, type OfficeRoom } from "@/office";
@@ -32,7 +33,7 @@ export default function OfficeBlock() {
   const [roomNumber, setRoomNumber] = useState("");
   const [roomBeds, setRoomBeds] = useState("");
   const [roomStatus, setRoomStatus] = useState<"active" | "inactive">("active");
-  const [busy, setBusy] = useState<"block" | "add" | "room" | null>(null);
+  const cue = useKeyedButtonFeedback<"block" | "add" | "room">();
 
   const roomsList = useListPage<OfficeRoom>({
     idOf: (room) => room.id,
@@ -97,7 +98,7 @@ export default function OfficeBlock() {
   }
 
   const saveBlock = async () => {
-    if (busy || !block) {
+    if (cue.held || !block) {
       return;
     }
     if (name.trim().length < 1 || name.trim().length > 80) {
@@ -139,19 +140,19 @@ export default function OfficeBlock() {
     if (Object.keys(body).length === 0) {
       return;
     }
-    setBusy("block");
+    cue.markBusy("block");
     const reply = await staffRequest(`/admin/blocks/${encodeURIComponent(id)}`, body, "PATCH");
-    setBusy(null);
     if (!reply.ok || !readBlock(reply.data)) {
       setFormError(replyError(reply) ?? "The block didn't save");
+      cue.markFailure();
       return;
     }
     setFormError(null);
-    load();
+    cue.markSuccess("block", () => load());
   };
 
   const addRoom = async () => {
-    if (busy) {
+    if (cue.held) {
       return;
     }
     const door = number.trim();
@@ -159,20 +160,20 @@ export default function OfficeBlock() {
       setFormError("Enter the door number");
       return;
     }
-    setBusy("add");
+    cue.markBusy("add");
     const reply = await staffRequest("/admin/rooms", { block_id: id, number: door });
-    setBusy(null);
     if (!reply.ok || !readRoom(reply.data)) {
       setFormError(replyError(reply) ?? "The room didn't save");
+      cue.markFailure();
       return;
     }
     setNumber("");
     setFormError(null);
-    load();
+    cue.markSuccess("add", () => load());
   };
 
   const saveRoom = async () => {
-    if (busy || !editing) {
+    if (cue.held || !editing) {
       return;
     }
     const door = roomNumber.trim();
@@ -199,20 +200,22 @@ export default function OfficeBlock() {
       setEditing(null);
       return;
     }
-    setBusy("room");
+    cue.markBusy("room");
     const reply = await staffRequest(`/admin/rooms/${encodeURIComponent(editing.id)}`, body, "PATCH");
-    setBusy(null);
     if (!reply.ok || !readRoom(reply.data)) {
       setFormError(replyError(reply) ?? "The room didn't save");
+      cue.markFailure();
       return;
     }
-    setEditing(null);
     setFormError(null);
-    load();
+    cue.markSuccess("room", () => {
+      setEditing(null);
+      load();
+    });
   };
 
   const rows = roomsList.rows ?? [];
-  const held = busy !== null;
+  const held = cue.held;
   const emptyRooms =
     block && block.roomsOnFile === 0 && block.roomCount > 0
       ? `No doors on file yet. Published count is ${block.roomCount}. Add a door above.`
@@ -242,9 +245,21 @@ export default function OfficeBlock() {
             ]}
             onChange={(value) => setStatus(value === "inactive" ? "inactive" : "active")}
           />
-          <HallButton label="Save block" busy={busy === "block"} disabled={held} onPress={() => void saveBlock()} />
+          <HallButton
+            label="Save block"
+            busy={cue.busy("block")}
+            succeeded={cue.succeeded("block")}
+            disabled={held}
+            onPress={() => void saveBlock()}
+          />
           <TextField label="Door number" value={number} onChangeText={setNumber} maxLength={12} />
-          <HallButton label="Add room" busy={busy === "add"} disabled={held} onPress={() => void addRoom()} />
+          <HallButton
+            label="Add room"
+            busy={cue.busy("add")}
+            succeeded={cue.succeeded("add")}
+            disabled={held}
+            onPress={() => void addRoom()}
+          />
         </>
       ) : null}
       <OfficeError message={formError} />
@@ -291,7 +306,13 @@ export default function OfficeBlock() {
                     ]}
                     onChange={(value) => setRoomStatus(value === "inactive" ? "inactive" : "active")}
                   />
-                  <HallButton label="Save room" busy={busy === "room"} disabled={held} onPress={() => void saveRoom()} />
+                  <HallButton
+                    label="Save room"
+                    busy={cue.busy("room")}
+                    succeeded={cue.succeeded("room")}
+                    disabled={held}
+                    onPress={() => void saveRoom()}
+                  />
                 </View>
               ) : null}
             </View>

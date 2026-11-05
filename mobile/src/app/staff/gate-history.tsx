@@ -12,6 +12,7 @@ import { HallButton } from "@/components/hall-button";
 import { OfficeError, replyError } from "@/components/office-frame";
 import { PagedList } from "@/components/paged-list";
 import { SearchField } from "@/components/search-field";
+import { useButtonFeedback } from "@/button-feedback";
 import { hallNow } from "@/format-when";
 import { pageQuery } from "@/list-page";
 import { hallDay } from "@/outing-when";
@@ -70,7 +71,7 @@ export default function GateHistoryScreen() {
   const q = useDebouncedValue(query);
   const [event, setEvent] = useState<EventFilter>(null);
   const [exportError, setExportError] = useState<string | null>(null);
-  const [exportBusy, setExportBusy] = useState(false);
+  const exportCue = useButtonFeedback();
   const filters = useMemo<HistoryFilters>(() => ({ event, q }), [event, q]);
 
   const list = useFilteredPagedList<GateEvent, HistoryFilters>({
@@ -90,22 +91,22 @@ export default function GateHistoryScreen() {
   const back = () => goBackOr(navigation, "/staff/settings");
 
   const exportActivity = async () => {
-    if (exportBusy) {
+    if (exportCue.held) {
       return;
     }
-    setExportBusy(true);
+    exportCue.markBusy();
     setExportError(null);
     const reply = await staffText(`/gate/activity/export${gateActivityExportQuery(filters)}`);
     const refused = replyError(reply);
     if (refused || !reply.ok || typeof reply.data !== "string") {
       setExportError(refused ?? "The gate export was not a CSV");
-      setExportBusy(false);
+      exportCue.markFailure();
       return;
     }
     const csv = gateActivityCsv(reply.data);
     if (!csv) {
       setExportError("The gate export was not a CSV");
-      setExportBusy(false);
+      exportCue.markFailure();
       return;
     }
     try {
@@ -117,13 +118,19 @@ export default function GateHistoryScreen() {
       });
       if (result === "unavailable") {
         setExportError("Sharing is not available on this device");
-      } else if (result === "failed") {
-        setExportError("Gate history could not be shared");
+        exportCue.markFailure();
+        return;
       }
+      if (result === "failed") {
+        setExportError("Gate history could not be shared");
+        exportCue.markFailure();
+        return;
+      }
+      exportCue.markSuccess();
     } catch {
       setExportError("Gate history could not be shared");
+      exportCue.markFailure();
     }
-    setExportBusy(false);
   };
 
   return (
@@ -186,7 +193,12 @@ export default function GateHistoryScreen() {
           </View>
         </PagedList>
       </View>
-      <HallButton label="Export" busy={exportBusy} onPress={() => void exportActivity()} />
+      <HallButton
+        label="Export"
+        busy={exportCue.busy}
+        succeeded={exportCue.succeeded}
+        onPress={() => void exportActivity()}
+      />
       <Text style={[text.error, { color: colors.inkSoft }]}>
         Export includes up to 10,000 newest lines for the search and event type above
       </Text>

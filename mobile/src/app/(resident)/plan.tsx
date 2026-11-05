@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import * as Haptics from "expo-haptics";
 import { Redirect, useLocalSearchParams, useNavigation } from "expo-router";
 import {
   Alert,
@@ -18,10 +17,10 @@ import { BackMark } from "@/components/back-mark";
 import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
+import { useKeyedButtonFeedback } from "@/button-feedback";
 import { utcInstant } from "@/format-when";
 import { WhenField, leaveNote, notBefore, returnNote } from "@/outing-when";
 import { paramText } from "@/route-param";
-import { ignore } from "@/safe";
 import { lockOuting, noteOutingLeft, useSession, type DestinationItem } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
@@ -56,8 +55,7 @@ export default function PlanScreen() {
   const [backBy, setBackBy] = useState<Date | null>(null);
   const [where, setWhere] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [cancelling, setCancelling] = useState(false);
+  const cue = useKeyedButtonFeedback<"save" | "cancel">();
   const navigation = useNavigation();
   const pending = useRef(false);
   const holdSave = useRef(0);
@@ -153,7 +151,7 @@ export default function PlanScreen() {
   }, []);
 
   const submit = useCallback(async () => {
-    if (Date.now() < holdSave.current || pending.current) {
+    if (Date.now() < holdSave.current || pending.current || cue.held) {
       return;
     }
     if (!destinationId) {
@@ -178,7 +176,7 @@ export default function PlanScreen() {
       return;
     }
     pending.current = true;
-    setSaving(true);
+    cue.markBusy("save");
     const message = await updateOuting(outingId, {
       destination_id: destinationId,
       starts_at: utcInstant(leaveAt),
@@ -186,15 +184,16 @@ export default function PlanScreen() {
       ...(other ? { destination_text: placeText } : {}),
     });
     pending.current = false;
-    setSaving(false);
     if (message) {
       setError(message);
+      cue.markFailure();
       return;
     }
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(ignore);
-    leaveWhenStill();
+    setError(null);
+    cue.markSuccess("save", () => leaveWhenStill());
   }, [
     backBy,
+    cue,
     destinationId,
     leaveAt,
     other,
@@ -205,31 +204,31 @@ export default function PlanScreen() {
   ]);
 
   const confirmCancel = useCallback(async () => {
-    if (pending.current) {
+    if (pending.current || cue.held) {
       return;
     }
     pending.current = true;
-    setCancelling(true);
+    cue.markBusy("cancel");
     const failure = await cancelOuting(outingId);
     pending.current = false;
-    setCancelling(false);
     if (!failure) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(ignore);
       noteOutingLeft(outingId);
-      leaveWhenStill();
+      cue.markSuccess("cancel", () => leaveWhenStill());
       return;
     }
     if (failure.code === "outing_window_open" || failure.code === "already_outside") {
       lockOuting(outingId);
       setError(null);
+      cue.markIdle();
       leaveWhenStill();
       return;
     }
     setError(failure.message);
-  }, [cancelOuting, leaveWhenStill, outingId]);
+    cue.markFailure();
+  }, [cancelOuting, cue, leaveWhenStill, outingId]);
 
   const cancel = useCallback(() => {
-    if (pending.current) {
+    if (pending.current || cue.held) {
       return;
     }
     Alert.alert("Cancel outing", undefined, [
@@ -243,7 +242,7 @@ export default function PlanScreen() {
         },
       },
     ]);
-  }, [confirmCancel]);
+  }, [confirmCancel, cue.held]);
 
   const frame = {
     paddingTop: insets.top + 28,
@@ -344,9 +343,10 @@ export default function PlanScreen() {
           </View>
           <View style={styles.action}>
             <HallButton
-              label={saving ? "Saving" : "Save"}
-              busy={saving}
-              disabled={cancelling}
+              label={cue.busy("save") ? "Saving" : "Save"}
+              busy={cue.busy("save")}
+              succeeded={cue.succeeded("save")}
+              disabled={cue.busy("cancel") || cue.succeeded("cancel")}
               onPress={() => {
                 setTimeout(() => {
                   void submit();
@@ -356,13 +356,13 @@ export default function PlanScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Cancel outing"
-              accessibilityState={{ disabled: saving || cancelling, busy: cancelling }}
-              disabled={saving || cancelling}
+              accessibilityState={{ disabled: cue.held, busy: cue.busy("cancel") }}
+              disabled={cue.held}
               onPress={cancel}
-              style={({ pressed }) => ({ opacity: saving || cancelling ? 0.5 : pressed ? 0.6 : 1 })}
+              style={({ pressed }) => ({ opacity: cue.held ? 0.5 : pressed ? 0.6 : 1 })}
             >
               <Text style={[text.button, { color: colors.danger }]}>
-                {cancelling ? "Cancelling" : "Cancel outing"}
+                {cue.busy("cancel") ? "Cancelling" : cue.succeeded("cancel") ? "Cancelled" : "Cancel outing"}
               </Text>
             </Pressable>
             {error ? (

@@ -5,6 +5,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { HallButton } from "@/components/hall-button";
 import { OfficeError, OfficeFrame, replyError } from "@/components/office-frame";
 import { TextField } from "@/components/text-field";
+import { useButtonFeedback } from "@/button-feedback";
 import { hallFeatures } from "@/hall-features";
 import {
   LATE_PLACEHOLDERS,
@@ -77,7 +78,7 @@ export default function OfficeSettings() {
   const [late, setLate] = useState(cachedNotices?.late ?? "");
   const [back, setBack] = useState(cachedNotices?.back ?? "");
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const saveCue = useButtonFeedback();
 
   const set = (key: keyof HoursFields) => (value: string) => {
     setFields((current) => ({ ...current, [key]: value }));
@@ -130,7 +131,7 @@ export default function OfficeSettings() {
   );
 
   const save = async () => {
-    if (busy || !savedHours) {
+    if (saveCue.held || !savedHours) {
       return;
     }
     if (showSms && !savedNotices) {
@@ -155,14 +156,14 @@ export default function OfficeSettings() {
     if (Object.keys(hoursBody).length === 0 && Object.keys(noticeBody).length === 0) {
       return;
     }
-    setBusy(true);
+    saveCue.markBusy();
     if (Object.keys(hoursBody).length > 0) {
       const reply = await staffRequest("/admin/settings", hoursBody, "PATCH");
       const refused = replyError(reply);
       const updated = reply.ok ? readHours(reply.data) : null;
       if (!updated) {
         setError(refused ?? "Settings didn't save");
-        setBusy(false);
+        saveCue.markFailure();
         return;
       }
       rememberOfficeHours(updated);
@@ -175,7 +176,7 @@ export default function OfficeSettings() {
       const updated = reply.ok ? readNotices(reply.data) : null;
       if (!updated) {
         setError(refused ?? "Texts didn't save");
-        setBusy(false);
+        saveCue.markFailure();
         return;
       }
       rememberOfficeNotices(updated);
@@ -183,7 +184,8 @@ export default function OfficeSettings() {
       setLate(updated.late);
       setBack(updated.back);
     }
-    setBusy(false);
+    setError(null);
+    saveCue.markSuccess();
   };
 
   return (
@@ -214,7 +216,13 @@ export default function OfficeSettings() {
           <TextField label="Return message" value={back} onChangeText={(value) => { setBack(value); setError(null); }} multiline />
         </View>
       ) : null}
-      <HallButton label="Save settings" busy={busy} disabled={!savedHours} onPress={() => void save()} />
+      <HallButton
+        label="Save settings"
+        busy={saveCue.busy}
+        succeeded={saveCue.succeeded}
+        disabled={!savedHours}
+        onPress={() => void save()}
+      />
       <OfficeError message={error} />
     </OfficeFrame>
   );

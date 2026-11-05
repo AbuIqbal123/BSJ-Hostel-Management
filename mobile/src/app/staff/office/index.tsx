@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text } from "react-native";
 
 import { HallButton } from "@/components/hall-button";
 import { OfficeError, OfficeFrame, replyError } from "@/components/office-frame";
+import { useButtonFeedback } from "@/button-feedback";
 import { hallNow } from "@/format-when";
 import { hallFeatures } from "@/hall-features";
 import { registerCsv, registerExportFileName } from "@/office";
@@ -47,26 +48,26 @@ export default function OfficeHome() {
   const colors = useHallColors();
   const { staffText } = useSession();
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const exportCue = useButtonFeedback();
   const links = LINKS.filter((link) => !link.feature || hallFeatures[link.feature]);
 
   const exportRegister = async () => {
-    if (busy) {
+    if (exportCue.held) {
       return;
     }
-    setBusy(true);
+    exportCue.markBusy();
     setError(null);
     const reply = await staffText("/admin/register/export");
     const refused = replyError(reply);
     if (refused || !reply.ok || typeof reply.data !== "string") {
       setError(refused ?? "The register export was not a CSV");
-      setBusy(false);
+      exportCue.markFailure();
       return;
     }
     const csv = registerCsv(reply.data);
     if (!csv) {
       setError("The register export was not a CSV");
-      setBusy(false);
+      exportCue.markFailure();
       return;
     }
     try {
@@ -78,13 +79,19 @@ export default function OfficeHome() {
       });
       if (result === "unavailable") {
         setError("Sharing is not available on this device");
-      } else if (result === "failed") {
-        setError("The register could not be shared");
+        exportCue.markFailure();
+        return;
       }
+      if (result === "failed") {
+        setError("The register could not be shared");
+        exportCue.markFailure();
+        return;
+      }
+      exportCue.markSuccess();
     } catch {
       setError("The register could not be shared");
+      exportCue.markFailure();
     }
-    setBusy(false);
   };
 
   return (
@@ -101,7 +108,12 @@ export default function OfficeHome() {
           <Text style={[text.error, { color: colors.inkSoft }]}>{link.detail}</Text>
         </Pressable>
       ))}
-      <HallButton label="Export register" busy={busy} onPress={() => void exportRegister()} />
+      <HallButton
+        label="Export register"
+        busy={exportCue.busy}
+        succeeded={exportCue.succeeded}
+        onPress={() => void exportRegister()}
+      />
       <OfficeError message={error} />
     </OfficeFrame>
   );

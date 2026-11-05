@@ -7,6 +7,7 @@ import { goBackOr } from "@/back";
 import { BackMark } from "@/components/back-mark";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
+import { useButtonFeedback } from "@/button-feedback";
 import { useSession } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { PASSWORD_RULES, passwordRulesMet } from "@/password-rules";
@@ -20,10 +21,11 @@ export default function ChangePasswordScreen() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const cue = useButtonFeedback();
   const pending = useRef(false);
 
   const submit = useCallback(async () => {
-    if (pending.current) {
+    if (pending.current || cue.held) {
       return;
     }
     if (currentPassword.length < 1) {
@@ -38,14 +40,17 @@ export default function ChangePasswordScreen() {
       return;
     }
     pending.current = true;
+    cue.markBusy();
     const message = await changePassword(currentPassword, newPassword);
     pending.current = false;
     if (message) {
       setError(message);
+      cue.markFailure();
       return;
     }
-    router.replace("/sign-in");
-  }, [changePassword, currentPassword, newPassword]);
+    setError(null);
+    cue.markSuccess(() => router.replace("/sign-in"));
+  }, [changePassword, cue, currentPassword, newPassword]);
 
   const back = () => goBackOr(navigation, user?.role === "resident" ? "/settings" : "/staff/settings");
 
@@ -113,7 +118,13 @@ export default function ChangePasswordScreen() {
           ) : null}
         </View>
         <View>
-          <HallButton label="Change password" disabled={!passwordRulesMet(newPassword)} onPress={() => void submit()} />
+          <HallButton
+            label="Change password"
+            busy={cue.busy}
+            succeeded={cue.succeeded}
+            disabled={!passwordRulesMet(newPassword)}
+            onPress={() => void submit()}
+          />
           <View
             pointerEvents="none"
             accessibilityElementsHidden={error === null}

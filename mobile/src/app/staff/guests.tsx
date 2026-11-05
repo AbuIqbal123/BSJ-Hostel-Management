@@ -9,6 +9,7 @@ import { DenseRow } from "@/components/dense-row";
 import { HallButton } from "@/components/hall-button";
 import { EmptyState, ListError } from "@/components/list-state";
 import { PagedList } from "@/components/paged-list";
+import { useButtonFeedback } from "@/button-feedback";
 import { pageQuery } from "@/list-page";
 import { formatHallDate } from "@/format-when";
 import {
@@ -50,7 +51,7 @@ export default function GateGuestsScreen() {
   const [notice, setNotice] = useState<string | null>(null);
   const [open, setOpen] = useState<GateGuest | null>(null);
   const [sheetError, setSheetError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const recordCue = useButtonFeedback();
   const filters = useMemo<GuestFilters>(() => ({ bucket, q: needle }), [bucket, needle]);
 
   const list = useFilteredPagedList<GateGuest, GuestFilters>({
@@ -82,26 +83,31 @@ export default function GateGuestsScreen() {
   }, [bucket, needle, loadOccupancy]);
 
   const record = async (guest: GateGuest) => {
+    if (recordCue.held) {
+      return;
+    }
     const arrival = bucket === "expected";
-    setBusy(true);
+    recordCue.markBusy();
     const reply = await staffRequest(
       `/gate/guests/${encodeURIComponent(guest.id)}/${arrival ? "arrival" : "departure"}`,
       undefined,
       "POST",
     );
-    setBusy(false);
     if (!reply.ok) {
       const clear = arrival ? arrivalRefusal(reply.code, guest.bucket) : departureRefusal(reply.code);
       setSheetError(clear ?? trimStop(reply.message));
+      recordCue.markFailure();
       return;
     }
-    setOpen(null);
     setSheetError(null);
-    setNotice(readGateMessage(reply.data) ?? (arrival ? "The guest is now in the hall." : "The guest has left."));
-    list.forget([guestListKey("expected", needle), guestListKey("in_hall", needle)]);
-    list.clear();
-    list.load();
-    void loadOccupancy();
+    recordCue.markSuccess(() => {
+      setOpen(null);
+      setNotice(readGateMessage(reply.data) ?? (arrival ? "The guest is now in the hall." : "The guest has left."));
+      list.forget([guestListKey("expected", needle), guestListKey("in_hall", needle)]);
+      list.clear();
+      list.load();
+      void loadOccupancy();
+    });
   };
 
   const rows = list.rows ?? [];
@@ -208,7 +214,8 @@ export default function GateGuestsScreen() {
             ) : null}
             <HallButton
               label={bucket === "expected" ? "Record arrival" : "Record departure"}
-              busy={busy}
+              busy={recordCue.busy}
+              succeeded={recordCue.succeeded}
               onPress={() => void record(open)}
             />
           </View>

@@ -7,6 +7,7 @@ import { FilterChip } from "@/components/filter-chip";
 import { FilterChipRow } from "@/components/filter-chip-row";
 import { HallButton } from "@/components/hall-button";
 import { OfficeError, OfficeFrame, replyError } from "@/components/office-frame";
+import { useButtonFeedback } from "@/button-feedback";
 import { PagedList } from "@/components/paged-list";
 import { SearchField } from "@/components/search-field";
 import { formatWhenParts, hallNow } from "@/format-when";
@@ -76,7 +77,7 @@ export default function OfficeAudit() {
   const [entityType, setEntityType] = useState<string | null>(null);
   const [range, setRange] = useState<DayRangeValue>({ from: null, to: null });
   const [exportError, setExportError] = useState<string | null>(null);
-  const [exportBusy, setExportBusy] = useState(false);
+  const exportCue = useButtonFeedback();
   const filters = useMemo<AuditFilters>(() => ({ entityType, q, range }), [entityType, q, range]);
 
   const list = useFilteredPagedList<AuditRow, AuditFilters>({
@@ -100,22 +101,22 @@ export default function OfficeAudit() {
   const moreOffline = total > rows.length;
 
   const exportAudit = async () => {
-    if (exportBusy) {
+    if (exportCue.held) {
       return;
     }
-    setExportBusy(true);
+    exportCue.markBusy();
     setExportError(null);
     const reply = await staffText(`/admin/audit/export${auditExportQuery(filters)}`);
     const refused = replyError(reply);
     if (refused || !reply.ok || typeof reply.data !== "string") {
       setExportError(refused ?? "The audit export was not a CSV");
-      setExportBusy(false);
+      exportCue.markFailure();
       return;
     }
     const csv = auditCsv(reply.data);
     if (!csv) {
       setExportError("The audit export was not a CSV");
-      setExportBusy(false);
+      exportCue.markFailure();
       return;
     }
     try {
@@ -127,13 +128,19 @@ export default function OfficeAudit() {
       });
       if (result === "unavailable") {
         setExportError("Sharing is not available on this device");
-      } else if (result === "failed") {
-        setExportError("The audit log could not be shared");
+        exportCue.markFailure();
+        return;
       }
+      if (result === "failed") {
+        setExportError("The audit log could not be shared");
+        exportCue.markFailure();
+        return;
+      }
+      exportCue.markSuccess();
     } catch {
       setExportError("The audit log could not be shared");
+      exportCue.markFailure();
     }
-    setExportBusy(false);
   };
 
   return (
@@ -150,7 +157,12 @@ export default function OfficeAudit() {
         ))}
       </FilterChipRow>
       <DayRange value={range} onChange={setRange} />
-      <HallButton label="Export audit" busy={exportBusy} onPress={() => void exportAudit()} />
+      <HallButton
+        label="Export audit"
+        busy={exportCue.busy}
+        succeeded={exportCue.succeeded}
+        onPress={() => void exportAudit()}
+      />
       <OfficeError message={exportError} />
       <PagedList
         rows={list.rows}

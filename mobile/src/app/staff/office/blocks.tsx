@@ -7,6 +7,7 @@ import { HallButton } from "@/components/hall-button";
 import { OfficeError, OfficeFrame, replyError } from "@/components/office-frame";
 import { PagedList } from "@/components/paged-list";
 import { TextField } from "@/components/text-field";
+import { useButtonFeedback } from "@/button-feedback";
 import { blockRoomsDetail, bounded, readBlock, readBlocks, type OfficeBlock } from "@/office";
 import { useSession } from "@/session";
 import { useFilteredPagedList } from "@/use-filtered-paged-list";
@@ -19,7 +20,7 @@ export default function OfficeBlocks() {
   const [floors, setFloors] = useState("");
   const [rooms, setRooms] = useState("");
   const [beds, setBeds] = useState("");
-  const [busy, setBusy] = useState(false);
+  const createCue = useButtonFeedback();
   const filters = useMemo(() => ({}), []);
 
   const list = useFilteredPagedList<OfficeBlock, Record<string, never>>({
@@ -36,7 +37,7 @@ export default function OfficeBlocks() {
   });
 
   const create = async () => {
-    if (busy) {
+    if (createCue.held) {
       return;
     }
     if (code.trim().length < 1 || code.trim().length > 16) {
@@ -71,12 +72,12 @@ export default function OfficeBlocks() {
       }
       body.floors = floorCount;
     }
-    setBusy(true);
+    createCue.markBusy();
     const reply = await staffRequest("/admin/blocks", body);
-    setBusy(false);
     const created = reply.ok ? readBlock(reply.data) : null;
     if (!created) {
       setFormError(replyError(reply) ?? "The block didn't save");
+      createCue.markFailure();
       return;
     }
     setCode("");
@@ -85,7 +86,7 @@ export default function OfficeBlocks() {
     setRooms("");
     setBeds("");
     setFormError(null);
-    list.load();
+    createCue.markSuccess(() => list.load());
   };
 
   const rows = list.rows ?? [];
@@ -108,7 +109,12 @@ export default function OfficeBlocks() {
             <TextField label="Floors" value={floors} onChangeText={setFloors} keyboardType="number-pad" />
             <TextField label="Published rooms" value={rooms} onChangeText={setRooms} keyboardType="number-pad" />
             <TextField label="Beds per room" value={beds} onChangeText={setBeds} keyboardType="number-pad" />
-            <HallButton label="Add block" busy={busy} onPress={() => void create()} />
+            <HallButton
+              label="Add block"
+              busy={createCue.busy}
+              succeeded={createCue.succeeded}
+              onPress={() => void create()}
+            />
             <OfficeError message={formError} />
           </>
         }

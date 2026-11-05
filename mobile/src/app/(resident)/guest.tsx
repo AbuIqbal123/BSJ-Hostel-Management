@@ -18,6 +18,7 @@ import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { HallButton } from "@/components/hall-button";
 import { StatusPill } from "@/components/status-pill";
 import { TextField } from "@/components/text-field";
+import { useButtonFeedback } from "@/button-feedback";
 import { HALL_ZONE, formatChipDay, formatHallDate, hallNow } from "@/format-when";
 import { GUEST_RELATIONS as RELATIONS, OTHER_RELATION, guestRelationFields as relationFields } from "@/guest-form";
 import { hallDay } from "@/outing-when";
@@ -415,25 +416,25 @@ function RoommateDecide({ card, onDone }: { card: GuestStayCard; onDone: () => v
   const { decideGuestStay } = useSession();
   const back = useLeave();
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const cue = useButtonFeedback();
   const pending = useRef(false);
   const dates = `${formatHallDate(card.startDate)} to ${formatHallDate(card.endDate)}`;
 
   const choose = async (decision: "approved" | "rejected") => {
-    if (pending.current) {
+    if (pending.current || cue.held) {
       return;
     }
     pending.current = true;
-    setBusy(true);
+    cue.markBusy();
     setError(null);
     const failure = await decideGuestStay(card.id, decision);
     pending.current = false;
-    setBusy(false);
     if (!failure) {
-      onDone();
+      cue.markSuccess(() => onDone());
       return;
     }
     setError(failure);
+    cue.markFailure();
   };
 
   const decline = () => {
@@ -469,17 +470,22 @@ function RoommateDecide({ card, onDone }: { card: GuestStayCard; onDone: () => v
         <Text style={[text.body, { color: colors.inkSoft }]}>{dates}</Text>
         <View style={styles.decide}>
           <View style={styles.decideHalf}>
-            <HallButton label="Approve" busy={busy} onPress={() => void choose("approved")} />
+            <HallButton
+              label="Approve"
+              busy={cue.busy}
+              succeeded={cue.succeeded}
+              onPress={() => void choose("approved")}
+            />
           </View>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Decline"
-            accessibilityState={{ disabled: busy }}
-            disabled={busy}
+            accessibilityState={{ disabled: cue.held }}
+            disabled={cue.held}
             onPress={decline}
             style={({ pressed }) => [
               styles.ghost,
-              { borderColor: colors.line, backgroundColor: colors.surface, opacity: busy || pressed ? 0.6 : 1 },
+              { borderColor: colors.line, backgroundColor: colors.surface, opacity: cue.held || pressed ? 0.6 : 1 },
             ]}
           >
             <Text style={[text.button, { color: colors.ink }]}>Decline</Text>

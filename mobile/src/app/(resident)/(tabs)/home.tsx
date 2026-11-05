@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import * as Haptics from "expo-haptics";
 import { router, useFocusEffect } from "expo-router";
 import { AppState, BackHandler, InteractionManager, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated, { FadeIn, FadeOut, LinearTransition, ReduceMotion } from "react-native-reanimated";
@@ -10,12 +9,12 @@ import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { HallButton } from "@/components/hall-button";
 import { ListError } from "@/components/list-state";
 import { TextField } from "@/components/text-field";
+import { useButtonFeedback } from "@/button-feedback";
 import { formatWhenParts, hallNow, utcInstant } from "@/format-when";
 import { onHallRefresh } from "@/hall-refresh";
 import { setBadge } from "@/push";
 import { syncResidentReminders } from "@/return-reminders";
 import { welcomeName } from "@/person-name";
-import { ignore } from "@/safe";
 import { outingLocked, takeOutingLeft, useSession, type DestinationItem, type UpcomingOuting } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { EASE_OUT } from "@/theme/motion";
@@ -25,13 +24,9 @@ import { WhenField, hallDay, leaveNote, notBefore, returnNote } from "@/outing-w
 const ROW_ENTER = FadeIn.duration(180).easing(EASE_OUT).reduceMotion(ReduceMotion.System);
 const ROW_EXIT = FadeOut.duration(160).easing(EASE_OUT).reduceMotion(ReduceMotion.System);
 const ROW_MOVE = LinearTransition.duration(220).easing(EASE_OUT).reduceMotion(ReduceMotion.System);
-/** Long enough for the check to settle, then the form clears. */
-const CONFIRM_TICK_HOLD_MS = 640;
 let rowsMayEnter = false;
 
-type ConfirmPhase = "idle" | "busy" | "done";
-
-function confirmLabel(phase: ConfirmPhase): string {
+function confirmLabel(phase: "idle" | "busy" | "done"): string {
   if (phase === "busy") {
     return "Confirming";
   }
@@ -134,19 +129,15 @@ export default function HomeScreen() {
   const [where, setWhere] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [homeError, setHomeError] = useState<string | null>(null);
-  const [phase, setPhase] = useState<ConfirmPhase>("idle");
+  const confirm = useButtonFeedback();
   const pending = useRef(false);
   const alive = useRef(true);
   const holdConfirm = useRef(0);
-  const clearPlan = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     alive.current = true;
     return () => {
       alive.current = false;
-      if (clearPlan.current !== null) {
-        clearTimeout(clearPlan.current);
-      }
     };
   }, []);
 
@@ -276,11 +267,11 @@ export default function HomeScreen() {
     if (Date.now() < holdConfirm.current) {
       return;
     }
-    if (pending.current || !planReady || !destinationId || !leaveAt || !backBy) {
+    if (pending.current || confirm.held || !planReady || !destinationId || !leaveAt || !backBy) {
       return;
     }
     pending.current = true;
-    setPhase("busy");
+    confirm.markBusy();
     const message = await planOuting({
       destination_id: destinationId,
       starts_at: utcInstant(leaveAt),
@@ -292,18 +283,12 @@ export default function HomeScreen() {
     }
     if (message) {
       pending.current = false;
-      setPhase("idle");
+      confirm.markFailure();
       setError(message);
       return;
     }
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(ignore);
     setError(null);
-    setPhase("done");
-    if (clearPlan.current !== null) {
-      clearTimeout(clearPlan.current);
-    }
-    clearPlan.current = setTimeout(() => {
-      clearPlan.current = null;
+    confirm.markSuccess(() => {
       pending.current = false;
       if (!alive.current) {
         return;
@@ -312,10 +297,9 @@ export default function HomeScreen() {
       setLeaveAt(null);
       setBackBy(null);
       setWhere("");
-      setPhase("idle");
       refresh();
-    }, CONFIRM_TICK_HOLD_MS);
-  }, [backBy, destinationId, leaveAt, other, planOuting, planReady, refresh, where]);
+    });
+  }, [backBy, confirm, destinationId, leaveAt, other, planOuting, planReady, refresh, where]);
 
   if (!user) {
     return null;
@@ -326,7 +310,7 @@ export default function HomeScreen() {
     items.map((item) => <OutingFrame key={item.id} item={item} />);
 
   const planCard = mayPlan && places ? (
-    <View style={styles.fields} pointerEvents={phase === "done" ? "none" : "auto"}>
+    <View style={styles.fields} pointerEvents={confirm.succeeded ? "none" : "auto"}>
       <Text style={[text.button, styles.title, { color: colors.ink }]}>Plan an outing</Text>
       <ChoiceField
         label="Place"
@@ -386,10 +370,10 @@ export default function HomeScreen() {
         }}
       />
       <HallButton
-        label={confirmLabel(phase)}
-        busy={phase === "busy"}
-        succeeded={phase === "done"}
-        disabled={phase === "idle" && !planReady}
+        label={confirmLabel(confirm.phase)}
+        busy={confirm.busy}
+        succeeded={confirm.succeeded}
+        disabled={confirm.phase === "idle" && !planReady}
         onPress={() => {
           setTimeout(() => {
             void submit();
