@@ -8,6 +8,7 @@ import { BiometricSettingsRow } from "@/components/biometric-settings-row";
 import { NotificationsOffRow } from "@/components/notifications-off-row";
 import { SettingsRow } from "@/components/settings-row";
 import { useSession } from "@/session";
+import { SIGNED_OUT_PARAM, confirmSignOut } from "@/sign-out";
 import { useAppearance } from "@/theme/appearance";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
@@ -82,7 +83,9 @@ export default function SettingsScreen() {
           label="Sign out"
           color={colors.danger}
           onPress={() => {
-            void signOut().then(() => router.replace("/sign-in"));
+            confirmSignOut(signOut, () => {
+              router.replace({ pathname: "/sign-in", params: { notice: SIGNED_OUT_PARAM } });
+            });
           }}
         />
       </View>

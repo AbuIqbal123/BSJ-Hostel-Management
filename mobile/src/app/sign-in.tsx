@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import {
   Alert,
   Keyboard,
@@ -20,6 +20,7 @@ import { HallButton } from "@/components/hall-button";
 import { HallMark } from "@/components/hall-mark";
 import { TextField } from "@/components/text-field";
 import { useSession } from "@/session";
+import { signedOutNotice } from "@/sign-out";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
@@ -32,6 +33,7 @@ const fallbackMotionMs = 250;
 
 export default function SignInScreen() {
   const colors = useHallColors();
+  const params = useLocalSearchParams<{ notice?: string | string[] }>();
   const {
     user,
     signIn,
@@ -45,6 +47,7 @@ export default function SignInScreen() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState(() => signedOutNotice(params.notice));
   const passwordRef = useRef<TextInput>(null);
   const pendingRef = useRef(false);
   const canvasRef = useRef<View>(null);
@@ -385,6 +388,16 @@ export default function SignInScreen() {
     }
   }, [signInWithBiometrics]);
 
+  useEffect(() => {
+    const line = signedOutNotice(params.notice);
+    if (!line) {
+      return;
+    }
+    setNotice(line);
+    const timer = setTimeout(() => setNotice(null), 2800);
+    return () => clearTimeout(timer);
+  }, [params.notice]);
+
   // While signed in this screen stays on the stack as an empty sheet, so pad and
   // keyboard refs would otherwise survive sign-out and pin the block off-screen
   // (clipped hall name, top-heavy layout). Clear them whenever she is signed out.
@@ -451,6 +464,14 @@ export default function SignInScreen() {
             <Text style={[text.hallName, styles.hallName, { color: colors.ink }]}>
               Begum Sultan Jahan Hall
             </Text>
+            {notice ? (
+              <Text
+                accessibilityLiveRegion="polite"
+                style={[text.body, styles.notice, { color: colors.inkSoft }]}
+              >
+                {notice}
+              </Text>
+            ) : null}
           </View>
           <View style={styles.fields}>
             <TextField
@@ -545,6 +566,7 @@ const styles = StyleSheet.create({
   block: { gap: 28 },
   mark: { alignItems: "center", gap: 12, alignSelf: "stretch" },
   hallName: { alignSelf: "stretch" },
+  notice: { alignSelf: "stretch", textAlign: "center" },
   fields: { gap: 16 },
   submit: { gap: 16 },
   onboard: {
