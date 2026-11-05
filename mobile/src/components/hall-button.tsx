@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text } from "react-native";
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
@@ -38,7 +38,14 @@ export function HallButton({ label, onPress, disabled = false, busy = false }: H
         },
       ]}
     >
-      {busy ? <ActivityIndicator color={colors.onForest} /> : <Text style={labelStyle}>{label}</Text>}
+      {busy ? (
+        <View style={styles.busy}>
+          <ActivityIndicator color={colors.onForest} />
+          <Text style={labelStyle}>{label}</Text>
+        </View>
+      ) : (
+        <Text style={labelStyle}>{label}</Text>
+      )}
     </Pressable>
   );
 }
@@ -50,5 +57,10 @@ const styles = StyleSheet.create({
     borderCurve: "continuous",
     overflow: "hidden",
     paddingVertical: 14,
+  },
+  busy: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
 });

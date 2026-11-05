@@ -3,7 +3,18 @@ import { CameraView, useCameraPermissions, type BarcodeScanningResult } from "ex
 import * as Haptics from "expo-haptics";
 import { useFocusEffect } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Animated, Linking, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
+import {
+  AccessibilityInfo,
+  Animated,
+  Easing,
+  Linking,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HallButton } from "@/components/hall-button";
@@ -16,6 +27,7 @@ import { text } from "@/theme/text";
 const SAME_CODE_MS = 1500;
 /** Hold the result so staff can read it, then clear so the next pass is ready. */
 const RESULT_HOLD_MS = 30_000;
+const TICK_MS = 180;
 const DIM = "rgba(20, 38, 31, 0.45)";
 const LIGHT = "#F2F4F0";
 
@@ -96,6 +108,7 @@ function Fact({ label, value, danger }: { label: string; value: string; danger?:
 function ResultCard({ result, onNext }: { result: ScanResult | null; onNext: () => void }) {
   const colors = useHallColors();
   const rise = useRef(new Animated.Value(0)).current;
+  const tick = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     Animated.timing(rise, { toValue: 1, duration: 140, useNativeDriver: true }).start();
   }, [rise]);
@@ -106,8 +119,35 @@ function ResultCard({ result, onNext }: { result: ScanResult | null; onNext: () 
     const clear = setTimeout(onNext, RESULT_HOLD_MS);
     return () => clearTimeout(clear);
   }, [result, onNext]);
-  const lift = rise.interpolate({ inputRange: [0, 1], outputRange: [24, 0] });
   const refused = result?.kind === "refused";
+  const success = result !== null && !refused;
+  useEffect(() => {
+    if (!success) {
+      tick.setValue(1);
+      return;
+    }
+    let cancelled = false;
+    void AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
+      if (cancelled) {
+        return;
+      }
+      if (reduced) {
+        tick.setValue(1);
+        return;
+      }
+      tick.setValue(0.7);
+      Animated.timing(tick, {
+        toValue: 1,
+        duration: TICK_MS,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [success, tick]);
+  const lift = rise.interpolate({ inputRange: [0, 1], outputRange: [24, 0] });
   const word = !result ? "Recording" : refused ? "Not recorded" : result.kind === "leave" ? "Leave" : "Return";
   const tone = !result ? colors.inkFaint : refused ? colors.danger : colors.forest;
   const secondary = result ? [result.room, result.outing, result.place].filter(Boolean).join(" · ") : "";
@@ -120,6 +160,7 @@ function ResultCard({ result, onNext }: { result: ScanResult | null; onNext: () 
     ...facts.map((f) => `${f.label} ${f.value}`),
     result?.timeliness,
   ];
+  const mark = !result ? "ellipsis-horizontal-circle" : refused ? "close-circle" : "checkmark-circle";
   return (
     <Animated.View style={[styles.result, { opacity: rise, transform: [{ translateY: lift }] }]}>
       <View
@@ -128,11 +169,13 @@ function ResultCard({ result, onNext }: { result: ScanResult | null; onNext: () 
         style={[styles.card, { backgroundColor: refused ? colors.dangerBg : colors.paper }]}
       >
         <View style={styles.wordRow}>
-          <Ionicons
-            name={!result ? "ellipsis-horizontal-circle" : refused ? "close-circle" : "checkmark-circle"}
-            size={32}
-            color={tone}
-          />
+          {success ? (
+            <Animated.View style={{ transform: [{ scale: tick }] }}>
+              <Ionicons name="checkmark-circle" size={32} color={tone} />
+            </Animated.View>
+          ) : (
+            <Ionicons name={mark} size={32} color={tone} />
+          )}
           <Text style={[styles.word, { color: tone, flex: 1 }]}>{word}</Text>
           <Pressable
             accessibilityRole="button"
@@ -244,7 +287,6 @@ export default function ScanScreen() {
   const { staffRequest } = useSession();
   const [permission, requestPermission] = useCameraPermissions();
   const [focused, setFocused] = useState(true);
-  const [torch, setTorch] = useState(false);
   const [broken, setBroken] = useState(false);
   const [card, setCard] = useState<Card>(null);
   const last = useRef({ code: "", at: 0 });
@@ -254,10 +296,7 @@ export default function ScanScreen() {
   useFocusEffect(
     useCallback(() => {
       setFocused(true);
-      return () => {
-        setFocused(false);
-        setTorch(false);
-      };
+      return () => setFocused(false);
     }, []),
   );
 
@@ -303,13 +342,18 @@ export default function ScanScreen() {
           onSubmit={(code) => void submit(code)}
           busy={reading}
         />
-        {card ? <ResultCard key={card.id} result={card.result} onNext={next} /> : null}
+        {card ? (
+          <View style={styles.manualResult}>
+            <ResultCard key={card.id} result={card.result} onNext={next} />
+          </View>
+        ) : null}
       </View>
     );
   }
 
   // Large guide only — the camera already reads a QR anywhere in the frame.
-  const size = Math.min(width - 40, Math.round(width * 0.88));
+  // Slightly smaller while a result is in the lower band so short phones keep the square clear.
+  const size = Math.min(width - 40, Math.round(width * (card ? 0.72 : 0.88)));
   return (
     <View style={[styles.screen, styles.dark]}>
       <View style={[StyleSheet.absoluteFill, { paddingTop: insets.top }]} pointerEvents="box-none">
@@ -321,7 +365,6 @@ export default function ScanScreen() {
               style={StyleSheet.absoluteFill}
               facing="back"
               active={focused}
-              enableTorch={torch && focused}
               barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
               onMountError={() => setBroken(true)}
               onBarcodeScanned={
@@ -330,27 +373,13 @@ export default function ScanScreen() {
             />
           }
         >
-          {card ? null : (
-            <>
-              <Text style={styles.hint}>Point the camera at the hall pass</Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={torch ? "Turn torch off" : "Turn torch on"}
-                accessibilityState={{ selected: torch }}
-                onPress={() => setTorch((on) => !on)}
-                style={[styles.torch, torch ? { backgroundColor: LIGHT } : null]}
-              >
-                <Ionicons
-                  name={torch ? "flashlight" : "flashlight-outline"}
-                  size={20}
-                  color={torch ? colors.ink : LIGHT}
-                />
-              </Pressable>
-            </>
+          {card ? (
+            <ResultCard key={card.id} result={card.result} onNext={next} />
+          ) : (
+            <Text style={styles.hint}>Point the camera at the hall pass</Text>
           )}
         </Viewfinder>
       </View>
-      {card ? <ResultCard key={card.id} result={card.result} onNext={next} /> : null}
     </View>
   );
 }
@@ -364,23 +393,25 @@ const styles = StyleSheet.create({
   /** Clips the live preview to the same soft bend as the corner brackets. */
   frame: { borderRadius: BEND, borderCurve: "continuous", overflow: "hidden" },
   corner: { position: "absolute", width: CORNER, height: CORNER },
-  below: { flex: 1.3, alignItems: "center", paddingTop: 20, gap: 20 },
+  below: {
+    flex: 1.3,
+    alignItems: "stretch",
+    justifyContent: "flex-start",
+    paddingTop: 16,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    gap: 16,
+  },
   hint: {
+    alignSelf: "center",
     fontFamily: "SourceSans3_400Regular",
     fontSize: 15,
     lineHeight: 20,
     color: LIGHT,
     opacity: 0.85,
   },
-  torch: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(242, 244, 240, 0.16)",
-  },
-  result: { position: "absolute", left: 12, right: 12, bottom: 12 },
+  result: { alignSelf: "stretch" },
+  manualResult: { paddingHorizontal: 12, paddingBottom: 12 },
   card: {
     borderRadius: 22,
     borderCurve: "continuous",

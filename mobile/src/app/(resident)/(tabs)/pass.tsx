@@ -1,20 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useFocusEffect } from "expo-router";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
-import Animated, {
-  Easing,
-  cancelAnimation,
-  useAnimatedProps,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from "react-native-reanimated";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import QRCode from "react-native-qrcode-svg";
-import Svg, { Path } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { formatWhen, formatWhenParts } from "@/format-when";
@@ -25,8 +14,12 @@ import { EASE_OUT } from "@/theme/motion";
 import { text } from "@/theme/text";
 
 const FADE_MS = 220;
-const BORDER_MS = 3600;
-const PULSE_MS = 1600;
+const AWAKE = "hall-pass";
+const BORDER = 16;
+const CORNER = 36;
+const STROKE = 3;
+const BEND = 14;
+
 function Fact({
   label,
   value,
@@ -51,34 +44,25 @@ function Fact({
   );
 }
 
-const AWAKE = "hall-pass";
-const BORDER = 16;
-const INSET = 4;
-const RADIUS = 18;
-const AnimatedPath = Animated.createAnimatedComponent(Path);
-
-/** Perimeter of a rounded square: four shortened sides + one full circle of corners. */
-function borderLength(side: number, radius: number): number {
-  return 4 * (side - 2 * radius) + 2 * Math.PI * radius;
-}
-
-/** Clockwise rounded rect; Z closes with no extra length so the dash loop has no open-path seam. */
-function roundedRectPath(x: number, y: number, side: number, radius: number): string {
-  const r = radius;
-  const right = x + side;
-  const bottom = y + side;
-  return [
-    `M ${x + r} ${y}`,
-    `H ${right - r}`,
-    `A ${r} ${r} 0 0 1 ${right} ${y + r}`,
-    `V ${bottom - r}`,
-    `A ${r} ${r} 0 0 1 ${right - r} ${bottom}`,
-    `H ${x + r}`,
-    `A ${r} ${r} 0 0 1 ${x} ${bottom - r}`,
-    `V ${y + r}`,
-    `A ${r} ${r} 0 0 1 ${x + r} ${y}`,
-    "Z",
-  ].join(" ");
+/** L-shaped bracket with a curved outer corner — same language as the gate viewfinder. */
+function Corner({ color, at }: { color: string; at: "tl" | "tr" | "bl" | "br" }) {
+  const top = at[0] === "t";
+  const left = at[1] === "l";
+  return (
+    <View
+      pointerEvents="none"
+      style={[
+        styles.corner,
+        { borderColor: color },
+        top ? { top: 0, borderTopWidth: STROKE } : { bottom: 0, borderBottomWidth: STROKE },
+        left ? { left: 0, borderLeftWidth: STROKE } : { right: 0, borderRightWidth: STROKE },
+        top && left ? { borderTopLeftRadius: BEND } : null,
+        top && !left ? { borderTopRightRadius: BEND } : null,
+        !top && left ? { borderBottomLeftRadius: BEND } : null,
+        !top && !left ? { borderBottomRightRadius: BEND } : null,
+      ]}
+    />
+  );
 }
 
 function shownPlace(
@@ -98,27 +82,11 @@ function shownPlace(
 function PassCode({ value, size }: { value: string; size: number }) {
   const colors = useHallColors();
   const dark = useDark();
-  const reduced = useReducedMotion();
   const opacity = useSharedValue(0);
-  const travel = useSharedValue(0);
-  const pulse = useSharedValue(1);
   const faded = useRef<string | null>(null);
-  // Integer frame keeps SVG dash math and corner joins aligned to device pixels.
   const frame = Math.round(size + BORDER * 2);
   const qrSize = frame - BORDER * 2;
-  const side = frame - INSET * 2;
-  const length = borderLength(side, RADIUS);
-  const path = useMemo(() => roundedRectPath(INSET, INSET, side, RADIUS), [side]);
-  // Soft comet: wide translucent body + shorter bright head. Dash + gap = exact perimeter.
-  const bodyDash = length * 0.2;
-  const bodyGap = length - bodyDash;
-  const headDash = length * 0.08;
-  const headGap = length - headDash;
-  const headLead = bodyDash - headDash;
-  const trackStroke = dark ? colors.forest : colors.line;
-  const bodyStroke = colors.forest;
-  const headStroke = dark ? colors.pending : colors.forestDeep;
-  const trackPulse = dark ? 0.45 : 0.3;
+  const bracket = dark ? colors.forest : colors.forestDeep;
 
   useEffect(() => {
     if (faded.current === value) {
@@ -132,46 +100,13 @@ function PassCode({ value, size }: { value: string; size: number }) {
   useFocusEffect(
     useCallback(() => {
       void activateKeepAwakeAsync(AWAKE);
-      if (reduced) {
-        travel.value = 0;
-        pulse.value = 1;
-        return () => {
-          void deactivateKeepAwake(AWAKE);
-        };
-      }
-      travel.value = 0;
-      travel.value = withRepeat(
-        withTiming(1, { duration: BORDER_MS, easing: Easing.linear }),
-        -1,
-        false,
-      );
-      pulse.value = withRepeat(
-        withSequence(
-          withTiming(0.55, { duration: PULSE_MS, easing: EASE_OUT }),
-          withTiming(1, { duration: PULSE_MS, easing: EASE_OUT }),
-        ),
-        -1,
-        false,
-      );
       return () => {
-        cancelAnimation(travel);
-        cancelAnimation(pulse);
         void deactivateKeepAwake(AWAKE);
       };
-    }, [pulse, reduced, travel]),
+    }, []),
   );
 
   const shellStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
-  const trackProps = useAnimatedProps(() => ({
-    strokeOpacity: 0.35 + pulse.value * trackPulse,
-  }));
-  const bodyProps = useAnimatedProps(() => ({
-    strokeDashoffset: -travel.value * length,
-  }));
-  // Bright tip sits on the leading end of the soft body.
-  const headProps = useAnimatedProps(() => ({
-    strokeDashoffset: -travel.value * length - headLead,
-  }));
 
   return (
     <Animated.View
@@ -187,62 +122,12 @@ function PassCode({ value, size }: { value: string; size: number }) {
       ]}
       accessibilityLabel="Hall pass"
     >
-      <Svg width={frame} height={frame} style={styles.border}>
-        <AnimatedPath
-          d={path}
-          fill="none"
-          stroke={trackStroke}
-          strokeWidth={dark ? 3 : 2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          animatedProps={trackProps}
-        />
-        {reduced ? (
-          <Path
-            d={path}
-            fill="none"
-            stroke={bodyStroke}
-            strokeWidth={3}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeDasharray={`${headDash} ${headGap}`}
-            strokeDashoffset={0}
-            opacity={dark ? 0.9 : 0.85}
-          />
-        ) : (
-          <>
-            <AnimatedPath
-              d={path}
-              fill="none"
-              stroke={bodyStroke}
-              strokeWidth={dark ? 5 : 4}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeDasharray={`${bodyDash} ${bodyGap}`}
-              opacity={dark ? 0.45 : 0.28}
-              animatedProps={bodyProps}
-            />
-            <AnimatedPath
-              d={path}
-              fill="none"
-              stroke={headStroke}
-              strokeWidth={dark ? 3.5 : 2.75}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeDasharray={`${headDash} ${headGap}`}
-              opacity={dark ? 1 : 0.95}
-              animatedProps={headProps}
-            />
-          </>
-        )}
-      </Svg>
-      <QRCode
-        value={value}
-        size={qrSize}
-        color="#000000"
-        backgroundColor="#FFFFFF"
-        quietZone={16}
-      />
+      <View style={[styles.plate, { width: qrSize, height: qrSize }]}>
+        <QRCode value={value} size={qrSize} color="#000000" backgroundColor="#FFFFFF" quietZone={16} />
+        {(["tl", "tr", "bl", "br"] as const).map((at) => (
+          <Corner key={at} at={at} color={bracket} />
+        ))}
+      </View>
     </Animated.View>
   );
 }
@@ -439,9 +324,10 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 4,
   },
-  border: {
-    position: "absolute",
-    top: 0,
-    left: 0,
+  plate: {
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "visible",
   },
+  corner: { position: "absolute", width: CORNER, height: CORNER },
 });

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import * as Haptics from "expo-haptics";
 import { router, useFocusEffect } from "expo-router";
 import { AppState, BackHandler, InteractionManager, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated, { FadeIn, FadeOut, LinearTransition, ReduceMotion } from "react-native-reanimated";
@@ -6,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Bell } from "@/components/bell";
 import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
+import { HallButton } from "@/components/hall-button";
 import { ListError } from "@/components/list-state";
 import { TextField } from "@/components/text-field";
 import { formatWhenParts, hallNow, utcInstant } from "@/format-when";
@@ -13,6 +15,7 @@ import { onHallRefresh } from "@/hall-refresh";
 import { setBadge } from "@/push";
 import { syncResidentReminders } from "@/return-reminders";
 import { welcomeName } from "@/person-name";
+import { ignore } from "@/safe";
 import { outingLocked, takeOutingLeft, useSession, type DestinationItem, type UpcomingOuting } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { EASE_OUT } from "@/theme/motion";
@@ -118,6 +121,7 @@ export default function HomeScreen() {
   const [where, setWhere] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [homeError, setHomeError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const pending = useRef(false);
   const holdConfirm = useRef(0);
 
@@ -252,6 +256,7 @@ export default function HomeScreen() {
       return;
     }
     pending.current = true;
+    setConfirming(true);
     const message = await planOuting({
       destination_id: destinationId,
       starts_at: utcInstant(leaveAt),
@@ -259,10 +264,12 @@ export default function HomeScreen() {
       ...(other ? { destination_text: where.trim() } : {}),
     });
     pending.current = false;
+    setConfirming(false);
     if (message) {
       setError(message);
       return;
     }
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(ignore);
     setDestinationId(null);
     setLeaveAt(null);
     setBackBy(null);
@@ -338,23 +345,16 @@ export default function HomeScreen() {
           setError(null);
         }}
       />
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Confirm"
-        accessibilityState={{ disabled: !planReady }}
-        disabled={!planReady}
-        hitSlop={12}
+      <HallButton
+        label={confirming ? "Confirming" : "Confirm"}
+        busy={confirming}
+        disabled={!planReady && !confirming}
         onPress={() => {
           setTimeout(() => {
             void submit();
           }, 50);
         }}
-        style={styles.confirm}
-      >
-        <Text style={[text.button, { color: planReady ? colors.forest : colors.inkFaint }]}>
-          Confirm
-        </Text>
-      </Pressable>
+      />
       {error ? <Text accessibilityLiveRegion="polite" style={[text.error, styles.planNote, { color: colors.danger }]}>{error}</Text> : null}
     </View>
   ) : null;
@@ -452,7 +452,6 @@ const styles = StyleSheet.create({
   },
   title: { flex: 1, textAlign: "left" },
   fields: { gap: 16 },
-  confirm: { alignSelf: "flex-start" },
   planNote: { textAlign: "center" },
   upcoming: {
     borderTopWidth: StyleSheet.hairlineWidth,

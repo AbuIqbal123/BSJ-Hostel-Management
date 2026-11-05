@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import * as Haptics from "expo-haptics";
 import { Redirect, useLocalSearchParams, useNavigation } from "expo-router";
 import {
   Alert,
@@ -20,6 +21,7 @@ import { TextField } from "@/components/text-field";
 import { utcInstant } from "@/format-when";
 import { WhenField, leaveNote, notBefore, returnNote } from "@/outing-when";
 import { paramText } from "@/route-param";
+import { ignore } from "@/safe";
 import { lockOuting, noteOutingLeft, useSession, type DestinationItem } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
@@ -54,6 +56,8 @@ export default function PlanScreen() {
   const [backBy, setBackBy] = useState<Date | null>(null);
   const [where, setWhere] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const navigation = useNavigation();
   const pending = useRef(false);
   const holdSave = useRef(0);
@@ -174,6 +178,7 @@ export default function PlanScreen() {
       return;
     }
     pending.current = true;
+    setSaving(true);
     const message = await updateOuting(outingId, {
       destination_id: destinationId,
       starts_at: utcInstant(leaveAt),
@@ -181,10 +186,12 @@ export default function PlanScreen() {
       ...(other ? { destination_text: placeText } : {}),
     });
     pending.current = false;
+    setSaving(false);
     if (message) {
       setError(message);
       return;
     }
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(ignore);
     leaveWhenStill();
   }, [
     backBy,
@@ -202,9 +209,12 @@ export default function PlanScreen() {
       return;
     }
     pending.current = true;
+    setCancelling(true);
     const failure = await cancelOuting(outingId);
     pending.current = false;
+    setCancelling(false);
     if (!failure) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(ignore);
       noteOutingLeft(outingId);
       leaveWhenStill();
       return;
@@ -333,7 +343,9 @@ export default function PlanScreen() {
           </View>
           <View style={styles.action}>
             <HallButton
-              label="Save"
+              label={saving ? "Saving" : "Save"}
+              busy={saving}
+              disabled={cancelling}
               onPress={() => {
                 setTimeout(() => {
                   void submit();
@@ -343,9 +355,14 @@ export default function PlanScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Cancel outing"
+              accessibilityState={{ disabled: saving || cancelling, busy: cancelling }}
+              disabled={saving || cancelling}
               onPress={cancel}
+              style={({ pressed }) => ({ opacity: saving || cancelling ? 0.5 : pressed ? 0.6 : 1 })}
             >
-              <Text style={[text.button, { color: colors.danger }]}>Cancel outing</Text>
+              <Text style={[text.button, { color: colors.danger }]}>
+                {cancelling ? "Cancelling" : "Cancel outing"}
+              </Text>
             </Pressable>
             {error ? (
               <Text accessibilityLiveRegion="polite"
