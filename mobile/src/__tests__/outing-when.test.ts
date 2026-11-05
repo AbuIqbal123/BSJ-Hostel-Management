@@ -3,11 +3,17 @@ import path from "path";
 
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-import { readOrdinaryHours, type OrdinaryHours } from "@/ordinary-hours";
+import {
+  forgetOrdinaryHours,
+  readOrdinaryHours,
+  rememberOrdinaryHours,
+  type OrdinaryHours,
+} from "@/ordinary-hours";
 import {
   hallAt,
   hallDay,
   leaveNote,
+  notBefore,
   proposalLeave,
   proposalReturn,
   returnNote,
@@ -103,5 +109,16 @@ describe("ordinary hours from hall settings", () => {
     expect(proposalReturn(wrapped, day).toISOString()).toBe(hallAt("2026-11-05", 18, 30).toISOString());
     // 1 Apr is winter under a Nov–Feb summer; 18:00 is after the winter end.
     expect(leaveNote(hallAt("2027-04-01", 18, 0), wrapped)).toBe(AFTER);
+  });
+
+  it("moves unset Back by onto the Leave day", () => {
+    rememberOrdinaryHours(artifactHours);
+    const leave = hallAt("2026-11-06", 10, 0);
+    const next = notBefore(leave, null);
+    expect(next).not.toBeNull();
+    expect(hallDay(next!)).toBe("2026-11-06");
+    expect(next!.toISOString()).toBe(proposalReturn(artifactHours, leave).toISOString());
+    expect(returnNote(leave, next, artifactHours)).toBeNull();
+    forgetOrdinaryHours();
   });
 });

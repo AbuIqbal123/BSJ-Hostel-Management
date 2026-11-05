@@ -139,7 +139,8 @@ export function notBefore(floor: Date, current: Date | null): Date | null {
   const hours = readOrdinaryHoursCache();
   const base = current ?? proposalReturn(hours, floor);
   if (hallDay(base) >= hallDay(floor)) {
-    return current;
+    // When Back by is still unset, keep the ordinary-end proposal on the Leave day.
+    return current ?? base;
   }
   return withHallDay(floor, base);
 }
