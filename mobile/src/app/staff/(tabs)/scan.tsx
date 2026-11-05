@@ -3,18 +3,15 @@ import { CameraView, useCameraPermissions, type BarcodeScanningResult } from "ex
 import * as Haptics from "expo-haptics";
 import { useFocusEffect } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import {
-  AccessibilityInfo,
-  Animated,
+import { Linking, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
+import Reanimated, {
   Easing,
-  Linking,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  useWindowDimensions,
-  View,
-} from "react-native";
+  ReduceMotion,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HallButton } from "@/components/hall-button";
@@ -28,6 +25,8 @@ const SAME_CODE_MS = 1500;
 /** Hold the result so staff can read it, then clear so the next pass is ready. */
 const RESULT_HOLD_MS = 30_000;
 const TICK_MS = 180;
+/** First frame is already a visible check. The settle runs from here to full size. */
+const TICK_FROM = 0.45;
 const DIM = "rgba(20, 38, 31, 0.45)";
 const LIGHT = "#F2F4F0";
 
@@ -66,17 +65,20 @@ function Viewfinder({
   size,
   color,
   camera,
+  seatResult,
   children,
 }: {
   size: number;
   color: string;
   camera: React.ReactNode;
+  /** A result card is in the lower band. Keep that band above the preview. */
+  seatResult?: boolean;
   children?: React.ReactNode;
 }) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
       <View style={[styles.dim, { flex: 1 }]} />
-      <View style={{ flexDirection: "row", height: size }}>
+      <View style={[styles.finderRow, { height: size }]}>
         <View style={[styles.dim, { flex: 1 }]} />
         <View style={[styles.frame, { width: size, height: size }]}>
           {camera}
@@ -86,10 +88,40 @@ function Viewfinder({
         </View>
         <View style={[styles.dim, { flex: 1 }]} />
       </View>
-      <View style={[styles.dim, styles.below]} pointerEvents="box-none">
+      <View
+        style={[styles.dim, styles.below, seatResult ? styles.belowSeat : null]}
+        pointerEvents="box-none"
+        collapsable={!seatResult}
+      >
         {children}
       </View>
     </View>
+  );
+}
+
+function SuccessTick({ color }: { color: string }) {
+  const reduced = useReducedMotion();
+  const scale = useSharedValue(reduced ? 1 : TICK_FROM);
+  useEffect(() => {
+    if (reduced) {
+      scale.set(1);
+      return;
+    }
+    scale.set(
+      withTiming(1, {
+        duration: TICK_MS,
+        easing: Easing.out(Easing.cubic),
+        reduceMotion: ReduceMotion.System,
+      }),
+    );
+  }, [reduced, scale]);
+  const motion = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.get() }],
+  }));
+  return (
+    <Reanimated.View accessible={false} importantForAccessibility="no" style={motion}>
+      <Ionicons name="checkmark-circle" size={32} color={color} />
+    </Reanimated.View>
   );
 }
 
@@ -107,11 +139,25 @@ function Fact({ label, value, danger }: { label: string; value: string; danger?:
 
 function ResultCard({ result, onNext }: { result: ScanResult | null; onNext: () => void }) {
   const colors = useHallColors();
-  const rise = useRef(new Animated.Value(0)).current;
-  const tick = useRef(new Animated.Value(1)).current;
+  const reduced = useReducedMotion();
+  const rise = useSharedValue(reduced ? 1 : 0);
   useEffect(() => {
-    Animated.timing(rise, { toValue: 1, duration: 140, useNativeDriver: true }).start();
-  }, [rise]);
+    if (reduced) {
+      rise.set(1);
+      return;
+    }
+    rise.set(
+      withTiming(1, {
+        duration: 140,
+        easing: Easing.out(Easing.cubic),
+        reduceMotion: ReduceMotion.System,
+      }),
+    );
+  }, [reduced, rise]);
+  const cardIn = useAnimatedStyle(() => ({
+    opacity: rise.get(),
+    transform: [{ translateY: (1 - rise.get()) * 24 }],
+  }));
   useEffect(() => {
     if (!result) {
       return;
@@ -121,33 +167,6 @@ function ResultCard({ result, onNext }: { result: ScanResult | null; onNext: () 
   }, [result, onNext]);
   const refused = result?.kind === "refused";
   const success = result !== null && !refused;
-  useEffect(() => {
-    if (!success) {
-      tick.setValue(1);
-      return;
-    }
-    let cancelled = false;
-    void AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
-      if (cancelled) {
-        return;
-      }
-      if (reduced) {
-        tick.setValue(1);
-        return;
-      }
-      tick.setValue(0.7);
-      Animated.timing(tick, {
-        toValue: 1,
-        duration: TICK_MS,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start();
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [success, tick]);
-  const lift = rise.interpolate({ inputRange: [0, 1], outputRange: [24, 0] });
   const word = !result ? "Recording" : refused ? "Not recorded" : result.kind === "leave" ? "Leave" : "Return";
   const tone = !result ? colors.inkFaint : refused ? colors.danger : colors.forest;
   const secondary = result ? [result.room, result.outing, result.place].filter(Boolean).join(" · ") : "";
@@ -162,20 +181,14 @@ function ResultCard({ result, onNext }: { result: ScanResult | null; onNext: () 
   ];
   const mark = !result ? "ellipsis-horizontal-circle" : refused ? "close-circle" : "checkmark-circle";
   return (
-    <Animated.View style={[styles.result, { opacity: rise, transform: [{ translateY: lift }] }]}>
+    <Reanimated.View style={[styles.result, cardIn]}>
       <View
         accessibilityLiveRegion="polite"
         accessibilityLabel={spoken.filter(Boolean).join(". ")}
         style={[styles.card, { backgroundColor: refused ? colors.dangerBg : colors.paper }]}
       >
         <View style={styles.wordRow}>
-          {success ? (
-            <Animated.View style={{ transform: [{ scale: tick }] }}>
-              <Ionicons name="checkmark-circle" size={32} color={tone} />
-            </Animated.View>
-          ) : (
-            <Ionicons name={mark} size={32} color={tone} />
-          )}
+          {success ? <SuccessTick color={tone} /> : <Ionicons name={mark} size={32} color={tone} />}
           <Text style={[styles.word, { color: tone, flex: 1 }]}>{word}</Text>
           <Pressable
             accessibilityRole="button"
@@ -213,7 +226,7 @@ function ResultCard({ result, onNext }: { result: ScanResult | null; onNext: () 
         ) : null}
         <HallButton label="Scan next" disabled={!result} onPress={onNext} />
       </View>
-    </Animated.View>
+    </Reanimated.View>
   );
 }
 
@@ -282,7 +295,7 @@ type Card = { id: number; result: ScanResult | null } | null;
 
 export default function ScanScreen() {
   const colors = useHallColors();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { staffRequest } = useSession();
   const [permission, requestPermission] = useCameraPermissions();
@@ -351,14 +364,21 @@ export default function ScanScreen() {
     );
   }
 
-  // Large guide only — the camera already reads a QR anywhere in the frame.
-  // Slightly smaller while a result is in the lower band so short phones keep the square clear.
-  const size = Math.min(width - 40, Math.round(width * (card ? 0.72 : 0.88)));
+  // Large guide only. The camera already reads a QR anywhere in the frame.
+  // HallTabBar is 52 plus the bottom inset and 10. Leave that, plus a result band, so the check is not under the preview.
+  const tabBar = 52 + insets.bottom + 10;
+  const resultBand = card ? 200 : 64;
+  const size = Math.min(
+    width - 40,
+    Math.round(width * (card ? 0.72 : 0.88)),
+    Math.max(140, height - tabBar - resultBand),
+  );
   return (
     <View style={[styles.screen, styles.dark]}>
       <View style={[StyleSheet.absoluteFill, { paddingTop: insets.top }]} pointerEvents="box-none">
         <Viewfinder
           size={size}
+          seatResult={card !== null}
           color={card ? colors.forest : LIGHT}
           camera={
             <CameraView
@@ -392,9 +412,12 @@ const styles = StyleSheet.create({
   dim: { backgroundColor: DIM },
   /** Clips the live preview to the same soft bend as the corner brackets. */
   frame: { borderRadius: BEND, borderCurve: "continuous", overflow: "hidden" },
+  finderRow: { flexDirection: "row" },
   corner: { position: "absolute", width: CORNER, height: CORNER },
   below: {
-    flex: 1.3,
+    flexGrow: 1.3,
+    flexShrink: 1.3,
+    flexBasis: 0,
     alignItems: "stretch",
     justifyContent: "flex-start",
     paddingTop: 16,
@@ -402,6 +425,8 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     gap: 16,
   },
+  /** Paint the result over the preview, and do not let this band shrink to nothing. */
+  belowSeat: { flexShrink: 0, minHeight: 96, zIndex: 2, elevation: 4 },
   hint: {
     alignSelf: "center",
     fontFamily: "SourceSans3_400Regular",

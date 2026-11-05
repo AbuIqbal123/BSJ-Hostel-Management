@@ -411,6 +411,7 @@ Keep them restrained and institutional: a soft settle, a brief check mark, a gen
 |---|---|---|
 | Permission card appear | New request or decision lands calmly | Fade + 6–8px rise, 180–220ms ease-out |
 | Gate scan success | Confirm exit/return without delaying the next scan | Check on result panel, ≤180ms; close or Scan next clears immediately; otherwise auto-clear at 30s |
+| Plan outing confirm | Show an ordinary plan was saved | Check on the Confirm button, scale 0.7 to 1 in 180ms, then the form clears. A refused plan keeps the error and does not play the check. Reduce motion shows the check still. |
 | List item enter | Queue, register row, or history row arrives ordered | Fade + 4px rise, 150–200ms ease-out; **stagger** when many |
 | Toggle | Preference or paid/unpaid flips clearly | Thumb/track 120–160ms ease-out; optional 1-frame overshoot ≤2% |
 | Toast / banner | Soft success or refusal notice | Slide or fade from edge, 200ms ease-out; hold; exit faster than enter |
