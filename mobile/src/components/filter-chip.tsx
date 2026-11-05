@@ -45,7 +45,9 @@ export function FilterMark({ label, on, onPress }: { label: string; on: boolean;
 
 const styles = StyleSheet.create({
   chip: {
-    alignSelf: "center",
+    alignSelf: "flex-start",
+    flexGrow: 0,
+    flexShrink: 0,
     minHeight: 32,
     borderWidth: 1,
     borderRadius: 8,
@@ -55,7 +57,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   label: { fontFamily: "SourceSans3_600SemiBold", fontSize: 15, lineHeight: 20 },
-  markHit: { minHeight: 32, justifyContent: "flex-end", gap: 6 },
+  markHit: { minHeight: 32, justifyContent: "flex-end", gap: 6, alignSelf: "flex-start" },
   markLabel: { fontFamily: "SourceSans3_600SemiBold", fontSize: 15, lineHeight: 20 },
   mark: { height: 2, borderRadius: 1 },
 });
