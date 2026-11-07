@@ -19,6 +19,7 @@ from app.residents.outings.records import (
     record_outing,
     return_is_taken,
 )
+from app.residents.permissions.records import expire_passed_permissions
 from app.residents.outings.usable import find_usable_outing
 from app.shared import clock
 from app.residents.notifications.records import record_late_outings
@@ -380,7 +381,8 @@ def scan_hall_pass(
     room_label = resident["room_label"]
     presence = resident["presence"]
     resident_id = resident["user_id"]
-    if resident["status"] != "active":
+    # Suspension blocks a new exit. A resident already outside may still return.
+    if resident["status"] != "active" and presence != "outside":
         _refuse(
             "resident_suspended",
             "This resident account is suspended. Contact the Hall Office.",
@@ -391,6 +393,7 @@ def scan_hall_pass(
     now = clock.utc_now()
     now_text = clock.format_instant(now)
     expire_passed_plans(connection, resident_id, now_text)
+    expire_passed_permissions(connection, now_text, resident_id=resident_id)
     connection.commit()
 
     last_at = _last_movement_at(connection, resident_id)

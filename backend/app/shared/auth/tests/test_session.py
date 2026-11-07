@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -518,3 +519,84 @@ def test_auth_session(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
         checker.verify(gate_hash, role_credential("gate"))
 
     assert read_auth_state(database_path) == expected
+
+
+def test_refresh_token_spent_once_under_overlap(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One refresh secret yields one 200 and one live session when calls overlap."""
+    from app.main import app
+    from app.shared import clock
+
+    frozen = FrozenClock()
+    monkeypatch.setattr(clock, "utc_now", frozen.utc_now)
+
+    with TestClient(app) as client:
+        issue_accounts(database_path)
+        frozen.set(1)
+        signed = client.post(
+            "/api/v1/auth/login",
+            json=_login_body("gate.fatima", role_credential("gate")),
+        )
+        assert signed.status_code == 200
+        refresh_token = signed.json()["refresh_token"]
+
+        frozen.set(2)
+
+        def refresh_once():
+            return client.post(
+                "/api/v1/auth/refresh",
+                json={"refresh_token": refresh_token},
+            )
+
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            responses = list(pool.map(lambda _: refresh_once(), range(8)))
+
+        statuses = [response.status_code for response in responses]
+        assert statuses.count(200) == 1, statuses
+        assert statuses.count(401) == 7, statuses
+        winning = next(response for response in responses if response.status_code == 200)
+        new_secret = winning.json()["refresh_token"]
+
+        connection = sqlite3.connect(database_path)
+        try:
+            live = connection.execute(
+                """
+                SELECT COUNT(*) AS n
+                FROM sessions
+                WHERE user_id = ? AND revoked_at IS NULL
+                """,
+                (GATE_ID,),
+            ).fetchone()[0]
+        finally:
+            connection.close()
+        assert live == 1
+
+        frozen.set(3)
+        rotated = client.post(
+            "/api/v1/auth/refresh",
+            json={"refresh_token": new_secret},
+        )
+        assert rotated.status_code == 200
+        connection = sqlite3.connect(database_path)
+        try:
+            live_after = connection.execute(
+                """
+                SELECT COUNT(*) AS n
+                FROM sessions
+                WHERE user_id = ? AND revoked_at IS NULL
+                """,
+                (GATE_ID,),
+            ).fetchone()[0]
+            previous_revoked = connection.execute(
+                """
+                SELECT COUNT(*) AS n
+                FROM sessions
+                WHERE user_id = ? AND revoked_at IS NOT NULL
+                """,
+                (GATE_ID,),
+            ).fetchone()[0]
+        finally:
+            connection.close()
+        assert live_after == 1
+        assert previous_revoked >= 1

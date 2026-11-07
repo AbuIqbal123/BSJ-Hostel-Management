@@ -688,3 +688,182 @@ def test_late_night_returns_the_same_night(
         )
         home_going = client.post("/api/v1/me/permissions", headers=auth(resident), json=home)
         assert home_going.status_code == 201
+
+
+def test_passed_approved_permissions_expire_on_gate_scan_and_plan(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Gate scan and outing plan expire unused approved permissions past return."""
+    from app.main import app
+    from app.shared import clock
+
+    PAST_PERM = "f8800000-0000-4000-8000-000000000040"
+    LIVE_PERM = "f8800000-0000-4000-8000-000000000041"
+    PENDING_PERM = "f8800000-0000-4000-8000-000000000042"
+    OPEN_OUTING = "e7700000-0000-4000-8000-000000000040"
+    LIBRARY = "fc2da7c5-8d65-5680-8034-d8acb69745eb"
+    QR = "bsj:v1:24-GLLB-118"
+
+    # 10:00 UTC = 15:30 IST, inside ordinary hours so a refused plan is about
+    # the open show window, not hours.
+    frozen = FrozenClock()
+    frozen.moment = datetime(2026, 9, 30, 10, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr(clock, "utc_now", frozen.utc_now)
+
+    with TestClient(app) as client:
+        issue_people(database_path)
+        connection = sqlite3.connect(database_path)
+        try:
+            connection.execute("PRAGMA foreign_keys=ON;")
+            connection.execute(
+                """
+                INSERT INTO permissions (
+                  id, resident_id, type, status, short_place, destination_detail, address,
+                  reason, departure_at, expected_return_at, decided_by, decided_at,
+                  decision_note, created_at, updated_at
+                ) VALUES
+                (?, ?, 'late_night', 'approved', 'Past place', NULL, NULL,
+                 'Already past return.', '2026-09-28T10:00:00Z', '2026-09-29T10:00:00Z',
+                 ?, '2026-09-28T09:00:00Z', NULL, '2026-09-28T08:00:00Z', '2026-09-28T09:00:00Z'),
+                (?, ?, 'late_night', 'pending', 'Waiting', NULL, NULL,
+                 'Not decided.', '2026-09-30T15:00:00Z', '2026-09-30T17:00:00Z',
+                 NULL, NULL, NULL, '2026-09-30T09:00:00Z', '2026-09-30T09:00:00Z')
+                """,
+                (
+                    PAST_PERM,
+                    RESIDENT_ID,
+                    PROVOST_ID,
+                    PENDING_PERM,
+                    RESIDENT_ID,
+                ),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+        resident = sign_in(client, "24-GLLB-118", role_credential("resident"))
+        gate = sign_in(client, "gate.fatima", role_credential("gate"))
+        gate_headers = auth(gate)
+
+        still_approved = client.get(
+            f"/api/v1/me/permissions/{PAST_PERM}",
+            headers=auth(resident),
+        )
+        assert still_approved.status_code == 200
+        assert still_approved.json()["status"] == "approved"
+
+        refused = client.post(
+            "/api/v1/gate/scans",
+            headers=gate_headers,
+            json={"qr_payload": QR},
+        )
+        assert refused.status_code == 409
+        assert refused.json()["error"]["code"] == "no_outing_planned"
+
+        after_scan = client.get(
+            f"/api/v1/me/permissions/{PAST_PERM}",
+            headers=auth(resident),
+        )
+        assert after_scan.status_code == 200
+        assert after_scan.json()["status"] == "expired"
+        assert permission_row(database_path, PENDING_PERM)["status"] == "pending"
+
+        connection = sqlite3.connect(database_path)
+        connection.row_factory = sqlite3.Row
+        try:
+            audit = connection.execute(
+                """
+                SELECT action, actor_user_id
+                FROM audit_log
+                WHERE entity_id = ? AND action = 'permission.expired'
+                """,
+                (PAST_PERM,),
+            ).fetchone()
+        finally:
+            connection.close()
+        assert audit is not None
+        assert audit["actor_user_id"] is None
+
+        PLAN_PAST = "f8800000-0000-4000-8000-000000000043"
+        connection = sqlite3.connect(database_path)
+        try:
+            connection.execute(
+                """
+                INSERT INTO permissions (
+                  id, resident_id, type, status, short_place, destination_detail, address,
+                  reason, departure_at, expected_return_at, decided_by, decided_at,
+                  decision_note, created_at, updated_at
+                ) VALUES (
+                  ?, ?, 'home_going', 'approved', 'Delhi', NULL, '1 Ring Road',
+                  'Past return for plan.', '2026-09-20T02:30:00Z', '2026-09-21T12:00:00Z',
+                  ?, '2026-09-19T11:00:00Z', NULL, '2026-09-19T10:00:00Z', '2026-09-19T11:00:00Z'
+                )
+                """,
+                (PLAN_PAST, RESIDENT_ID, PROVOST_ID),
+            )
+            # Show window already open (starts 30 minutes before now).
+            connection.execute(
+                """
+                INSERT INTO outings (
+                  id, resident_id, permission_id, type, status, destination_id, place,
+                  starts_at, expected_return_at, grace_ends_at, exited_at, exit_recorded_by,
+                  returned_at, return_recorded_by, created_at, updated_at, cancelled_at, hall_date
+                ) VALUES (
+                  ?, ?, NULL, 'ordinary', 'planned', ?, 'Maulana Azad Library',
+                  '2026-09-30T09:45:00Z', '2026-09-30T11:30:00Z', '2026-09-30T12:00:00Z',
+                  NULL, NULL, NULL, NULL, ?, ?, NULL, '2026-09-30'
+                )
+                """,
+                (OPEN_OUTING, RESIDENT_ID, LIBRARY, CREATED, CREATED),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+        refused_plan = client.post(
+            "/api/v1/me/outings",
+            headers=auth(resident),
+            json={
+                "destination_id": LIBRARY,
+                "starts_at": "2026-09-30T10:10:00Z",
+                "expected_return_at": "2026-09-30T11:00:00Z",
+            },
+        )
+        assert refused_plan.status_code == 409
+        assert refused_plan.json()["error"]["code"] == "outing_window_open"
+        assert permission_row(database_path, PLAN_PAST)["status"] == "expired"
+
+        connection = sqlite3.connect(database_path)
+        try:
+            # Lead is 30 minutes; departure far enough ahead that this permission
+            # is not yet usable, so the open ordinary plan wins the scan.
+            connection.execute(
+                """
+                INSERT INTO permissions (
+                  id, resident_id, type, status, short_place, destination_detail, address,
+                  reason, departure_at, expected_return_at, decided_by, decided_at,
+                  decision_note, created_at, updated_at
+                ) VALUES (
+                  ?, ?, 'late_night', 'approved', 'Still open', NULL, NULL,
+                  'Inside its window.', '2026-09-30T15:00:00Z', '2026-09-30T16:30:00Z',
+                  ?, '2026-09-30T09:00:00Z', NULL, '2026-09-30T08:00:00Z', '2026-09-30T09:00:00Z'
+                )
+                """,
+                (LIVE_PERM, RESIDENT_ID, PROVOST_ID),
+            )
+            connection.execute(
+                "UPDATE hall_settings SET scan_duplicate_window_seconds = 0 WHERE id = 'hall'"
+            )
+            connection.commit()
+        finally:
+            connection.close()
+        exit_scan = client.post(
+            "/api/v1/gate/scans",
+            headers=gate_headers,
+            json={"qr_payload": QR},
+        )
+        assert exit_scan.status_code == 200
+        assert exit_scan.json()["outcome"] == "exit_recorded"
+        assert exit_scan.json()["outing"]["id"] == OPEN_OUTING
+        assert permission_row(database_path, LIVE_PERM)["status"] == "approved"
+        assert permission_row(database_path, PENDING_PERM)["status"] == "pending"

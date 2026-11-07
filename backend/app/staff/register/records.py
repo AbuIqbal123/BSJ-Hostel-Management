@@ -116,7 +116,7 @@ def load_summary(connection: sqlite3.Connection) -> RegisterSummary:
             LEFT JOIN outings AS open_outing
               ON open_outing.resident_id = residents.user_id
              AND open_outing.status = 'outside'
-            WHERE users.status = 'active'
+            WHERE (users.status = 'active' OR residents.presence = 'outside')
               AND rooms.block_id = ?
             """,
             (block["block_id"],),
@@ -245,7 +245,7 @@ JOIN blocks ON blocks.id = rooms.block_id
 LEFT JOIN outings AS open_outing
   ON open_outing.resident_id = residents.user_id
  AND open_outing.status = 'outside'
-WHERE users.status = 'active'
+WHERE (users.status = 'active' OR residents.presence = 'outside')
 """
 
 
@@ -294,7 +294,7 @@ def list_register(
         LEFT JOIN outings AS open_outing
           ON open_outing.resident_id = residents.user_id
          AND open_outing.status = 'outside'
-        WHERE users.status = 'active'{where_extra}
+        WHERE (users.status = 'active' OR residents.presence = 'outside'){where_extra}
     """
     total = connection.execute(count_sql, params).fetchone()["n"]
     back_by = (

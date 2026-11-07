@@ -244,7 +244,7 @@ At most one active destination is the free-text choice.
 | updated_at | Instant | Yes | System | When the account last changed. |
 | last_login_at | Instant | Empty until the first sign-in | System, at each successful sign-in | When this person last signed in. |
 
-A suspended person cannot sign in and cannot be scanned out or in. The account stays.
+A suspended person cannot sign in and cannot start a new exit. Suspension changes account access, not physical presence: it does not close an open outing, fabricate a return, or mark her inside. If she is already outside, she stays on the register's outside and late lists and counts, and gate staff may record her return. The account stays suspended until reinstatement.
 
 ### Residents
 
@@ -526,7 +526,7 @@ The stay becomes approved only when the rows show a yes from every roommate requ
 
 One person has at most one decision for one role on one stay. A second row for the same stay, person, and role is refused.
 
-The required roommates are worked out when someone looks. They are the other residents assigned to the host's room now whose accounts are active. The host is not her own roommate. A suspended resident who has not been moved still occupies a bed, and she is left out, the same way the register leaves suspended residents out of the inside and outside counts. A room with no other active resident has no roommate to ask.
+The required roommates are worked out when someone looks. They are the other residents assigned to the host's room now whose accounts are active. The host is not her own roommate. A suspended resident who has not been moved still occupies a bed, and she is left out of the roommate list. A room with no other active resident has no roommate to ask.
 
 ### Guest stay payment evidence
 
@@ -676,14 +676,14 @@ The same counts are kept for the whole hall and, separately, for each block. A r
 | Count | Who is included |
 |---|---|
 | Currently inside | Active residents whose presence is inside. |
-| Currently outside | Presence outside, and the open outing is not past grace. |
-| Late, not yet returned | Presence outside, and grace has ended. |
-| Permissions waiting | Permissions still waiting for a decision. |
+| Currently outside | Presence outside, and the open outing is not past grace. Includes a suspended resident who is still outside. |
+| Late, not yet returned | Presence outside, and grace has ended. Includes a suspended resident who is still outside past grace. |
+| Permissions waiting | Permissions still waiting for a decision. Active residents only. |
 | Guests in hall | Guest stays that have arrived and have not departed. |
 | Should have left | The guest list of that name. |
 | Guest stays waiting | Guest stays still waiting. |
 
-The whole-hall figure is the sum of the blocks. Suspended residents stay in the account list and are left out of the inside and outside counts.
+The whole-hall figure is the sum of the blocks. Suspended residents stay in the account list. A suspended resident who is inside is left out of the inside count and register lists. A suspended resident who is outside remains in the outside or late count and list until she returns.
 
 ## History that is not its own list
 

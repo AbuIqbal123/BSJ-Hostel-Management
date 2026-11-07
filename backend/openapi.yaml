@@ -209,9 +209,11 @@ paths:
       summary: Exchange a refresh token
       description: |
         Issues a new access token and a new refresh token. The presented refresh
-        token is revoked. A revoked, expired, or unknown token is refused.
-        Repeated attempts from the same client are limited; further attempts
-        return 429.
+        token is spent once: this call must revoke that session row, or it returns
+        401 and does not start another session. Overlapping reuse of the same
+        secret therefore yields one 200 and otherwise 401. A revoked, expired, or
+        unknown token is refused. Repeated attempts from the same client are
+        limited; further attempts return 429.
       security: []
       requestBody:
         required: true
@@ -1749,7 +1751,8 @@ paths:
         `starts_at` existed is usable for its hall day.
 
         While the resident is outside, a scan records the return. Nothing else
-        is filled in.
+        is filled in. A suspended resident who is already outside may still be
+        scanned back in; suspension blocks a new exit only.
 
         The 200 body is a discriminated union on `outcome`. Shared envelope
         fields are only `outcome`, `full_name`, `room_label`, and `message`.
@@ -2160,7 +2163,8 @@ paths:
         Caller: warden or provost. Counts for the whole hall, and the same counts
         for each block. A resident is counted in the block of her current room.
         A guest is counted in the host's block. The hall totals are the sum of
-        the blocks.
+        the blocks. A suspended resident who is outside remains in the outside
+        or late counts; a suspended resident who is inside is left out.
       responses:
         "200":
           description: Counts.
@@ -3172,7 +3176,10 @@ paths:
         here. `phone` may be set to null to clear it. `guardian_name` and
         `guardian_phone` may be replaced and may not be cleared. A phone
         includes the country code. `status` suspends or reinstates.
-        Suspension revokes refresh tokens.
+        Suspension revokes refresh tokens. It does not close an open outing or
+        mark the resident inside. A suspended resident who is outside stays on
+        the register until a return scan; she cannot start a new exit until
+        reinstated.
       parameters:
         - $ref: "#/components/parameters/ResidentId"
       requestBody:
@@ -4352,7 +4359,8 @@ components:
       type: string
       enum: [active, suspended]
       description: >
-        `active` may sign in. `suspended` may not.
+        `active` may sign in. `suspended` may not. A suspended resident who is
+        already outside may still be scanned back in; she cannot start a new exit.
 
     CurrentUser:
       type: object

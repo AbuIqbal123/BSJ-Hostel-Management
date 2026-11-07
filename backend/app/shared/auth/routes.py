@@ -281,7 +281,7 @@ def refresh(body: RefreshRequest, request: Request, connection: ConnectionDep) -
     account = _load_account(connection, row["user_id"])
     if account is None or account.status != "active":
         raise ApiError(401, "unauthenticated", _SIGN_IN_AGAIN)
-    connection.execute(
+    revoked = connection.execute(
         """
         UPDATE sessions
         SET revoked_at = ?
@@ -289,6 +289,8 @@ def refresh(body: RefreshRequest, request: Request, connection: ConnectionDep) -
         """,
         (stamp, row["id"]),
     )
+    if revoked.rowcount != 1:
+        raise ApiError(401, "unauthenticated", _SIGN_IN_AGAIN)
     return _start_session(connection, account, now)
 
 

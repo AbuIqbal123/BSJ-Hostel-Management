@@ -30,6 +30,7 @@ from app.residents.outings.records import (
     qr_window,
     record_outing,
 )
+from app.residents.permissions.records import expire_passed_permissions
 
 router = APIRouter(prefix="/api/v1", tags=["Resident"])
 
@@ -175,6 +176,7 @@ def plan_outing(
     _start, moment = _require_ordinary_times(body, settings, now_text)
     destination_id, place = _remembered_place(connection, body)
     expire_passed_plans(connection, account.id, now_text)
+    expire_passed_permissions(connection, now_text, resident_id=account.id)
     day = clock.hall_local_date(moment)
     opening, _, _ = qr_window(
         outing_type="ordinary",
@@ -243,6 +245,7 @@ def update_outing(
     now = clock.utc_now()
     now_text = clock.format_instant(now)
     expire_passed_plans(connection, account.id, now_text)
+    expire_passed_permissions(connection, now_text, resident_id=account.id)
     connection.commit()
     outing = _own_outing(connection, outing_id, account.id)
     _refuse_unless_changeable(outing, now)
@@ -349,6 +352,7 @@ def cancel_outing(outing_id: str, account: ResidentDep, connection: ConnectionDe
     now = clock.utc_now()
     now_text = clock.format_instant(now)
     expire_passed_plans(connection, account.id, now_text)
+    expire_passed_permissions(connection, now_text, resident_id=account.id)
     # A passed plan is already cancelled. Keep that if this request is refused.
     connection.commit()
     outing = _own_outing(connection, outing_id, account.id)
