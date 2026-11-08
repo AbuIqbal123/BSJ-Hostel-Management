@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 
 from app.shared.testing_env import role_credential
 from app.shared.auth.rate_limit import (
+    AttemptLimiter,
     client_key,
     login_limiter,
     refresh_limiter,
@@ -244,3 +245,32 @@ def test_successful_sign_in_does_not_spend_the_username_budget(
             assert refused.status_code == 401
         blocked = client.post("/api/v1/auth/login", json=right)
         assert_error(blocked, 429, "rate_limited", "Too many attempts. Try again shortly.")
+
+
+def test_attempt_limiter_drops_expired_keys(monkeypatch: pytest.MonkeyPatch) -> None:
+    clock = {"now": 1000.0}
+    monkeypatch.setattr(
+        "app.shared.auth.rate_limit.time.monotonic",
+        lambda: clock["now"],
+    )
+    limiter = AttemptLimiter(limit=30, window_seconds=10, max_keys=100)
+    for index in range(40):
+        limiter.record(f"user-{index}")
+    assert len(limiter._hits) == 40
+    clock["now"] = 1020.0
+    limiter.record("fresh")
+    assert set(limiter._hits) == {"fresh"}
+
+
+def test_attempt_limiter_caps_distinct_keys(monkeypatch: pytest.MonkeyPatch) -> None:
+    clock = {"now": 5000.0}
+    monkeypatch.setattr(
+        "app.shared.auth.rate_limit.time.monotonic",
+        lambda: clock["now"],
+    )
+    limiter = AttemptLimiter(limit=30, window_seconds=60, max_keys=20)
+    for index in range(50):
+        clock["now"] = 5000.0 + index
+        limiter.record(f"user-{index}")
+    assert len(limiter._hits) <= 20
+    assert "user-49" in limiter._hits

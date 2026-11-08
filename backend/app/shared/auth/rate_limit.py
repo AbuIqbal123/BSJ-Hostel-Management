@@ -11,14 +11,24 @@ LOGIN_LIMIT = 30
 REFRESH_LIMIT = 60
 OPTIONS_LIMIT = 60
 WINDOW_SECONDS = 60
+# Distinct client/username keys retained at once. Expired keys are pruned on
+# every touch; this cap stops a flood of unique names from growing forever.
+MAX_KEYS = 4096
 
 
 class AttemptLimiter:
     """Sliding window of timestamps per client key."""
 
-    def __init__(self, *, limit: int, window_seconds: int) -> None:
+    def __init__(
+        self,
+        *,
+        limit: int,
+        window_seconds: int,
+        max_keys: int = MAX_KEYS,
+    ) -> None:
         self.limit = limit
         self.window_seconds = window_seconds
+        self.max_keys = max_keys
         self._hits: dict[str, list[float]] = {}
         self._lock = threading.Lock()
 
@@ -29,29 +39,55 @@ class AttemptLimiter:
     def _recent(self, key: str, now: float) -> list[float]:
         return [stamp for stamp in self._hits.get(key, []) if now - stamp < self.window_seconds]
 
+    def _prune_expired(self, now: float) -> None:
+        stale = [
+            key
+            for key, stamps in self._hits.items()
+            if not any(now - stamp < self.window_seconds for stamp in stamps)
+        ]
+        for key in stale:
+            del self._hits[key]
+
+    def _store(self, key: str, recent: list[float], now: float) -> None:
+        self._prune_expired(now)
+        if recent:
+            self._hits[key] = recent
+        else:
+            self._hits.pop(key, None)
+        if len(self._hits) <= self.max_keys:
+            return
+        # Drop the keys whose newest hit is oldest, never the key just written.
+        ranked = sorted(
+            (
+                (max(stamps) if stamps else 0.0, stored)
+                for stored, stamps in self._hits.items()
+                if stored != key
+            ),
+        )
+        overflow = len(self._hits) - self.max_keys
+        for _age, stored in ranked[:overflow]:
+            self._hits.pop(stored, None)
+
     def check(self, key: str) -> None:
         now = time.monotonic()
         with self._lock:
             recent = self._recent(key, now)
             if len(recent) >= self.limit:
-                self._hits[key] = recent
+                self._store(key, recent, now)
                 raise ApiError(
                     429,
                     "rate_limited",
                     "Too many attempts. Try again shortly.",
                 )
             recent.append(now)
-            self._hits[key] = recent
+            self._store(key, recent, now)
 
     def blocked(self, key: str) -> bool:
         """True when this key is already at the limit. Does not record a hit."""
         now = time.monotonic()
         with self._lock:
             recent = self._recent(key, now)
-            if recent:
-                self._hits[key] = recent
-            else:
-                self._hits.pop(key, None)
+            self._store(key, recent, now)
             return len(recent) >= self.limit
 
     def record(self, key: str) -> None:
@@ -60,7 +96,7 @@ class AttemptLimiter:
         with self._lock:
             recent = self._recent(key, now)
             recent.append(now)
-            self._hits[key] = recent
+            self._store(key, recent, now)
 
 
 login_limiter = AttemptLimiter(limit=LOGIN_LIMIT, window_seconds=WINDOW_SECONDS)

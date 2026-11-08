@@ -48,6 +48,32 @@ def test_a_failed_file_leaves_nothing_behind(
         connection.close()
 
 
+def test_migration_filename_with_quote_is_recorded_literally(
+    database_path: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Bookkeeping binds the filename; a quote in the name is not SQL."""
+    odd = tmp_path / "9998_odd'_name.sql"
+    odd.write_text(
+        "CREATE TABLE quote_safe_migration (x INTEGER);\n",
+        encoding="utf-8",
+    )
+    migration.migrate()
+    monkeypatch.setattr(migration, "MIGRATIONS", (*migration.MIGRATIONS, odd))
+    migration.migrate()
+    connection = sqlite3.connect(database_path)
+    try:
+        assert odd.name in migration.applied_migrations(connection)
+        assert "quote_safe_migration" in _tables(database_path)
+        row = connection.execute(
+            "SELECT filename FROM schema_migrations WHERE filename = ?",
+            (odd.name,),
+        ).fetchone()
+        assert row is not None
+        assert row[0] == odd.name
+    finally:
+        connection.close()
+
+
 def test_a_hall_from_before_the_records_uses_user_version(database_path: Path) -> None:
     migration.migrate()
     _forget_records(database_path, len(migration.MIGRATIONS))

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.shared.db import create_connection
+from app.shared.db import DB_ERRORS, create_connection
 
 MIGRATIONS = tuple(sorted((Path(__file__).resolve().parent / "migrations").glob("*.sql")))
 SCHEMA_VERSION = 1
@@ -52,12 +52,21 @@ def _mark_applied(connection: object, filename: str) -> None:
 
 
 def _apply(connection: object, path: Path) -> None:
-    connection.executescript(
-        "BEGIN;\n"
-        f"{path.read_text(encoding='utf-8')}\n"
-        f"INSERT INTO schema_migrations (filename) VALUES ('{path.name}');\n"
-        "COMMIT;"
-    )
+    """Run one migration file and record it in the same transaction.
+
+    The filename is bound with a parameter, not interpolated into the script.
+    ``executescript`` commits any open work first, so the file body and the
+    bookkeeping row share an explicit BEGIN that we commit only after both
+    succeed.
+    """
+    body = path.read_text(encoding="utf-8")
+    try:
+        connection.executescript(f"BEGIN;\n{body}\n")
+        _mark_applied(connection, path.name)
+        connection.commit()
+    except DB_ERRORS:
+        connection.rollback()
+        raise
 
 
 def migrate() -> None:
