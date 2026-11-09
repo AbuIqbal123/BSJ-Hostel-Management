@@ -267,29 +267,40 @@ def _forwarded_peer_allowed(peer: str | None) -> bool:
     return peer in allowed
 
 
-class ForwardedClient:
-    """Use the address the platform proxy appended to X-Forwarded-For.
+def _request_header(scope: dict, name: bytes) -> str | None:
+    for header_name, value in scope.get("headers", []):
+        if header_name == name:
+            text = value.decode("latin-1").strip()
+            return text or None
+    return None
 
-    Only the last entry is trusted, and only when the TCP peer is listed in
-    FORWARDED_ALLOW_IPS. Earlier entries are whatever the caller sent, so a
-    faked header cannot pick a fresh sign-in limit. Off unless
-    TRUST_FORWARDED_FOR=1, because without a proxy the caller writes it all.
+
+class ForwardedClient:
+    """Set the ASGI client used for per-address rate limits.
+
+    On Fly (`FLY_APP_NAME` is set by the platform), use `Fly-Client-IP`. The
+    edge sets and overwrites that header, so a caller cannot spoof it. Off Fly,
+    when TRUST_FORWARDED_FOR=1, use the last X-Forwarded-For hop only if the
+    TCP peer is listed in FORWARDED_ALLOW_IPS. Otherwise keep the raw TCP peer.
     """
 
     def __init__(self, asgi_app: object) -> None:
         self.asgi_app = asgi_app
 
     async def __call__(self, scope: dict, receive: object, send: object) -> None:
-        if scope["type"] == "http" and os.environ.get("TRUST_FORWARDED_FOR") == "1":
-            peer = scope["client"][0] if scope.get("client") else None
-            if _forwarded_peer_allowed(peer):
-                forwarded = [
-                    value for name, value in scope["headers"] if name == b"x-forwarded-for"
-                ]
-                if forwarded:
-                    last = forwarded[-1].decode("latin-1").rsplit(",", 1)[-1].strip()
-                    if last:
-                        scope = {**scope, "client": (last, 0)}
+        if scope["type"] == "http":
+            if os.environ.get("FLY_APP_NAME"):
+                fly_ip = _request_header(scope, b"fly-client-ip")
+                if fly_ip:
+                    scope = {**scope, "client": (fly_ip, 0)}
+            elif os.environ.get("TRUST_FORWARDED_FOR") == "1":
+                peer = scope["client"][0] if scope.get("client") else None
+                if _forwarded_peer_allowed(peer):
+                    forwarded = _request_header(scope, b"x-forwarded-for")
+                    if forwarded:
+                        last = forwarded.rsplit(",", 1)[-1].strip()
+                        if last:
+                            scope = {**scope, "client": (last, 0)}
         await self.asgi_app(scope, receive, send)  # type: ignore[misc]
 
 
