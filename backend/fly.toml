@@ -13,20 +13,14 @@ org = "personal"
 [http_service]
   internal_port = 8000
   force_https = true
-  auto_stop_machines = "off"
+  # Dev only: stop when idle (overnight when testers are away), start on the
+  # next request. A continuous machine health check would keep it awake, so
+  # that check is omitted here; deploy still smoke-checks the Machine.
+  auto_stop_machines = "stop"
   auto_start_machines = true
-  min_machines_running = 1
+  min_machines_running = 0
   processes = ["app"]
 
 [[vm]]
   size = "shared-cpu-1x"
   memory = "512mb"
-
-[checks]
-  [checks.health]
-    type = "http"
-    port = 8000
-    path = "/health"
-    interval = "15s"
-    timeout = "5s"
-    grace_period = "30s"
