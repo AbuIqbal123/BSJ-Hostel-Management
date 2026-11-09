@@ -867,3 +867,29 @@ def test_passed_approved_permissions_expire_on_gate_scan_and_plan(
         assert exit_scan.json()["outing"]["id"] == OPEN_OUTING
         assert permission_row(database_path, LIVE_PERM)["status"] == "approved"
         assert permission_row(database_path, PENDING_PERM)["status"] == "pending"
+
+
+def test_cancel_does_not_expire_another_residents_permission(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A foreign cancel must 404 without expiring the other resident's overdue approval."""
+    from app.main import app
+    from app.shared import clock
+
+    frozen = FrozenClock()
+    monkeypatch.setattr(clock, "utc_now", frozen.utc_now)
+    with TestClient(app) as client:
+        issue_people(database_path)
+        insert_seed_permissions(database_path)
+        assert permission_row(database_path, STAFF_EXPIRE_ID)["status"] == "approved"
+        resident = sign_in(client, "24-GLLB-118", role_credential("resident"))
+        assert_error(
+            client.post(
+                f"/api/v1/me/permissions/{STAFF_EXPIRE_ID}/cancel",
+                headers=auth(resident),
+            ),
+            404,
+            "not_found",
+            "That record was not found.",
+        )
+        assert permission_row(database_path, STAFF_EXPIRE_ID)["status"] == "approved"

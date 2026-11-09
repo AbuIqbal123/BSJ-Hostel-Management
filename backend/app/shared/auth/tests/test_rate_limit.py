@@ -59,7 +59,9 @@ def test_forwarded_clients_do_not_share_a_limit(
     database_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(login_limiter, "limit", 2)
+    monkeypatch.delenv("FLY_APP_NAME", raising=False)
     monkeypatch.setenv("TRUST_FORWARDED_FOR", "1")
+    monkeypatch.setenv("FORWARDED_ALLOW_IPS", "127.0.0.1")
     from app.main import app
 
     with TestClient(app) as client:
@@ -90,6 +92,133 @@ def test_forwarded_clients_do_not_share_a_limit(
         headers=second,
     )
     assert other.status_code == 401
+
+
+def test_untrusted_peer_cannot_spoof_forwarded_client(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only an allowlisted proxy peer may supply X-Forwarded-For."""
+    monkeypatch.setattr(login_limiter, "limit", 2)
+    monkeypatch.delenv("FLY_APP_NAME", raising=False)
+    monkeypatch.setenv("TRUST_FORWARDED_FOR", "1")
+    monkeypatch.setenv("FORWARDED_ALLOW_IPS", "127.0.0.1")
+    from app.main import app
+
+    with TestClient(app) as client:
+        assert client.get("/health").json() == {"status": "ok"}
+        issue_gate(database_path)
+    stranger = TestClient(app, client=("198.51.100.50", 443))
+    spoofed = {"X-Forwarded-For": "203.0.113.99"}
+    for _ in range(2):
+        refused = stranger.post(
+            "/api/v1/auth/login",
+            json=_login_body("gate.fatima", role_credential("wrong")),
+            headers=spoofed,
+        )
+        assert refused.status_code == 401
+    assert set(login_limiter._hits) == {"198.51.100.50"}
+    blocked = stranger.post(
+        "/api/v1/auth/login",
+        json=_login_body("gate.fatima", role_credential("wrong")),
+        headers={"X-Forwarded-For": "203.0.113.100"},
+    )
+    assert_error(blocked, 429, "rate_limited", "Too many attempts. Try again shortly.")
+    assert "203.0.113.100" not in login_limiter._hits
+
+
+def _fly_rate_limit_app(monkeypatch: pytest.MonkeyPatch):
+    """Load the app with FLY_APP_NAME set without switching the test DB to Turso.
+
+    ForwardedClient reads FLY_APP_NAME from the environment. Hosted DB guards
+    also key on that name, so keep the laptop SQLite fixture by stubbing
+    is_hosted only for process startup.
+    """
+    monkeypatch.setenv("FLY_APP_NAME", "bsj-hostel-api-dev")
+    monkeypatch.setenv("TRUST_FORWARDED_FOR", "1")
+    monkeypatch.setenv("FORWARDED_ALLOW_IPS", "*")
+    monkeypatch.setattr("app.shared.config.is_hosted", lambda: False)
+    monkeypatch.setattr("app.shared.db.is_hosted", lambda: False)
+    monkeypatch.setattr("app.main.is_hosted", lambda: False)
+    from app.shared.config import get_settings
+
+    get_settings.cache_clear()
+    from app.main import app
+
+    return app
+
+
+def test_fly_client_ip_keys_separate_visitors(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """On Fly, Fly-Client-IP is the rate-limit key (edge overwrites it)."""
+    monkeypatch.setattr(login_limiter, "limit", 2)
+    app = _fly_rate_limit_app(monkeypatch)
+
+    with TestClient(app) as client:
+        assert client.get("/health").json() == {"status": "ok"}
+        issue_gate(database_path)
+    # TCP peer looks like Fly's private proxy, not the visitor.
+    proxy = TestClient(app, client=("172.19.59.177", 443))
+    first = {"Fly-Client-IP": "203.0.113.10"}
+    second = {"Fly-Client-IP": "203.0.113.20"}
+    for _ in range(2):
+        refused = proxy.post(
+            "/api/v1/auth/login",
+            json=_login_body("gate.fatima", role_credential("wrong")),
+            headers=first,
+        )
+        assert refused.status_code == 401
+    assert set(login_limiter._hits) == {"203.0.113.10"}
+    blocked = proxy.post(
+        "/api/v1/auth/login",
+        json=_login_body("gate.fatima", role_credential("wrong")),
+        headers=first,
+    )
+    assert_error(blocked, 429, "rate_limited", "Too many attempts. Try again shortly.")
+    other = proxy.post(
+        "/api/v1/auth/login",
+        json=_login_body("gate.fatima", role_credential("wrong")),
+        headers=second,
+    )
+    assert other.status_code == 401
+    assert "203.0.113.20" in login_limiter._hits
+
+
+def test_fly_ignores_spoofed_x_forwarded_for(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """On Fly, a faked X-Forwarded-For must not open a new bucket."""
+    monkeypatch.setattr(login_limiter, "limit", 2)
+    app = _fly_rate_limit_app(monkeypatch)
+
+    with TestClient(app) as client:
+        assert client.get("/health").json() == {"status": "ok"}
+        issue_gate(database_path)
+    proxy = TestClient(app, client=("172.19.59.177", 443))
+    visitor = {
+        "Fly-Client-IP": "203.0.113.10",
+        "X-Forwarded-For": "198.51.100.1, 203.0.113.10",
+    }
+    for _ in range(2):
+        refused = proxy.post(
+            "/api/v1/auth/login",
+            json=_login_body("gate.fatima", role_credential("wrong")),
+            headers=visitor,
+        )
+        assert refused.status_code == 401
+    assert set(login_limiter._hits) == {"203.0.113.10"}
+    spoofed = {
+        "Fly-Client-IP": "203.0.113.10",
+        "X-Forwarded-For": "203.0.113.99",
+    }
+    blocked = proxy.post(
+        "/api/v1/auth/login",
+        json=_login_body("gate.fatima", role_credential("wrong")),
+        headers=spoofed,
+    )
+    assert_error(blocked, 429, "rate_limited", "Too many attempts. Try again shortly.")
+    assert "203.0.113.99" not in login_limiter._hits
+    assert "172.19.59.177" not in login_limiter._hits
 
 
 def test_login_and_refresh_rate_limit(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
