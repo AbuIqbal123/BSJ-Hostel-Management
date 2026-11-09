@@ -309,14 +309,18 @@ def cancel_permission(
     connection: ConnectionDep,
 ) -> PermissionBody:
     now_text = clock.format_instant(clock.utc_now())
-    expire_passed_permissions(connection, now_text, permission_id=permission_id)
-    connection.commit()
     row = connection.execute(
         "SELECT resident_id FROM permissions WHERE id = ?",
         (permission_id,),
     ).fetchone()
     if row is None or row["resident_id"] != account.id:
         raise ApiError(404, "not_found", "That record was not found.")
+    expire_passed_permissions(
+        connection,
+        now_text,
+        resident_id=account.id,
+        permission_id=permission_id,
+    )
     updated = connection.execute(
         """
         UPDATE permissions
