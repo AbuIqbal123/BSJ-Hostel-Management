@@ -60,6 +60,7 @@ def test_forwarded_clients_do_not_share_a_limit(
 ) -> None:
     monkeypatch.setattr(login_limiter, "limit", 2)
     monkeypatch.setenv("TRUST_FORWARDED_FOR", "1")
+    monkeypatch.setenv("FORWARDED_ALLOW_IPS", "127.0.0.1")
     from app.main import app
 
     with TestClient(app) as client:
@@ -90,6 +91,37 @@ def test_forwarded_clients_do_not_share_a_limit(
         headers=second,
     )
     assert other.status_code == 401
+
+
+def test_untrusted_peer_cannot_spoof_forwarded_client(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only an allowlisted proxy peer may supply X-Forwarded-For."""
+    monkeypatch.setattr(login_limiter, "limit", 2)
+    monkeypatch.setenv("TRUST_FORWARDED_FOR", "1")
+    monkeypatch.setenv("FORWARDED_ALLOW_IPS", "127.0.0.1")
+    from app.main import app
+
+    with TestClient(app) as client:
+        assert client.get("/health").json() == {"status": "ok"}
+        issue_gate(database_path)
+    stranger = TestClient(app, client=("198.51.100.50", 443))
+    spoofed = {"X-Forwarded-For": "203.0.113.99"}
+    for _ in range(2):
+        refused = stranger.post(
+            "/api/v1/auth/login",
+            json=_login_body("gate.fatima", role_credential("wrong")),
+            headers=spoofed,
+        )
+        assert refused.status_code == 401
+    assert set(login_limiter._hits) == {"198.51.100.50"}
+    blocked = stranger.post(
+        "/api/v1/auth/login",
+        json=_login_body("gate.fatima", role_credential("wrong")),
+        headers={"X-Forwarded-For": "203.0.113.100"},
+    )
+    assert_error(blocked, 429, "rate_limited", "Too many attempts. Try again shortly.")
+    assert "203.0.113.100" not in login_limiter._hits
 
 
 def test_login_and_refresh_rate_limit(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

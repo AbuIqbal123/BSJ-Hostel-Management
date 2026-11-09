@@ -251,11 +251,28 @@ class CommitBeforeResponse:
         await self.asgi_app(scope, receive, send_after_commit)  # type: ignore[misc]
 
 
-class ForwardedClient:
-    """Use the address Render's proxy appended to X-Forwarded-For.
+def _forwarded_peer_allowed(peer: str | None) -> bool:
+    """True when this TCP peer may supply X-Forwarded-For.
 
-    Only the last entry is trusted. Earlier entries are whatever the caller
-    sent, so a faked header cannot pick a fresh sign-in limit. Off unless
+    FORWARDED_ALLOW_IPS defaults to 127.0.0.1 (uvicorn's default). A comma
+    list names proxy peers. "*" trusts every peer and is only safe when the
+    platform proxy is the sole TCP client.
+    """
+    raw = os.environ.get("FORWARDED_ALLOW_IPS", "127.0.0.1").strip() or "127.0.0.1"
+    if raw == "*":
+        return True
+    if peer is None:
+        return False
+    allowed = {part.strip() for part in raw.split(",") if part.strip()}
+    return peer in allowed
+
+
+class ForwardedClient:
+    """Use the address the platform proxy appended to X-Forwarded-For.
+
+    Only the last entry is trusted, and only when the TCP peer is listed in
+    FORWARDED_ALLOW_IPS. Earlier entries are whatever the caller sent, so a
+    faked header cannot pick a fresh sign-in limit. Off unless
     TRUST_FORWARDED_FOR=1, because without a proxy the caller writes it all.
     """
 
@@ -264,11 +281,15 @@ class ForwardedClient:
 
     async def __call__(self, scope: dict, receive: object, send: object) -> None:
         if scope["type"] == "http" and os.environ.get("TRUST_FORWARDED_FOR") == "1":
-            forwarded = [value for name, value in scope["headers"] if name == b"x-forwarded-for"]
-            if forwarded:
-                last = forwarded[-1].decode("latin-1").rsplit(",", 1)[-1].strip()
-                if last:
-                    scope = {**scope, "client": (last, 0)}
+            peer = scope["client"][0] if scope.get("client") else None
+            if _forwarded_peer_allowed(peer):
+                forwarded = [
+                    value for name, value in scope["headers"] if name == b"x-forwarded-for"
+                ]
+                if forwarded:
+                    last = forwarded[-1].decode("latin-1").rsplit(",", 1)[-1].strip()
+                    if last:
+                        scope = {**scope, "client": (last, 0)}
         await self.asgi_app(scope, receive, send)  # type: ignore[misc]
 
 
