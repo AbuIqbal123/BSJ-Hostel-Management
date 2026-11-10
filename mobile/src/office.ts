@@ -46,6 +46,11 @@ function oneOf<T extends string>(value: unknown, allowed: readonly T[]): T | nul
 }
 
 export function runsOffice(role: string): boolean {
+  return role === "warden" || role === "provost";
+}
+
+/** Hall hours, grace, seasons, guest rules, and notification templates. */
+export function editsHallSettings(role: string): boolean {
   return role === "provost";
 }
 

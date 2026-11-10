@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { useFocusEffect } from "expo-router";
+import { Redirect, useFocusEffect } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
 import { HallButton } from "@/components/hall-button";
@@ -15,6 +15,7 @@ import {
   hoursPatch,
   noticesPatch,
   readHours,
+  editsHallSettings,
   readNotices,
   seasonLabel,
   templateProblem,
@@ -68,7 +69,7 @@ function fieldsFrom(hours: HallHours): HoursFields {
 
 export default function OfficeSettings() {
   const colors = useHallColors();
-  const { staffRequest } = useSession();
+  const { user, staffRequest } = useSession();
   const showSms = hallFeatures.guardianSmsUi;
   const cachedHours = readOfficeHoursCache();
   const cachedNotices = readOfficeNoticesCache();
@@ -87,6 +88,9 @@ export default function OfficeSettings() {
 
   useFocusEffect(
     useCallback(() => {
+      if (!user || !editsHallSettings(user.role)) {
+        return;
+      }
       let active = true;
       void staffRequest("/admin/settings").then((reply) => {
         if (!active) {
@@ -127,8 +131,12 @@ export default function OfficeSettings() {
       return () => {
         active = false;
       };
-    }, [showSms, staffRequest]),
+    }, [showSms, staffRequest, user]),
   );
+
+  if (!user || !editsHallSettings(user.role)) {
+    return <Redirect href="/staff/office" />;
+  }
 
   const save = async () => {
     if (saveCue.held || !savedHours) {

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "@jest/globals";
 
+import { decidesRequests } from "@/staff";
+
 import {
   AUDIT_CSV_HEADER,
   LATE_PLACEHOLDERS,
@@ -17,6 +19,7 @@ import {
   hoursFromFields,
   hoursPatch,
   noticesPatch,
+  editsHallSettings,
   officeMessage,
   parseClock,
   parseSeason,
@@ -368,8 +371,15 @@ describe("hall office display", () => {
       "Enter a phone with the country code",
     );
     expect(runsOffice("provost")).toBe(true);
-    expect(runsOffice("warden")).toBe(false);
+    expect(runsOffice("warden")).toBe(true);
     expect(runsOffice("gate")).toBe(false);
+    expect(decidesRequests("provost")).toBe(true);
+    expect(decidesRequests("warden")).toBe(true);
+    expect(decidesRequests("gate")).toBe(false);
+    expect(decidesRequests("resident")).toBe(false);
+    expect(editsHallSettings("provost")).toBe(true);
+    expect(editsHallSettings("warden")).toBe(false);
+    expect(editsHallSettings("gate")).toBe(false);
   });
 });
 
