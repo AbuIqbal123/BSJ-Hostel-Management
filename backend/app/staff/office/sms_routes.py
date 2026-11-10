@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict
 
 from app.shared.page import PageDep
 from app.shared.auth.routes import ConnectionDep
-from app.staff.office.routes import ProvostDep
+from app.staff.office.routes import OfficeDep
 from app.staff.office.sms_records import list_sms_rows
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Hall office"])
@@ -39,7 +39,7 @@ class SmsPage(BaseModel):
 
 @router.get("/sms", response_model=SmsPage)
 def list_sms(
-    _account: ProvostDep,
+    _account: OfficeDep,
     connection: ConnectionDep,
     page: PageDep,
     q: Annotated[str | None, Query(max_length=80)] = None,

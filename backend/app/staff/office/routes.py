@@ -1,4 +1,4 @@
-"""Hall settings and notification templates."""
+"""Hall office routes, plus shared staff role dependencies."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 from app.shared import clock
 from app.shared.audit import record_audit
-from app.shared.auth.roles import ADMIN, SETTINGS, require_roles
+from app.shared.auth.roles import REGISTER, SETTINGS, require_roles
 from app.shared.auth.routes import Account, ConnectionDep
 from app.shared.errors import ApiError
 from app.staff.office.records import (
@@ -30,12 +30,10 @@ from app.staff.office.records import (
 router = APIRouter(prefix="/api/v1/admin", tags=["Hall office"])
 
 
-# Office and hall decisions use ADMIN. Hall settings and notification templates use SETTINGS.
-provost_account = require_roles(ADMIN)
+office_account = require_roles(REGISTER)
 settings_account = require_roles(SETTINGS)
 
-
-ProvostDep = Annotated[Account, Depends(provost_account)]
+OfficeDep = Annotated[Account, Depends(office_account)]
 SettingsDep = Annotated[Account, Depends(settings_account)]
 
 

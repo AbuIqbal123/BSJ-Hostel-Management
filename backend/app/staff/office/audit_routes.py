@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict
 from app.shared.page import PageDep
 from app.shared.auth.routes import ConnectionDep
 from app.staff.office.audit_records import build_audit_csv, list_audit_rows
-from app.staff.office.routes import ProvostDep
+from app.staff.office.routes import OfficeDep
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Hall office"])
 
@@ -38,7 +38,7 @@ class AuditPage(BaseModel):
 
 @router.get("/audit", response_model=AuditPage)
 def list_audit(
-    _account: ProvostDep,
+    _account: OfficeDep,
     connection: ConnectionDep,
     page: PageDep,
     q: Annotated[str | None, Query(max_length=80)] = None,
@@ -75,7 +75,7 @@ def list_audit(
 
 @router.get("/audit/export")
 def export_audit(
-    _account: ProvostDep,
+    _account: OfficeDep,
     connection: ConnectionDep,
     q: Annotated[str | None, Query(max_length=80)] = None,
     entity_type: Annotated[str | None, Query()] = None,

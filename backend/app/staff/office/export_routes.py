@@ -11,7 +11,7 @@ from fastapi import APIRouter, Response
 from app.residents.guests.records import derive_bucket
 from app.shared import clock
 from app.shared.auth.routes import ConnectionDep
-from app.staff.office.routes import ProvostDep
+from app.staff.office.routes import OfficeDep
 from app.staff.register.records import register_state
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Hall office"])
@@ -181,7 +181,7 @@ def build_register_csv(connection: sqlite3.Connection) -> str:
 
 @router.get("/register/export")
 def export_register(
-    _account: ProvostDep,
+    _account: OfficeDep,
     connection: ConnectionDep,
 ) -> Response:
     body = build_register_csv(connection)

@@ -12,7 +12,6 @@ Role = Literal["resident", "gate", "warden", "provost"]
 RESIDENT: frozenset[Role] = frozenset({"resident"})
 GATE: frozenset[Role] = frozenset({"gate", "warden", "provost"})
 REGISTER: frozenset[Role] = frozenset({"warden", "provost"})
-ADMIN: frozenset[Role] = frozenset({"warden", "provost"})
 SETTINGS: frozenset[Role] = frozenset({"provost"})
 
 

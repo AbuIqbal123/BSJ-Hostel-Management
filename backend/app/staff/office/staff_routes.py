@@ -24,7 +24,7 @@ from app.staff.office.records import (
     load_staff_account,
     revoke_live_sessions,
 )
-from app.staff.office.routes import ProvostDep
+from app.staff.office.routes import OfficeDep
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Hall office"])
 
@@ -33,7 +33,7 @@ _DUPLICATE = "Username already in use."
 
 @router.get("/staff", response_model=StaffPage)
 def admin_list_staff(
-    _account: ProvostDep,
+    _account: OfficeDep,
     connection: ConnectionDep,
     page: PageDep,
     q: Annotated[str | None, Query(max_length=80)] = None,
@@ -44,7 +44,7 @@ def admin_list_staff(
 @router.post("/staff", response_model=StaffAccount, status_code=201)
 def admin_create_staff(
     body: StaffCreate,
-    account: ProvostDep,
+    account: OfficeDep,
     connection: ConnectionDep,
 ) -> StaffAccount:
     full_name = body.full_name.strip()
@@ -100,7 +100,7 @@ def admin_create_staff(
 def admin_update_staff(
     user_id: str,
     body: StaffUpdate,
-    account: ProvostDep,
+    account: OfficeDep,
     connection: ConnectionDep,
 ) -> StaffAccount:
     current = load_staff_account(connection, user_id)

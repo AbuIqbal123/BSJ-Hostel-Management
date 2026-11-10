@@ -23,7 +23,7 @@ from app.residents.notifications.records import record_decision
 from app.shared import clock, push
 from app.shared.auth.routes import ConnectionDep
 from app.shared.errors import ApiError
-from app.staff.office.routes import ProvostDep
+from app.staff.office.routes import OfficeDep
 from app.staff.register.routes import RegisterDep
 
 router = APIRouter(prefix="/api/v1", tags=["Permissions"])
@@ -121,7 +121,7 @@ def _refuse_overlap(connection: sqlite3.Connection, permission_id: str) -> None:
 def decide_permission(
     permission_id: str,
     body: DecisionRequest,
-    account: ProvostDep,
+    account: OfficeDep,
     connection: ConnectionDep,
     background_tasks: BackgroundTasks,
 ) -> PermissionReviewBody:

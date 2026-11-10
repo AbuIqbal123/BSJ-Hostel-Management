@@ -30,7 +30,7 @@ from app.staff.office.records import (
     room_has_capacity,
     room_is_active,
 )
-from app.staff.office.routes import ProvostDep
+from app.staff.office.routes import OfficeDep
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Hall office"])
 
@@ -47,7 +47,7 @@ _NOT_CLEARABLE = {
 
 @router.get("/residents", response_model=ResidentAccountPage)
 def admin_list_residents(
-    _account: ProvostDep,
+    _account: OfficeDep,
     connection: ConnectionDep,
     page: PageDep,
     q: Annotated[str | None, Query(max_length=80)] = None,
@@ -60,7 +60,7 @@ def admin_list_residents(
 @router.post("/residents", response_model=ResidentCreated, status_code=201)
 def admin_create_resident(
     body: ResidentCreate,
-    account: ProvostDep,
+    account: OfficeDep,
     connection: ConnectionDep,
 ) -> ResidentCreated:
     full_name = body.full_name.strip()
@@ -147,7 +147,7 @@ def admin_create_resident(
 @router.get("/residents/{resident_id}", response_model=ResidentAccount)
 def admin_get_resident(
     resident_id: str,
-    _account: ProvostDep,
+    _account: OfficeDep,
     connection: ConnectionDep,
 ) -> ResidentAccount:
     resident = load_resident_account(connection, resident_id)
@@ -160,7 +160,7 @@ def admin_get_resident(
 def admin_update_resident(
     resident_id: str,
     body: ResidentUpdate,
-    account: ProvostDep,
+    account: OfficeDep,
     connection: ConnectionDep,
 ) -> ResidentAccount:
     current = load_resident_account(connection, resident_id)
@@ -282,7 +282,7 @@ def admin_update_resident(
 @router.post("/residents/{resident_id}/hall-pass/reissue", response_model=HallPass)
 def reissue_hall_pass(
     resident_id: str,
-    account: ProvostDep,
+    account: OfficeDep,
     connection: ConnectionDep,
 ) -> HallPass:
     current = load_resident_account(connection, resident_id)

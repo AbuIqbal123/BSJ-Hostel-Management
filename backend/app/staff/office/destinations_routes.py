@@ -21,7 +21,7 @@ from app.staff.office.records import (
     list_admin_destinations,
     load_destination,
 )
-from app.staff.office.routes import ProvostDep
+from app.staff.office.routes import OfficeDep
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Hall office"])
 
@@ -31,7 +31,7 @@ _DUPLICATE = "That destination name is already in use."
 
 @router.get("/destinations", response_model=DestinationList)
 def admin_list_destinations(
-    _account: ProvostDep,
+    _account: OfficeDep,
     connection: ConnectionDep,
 ) -> DestinationList:
     return list_admin_destinations(connection)
@@ -40,7 +40,7 @@ def admin_list_destinations(
 @router.post("/destinations", response_model=Destination, status_code=201)
 def create_destination(
     body: DestinationCreate,
-    account: ProvostDep,
+    account: OfficeDep,
     connection: ConnectionDep,
 ) -> Destination:
     name = body.name.strip()
@@ -90,7 +90,7 @@ def create_destination(
 def update_destination(
     destination_id: str,
     body: DestinationUpdate,
-    account: ProvostDep,
+    account: OfficeDep,
     connection: ConnectionDep,
 ) -> Destination:
     current = load_destination(connection, destination_id)

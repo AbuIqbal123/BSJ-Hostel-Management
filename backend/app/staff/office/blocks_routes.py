@@ -19,20 +19,20 @@ from app.staff.office.records import (
     list_blocks,
     load_block,
 )
-from app.staff.office.routes import ProvostDep
+from app.staff.office.routes import OfficeDep
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Hall office"])
 
 
 @router.get("/blocks", response_model=list[Block])
-def get_blocks(_account: ProvostDep, connection: ConnectionDep) -> list[Block]:
+def get_blocks(_account: OfficeDep, connection: ConnectionDep) -> list[Block]:
     return list_blocks(connection)
 
 
 @router.post("/blocks", response_model=Block, status_code=201)
 def create_block(
     body: BlockCreate,
-    account: ProvostDep,
+    account: OfficeDep,
     connection: ConnectionDep,
 ) -> Block:
     code = body.code.strip()
@@ -79,7 +79,7 @@ def create_block(
 def update_block(
     block_id: str,
     body: BlockUpdate,
-    account: ProvostDep,
+    account: OfficeDep,
     connection: ConnectionDep,
 ) -> Block:
     current = load_block(connection, block_id)

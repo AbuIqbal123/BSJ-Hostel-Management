@@ -24,14 +24,14 @@ from app.staff.office.records import (
     load_room,
     residents_in_room,
 )
-from app.staff.office.routes import ProvostDep
+from app.staff.office.routes import OfficeDep
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Hall office"])
 
 
 @router.get("/rooms", response_model=RoomPage)
 def get_rooms(
-    _account: ProvostDep,
+    _account: OfficeDep,
     connection: ConnectionDep,
     page: PageDep,
     block_id: Annotated[str | None, Query()] = None,
@@ -49,7 +49,7 @@ def get_rooms(
 @router.post("/rooms", response_model=Room, status_code=201)
 def create_room(
     body: RoomCreate,
-    account: ProvostDep,
+    account: OfficeDep,
     connection: ConnectionDep,
 ) -> Room:
     number = body.number.strip()
@@ -102,7 +102,7 @@ def create_room(
 def update_room(
     room_id: str,
     body: RoomUpdate,
-    account: ProvostDep,
+    account: OfficeDep,
     connection: ConnectionDep,
 ) -> Room:
     current = load_room(connection, room_id)

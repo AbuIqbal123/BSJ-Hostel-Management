@@ -11,7 +11,7 @@ from app.shared.auth.routes import ConnectionDep
 from app.shared.auth.security import hash_password
 from app.shared.errors import ApiError
 from app.staff.office.records import revoke_live_sessions
-from app.staff.office.routes import ProvostDep
+from app.staff.office.routes import OfficeDep
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Hall office"])
 
@@ -25,7 +25,7 @@ class PasswordResetRequest(BaseModel):
 def reset_password(
     user_id: str,
     body: PasswordResetRequest,
-    _account: ProvostDep,
+    _account: OfficeDep,
     connection: ConnectionDep,
 ) -> Response:
     row = connection.execute(

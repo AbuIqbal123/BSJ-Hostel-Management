@@ -28,12 +28,10 @@ export function homePath(role: HallRole): "/home" | "/staff" {
   return role === "resident" ? "/home" : "/staff";
 }
 
-/** Gate accounts may scan and read gate activity only. */
 export function readsRegister(role: HallRole): boolean {
   return role === "warden" || role === "provost";
 }
 
-/** A warden or the provost approves or rejects late-night, home going, and guest stays. */
 export function decidesRequests(role: HallRole): boolean {
   return role === "warden" || role === "provost";
 }
