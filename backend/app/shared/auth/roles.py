@@ -13,6 +13,7 @@ RESIDENT: frozenset[Role] = frozenset({"resident"})
 GATE: frozenset[Role] = frozenset({"gate", "warden", "provost"})
 REGISTER: frozenset[Role] = frozenset({"warden", "provost"})
 ADMIN: frozenset[Role] = frozenset({"provost"})
+SETTINGS: frozenset[Role] = frozenset({"provost"})
 
 
 def require_roles(allowed: frozenset[Role]):
