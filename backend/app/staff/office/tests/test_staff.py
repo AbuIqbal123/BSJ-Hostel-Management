@@ -114,35 +114,103 @@ def test_admin_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
             "forbidden",
         )
         warden = sign_in(client, "warden.sara", role_credential("warden"))
-        warden_list = client.get(
-            "/api/v1/admin/staff",
-            headers={"Authorization": f"Bearer {warden['access_token']}"},
-        )
+        warden_headers = {"Authorization": f"Bearer {warden['access_token']}"}
+        warden_list = client.get("/api/v1/admin/staff", headers=warden_headers)
         assert warden_list.status_code == 200
+
+        assert_error(
+            client.post(
+                "/api/v1/admin/staff",
+                headers=warden_headers,
+                json={**expected["create_provost"], "temporary_password": role_credential("gate-temp")},
+            ),
+            403,
+            "forbidden",
+        )
+        assert_error(
+            client.patch(
+                f"/api/v1/admin/staff/{WARDEN_ID}",
+                headers=warden_headers,
+                json={"status": "suspended"},
+            ),
+            403,
+            "forbidden",
+        )
+        assert_error(
+            client.patch(
+                f"/api/v1/admin/staff/{PROVOST_ID}",
+                headers=warden_headers,
+                json={"status": "suspended"},
+            ),
+            403,
+            "forbidden",
+        )
+
+        warden_created = client.post(
+            "/api/v1/admin/staff",
+            headers=warden_headers,
+            json={**expected["create"], "temporary_password": role_credential("gate-temp")},
+        )
+        assert warden_created.status_code == 201
+        assert warden_created.json()["role"] == "gate"
+        gate_from_warden = warden_created.json()["id"]
+        assert_error(
+            client.patch(
+                f"/api/v1/admin/staff/{gate_from_warden}",
+                headers=warden_headers,
+                json={"status": "suspended"},
+            ),
+            403,
+            "forbidden",
+        )
+        assert_error(
+            client.patch(
+                f"/api/v1/admin/staff/{gate_from_warden}",
+                headers=warden_headers,
+                json={"status": "active"},
+            ),
+            403,
+            "forbidden",
+        )
 
         provost = sign_in(client, "provost.halima", role_credential("provost"))
         headers = {"Authorization": f"Bearer {provost['access_token']}"}
 
         listed = client.get("/api/v1/admin/staff", headers=headers)
         assert listed.status_code == 200
-        assert listed.json()["total"] == 2
+        assert listed.json()["total"] == 3
         usernames = {item["username"] for item in listed.json()["items"]}
-        assert usernames == {"provost.halima", "warden.sara"}
+        assert usernames == {"provost.halima", "warden.sara", "imran.qureshi"}
         assert all(item["role"] in {"gate", "warden", "provost"} for item in listed.json()["items"])
 
         created = client.post(
             "/api/v1/admin/staff",
             headers=headers,
-            json={**expected["create"], "temporary_password": role_credential("gate-temp")},
+            json={**expected["create_second_gate"], "temporary_password": role_credential("gate-temp-2")},
         )
         assert created.status_code == 201
         body = created.json()
-        assert body["username"] == "imran.qureshi"
+        assert body["username"] == "noor.ali"
         assert body["role"] == "gate"
         assert body["job_title"] == "Gatekeeper"
         assert body["status"] == "active"
         assert "password" not in json.dumps(body).lower()
         staff_id = body["id"]
+
+        warden_suspended = client.patch(
+            f"/api/v1/admin/staff/{WARDEN_ID}",
+            headers=headers,
+            json={"status": "suspended"},
+        )
+        assert warden_suspended.status_code == 200
+        assert warden_suspended.json()["status"] == "suspended"
+        reinstated_warden = client.patch(
+            f"/api/v1/admin/staff/{WARDEN_ID}",
+            headers=headers,
+            json={"status": "active"},
+        )
+        assert reinstated_warden.status_code == 200
+        assert reinstated_warden.json()["status"] == "active"
 
         dup = client.post(
             "/api/v1/admin/staff",
@@ -186,7 +254,7 @@ def test_admin_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
             "not_found",
         )
 
-        session = sign_in(client, "imran.qureshi", role_credential("gate-temp"))
+        session = sign_in(client, "noor.ali", role_credential("gate-temp-2"))
         refresh = session["refresh_token"]
 
         updated = client.patch(
@@ -215,7 +283,7 @@ def test_admin_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
 
         after = client.get("/api/v1/admin/staff?limit=50&offset=0", headers=headers)
         assert after.status_code == 200
-        assert after.json()["total"] == 3
+        assert after.json()["total"] == 4
 
         connection = sqlite3.connect(database_path)
         try:

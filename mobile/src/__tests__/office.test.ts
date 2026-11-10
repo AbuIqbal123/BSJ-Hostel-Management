@@ -19,6 +19,9 @@ import {
   hoursFromFields,
   hoursPatch,
   noticesPatch,
+  canCreateStaffRole,
+  canResetPassword,
+  canSuspendAccounts,
   editsHallSettings,
   officeMessage,
   parseClock,
@@ -380,6 +383,17 @@ describe("hall office display", () => {
     expect(editsHallSettings("provost")).toBe(true);
     expect(editsHallSettings("warden")).toBe(false);
     expect(editsHallSettings("gate")).toBe(false);
+    expect(canSuspendAccounts("provost")).toBe(true);
+    expect(canSuspendAccounts("warden")).toBe(false);
+    expect(canSuspendAccounts("gate")).toBe(false);
+    expect(canCreateStaffRole("provost", "provost")).toBe(true);
+    expect(canCreateStaffRole("warden", "provost")).toBe(false);
+    expect(canCreateStaffRole("warden", "gate")).toBe(true);
+    expect(canCreateStaffRole("warden", "warden")).toBe(true);
+    expect(canResetPassword("provost", "provost")).toBe(true);
+    expect(canResetPassword("warden", "provost")).toBe(false);
+    expect(canResetPassword("warden", "resident")).toBe(true);
+    expect(canResetPassword("warden", "gate")).toBe(true);
   });
 });
 

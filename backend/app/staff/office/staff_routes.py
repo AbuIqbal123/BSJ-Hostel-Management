@@ -11,6 +11,7 @@ from fastapi import APIRouter, Query
 from app.shared.page import PageDep
 from app.shared import clock
 from app.shared.audit import record_audit
+from app.shared.auth.roles import can_act_on_target, can_suspend
 from app.shared.auth.routes import ConnectionDep
 from app.shared.auth.security import hash_password
 from app.shared.db import INTEGRITY_ERRORS
@@ -52,6 +53,8 @@ def admin_create_staff(
     job_title = body.job_title.strip()
     if not full_name or not username or not job_title:
         raise ApiError(422, "validation_error", "Required fields are missing.")
+    if not can_act_on_target(account.role, body.role):
+        raise ApiError(403, "forbidden", "This account cannot do that.")
 
     user_id = str(uuid.uuid4())
     now_text = clock.format_instant(clock.utc_now())
@@ -106,6 +109,10 @@ def admin_update_staff(
     current = load_staff_account(connection, user_id)
     if current is None:
         raise ApiError(404, "not_found", "That record was not found.")
+    if not can_act_on_target(account.role, current.role):
+        raise ApiError(403, "forbidden", "This account cannot do that.")
+    if "status" in body.model_fields_set and not can_suspend(account.role):
+        raise ApiError(403, "forbidden", "This account cannot do that.")
 
     changes: dict[str, object] = {}
     for field_name in body.model_fields_set:

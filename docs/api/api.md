@@ -5279,11 +5279,11 @@ Caller: warden or provost. Send only the fields that change. Name, enrolment
 number, and course are set at create or onboard and are not editable
 here. `phone` may be set to null to clear it. `guardian_name` and
 `guardian_phone` may be replaced and may not be cleared. A phone
-includes the country code. `status` suspends or reinstates.
-Suspension revokes refresh tokens. It does not close an open outing or
-mark the resident inside. A suspended resident who is outside stays on
-the register until a return scan; she cannot start a new exit until
-reinstated.
+includes the country code. Only the provost may set `status` to suspend
+or reinstate. Suspension revokes refresh tokens. It does not close an
+open outing or mark the resident inside. A suspended resident who is
+outside stays on the register until a return scan; she cannot start a
+new exit until reinstated.
 
 **Parameters**
 
@@ -5455,7 +5455,10 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** warden or provost. Bearer access token.
 
-Caller: warden or provost. Role is gate, warden, or provost. The sample body leaves the temporary password out of this repository. The field is required.
+Caller: warden or provost. Role is gate, warden, or provost. A warden cannot
+create a provost. Only the provost can suspend or reinstate accounts. The
+sample body leaves the temporary password out of this repository. The field
+is required.
 
 **Request.** Required.
 
@@ -5529,7 +5532,8 @@ Body: [ErrorResponse](#schema-errorresponse).
 **Who.** warden or provost. Bearer access token.
 
 Caller: warden or provost. Role cannot be changed on this route, and a staff
-account cannot become a resident. Suspension revokes refresh tokens.
+account cannot become a resident. Only the provost can suspend or reinstate,
+and a warden cannot edit a provost. Suspension revokes refresh tokens.
 
 **Parameters**
 
@@ -5590,9 +5594,10 @@ Body: [ErrorResponse](#schema-errorresponse).
 **Who.** warden or provost. Bearer access token.
 
 Caller: warden or provost. Sets a temporary password and revokes that user's
-refresh tokens. Works for residents and staff. The temporary password
-is at least 10 characters and includes an uppercase letter, a lowercase
-letter, a number, and a symbol.
+refresh tokens. Works for residents and staff. A warden cannot reset a
+provost. Every reset writes `user.password_reset` with the actor and target,
+never the password. The temporary password is at least 10 characters and
+includes an uppercase letter, a lowercase letter, a number, and a symbol.
 
 **Parameters**
 

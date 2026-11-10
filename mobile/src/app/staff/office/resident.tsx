@@ -15,6 +15,7 @@ import { pageQuery } from "@/list-page";
 import {
   REISSUE_CONFIRM,
   RESET_CONFIRM,
+  canSuspendAccounts,
   passwordBody,
   readCreatedResident,
   readPage,
@@ -62,7 +63,8 @@ function fromAccount(account: OfficeResident): ResidentDraft {
 export default function OfficeResident() {
   const colors = useHallColors();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { staffRequest } = useSession();
+  const { user, staffRequest } = useSession();
+  const showSuspend = canSuspendAccounts(user?.role ?? "");
   const [account, setAccount] = useState<OfficeResident | null>(null);
   const [draft, setDraft] = useState<ResidentDraft>(BLANK);
   const [rooms, setRooms] = useState<OfficeRoom[]>([]);
@@ -318,7 +320,7 @@ export default function OfficeResident() {
           {account.presence === "outside" ? "Outside" : "Inside"}
         </Text>
       ) : null}
-      {account ? (
+      {account && showSuspend ? (
         <ChoiceLine
           label="Account"
           value={draft.status}

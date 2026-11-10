@@ -33,7 +33,7 @@ const LINKS: { href: OfficeHref; label: string; detail: string; feature?: "guard
   },
   { href: "/staff/office/blocks", label: "Blocks and rooms", detail: "Add a block or a room, or retire one" },
   { href: "/staff/office/destinations", label: "Destinations", detail: "Inactive places stay here and stay off the resident list" },
-  { href: "/staff/office/residents", label: "Residents", detail: "Create, edit, suspend, reissue a pass, or reset a password" },
+  { href: "/staff/office/residents", label: "Residents", detail: "Create, edit, reissue a pass, or reset a password" },
   { href: "/staff/office/staff", label: "Staff", detail: "Create, edit, or reset a password" },
   {
     href: "/staff/office/sms",

@@ -117,11 +117,27 @@ def test_admin_residents(database_path: Path, monkeypatch: pytest.MonkeyPatch) -
             "forbidden",
         )
         warden = sign_in(client, "warden.sara", role_credential("warden"))
-        warden_list = client.get(
-            "/api/v1/admin/residents",
-            headers={"Authorization": f"Bearer {warden['access_token']}"},
-        )
+        warden_headers = {"Authorization": f"Bearer {warden['access_token']}"}
+        warden_list = client.get("/api/v1/admin/residents", headers=warden_headers)
         assert warden_list.status_code == 200
+        assert_error(
+            client.patch(
+                f"/api/v1/admin/residents/{AISHA_ID}",
+                headers=warden_headers,
+                json={"status": "suspended"},
+            ),
+            403,
+            "forbidden",
+        )
+        assert_error(
+            client.patch(
+                f"/api/v1/admin/residents/{AISHA_ID}",
+                headers=warden_headers,
+                json={"status": "active"},
+            ),
+            403,
+            "forbidden",
+        )
 
         provost = sign_in(client, "provost.halima", role_credential("provost"))
         headers = {"Authorization": f"Bearer {provost['access_token']}"}

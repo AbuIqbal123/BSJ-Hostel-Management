@@ -138,6 +138,16 @@ def test_admin_password_reset(database_path: Path, monkeypatch: pytest.MonkeyPat
         aisha = sign_in(client, "24-GLLB-118", role_credential("resident"))
         old_refresh = aisha["refresh_token"]
 
+        assert_error(
+            client.post(
+                f"/api/v1/admin/users/{PROVOST_ID}/password",
+                headers=warden_headers,
+                json={"temporary_password": role_credential("reset")},
+            ),
+            403,
+            "forbidden",
+        )
+
         provost = sign_in(client, "provost.halima", role_credential("provost"))
         headers = {"Authorization": f"Bearer {provost['access_token']}"}
 
@@ -209,9 +219,15 @@ def test_admin_password_reset(database_path: Path, monkeypatch: pytest.MonkeyPat
                 """,
                 (RESIDENT_ID,),
             ).fetchone()[0]
-            # fresh login created a new live session after reset
             assert live >= 1
-            # ensure no password appears in audit detail
+            resets = connection.execute(
+                """
+                SELECT actor_user_id, entity_id, detail
+                FROM audit_log
+                WHERE action = 'user.password_reset'
+                ORDER BY occurred_at, rowid
+                """
+            ).fetchall()
             details = [
                 row[0]
                 for row in connection.execute(
@@ -220,6 +236,10 @@ def test_admin_password_reset(database_path: Path, monkeypatch: pytest.MonkeyPat
             ]
         finally:
             connection.close()
+        assert len(resets) >= 2
+        assert resets[0][0] == WARDEN_ID
+        assert resets[0][1] == RESIDENT_ID
         blob = " ".join(d for d in details if d)
         assert "reset-pass" not in blob
         assert role_credential("reset") not in blob
+        assert role_credential("warden-reset") not in blob

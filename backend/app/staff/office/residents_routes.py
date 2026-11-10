@@ -11,6 +11,7 @@ from fastapi import APIRouter, Query
 from app.shared.page import PageDep
 from app.shared import clock
 from app.shared.audit import record_audit
+from app.shared.auth.roles import can_suspend
 from app.shared.auth.routes import ConnectionDep
 from app.shared.auth.security import hash_password
 from app.shared.db import INTEGRITY_ERRORS
@@ -190,6 +191,8 @@ def admin_update_resident(
         if getattr(current, field_name) != value:
             changes[field_name] = value
 
+    if "status" in body.model_fields_set and not can_suspend(account.role):
+        raise ApiError(403, "forbidden", "This account cannot do that.")
     if not changes:
         return current
 

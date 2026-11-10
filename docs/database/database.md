@@ -618,6 +618,8 @@ This is the audit log: the record of who did what. Each entry is one action that
 | Hall pass reissued | hall_pass.reissued |
 | Staff account created | staff.created |
 | Staff account updated | staff.updated |
+| Password reset by the office | user.password_reset |
+
 | Room created | room.created |
 | Room updated | room.updated |
 | Block created | block.created |
@@ -655,7 +657,7 @@ What a person may do comes from her or his role.
 
 Gate staff scan a hall pass and record a guest's arrival and departure. They do not approve a permission, they do not approve a guest stay, and they do not change residents, rooms, or settings. Their screens are the scan result, recent gate activity, and the guest lists.
 
-A warden or the provost sees the register and the late list, views waiting permission and guest-stay queues, and marks a guest paid. A warden or the provost approves or rejects a permission, and records the hall's yes or no on a guest stay. A resident who currently shares the host's room may also record a yes or no on that stay. A warden or the provost also creates and edits residents, creates staff, rooms, blocks, and destinations, issues a new hall pass, resets a password, exports the register, and reads guardian messages and the audit log. Hall settings and notification templates stay with the provost. A resident can delete her own account. A deleted account is left off the office resident list and off the register counts.
+A warden or the provost sees the register and the late list, views waiting permission and guest-stay queues, and marks a guest paid. A warden or the provost approves or rejects a permission, and records the hall's yes or no on a guest stay. A resident who currently shares the host's room may also record a yes or no on that stay. A warden or the provost also creates and edits residents, creates gate and warden staff, rooms, blocks, and destinations, issues a new hall pass, resets a non-provost password, exports the register, and reads guardian messages and the audit log. Only the provost can suspend or reinstate an account, create or reset a provost, and change hall settings and notification templates. A resident can delete her own account. A deleted account is left off the office resident list and off the register counts.
 
 | Action | Resident | Gate | Warden | Provost |
 |---|---|---|---|---|
@@ -665,9 +667,12 @@ A warden or the provost sees the register and the late list, views waiting permi
 | Register, late list, view waiting queues, mark a guest paid, upload or clear optional payment evidence | | | Yes | Yes |
 | Approve or reject late-night, home going, or the hall decision on a guest stay | | | Yes | Yes |
 | Export the register | | | Yes | Yes |
-| Create and edit residents, create staff, rooms, blocks, and destinations | | | Yes | Yes |
+| Create and edit residents, create gate or warden staff, rooms, blocks, and destinations | | | Yes | Yes |
+| Create a provost, or edit a provost account | | | | Yes |
+| Suspend or reinstate any account | | | | Yes |
 | Hall settings and notification templates | | | | Yes |
-| Issue a new hall pass, reset a password | | | Yes | Yes |
+| Issue a new hall pass; reset a resident, gate, or warden password | | | Yes | Yes |
+| Reset a provost password | | | | Yes |
 | Read guardian messages and the audit log | | | Yes | Yes |
 
 ## What the register counts
