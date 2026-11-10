@@ -32,7 +32,7 @@ This is an **addition** to the existing app, not a redesign. After this ships, P
 ## Rules agreed
 
 1. **Both required, either order.** Roommate(s) and provost may decide in any order. Status stays `pending` until every required yes is recorded, then becomes `approved`.
-2. **No roommate.** If the host’s room has no other active resident, only the provost is required.
+2. **No roommate.** If the host’s room has no other active resident, only the hall office is required.
 3. **Either no ends it.** Roommate or provost decline → `rejected` immediately; the other party need not act.
 4. **Who is a roommate.** Other **active** residents with the same `room_id` as the host **now**. Recompute from current room assignment when checking who must still decide. Past decision rows stay for audit.
 5. **Host edit.** Editing a pending stay before arrival does **not** clear existing decisions.
@@ -73,7 +73,7 @@ Quieter line: guest name, then dates.
 ## Staff
 
 - Queue shape unchanged. Detail shows roommate decision state (pending / approved / declined, name, time).
-- Only the **provost** records the hall decision (as today). Wardens still read queues and mark payment.
+- A warden or the provost records the hall decision. The decision row stores `role` `provost` as the hall-office slot. Wardens also read queues and mark payment.
 - Provost may decide while roommate is still pending (either order). Stay is `approved` only when all required yeses exist.
 
 ## Gate

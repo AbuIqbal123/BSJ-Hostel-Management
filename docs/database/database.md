@@ -52,19 +52,19 @@ The rules in this document are the contract. The room inventory is taken from th
 ## What the hall already decided
 
 - The hall is Begum Sultan Jahan Hall, Aligarh Muslim University. The hall page lists 206 double rooms and 412 beds. For session 2025–26 the same page lists 506 resident students and 434 non-resident students. That roll is not a room count. This system keeps the provost, wardens, and gate staff.
-- A resident has one permanent hall pass. It is not replaced for each outing. The same code records leaving and coming back. The provost can issue a new code from the resident's record. The steps are under Residents. The resident phone shows that code for one outing at a time, the one she can use now (see Leaving on a permission): an ordinary outing from 30 minutes before its start, or a late-night or home-going permission from its lead before departure, until that outing ends. While she is outside, the code stays available until the return scan, for every type. The gate scan still decides the movement.
+- A resident has one permanent hall pass. It is not replaced for each outing. The same code records leaving and coming back. A warden or the provost can issue a new code from the resident's record. The steps are under Residents. The resident phone shows that code for one outing at a time, the one she can use now (see Leaving on a permission): an ordinary outing from 30 minutes before its start, or a late-night or home-going permission from its lead before departure, until that outing ends. While she is outside, the code stays available until the return scan, for every type. The gate scan still decides the movement.
 - An ordinary outing is a same-day outing inside ordinary hours. The resident sets the destination and the expected return in the app before going to the gate. The gate scan does not ask for either. If either is missing, the scan does not let her out. An ordinary outing needs no warden approval. The scan records the exit, the time, and which staff member scanned.
 - Ordinary hours are a window with a start and an end. Summer is 1 April through 30 September and winter is 1 October through 31 March. For now both seasons use 6:00 AM to 6:30 PM (posted hall rules). On 30 September the summer window is in force. On 1 October the winter window is in force. The clock times and the two start dates are under Hall settings.
 - Grace is 30 minutes after the expected return. An expected return of 7:00 PM means grace ends at 7:30 PM.
 - A message to the parent or guardian is sent when grace ends and the resident is still outside. A second message is sent when that resident returns. An on-time return sends nothing. Every resident has a guardian phone, so the number is always on file.
-- Late-night permission is for staying in Aligarh after ordinary hours. The **provost** must approve it before the resident leaves. The hall records the place, the reason, the departure, and the expected return.
-- Home going is leave for home. The hall records the home address, the reason, the departure, and the return. The **provost** must approve it before the resident leaves.
+- Late-night permission is for staying in Aligarh after ordinary hours. A **warden or the provost** must approve it before the resident leaves. The hall records the place, the reason, the departure, and the expected return.
+- Home going is leave for home. The hall records the home address, the reason, the departure, and the return. A **warden or the provost** must approve it before the resident leaves.
 - A rejection does not block an ordinary outing inside ordinary hours.
 - Gate staff scan the hall pass. A second immediate scan must not undo the movement. The gate screen for that case says the resident is already outside and should present the same pass on return.
 - The register shows who is inside, outside, or late, and the permissions still waiting. It shows those counts for the whole hall and again for each block. Search is by name or room. A register list row names the outside destination when the resident is outside. A resident record includes the open outside outing when she is outside — place, exit, expected return, grace, outing type — and whether the guardian was told. When she is inside, that outing field is null; cancelled, returned, and planned outings are not shown there.
-- The provost sees the whole hall and can export the register.
+- A warden or the provost sees the whole hall and can export the register. Hall settings and notification templates stay with the provost.
 - A guest stay is applied for by the host resident at least one day before the start date, for at most 7 days counting the first and last day. 18 September 2026 through 21 September 2026 is 4 days. Payment is marked at the hall office, not collected in the app. Guests have no hall pass. Gate staff record arrival and departure from a list. A guest stays on the dining count until departure is recorded, including when the end date has passed.
-- A guest stay keeps one decision row for each roommate or provost who approves or rejects it. The required roommates are the other residents on the host's room now whose accounts are active. The host is not among them. A suspended resident who has not been moved still occupies a bed, and she is not a required roommate. When no other active resident shares the room, there is no roommate to ask. The stay stays waiting until every roommate required now and the provost have approved, in either order. Either no rejects it at once. A roommate's no leaves the staff decision on the stay empty. The provost's no, and the yes that completes approval, name that provost on the stay. The rows stay, including after a roommate moves, and a host edit does not clear them.
+- A guest stay keeps one decision row for each roommate who approves or rejects it, and one hall-office row. The hall-office row stores `role` `provost` as the slot. That slot is not the account role. `actor_user_id` is the warden or provost who decided. The required roommates are the other residents on the host's room now whose accounts are active. The host is not among them. A suspended resident who has not been moved still occupies a bed, and she is not a required roommate. When no other active resident shares the room, there is no roommate to ask. The stay stays waiting until every roommate required now and the hall office have approved, in either order. Either no rejects it at once. A roommate's no leaves the staff decision on the stay empty. The hall office's no, and the yes that completes approval, name that warden or provost on the stay. The rows stay, including after a roommate moves, and a host edit does not clear them.
 - Emergency alerts are not in this version. An alert must not approve leave or change whether a resident is outside.
 - Parents and guardians do not use the app. A text message is the only channel to them.
 - A resident may self-onboard with her full name, enrolment number, chosen password, own phone, guardian name and phone, and a selected block and room. On that form the resident phone and the guardian phone are Indian mobiles: +91 followed by exactly 10 digits. The account starts **active**, can sign in immediately, and receives its hall pass. Staff (gate, warden, provost) are never self-onboarded. She can delete that account from the phone. Deletion asks for her current password, revokes her sessions, cancels planned outings and permissions and guest stays that have not arrived, and frees her room. Her name, phone, guardian, enrolment, and hall pass are removed. The account is suspended under a new username she does not know, so the old enrolment can be used again and sign-in with it fails. Outings, permissions, guest stays, and audit rows the hall already kept stay, without her name. Deletion is refused while she is outside or a guest of hers is still in the hall. The first deletion creates an inactive Utility room, `Utility-former`, that holds these accounts and is not offered at signup.
@@ -119,7 +119,7 @@ Other writing rules:
 - A block contains rooms. A resident is assigned to one room. The room's block is that resident's block.
 - A resident requests permissions. A permission can authorise one outing when the resident actually leaves.
 - An ordinary outing may name a destination from the hall's list.
-- A resident hosts guest stays. A guest stay keeps decision rows for a roommate and for the provost.
+- A resident hosts guest stays. A guest stay keeps decision rows for a roommate and for the hall office. The hall-office row uses `role` `provost` as the slot.
 - An outing can produce at most one late notice and one return notice.
 - A signed-in phone keeps one session record for that sign-in.
 - Actions people take are written to the audit log.
@@ -272,7 +272,7 @@ The hall pass code stays the same from outing to outing. It changes only when th
 
 ### Staff
 
-A staff profile exists only for gate, warden, or provost. The role on the person is what limits the account. Gate staff scan. The provost alone approves or rejects late-night, home going, and guest stays. Wardens see the queues and register. The provost also keeps the hall's records. The job title is the name of the post, such as Gatekeeper, Resident warden, Non-resident warden, or Provost. It does not grant extra actions.
+A staff profile exists only for gate, warden, or provost. The role on the person is what limits the account. Gate staff scan. A warden or the provost approves or rejects late-night, home going, and guest stays, and keeps the hall's records. Hall settings and notification templates stay with the provost. The job title is the name of the post, such as Gatekeeper, Resident warden, Non-resident warden, or Provost. It does not grant extra actions.
 
 | Detail | Kept as | Required | Where it comes from | Rule |
 |---|---|---|---|---|
@@ -321,7 +321,7 @@ This record is what lets a phone stay signed in. The person signs in with a user
 
 ## Permissions
 
-A permission is the provost's decision. It is not itself the moment of leaving. The leaving is an outing.
+A permission is a decision by a warden or the provost. It is not itself the moment of leaving. The leaving is an outing.
 
 | Detail | Kept as | Required | Where it comes from | Rule |
 |---|---|---|---|---|
@@ -335,9 +335,9 @@ A permission is the provost's decision. It is not itself the moment of leaving. 
 | reason | Text | Yes | The resident types it | Both forms require it. |
 | departure_at | Instant | Yes | The resident sets it | When she plans to leave. Must not be in the past when she submits (a few minutes of clock skew are allowed). There is no maximum how far ahead it may be. Late-night is a clock. Home going is a hall date, stored as the start of that day, or the current time when that day is today. |
 | expected_return_at | Instant | Yes | The resident sets it | Must be later than the departure. Late-night is a clock. Home going is a hall date, stored as the end of that day. |
-| decided_by | Identifier | Empty while waiting, and empty if the resident cancels before a decision | The provost who approves or rejects | Required once that decision is recorded. |
+| decided_by | Identifier | Empty while waiting, and empty if the resident cancels before a decision | The warden or provost who approves or rejects | Required once that decision is recorded. |
 | decided_at | Instant | Empty in the same cases as decided_by | System, at the decision | Required once the decision is recorded. |
-| decision_note | Text | Empty if they write nothing | The provost may type it when deciding | Optional. |
+| decision_note | Text | Empty if they write nothing | The warden or provost may type it when deciding | Optional. |
 | created_at | Instant | Yes | System, when the resident asks | When the request was made. |
 | updated_at | Instant | Yes | System | When it last changed. |
 
@@ -345,13 +345,13 @@ The short place lets the warden's card read "Home going · Lucknow" without open
 
 ### Permission lifecycle
 
-- Waiting: the provost has not decided.
+- Waiting: a warden or the provost has not decided.
 - Approved: the resident may leave during the use window. No outing has been opened from it yet.
 - In use: an outing was opened from this permission and the resident has not returned.
 - Completed: that outing was returned.
 - Rejected, cancelled, and expired: finished. They do not start again.
 
-From waiting, the provost can reject it, or the resident can cancel it. From approved, the resident can cancel it before leaving. An approved permission whose expected return has passed, and which the resident never used, becomes expired. That check runs on write paths (plan, submit, cancel, decision, gate scan) and on the explicit expire-passed posts (`POST /api/v1/me/expire-passed` for the resident's own plans and permissions; `POST /api/v1/permissions/expire-passed` for staff across the hall). GET routes do not write expiry. Guardian-message sends also consider expiry. Once expired it no longer counts as waiting or approved, and the gate cannot open an outing from it.
+From waiting, a warden or the provost can reject it, or the resident can cancel it. From approved, the resident can cancel it before leaving. An approved permission whose expected return has passed, and which the resident never used, becomes expired. That check runs on write paths (plan, submit, cancel, decision, gate scan) and on the explicit expire-passed posts (`POST /api/v1/me/expire-passed` for the resident's own plans and permissions; `POST /api/v1/permissions/expire-passed` for staff across the hall). GET routes do not write expiry. Guardian-message sends also consider expiry. Once expired it no longer counts as waiting or approved, and the gate cannot open an outing from it.
 
 The use window runs from the departure minus the early-leave setting, through the expected return. The gate can open an outing from the permission only inside that window.
 
@@ -499,8 +499,8 @@ The state and the times agree:
 ### Guest lifecycle
 
 - From waiting, before arrival, the resident may edit name, relation, dates, and reason. The stay stays waiting and the staff decision stays empty. Decision rows already recorded stay.
-- A roommate or the provost may reject a waiting stay. That rejects it at once. A roommate's no leaves the staff decision empty. The provost's no records the provost.
-- The stay becomes approved only when every roommate required at that moment has approved and a provost has approved, in either order. Until then it stays waiting, and the staff decision stays empty. When it becomes approved, decided_by is that provost. A roommate who already decided still has her row after she moves; the roommates still required are whoever shares the room now. When no roommate is required, the provost's yes approves the stay.
+- A roommate, a warden, or the provost may reject a waiting stay. That rejects it at once. A roommate's no leaves the staff decision empty. The hall office's no records the warden or provost who decided.
+- The stay becomes approved only when every roommate required at that moment has approved and the hall office has approved, in either order. Until then it stays waiting, and the staff decision stays empty. When it becomes approved, decided_by is that warden or provost. A roommate who already decided still has her row after she moves; the roommates still required are whoever shares the room now. When no roommate is required, the hall-office yes approves the stay.
 - The resident may cancel while waiting. An approved stay cannot be edited. Before arrival the resident may still cancel it.
 - After arrival the resident cannot edit the stay, whether it is waiting or approved, and cannot cancel it.
 - Approved is the stay that can be in the hall. Arrival is a time on that stay, not a new state.
@@ -510,18 +510,18 @@ Payment is a separate act by a warden or the provost. It can be marked before or
 
 ### Guest stay decisions
 
-One row for each roommate or provost who approves or rejects a stay. The stay's own status stays on the guest stay. These rows are the lasting record of who said what. They are not edited and not deleted. A host edit does not clear them.
+One row for each roommate who approves or rejects a stay, and one hall-office row. The hall-office row stores `role` `provost`. That value is the slot, not the account role of the warden or provost who decided. The stay's own status stays on the guest stay. These rows are the lasting record of who said what. They are not edited and not deleted. A host edit does not clear them.
 
-The stay becomes approved only when the rows show a yes from every roommate required at that moment and a yes from a provost. A no rejects the stay at once. Who is required is worked out then, not stored on the row.
+The stay becomes approved only when the rows show a yes from every roommate required at that moment and a yes in the hall-office slot. A no rejects the stay at once. Who is required is worked out then, not stored on the row.
 
 | Detail | Kept as | Required | Where it comes from | Rule |
 |---|---|---|---|---|
 | id | Identifier | Yes | System | Identifies this decision. |
 | guest_stay_id | Identifier | Yes | The stay | The guest stay this decision is about. |
-| actor_user_id | Identifier | Yes | The roommate or the provost | The person who decided. |
-| role | Choice | Yes | System, from the part she is playing | Roommate or provost. |
+| actor_user_id | Identifier | Yes | The roommate, or the warden or provost on the hall-office slot | The person who decided. |
+| role | Choice | Yes | System, from the part she is playing | `roommate`, or `provost` for the hall-office slot. A warden's hall decision is stored as `provost`. |
 | decision | Choice | Yes | That person | Approved or rejected. |
-| note | Text | Empty if she writes nothing | The roommate or the provost may type it | Optional. |
+| note | Text | Empty if she writes nothing | The roommate, or the warden or provost, may type it | Optional. |
 | decided_at | Instant | Yes | System, at the decision | When she decided. |
 
 One person has at most one decision for one role on one stay. A second row for the same stay, person, and role is refused.
@@ -618,6 +618,8 @@ This is the audit log: the record of who did what. Each entry is one action that
 | Hall pass reissued | hall_pass.reissued |
 | Staff account created | staff.created |
 | Staff account updated | staff.updated |
+| Password reset by the office | user.password_reset |
+
 | Room created | room.created |
 | Room updated | room.updated |
 | Block created | block.created |
@@ -655,7 +657,7 @@ What a person may do comes from her or his role.
 
 Gate staff scan a hall pass and record a guest's arrival and departure. They do not approve a permission, they do not approve a guest stay, and they do not change residents, rooms, or settings. Their screens are the scan result, recent gate activity, and the guest lists.
 
-A warden or the provost sees the register and the late list, views waiting permission and guest-stay queues, and marks a guest paid. Only the **provost** approves or rejects a permission, and only the provost records the hall's yes or no on a guest stay. A resident who currently shares the host's room may also record a yes or no on that stay. The provost also creates and edits residents, creates staff, rooms, destinations, and settings, issues a new hall pass, resets a password, exports the register, and reads guardian messages and the audit log. A resident can delete her own account. A deleted account is left off the provost's resident list and off the register counts.
+A warden or the provost sees the register and the late list, views waiting permission and guest-stay queues, and marks a guest paid. A warden or the provost approves or rejects a permission, and records the hall's yes or no on a guest stay. A resident who currently shares the host's room may also record a yes or no on that stay. A warden or the provost also creates and edits residents, creates gate and warden staff, rooms, blocks, and destinations, issues a new hall pass, resets a non-provost password, exports the register, and reads guardian messages and the audit log. Only the provost can suspend or reinstate an account, create or reset a provost, and change hall settings and notification templates. A resident can delete her own account. A deleted account is left off the office resident list and off the register counts.
 
 | Action | Resident | Gate | Warden | Provost |
 |---|---|---|---|---|
@@ -663,11 +665,15 @@ A warden or the provost sees the register and the late list, views waiting permi
 | Own outing, own permission, own guest application, own hall pass, own permission-decision inbox, and a yes or no on a guest stay while she is a required roommate | Yes (active only) | | | |
 | Scan a hall pass, record a guest's arrival and departure | | Yes | Yes | Yes |
 | Register, late list, view waiting queues, mark a guest paid, upload or clear optional payment evidence | | | Yes | Yes |
-| Approve or reject late-night, home going, or the hall decision on a guest stay | | | | Yes |
-| Export the register | | | | Yes |
-| Create and edit residents, create staff, rooms, blocks, destinations, and settings | | | | Yes |
-| Issue a new hall pass, reset a password | | | | Yes |
-| Read guardian messages and the audit log | | | | Yes |
+| Approve or reject late-night, home going, or the hall decision on a guest stay | | | Yes | Yes |
+| Export the register | | | Yes | Yes |
+| Create and edit residents, create gate or warden staff, rooms, blocks, and destinations | | | Yes | Yes |
+| Create a provost, or edit a provost account | | | | Yes |
+| Suspend or reinstate any account | | | | Yes |
+| Hall settings and notification templates | | | | Yes |
+| Issue a new hall pass; reset a resident, gate, or warden password | | | Yes | Yes |
+| Reset a provost password | | | | Yes |
+| Read guardian messages and the audit log | | | Yes | Yes |
 
 ## What the register counts
 

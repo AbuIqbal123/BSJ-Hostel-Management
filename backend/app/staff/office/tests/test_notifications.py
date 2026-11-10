@@ -118,20 +118,30 @@ def test_admin_notifications(database_path: Path, monkeypatch: pytest.MonkeyPatc
             "forbidden",
         )
         warden = sign_in(client, "warden.sara", role_credential("warden"))
+        warden_headers = {"Authorization": f"Bearer {warden}"}
         assert_error(
-            client.get(
+            client.get("/api/v1/admin/notifications", headers=warden_headers),
+            403,
+            "forbidden",
+        )
+        assert_error(
+            client.patch(
                 "/api/v1/admin/notifications",
-                headers={"Authorization": f"Bearer {warden}"},
+                headers=warden_headers,
+                json={"late_sms_template": expected["patched"]["late_sms_template"]},
             ),
             403,
             "forbidden",
         )
         gate = sign_in(client, "gate.fatima", role_credential("gate"))
+        gate_headers = {"Authorization": f"Bearer {gate}"}
         assert_error(
-            client.get(
-                "/api/v1/admin/notifications",
-                headers={"Authorization": f"Bearer {gate}"},
-            ),
+            client.get("/api/v1/admin/notifications", headers=gate_headers),
+            403,
+            "forbidden",
+        )
+        assert_error(
+            client.get("/api/v1/admin/blocks", headers=gate_headers),
             403,
             "forbidden",
         )

@@ -4,7 +4,7 @@
     "bucket": "pending",
     "payment_status": "unpaid",
     "decision": {
-      "actor_user_id": "f66fb000-0000-4000-8000-000000000006",
+      "actor_user_id": "e55fa000-0000-4000-8000-000000000005",
       "role": "provost",
       "decision": "approved",
       "note": "Fine with me.",

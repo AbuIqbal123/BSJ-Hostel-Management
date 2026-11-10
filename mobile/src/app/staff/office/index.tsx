@@ -7,7 +7,7 @@ import { OfficeError, OfficeFrame, replyError } from "@/components/office-frame"
 import { useButtonFeedback } from "@/button-feedback";
 import { hallNow } from "@/format-when";
 import { hallFeatures } from "@/hall-features";
-import { registerCsv, registerExportFileName } from "@/office";
+import { editsHallSettings, registerCsv, registerExportFileName } from "@/office";
 import { hallDay } from "@/outing-when";
 import { shareLocalFile, writeCacheText } from "@/share-file";
 import { useSession } from "@/session";
@@ -33,7 +33,7 @@ const LINKS: { href: OfficeHref; label: string; detail: string; feature?: "guard
   },
   { href: "/staff/office/blocks", label: "Blocks and rooms", detail: "Add a block or a room, or retire one" },
   { href: "/staff/office/destinations", label: "Destinations", detail: "Inactive places stay here and stay off the resident list" },
-  { href: "/staff/office/residents", label: "Residents", detail: "Create, edit, suspend, reissue a pass, or reset a password" },
+  { href: "/staff/office/residents", label: "Residents", detail: "Create, edit, reissue a pass, or reset a password" },
   { href: "/staff/office/staff", label: "Staff", detail: "Create, edit, or reset a password" },
   {
     href: "/staff/office/sms",
@@ -46,10 +46,12 @@ const LINKS: { href: OfficeHref; label: string; detail: string; feature?: "guard
 
 export default function OfficeHome() {
   const colors = useHallColors();
-  const { staffText } = useSession();
+  const { user, staffText } = useSession();
   const [error, setError] = useState<string | null>(null);
   const exportCue = useButtonFeedback();
-  const links = LINKS.filter((link) => !link.feature || hallFeatures[link.feature]);
+  const links = LINKS.filter((link) => !link.feature || hallFeatures[link.feature]).filter(
+    (link) => link.href !== "/staff/office/settings" || (user !== null && editsHallSettings(user.role)),
+  );
 
   const exportRegister = async () => {
     if (exportCue.held) {

@@ -1,4 +1,4 @@
-"""Provost hall-office settings and notification routes."""
+"""Hall office routes, plus shared staff role dependencies."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 from app.shared import clock
 from app.shared.audit import record_audit
-from app.shared.auth.roles import ADMIN, require_roles
+from app.shared.auth.roles import REGISTER, SETTINGS, require_roles
 from app.shared.auth.routes import Account, ConnectionDep
 from app.shared.errors import ApiError
 from app.staff.office.records import (
@@ -30,11 +30,11 @@ from app.staff.office.records import (
 router = APIRouter(prefix="/api/v1/admin", tags=["Hall office"])
 
 
-# The hall office. Add "warden" to ADMIN in app.shared.auth.roles when wardens should open these routes.
-provost_account = require_roles(ADMIN)
+office_account = require_roles(REGISTER)
+settings_account = require_roles(SETTINGS)
 
-
-ProvostDep = Annotated[Account, Depends(provost_account)]
+OfficeDep = Annotated[Account, Depends(office_account)]
+SettingsDep = Annotated[Account, Depends(settings_account)]
 
 
 def _require_hours_order(merged: HallSettings) -> None:
@@ -122,14 +122,14 @@ def _save_hall_patch(
 
 
 @router.get("/settings", response_model=HallSettings)
-def get_settings(_account: ProvostDep, connection: ConnectionDep) -> HallSettings:
+def get_settings(_account: SettingsDep, connection: ConnectionDep) -> HallSettings:
     return load_settings(connection)
 
 
 @router.patch("/settings", response_model=HallSettings)
 def update_settings(
     body: HallSettingsUpdate,
-    account: ProvostDep,
+    account: SettingsDep,
     connection: ConnectionDep,
 ) -> HallSettings:
     current = load_settings(connection)
@@ -148,7 +148,7 @@ def update_settings(
 
 @router.get("/notifications", response_model=HallNotifications)
 def get_notifications(
-    _account: ProvostDep, connection: ConnectionDep
+    _account: SettingsDep, connection: ConnectionDep
 ) -> HallNotifications:
     return load_notifications(connection)
 
@@ -156,7 +156,7 @@ def get_notifications(
 @router.patch("/notifications", response_model=HallNotifications)
 def update_notifications(
     body: HallNotificationsUpdate,
-    account: ProvostDep,
+    account: SettingsDep,
     connection: ConnectionDep,
 ) -> HallNotifications:
     current = load_notifications(connection)

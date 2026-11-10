@@ -1,5 +1,7 @@
 import { describe, expect, it } from "@jest/globals";
 
+import { decidesRequests } from "@/staff";
+
 import {
   AUDIT_CSV_HEADER,
   LATE_PLACEHOLDERS,
@@ -17,6 +19,10 @@ import {
   hoursFromFields,
   hoursPatch,
   noticesPatch,
+  canCreateStaffRole,
+  canResetPassword,
+  canSuspendAccounts,
+  editsHallSettings,
   officeMessage,
   parseClock,
   parseSeason,
@@ -368,8 +374,26 @@ describe("hall office display", () => {
       "Enter a phone with the country code",
     );
     expect(runsOffice("provost")).toBe(true);
-    expect(runsOffice("warden")).toBe(false);
+    expect(runsOffice("warden")).toBe(true);
     expect(runsOffice("gate")).toBe(false);
+    expect(decidesRequests("provost")).toBe(true);
+    expect(decidesRequests("warden")).toBe(true);
+    expect(decidesRequests("gate")).toBe(false);
+    expect(decidesRequests("resident")).toBe(false);
+    expect(editsHallSettings("provost")).toBe(true);
+    expect(editsHallSettings("warden")).toBe(false);
+    expect(editsHallSettings("gate")).toBe(false);
+    expect(canSuspendAccounts("provost")).toBe(true);
+    expect(canSuspendAccounts("warden")).toBe(false);
+    expect(canSuspendAccounts("gate")).toBe(false);
+    expect(canCreateStaffRole("provost", "provost")).toBe(true);
+    expect(canCreateStaffRole("warden", "provost")).toBe(false);
+    expect(canCreateStaffRole("warden", "gate")).toBe(true);
+    expect(canCreateStaffRole("warden", "warden")).toBe(true);
+    expect(canResetPassword("provost", "provost")).toBe(true);
+    expect(canResetPassword("warden", "provost")).toBe(false);
+    expect(canResetPassword("warden", "resident")).toBe(true);
+    expect(canResetPassword("warden", "gate")).toBe(true);
   });
 });
 

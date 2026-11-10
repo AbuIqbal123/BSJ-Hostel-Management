@@ -11,6 +11,7 @@ from fastapi import APIRouter, Query
 from app.shared.page import PageDep
 from app.shared import clock
 from app.shared.audit import record_audit
+from app.shared.auth.roles import can_act_on_target, can_suspend
 from app.shared.auth.routes import ConnectionDep
 from app.shared.auth.security import hash_password
 from app.shared.db import INTEGRITY_ERRORS
@@ -24,7 +25,7 @@ from app.staff.office.records import (
     load_staff_account,
     revoke_live_sessions,
 )
-from app.staff.office.routes import ProvostDep
+from app.staff.office.routes import OfficeDep
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Hall office"])
 
@@ -33,7 +34,7 @@ _DUPLICATE = "Username already in use."
 
 @router.get("/staff", response_model=StaffPage)
 def admin_list_staff(
-    _account: ProvostDep,
+    _account: OfficeDep,
     connection: ConnectionDep,
     page: PageDep,
     q: Annotated[str | None, Query(max_length=80)] = None,
@@ -44,7 +45,7 @@ def admin_list_staff(
 @router.post("/staff", response_model=StaffAccount, status_code=201)
 def admin_create_staff(
     body: StaffCreate,
-    account: ProvostDep,
+    account: OfficeDep,
     connection: ConnectionDep,
 ) -> StaffAccount:
     full_name = body.full_name.strip()
@@ -52,6 +53,8 @@ def admin_create_staff(
     job_title = body.job_title.strip()
     if not full_name or not username or not job_title:
         raise ApiError(422, "validation_error", "Required fields are missing.")
+    if not can_act_on_target(account.role, body.role):
+        raise ApiError(403, "forbidden", "This account cannot do that.")
 
     user_id = str(uuid.uuid4())
     now_text = clock.format_instant(clock.utc_now())
@@ -100,12 +103,16 @@ def admin_create_staff(
 def admin_update_staff(
     user_id: str,
     body: StaffUpdate,
-    account: ProvostDep,
+    account: OfficeDep,
     connection: ConnectionDep,
 ) -> StaffAccount:
     current = load_staff_account(connection, user_id)
     if current is None:
         raise ApiError(404, "not_found", "That record was not found.")
+    if not can_act_on_target(account.role, current.role):
+        raise ApiError(403, "forbidden", "This account cannot do that.")
+    if "status" in body.model_fields_set and not can_suspend(account.role):
+        raise ApiError(403, "forbidden", "This account cannot do that.")
 
     changes: dict[str, object] = {}
     for field_name in body.model_fields_set:

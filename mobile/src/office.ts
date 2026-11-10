@@ -46,7 +46,29 @@ function oneOf<T extends string>(value: unknown, allowed: readonly T[]): T | nul
 }
 
 export function runsOffice(role: string): boolean {
+  return role === "warden" || role === "provost";
+}
+
+export function editsHallSettings(role: string): boolean {
   return role === "provost";
+}
+
+export function canSuspendAccounts(role: string): boolean {
+  return role === "provost";
+}
+
+export function canCreateStaffRole(actorRole: string, targetRole: string): boolean {
+  if (actorRole === "provost") {
+    return targetRole === "gate" || targetRole === "warden" || targetRole === "provost";
+  }
+  return targetRole === "gate" || targetRole === "warden";
+}
+
+export function canResetPassword(actorRole: string, targetRole: string): boolean {
+  if (actorRole === "provost") {
+    return true;
+  }
+  return actorRole === "warden" && targetRole !== "provost";
 }
 
 export function officeMessage(message: string, details: Record<string, unknown> | null = null): string {

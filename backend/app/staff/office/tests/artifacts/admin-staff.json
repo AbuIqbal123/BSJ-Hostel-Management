@@ -5,5 +5,17 @@
     "role": "gate",
     "job_title": "Gatekeeper"
   },
+  "create_second_gate": {
+    "full_name": "Noor Ali",
+    "username": "noor.ali",
+    "role": "gate",
+    "job_title": "Gatekeeper"
+  },
+  "create_provost": {
+    "full_name": "New Provost",
+    "username": "new.provost",
+    "role": "provost",
+    "job_title": "Provost"
+  },
   "duplicate_message": "Username already in use."
 }

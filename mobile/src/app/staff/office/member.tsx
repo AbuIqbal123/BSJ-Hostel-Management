@@ -10,7 +10,19 @@ import { useDelayedLoading } from "@/use-delayed-loading";
 import { TextField } from "@/components/text-field";
 import { useKeyedButtonFeedback } from "@/button-feedback";
 import { pageQuery } from "@/list-page";
-import { RESET_CONFIRM, passwordBody, readPage, readStaffAccount, staffCreate, staffPatch, type OfficeStaff, type StaffDraft } from "@/office";
+import {
+  RESET_CONFIRM,
+  canCreateStaffRole,
+  canResetPassword,
+  canSuspendAccounts,
+  passwordBody,
+  readPage,
+  readStaffAccount,
+  staffCreate,
+  staffPatch,
+  type OfficeStaff,
+  type StaffDraft,
+} from "@/office";
 import { PASSWORD_RULES } from "@/password-rules";
 import { roleLabel, useSession } from "@/session";
 import { collectPages } from "@/use-list-page";
@@ -40,7 +52,8 @@ function fromAccount(account: OfficeStaff): StaffDraft {
 export default function OfficeMember() {
   const colors = useHallColors();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { staffRequest } = useSession();
+  const { user, staffRequest } = useSession();
+  const actorRole = user?.role ?? "";
   const [account, setAccount] = useState<OfficeStaff | null>(null);
   const [draft, setDraft] = useState<StaffDraft>(BLANK);
   const [reset, setReset] = useState("");
@@ -48,6 +61,15 @@ export default function OfficeMember() {
   const [error, setError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const cue = useKeyedButtonFeedback<"save" | "reset">();
+  const showSuspend = canSuspendAccounts(actorRole);
+  const showReset = account !== null && canResetPassword(actorRole, account.role);
+  const roleOptions = (
+    [
+      { value: "gate" as const, label: "Gate" },
+      { value: "warden" as const, label: "Warden" },
+      { value: "provost" as const, label: "Provost" },
+    ] as const
+  ).filter((option) => canCreateStaffRole(actorRole, option.value));
 
   const fill = (key: "fullName" | "username" | "jobTitle" | "temporaryPassword") => (value: string) => {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -179,11 +201,7 @@ export default function OfficeMember() {
         <ChoiceLine
           label="Role"
           value={draft.role}
-          options={[
-            { value: "gate", label: "Gate" },
-            { value: "warden", label: "Warden" },
-            { value: "provost", label: "Provost" },
-          ]}
+          options={[...roleOptions]}
           onChange={(value) => {
             if (value === "gate" || value === "warden" || value === "provost") {
               setDraft((current) => ({ ...current, role: value }));
@@ -191,7 +209,7 @@ export default function OfficeMember() {
           }}
         />
       )}
-      {account ? (
+      {account && showSuspend ? (
         <ChoiceLine
           label="Account"
           value={draft.status}
@@ -227,7 +245,7 @@ export default function OfficeMember() {
         disabled={cue.held}
         onPress={() => void save()}
       />
-      {account ? (
+      {showReset ? (
         <View style={styles.block}>
           <TextField
             label="New temporary password"

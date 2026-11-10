@@ -115,14 +115,11 @@ def test_admin_rooms(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
             "forbidden",
         )
         warden = sign_in(client, "warden.sara", role_credential("warden"))
-        assert_error(
-            client.get(
-                "/api/v1/admin/rooms",
-                headers={"Authorization": f"Bearer {warden}"},
-            ),
-            403,
-            "forbidden",
+        warden_list = client.get(
+            "/api/v1/admin/rooms",
+            headers={"Authorization": f"Bearer {warden}"},
         )
+        assert warden_list.status_code == 200
 
         provost = sign_in(client, "provost.halima", role_credential("provost"))
         headers = {"Authorization": f"Bearer {provost}"}

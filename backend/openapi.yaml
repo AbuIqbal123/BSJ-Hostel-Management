@@ -60,12 +60,12 @@ tags:
   - name: Permissions
     description: >
       Late-night and home-going permissions. Resident requests under /api/v1/me/permissions;
-      warden or provost queue under /api/v1/permissions; only the provost decides.
+      warden or provost queue under /api/v1/permissions; a warden or the provost decides.
   - name: Guest Stays
     description: >
       Guest applications. Resident applies and edits under /api/v1/me/guest-stays.
       A current roommate lists stays awaiting her and records her yes or no.
-      Warden or provost queue under /api/v1/guest-stays; only the provost records the hall decision.
+      Warden or provost queue under /api/v1/guest-stays; a warden or the provost records the hall decision.
       A resident may edit only while the stay is pending and before arrival; the stay stays pending.
       Gate arrival and departure stay under Gate.
   - name: Gate
@@ -79,7 +79,7 @@ tags:
       Expo push tokens under /api/v1/devices for any signed-in account. Push is
       best effort and never blocks the request that caused it.
   - name: Hall office
-    description: Provost only. Residents, staff, rooms, destinations, settings, export, SMS log, and audit.
+    description: Warden or provost for residents, staff, rooms, destinations, export, SMS log, and audit. Hall settings and notification templates stay with the provost.
 
 security:
   - bearerAuth: []
@@ -2722,8 +2722,8 @@ paths:
       operationId: decide_permission
       summary: Approve or reject a permission
       description: |
-        Caller: provost. Only a `pending` permission can be decided. Wardens may
-        list and read permissions but cannot decide them. Before deciding,
+        Caller: warden or provost. Only a `pending` permission can be decided.
+        Gate staff cannot decide. Before deciding,
         expires this permission if it is an unused approved request whose
         expected return has already passed. Approval does not create an outing
         and does not by itself let a scan succeed before the use window.
@@ -2857,20 +2857,22 @@ paths:
       operationId: decide_guest_stay
       summary: Approve or reject a guest stay
       description: |
-        Caller: provost. Only while `pending`. Wardens may list and read guest
-        stays but cannot decide them. A resident cannot edit an approved stay,
+        Caller: warden or provost. Only while `pending`. Gate staff cannot
+        decide. A resident cannot edit an approved stay,
         and cannot edit after arrival, so those stays are not sent back for
         another decision. When the guest has already arrived, only `approved`
         is allowed — reject is refused (the guest is in the hall).
 
-        The provost's yes is stored as a decision. The stay becomes `approved`
+        The hall-office yes is stored as a decision row with `role` `provost`.
+        That role is the hall-office slot, not the account role. `actor_user_id`
+        is the warden or provost who decided. The stay becomes `approved`
         only when every roommate required now has also approved. If the host
         has no other active roommate, this yes approves the stay. If a
         roommate is still required, the response is 200 and `status` stays
         `pending`, and `decided_by` stays empty. The host is not notified that
         the stay is approved until `status` is `approved`. A no sets
         `rejected` at once. Approval does not mark payment and does not clear
-        or set arrival. The same provost deciding again, while the stay is
+        or set arrival. The same person deciding again, while the stay is
         still pending, returns 409 `already_decided`.
       parameters:
         - $ref: "#/components/parameters/GuestStayId"
@@ -3086,7 +3088,7 @@ paths:
       tags: [Hall office]
       operationId: admin_list_residents
       summary: List resident accounts
-      description: "Caller: provost. Includes active and suspended residents. Does not include hall-pass tokens."
+      description: "Caller: warden or provost. Includes active and suspended residents. Does not include hall-pass tokens."
       parameters:
         - name: q
           in: query
@@ -3112,7 +3114,7 @@ paths:
       operationId: admin_create_resident
       summary: Create a resident
       description: |
-        Caller: provost. Username is the enrolment number. Required fields include
+        Caller: warden or provost. Username is the enrolment number. Required fields include
         the resident's own phone in E.164 form, as well as the room, guardian
         details, and temporary password. The response includes the hall pass
         payload once, so the office can place it on the resident's phone. Later
@@ -3150,7 +3152,7 @@ paths:
       tags: [Hall office]
       operationId: admin_get_resident
       summary: Resident account
-      description: "Caller: provost. No hall-pass token."
+      description: "Caller: warden or provost. No hall-pass token."
       parameters:
         - $ref: "#/components/parameters/ResidentId"
       responses:
@@ -3171,15 +3173,15 @@ paths:
       operationId: admin_update_resident
       summary: Update a resident
       description: |
-        Caller: provost. Send only the fields that change. Name, enrolment
+        Caller: warden or provost. Send only the fields that change. Name, enrolment
         number, and course are set at create or onboard and are not editable
         here. `phone` may be set to null to clear it. `guardian_name` and
         `guardian_phone` may be replaced and may not be cleared. A phone
-        includes the country code. `status` suspends or reinstates.
-        Suspension revokes refresh tokens. It does not close an open outing or
-        mark the resident inside. A suspended resident who is outside stays on
-        the register until a return scan; she cannot start a new exit until
-        reinstated.
+        includes the country code. Only the provost may set `status` to suspend
+        or reinstate. Suspension revokes refresh tokens. It does not close an
+        open outing or mark the resident inside. A suspended resident who is
+        outside stays on the register until a return scan; she cannot start a
+        new exit until reinstated.
       parameters:
         - $ref: "#/components/parameters/ResidentId"
       requestBody:
@@ -3217,7 +3219,7 @@ paths:
       operationId: reissue_hall_pass
       summary: Reissue a hall pass
       description: |
-        Caller: provost. Replaces the token immediately. The previous QR stops
+        Caller: warden or provost. Replaces the token immediately. The previous QR stops
         working. The new payload is returned once.
       parameters:
         - $ref: "#/components/parameters/ResidentId"
@@ -3241,7 +3243,7 @@ paths:
       operationId: admin_list_staff
       summary: List staff accounts
       description: |
-        Caller: provost. Gate, warden, and provost accounts. Optional `q` matches
+        Caller: warden or provost. Gate, warden, and provost accounts. Optional `q` matches
         full name, username, or job title.
       parameters:
         - name: q
@@ -3267,7 +3269,11 @@ paths:
       tags: [Hall office]
       operationId: admin_create_staff
       summary: Create a staff account
-      description: "Caller: provost. Role is gate, warden, or provost. The sample body leaves the temporary password out of this repository. The field is required."
+      description: |
+        Caller: warden or provost. Role is gate, warden, or provost. A warden cannot
+        create a provost. Only the provost can suspend or reinstate accounts. The
+        sample body leaves the temporary password out of this repository. The field
+        is required.
       requestBody:
         required: true
         content:
@@ -3305,8 +3311,9 @@ paths:
       operationId: admin_update_staff
       summary: Update a staff account
       description: |
-        Caller: provost. Role cannot be changed on this route, and a staff
-        account cannot become a resident. Suspension revokes refresh tokens.
+        Caller: warden or provost. Role cannot be changed on this route, and a staff
+        account cannot become a resident. Only the provost can suspend or reinstate,
+        and a warden cannot edit a provost. Suspension revokes refresh tokens.
       parameters:
         - $ref: "#/components/parameters/UserId"
       requestBody:
@@ -3335,10 +3342,11 @@ paths:
       operationId: reset_password
       summary: Reset a password
       description: |
-        Caller: provost. Sets a temporary password and revokes that user's
-        refresh tokens. Works for residents and staff. The temporary password
-        is at least 10 characters and includes an uppercase letter, a lowercase
-        letter, a number, and a symbol.
+        Caller: warden or provost. Sets a temporary password and revokes that user's
+        refresh tokens. Works for residents and staff. A warden cannot reset a
+        provost. Every reset writes `user.password_reset` with the actor and target,
+        never the password. The temporary password is at least 10 characters and
+        includes an uppercase letter, a lowercase letter, a number, and a symbol.
       parameters:
         - $ref: "#/components/parameters/UserId"
       requestBody:
@@ -3364,7 +3372,7 @@ paths:
       tags: [Hall office]
       operationId: list_blocks
       summary: List blocks
-      description: "Caller: provost. Includes inactive blocks."
+      description: "Caller: warden or provost. Includes inactive blocks."
       responses:
         "200":
           description: Blocks.
@@ -3382,7 +3390,7 @@ paths:
       tags: [Hall office]
       operationId: create_block
       summary: Create a block
-      description: "Caller: provost. `code` is the short label used in room names, such as B."
+      description: "Caller: warden or provost. `code` is the short label used in room names, such as B."
       requestBody:
         required: true
         content:
@@ -3412,7 +3420,7 @@ paths:
       tags: [Hall office]
       operationId: update_block
       summary: Update a block
-      description: "Caller: provost. Deactivate with `status` `inactive`. Rooms in the block remain."
+      description: "Caller: warden or provost. Deactivate with `status` `inactive`. Rooms in the block remain."
       parameters:
         - $ref: "#/components/parameters/BlockId"
       requestBody:
@@ -3441,7 +3449,7 @@ paths:
       operationId: list_rooms
       summary: List rooms
       description: |
-        Caller: provost. Newest not applicable; rooms are ordered by block code,
+        Caller: warden or provost. Newest not applicable; rooms are ordered by block code,
         then door number as an integer (so A-2 before A-10), then the door text,
         then id. Optional `block_id` limits to one block. Optional `q` matches
         label or door number. Pages with `limit` and `offset`.
@@ -3475,7 +3483,7 @@ paths:
       operationId: create_room
       summary: Create a room
       description: |
-        Caller: provost. `label` is stored as `{block code}-{number}`. The number
+        Caller: warden or provost. `label` is stored as `{block code}-{number}`. The number
         is text, so `087` stays `087`.
       requestBody:
         required: true
@@ -3511,7 +3519,7 @@ paths:
       tags: [Hall office]
       operationId: update_room
       summary: Update a room
-      description: "Caller: provost. A room with residents assigned to it can be deactivated only after they are moved."
+      description: "Caller: warden or provost. A room with residents assigned to it can be deactivated only after they are moved."
       parameters:
         - $ref: "#/components/parameters/RoomId"
       requestBody:
@@ -3545,7 +3553,7 @@ paths:
       tags: [Hall office]
       operationId: admin_list_destinations
       summary: List destinations
-      description: "Caller: provost. Includes inactive rows. Named places are alphabetical, ignoring capitals. The free-text choice is last. The resident catalog route returns active rows only."
+      description: "Caller: warden or provost. Includes inactive rows. Named places are alphabetical, ignoring capitals. The free-text choice is last. The resident catalog route returns active rows only."
       responses:
         "200":
           description: Destinations.
@@ -3562,7 +3570,7 @@ paths:
       operationId: create_destination
       summary: Create a destination
       description: |
-        Caller: provost. Only one active destination may have `source` `custom`.
+        Caller: warden or provost. Only one active destination may have `source` `custom`.
       requestBody:
         required: true
         content:
@@ -3592,7 +3600,7 @@ paths:
       tags: [Hall office]
       operationId: update_destination
       summary: Update a destination
-      description: "Caller: provost. Deactivating a destination does not change the place already stored on an outing."
+      description: "Caller: warden or provost. Deactivating a destination does not change the place already stored on an outing."
       parameters:
         - $ref: "#/components/parameters/DestinationId"
       requestBody:
@@ -3724,7 +3732,7 @@ paths:
       operationId: export_register
       summary: Export the register
       description: |
-        Caller: provost. One CSV file. UTF-8, comma separated, header row required.
+        Caller: warden or provost. One CSV file. UTF-8, comma separated, header row required.
         Resident rows and guest rows share one header. Cells that do not apply
         to the row are empty.
 
@@ -3757,7 +3765,7 @@ paths:
       operationId: list_sms
       summary: SMS log
       description: |
-        Caller: provost. Newest first. Each row is a late notice or a return notice
+        Caller: warden or provost. Newest first. Each row is a late notice or a return notice
         sent to the guardian phone. Optional `q` matches resident name, phone, or
         body. Optional `notice_type`, `status`, and hall-day `from`/`to`.
       parameters:
@@ -3811,7 +3819,7 @@ paths:
       operationId: export_audit
       summary: Export the audit log
       description: |
-        Caller: provost. One CSV file. UTF-8, comma separated, header row required.
+        Caller: warden or provost. One CSV file. UTF-8, comma separated, header row required.
         Same filters as the audit list (`q`, `entity_type`, `entity_id`, hall-day
         `from` / `to`). Newest first. At most 10000 data rows. Detail is omitted.
         A data cell whose text starts with `=`, `+`, `-`, `@`, a tab, or a
@@ -3868,7 +3876,7 @@ paths:
       operationId: list_audit
       summary: Audit log
       description: |
-        Caller: provost. Newest first. Detail never contains a password, a refresh
+        Caller: warden or provost. Newest first. Detail never contains a password, a refresh
         token, or a hall-pass token. Optional `q` matches summary, action, or
         actor name. Optional `entity_type` / `entity_id`. Optional hall-day
         `from` / `to`. The phone office screen shows the first page only; use

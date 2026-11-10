@@ -567,7 +567,7 @@ def test_guest_stays_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch)
         assert_error(
             client.post(
                 f"/api/v1/guest-stays/{PENDING_A}/decision",
-                headers=headers,
+                headers={"Authorization": f"Bearer {gate}"},
                 json={"decision": "approved", "note": ""},
             ),
             403,
@@ -577,14 +577,23 @@ def test_guest_stays_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch)
 
         approved = client.post(
             f"/api/v1/guest-stays/{PENDING_A}/decision",
-            headers=provost_headers,
+            headers=headers,
             json={"decision": "approved", "note": ""},
         )
         assert approved.status_code == 200
         assert approved.json()["status"] == expected["approved_empty_note"]["status"]
         assert approved.json()["payment_status"] == expected["approved_empty_note"]["payment_status"]
         assert approved.json()["decision_note"] is None
-        assert approved.json()["decided_by"] == PROVOST_ID
+        assert approved.json()["decided_by"] == WARDEN_ID
+        assert decision_rows(database_path, PENDING_A) == [
+            {
+                "actor_user_id": WARDEN_ID,
+                "role": "provost",
+                "decision": "approved",
+                "note": None,
+                "decided_at": "2026-09-30T13:00:00Z",
+            }
+        ]
         assert approved.json()["bucket"] == expected["approved_empty_note"]["bucket"]
 
         assert_error(
@@ -798,20 +807,9 @@ def test_provost_approve_waits_for_roommate(
         warden_headers = {"Authorization": f"Bearer {warden}"}
         provost_headers = {"Authorization": f"Bearer {provost}"}
 
-        assert_error(
-            client.post(
-                f"/api/v1/guest-stays/{SHARED_STAY}/decision",
-                headers=warden_headers,
-                json={"decision": "approved"},
-            ),
-            403,
-            "forbidden",
-            "This account cannot do that.",
-        )
-
         waiting = client.post(
             f"/api/v1/guest-stays/{SHARED_STAY}/decision",
-            headers=provost_headers,
+            headers=warden_headers,
             json={"decision": "approved", "note": "Fine with me."},
         )
         assert waiting.status_code == 200
@@ -828,7 +826,7 @@ def test_provost_approve_waits_for_roommate(
         assert_error(
             client.post(
                 f"/api/v1/guest-stays/{SHARED_STAY}/decision",
-                headers=provost_headers,
+                headers=warden_headers,
                 json={"decision": "rejected"},
             ),
             409,
