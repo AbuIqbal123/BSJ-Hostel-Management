@@ -1975,7 +1975,7 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 ## <a id="tag-permissions"></a>Permissions
 
-Late-night and home-going permissions. Resident requests under /api/v1/me/permissions; warden or provost queue under /api/v1/permissions; only the provost decides.
+Late-night and home-going permissions. Resident requests under /api/v1/me/permissions; warden or provost queue under /api/v1/permissions; a warden or the provost decides.
 
 | Method | Path | Purpose | Who |
 |---|---|---|---|
@@ -1987,7 +1987,7 @@ Late-night and home-going permissions. Resident requests under /api/v1/me/permis
 | GET | `/api/v1/permissions` | [Permission queue](#get-api-v1-permissions) | warden or provost |
 | POST | `/api/v1/permissions/expire-passed` | [Expire passed unused permissions](#post-api-v1-permissions-expire-passed) | warden or provost |
 | GET | `/api/v1/permissions/{permission_id}` | [Permission for review](#get-api-v1-permissions-permission_id) | warden or provost |
-| POST | `/api/v1/permissions/{permission_id}/decision` | [Approve or reject a permission](#post-api-v1-permissions-permission_id-decision) | provost |
+| POST | `/api/v1/permissions/{permission_id}/decision` | [Approve or reject a permission](#post-api-v1-permissions-permission_id-decision) | warden or provost |
 
 ### <a id="get-api-v1-me-permissions"></a>GET `/api/v1/me/permissions` — Own special permissions
 
@@ -2541,10 +2541,10 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 `decide_permission`
 
-**Who.** provost. Bearer access token.
+**Who.** warden or provost. Bearer access token.
 
-Caller: provost. Only a `pending` permission can be decided. Wardens may
-list and read permissions but cannot decide them. Before deciding,
+Caller: warden or provost. Only a `pending` permission can be decided.
+Gate staff cannot decide. Before deciding,
 expires this permission if it is an unused approved request whose
 expected return has already passed. Approval does not create an outing
 and does not by itself let a scan succeed before the use window.
@@ -2637,7 +2637,7 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 ## <a id="tag-guest-stays"></a>Guest Stays
 
-Guest applications. Resident applies and edits under /api/v1/me/guest-stays. A current roommate lists stays awaiting her and records her yes or no. Warden or provost queue under /api/v1/guest-stays; only the provost records the hall decision. A resident may edit only while the stay is pending and before arrival; the stay stays pending. Gate arrival and departure stay under Gate.
+Guest applications. Resident applies and edits under /api/v1/me/guest-stays. A current roommate lists stays awaiting her and records her yes or no. Warden or provost queue under /api/v1/guest-stays; a warden or the provost records the hall decision. A resident may edit only while the stay is pending and before arrival; the stay stays pending. Gate arrival and departure stay under Gate.
 
 | Method | Path | Purpose | Who |
 |---|---|---|---|
@@ -2650,7 +2650,7 @@ Guest applications. Resident applies and edits under /api/v1/me/guest-stays. A c
 | POST | `/api/v1/me/guest-stays/{guest_stay_id}/cancel` | [Cancel own guest application](#post-api-v1-me-guest-stays-guest_stay_id-cancel) | resident |
 | GET | `/api/v1/guest-stays` | [Guest stays](#get-api-v1-guest-stays) | warden or provost |
 | GET | `/api/v1/guest-stays/{guest_stay_id}` | [Guest stay for review](#get-api-v1-guest-stays-guest_stay_id) | warden or provost |
-| POST | `/api/v1/guest-stays/{guest_stay_id}/decision` | [Approve or reject a guest stay](#post-api-v1-guest-stays-guest_stay_id-decision) | provost |
+| POST | `/api/v1/guest-stays/{guest_stay_id}/decision` | [Approve or reject a guest stay](#post-api-v1-guest-stays-guest_stay_id-decision) | warden or provost |
 | POST | `/api/v1/guest-stays/{guest_stay_id}/payment` | [Mark guest payment](#post-api-v1-guest-stays-guest_stay_id-payment) | warden or provost |
 | POST | `/api/v1/guest-stays/{guest_stay_id}/payment/evidence` | [Upload guest payment evidence](#post-api-v1-guest-stays-guest_stay_id-payment-evidence) | warden or provost |
 | GET | `/api/v1/guest-stays/{guest_stay_id}/payment/evidence` | [Download guest payment evidence](#get-api-v1-guest-stays-guest_stay_id-payment-evidence) | warden or provost |
@@ -3379,22 +3379,24 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 `decide_guest_stay`
 
-**Who.** provost. Bearer access token.
+**Who.** warden or provost. Bearer access token.
 
-Caller: provost. Only while `pending`. Wardens may list and read guest
-stays but cannot decide them. A resident cannot edit an approved stay,
+Caller: warden or provost. Only while `pending`. Gate staff cannot
+decide. A resident cannot edit an approved stay,
 and cannot edit after arrival, so those stays are not sent back for
 another decision. When the guest has already arrived, only `approved`
 is allowed — reject is refused (the guest is in the hall).
 
-The provost's yes is stored as a decision. The stay becomes `approved`
+The hall-office yes is stored as a decision row with `role` `provost`.
+That role is the hall-office slot, not the account role. `actor_user_id`
+is the warden or provost who decided. The stay becomes `approved`
 only when every roommate required now has also approved. If the host
 has no other active roommate, this yes approves the stay. If a
 roommate is still required, the response is 200 and `status` stays
 `pending`, and `decided_by` stays empty. The host is not notified that
 the stay is approved until `status` is `approved`. A no sets
 `rejected` at once. Approval does not mark payment and does not clear
-or set arrival. The same provost deciding again, while the stay is
+or set arrival. The same person deciding again, while the stay is
 still pending, returns 409 `already_decided`.
 
 **Parameters**
@@ -5071,44 +5073,44 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 ## <a id="tag-hall-office"></a>Hall office
 
-Provost only. Residents, staff, rooms, destinations, settings, export, SMS log, and audit.
+Warden or provost for residents, staff, rooms, destinations, export, SMS log, and audit. Hall settings and notification templates stay with the provost.
 
 | Method | Path | Purpose | Who |
 |---|---|---|---|
-| GET | `/api/v1/admin/residents` | [List resident accounts](#get-api-v1-admin-residents) | provost |
-| POST | `/api/v1/admin/residents` | [Create a resident](#post-api-v1-admin-residents) | provost |
-| GET | `/api/v1/admin/residents/{resident_id}` | [Resident account](#get-api-v1-admin-residents-resident_id) | provost |
-| PATCH | `/api/v1/admin/residents/{resident_id}` | [Update a resident](#patch-api-v1-admin-residents-resident_id) | provost |
-| POST | `/api/v1/admin/residents/{resident_id}/hall-pass/reissue` | [Reissue a hall pass](#post-api-v1-admin-residents-resident_id-hall-pass-reissue) | provost |
-| GET | `/api/v1/admin/staff` | [List staff accounts](#get-api-v1-admin-staff) | provost |
-| POST | `/api/v1/admin/staff` | [Create a staff account](#post-api-v1-admin-staff) | provost |
-| PATCH | `/api/v1/admin/staff/{user_id}` | [Update a staff account](#patch-api-v1-admin-staff-user_id) | provost |
-| POST | `/api/v1/admin/users/{user_id}/password` | [Reset a password](#post-api-v1-admin-users-user_id-password) | provost |
-| GET | `/api/v1/admin/blocks` | [List blocks](#get-api-v1-admin-blocks) | provost |
-| POST | `/api/v1/admin/blocks` | [Create a block](#post-api-v1-admin-blocks) | provost |
-| PATCH | `/api/v1/admin/blocks/{block_id}` | [Update a block](#patch-api-v1-admin-blocks-block_id) | provost |
-| GET | `/api/v1/admin/rooms` | [List rooms](#get-api-v1-admin-rooms) | provost |
-| POST | `/api/v1/admin/rooms` | [Create a room](#post-api-v1-admin-rooms) | provost |
-| PATCH | `/api/v1/admin/rooms/{room_id}` | [Update a room](#patch-api-v1-admin-rooms-room_id) | provost |
-| GET | `/api/v1/admin/destinations` | [List destinations](#get-api-v1-admin-destinations) | provost |
-| POST | `/api/v1/admin/destinations` | [Create a destination](#post-api-v1-admin-destinations) | provost |
-| PATCH | `/api/v1/admin/destinations/{destination_id}` | [Update a destination](#patch-api-v1-admin-destinations-destination_id) | provost |
+| GET | `/api/v1/admin/residents` | [List resident accounts](#get-api-v1-admin-residents) | warden or provost |
+| POST | `/api/v1/admin/residents` | [Create a resident](#post-api-v1-admin-residents) | warden or provost |
+| GET | `/api/v1/admin/residents/{resident_id}` | [Resident account](#get-api-v1-admin-residents-resident_id) | warden or provost |
+| PATCH | `/api/v1/admin/residents/{resident_id}` | [Update a resident](#patch-api-v1-admin-residents-resident_id) | warden or provost |
+| POST | `/api/v1/admin/residents/{resident_id}/hall-pass/reissue` | [Reissue a hall pass](#post-api-v1-admin-residents-resident_id-hall-pass-reissue) | warden or provost |
+| GET | `/api/v1/admin/staff` | [List staff accounts](#get-api-v1-admin-staff) | warden or provost |
+| POST | `/api/v1/admin/staff` | [Create a staff account](#post-api-v1-admin-staff) | warden or provost |
+| PATCH | `/api/v1/admin/staff/{user_id}` | [Update a staff account](#patch-api-v1-admin-staff-user_id) | warden or provost |
+| POST | `/api/v1/admin/users/{user_id}/password` | [Reset a password](#post-api-v1-admin-users-user_id-password) | warden or provost |
+| GET | `/api/v1/admin/blocks` | [List blocks](#get-api-v1-admin-blocks) | warden or provost |
+| POST | `/api/v1/admin/blocks` | [Create a block](#post-api-v1-admin-blocks) | warden or provost |
+| PATCH | `/api/v1/admin/blocks/{block_id}` | [Update a block](#patch-api-v1-admin-blocks-block_id) | warden or provost |
+| GET | `/api/v1/admin/rooms` | [List rooms](#get-api-v1-admin-rooms) | warden or provost |
+| POST | `/api/v1/admin/rooms` | [Create a room](#post-api-v1-admin-rooms) | warden or provost |
+| PATCH | `/api/v1/admin/rooms/{room_id}` | [Update a room](#patch-api-v1-admin-rooms-room_id) | warden or provost |
+| GET | `/api/v1/admin/destinations` | [List destinations](#get-api-v1-admin-destinations) | warden or provost |
+| POST | `/api/v1/admin/destinations` | [Create a destination](#post-api-v1-admin-destinations) | warden or provost |
+| PATCH | `/api/v1/admin/destinations/{destination_id}` | [Update a destination](#patch-api-v1-admin-destinations-destination_id) | warden or provost |
 | GET | `/api/v1/admin/settings` | [Hall settings](#get-api-v1-admin-settings) | provost |
 | PATCH | `/api/v1/admin/settings` | [Update hall settings](#patch-api-v1-admin-settings) | provost |
 | GET | `/api/v1/admin/notifications` | [Hall notification settings](#get-api-v1-admin-notifications) | provost only (same gate as hall settings) |
 | PATCH | `/api/v1/admin/notifications` | [Update hall notification settings](#patch-api-v1-admin-notifications) | provost only (same gate as hall settings) |
-| GET | `/api/v1/admin/register/export` | [Export the register](#get-api-v1-admin-register-export) | provost |
-| GET | `/api/v1/admin/sms` | [SMS log](#get-api-v1-admin-sms) | provost |
-| GET | `/api/v1/admin/audit/export` | [Export the audit log](#get-api-v1-admin-audit-export) | provost |
-| GET | `/api/v1/admin/audit` | [Audit log](#get-api-v1-admin-audit) | provost |
+| GET | `/api/v1/admin/register/export` | [Export the register](#get-api-v1-admin-register-export) | warden or provost |
+| GET | `/api/v1/admin/sms` | [SMS log](#get-api-v1-admin-sms) | warden or provost |
+| GET | `/api/v1/admin/audit/export` | [Export the audit log](#get-api-v1-admin-audit-export) | warden or provost |
+| GET | `/api/v1/admin/audit` | [Audit log](#get-api-v1-admin-audit) | warden or provost |
 
 ### <a id="get-api-v1-admin-residents"></a>GET `/api/v1/admin/residents` — List resident accounts
 
 `admin_list_residents`
 
-**Who.** provost. Bearer access token.
+**Who.** warden or provost. Bearer access token.
 
-Caller: provost. Includes active and suspended residents. Does not include hall-pass tokens.
+Caller: warden or provost. Includes active and suspended residents. Does not include hall-pass tokens.
 
 **Parameters**
 
@@ -5150,9 +5152,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 `admin_create_resident`
 
-**Who.** provost. Bearer access token.
+**Who.** warden or provost. Bearer access token.
 
-Caller: provost. Username is the enrolment number. Required fields include
+Caller: warden or provost. Username is the enrolment number. Required fields include
 the resident's own phone in E.164 form, as well as the room, guardian
 details, and temporary password. The response includes the hall pass
 payload once, so the office can place it on the resident's phone. Later
@@ -5216,9 +5218,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 `admin_get_resident`
 
-**Who.** provost. Bearer access token.
+**Who.** warden or provost. Bearer access token.
 
-Caller: provost. No hall-pass token.
+Caller: warden or provost. No hall-pass token.
 
 **Parameters**
 
@@ -5271,9 +5273,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 `admin_update_resident`
 
-**Who.** provost. Bearer access token.
+**Who.** warden or provost. Bearer access token.
 
-Caller: provost. Send only the fields that change. Name, enrolment
+Caller: warden or provost. Send only the fields that change. Name, enrolment
 number, and course are set at create or onboard and are not editable
 here. `phone` may be set to null to clear it. `guardian_name` and
 `guardian_phone` may be replaced and may not be cleared. A phone
@@ -5358,9 +5360,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 `reissue_hall_pass`
 
-**Who.** provost. Bearer access token.
+**Who.** warden or provost. Bearer access token.
 
-Caller: provost. Replaces the token immediately. The previous QR stops
+Caller: warden or provost. Replaces the token immediately. The previous QR stops
 working. The new payload is returned once.
 
 **Parameters**
@@ -5406,9 +5408,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 `admin_list_staff`
 
-**Who.** provost. Bearer access token.
+**Who.** warden or provost. Bearer access token.
 
-Caller: provost. Gate, warden, and provost accounts. Optional `q` matches
+Caller: warden or provost. Gate, warden, and provost accounts. Optional `q` matches
 full name, username, or job title.
 
 **Parameters**
@@ -5451,9 +5453,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 `admin_create_staff`
 
-**Who.** provost. Bearer access token.
+**Who.** warden or provost. Bearer access token.
 
-Caller: provost. Role is gate, warden, or provost. The sample body leaves the temporary password out of this repository. The field is required.
+Caller: warden or provost. Role is gate, warden, or provost. The sample body leaves the temporary password out of this repository. The field is required.
 
 **Request.** Required.
 
@@ -5524,9 +5526,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 `admin_update_staff`
 
-**Who.** provost. Bearer access token.
+**Who.** warden or provost. Bearer access token.
 
-Caller: provost. Role cannot be changed on this route, and a staff
+Caller: warden or provost. Role cannot be changed on this route, and a staff
 account cannot become a resident. Suspension revokes refresh tokens.
 
 **Parameters**
@@ -5585,9 +5587,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 `reset_password`
 
-**Who.** provost. Bearer access token.
+**Who.** warden or provost. Bearer access token.
 
-Caller: provost. Sets a temporary password and revokes that user's
+Caller: warden or provost. Sets a temporary password and revokes that user's
 refresh tokens. Works for residents and staff. The temporary password
 is at least 10 characters and includes an uppercase letter, a lowercase
 letter, a number, and a symbol.
@@ -5643,9 +5645,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 `list_blocks`
 
-**Who.** provost. Bearer access token.
+**Who.** warden or provost. Bearer access token.
 
-Caller: provost. Includes inactive blocks.
+Caller: warden or provost. Includes inactive blocks.
 
 **Responses**
 
@@ -5674,9 +5676,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 `create_block`
 
-**Who.** provost. Bearer access token.
+**Who.** warden or provost. Bearer access token.
 
-Caller: provost. `code` is the short label used in room names, such as B.
+Caller: warden or provost. `code` is the short label used in room names, such as B.
 
 **Request.** Required.
 
@@ -5732,9 +5734,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 `update_block`
 
-**Who.** provost. Bearer access token.
+**Who.** warden or provost. Bearer access token.
 
-Caller: provost. Deactivate with `status` `inactive`. Rooms in the block remain.
+Caller: warden or provost. Deactivate with `status` `inactive`. Rooms in the block remain.
 
 **Parameters**
 
@@ -5796,9 +5798,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 `list_rooms`
 
-**Who.** provost. Bearer access token.
+**Who.** warden or provost. Bearer access token.
 
-Caller: provost. Newest not applicable; rooms are ordered by block code,
+Caller: warden or provost. Newest not applicable; rooms are ordered by block code,
 then door number as an integer (so A-2 before A-10), then the door text,
 then id. Optional `block_id` limits to one block. Optional `q` matches
 label or door number. Pages with `limit` and `offset`.
@@ -5844,9 +5846,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 `create_room`
 
-**Who.** provost. Bearer access token.
+**Who.** warden or provost. Bearer access token.
 
-Caller: provost. `label` is stored as `{block code}-{number}`. The number
+Caller: warden or provost. `label` is stored as `{block code}-{number}`. The number
 is text, so `087` stays `087`.
 
 **Request.** Required.
@@ -5913,9 +5915,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 `update_room`
 
-**Who.** provost. Bearer access token.
+**Who.** warden or provost. Bearer access token.
 
-Caller: provost. A room with residents assigned to it can be deactivated only after they are moved.
+Caller: warden or provost. A room with residents assigned to it can be deactivated only after they are moved.
 
 **Parameters**
 
@@ -5979,9 +5981,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 `admin_list_destinations`
 
-**Who.** provost. Bearer access token.
+**Who.** warden or provost. Bearer access token.
 
-Caller: provost. Includes inactive rows. Named places are alphabetical, ignoring capitals. The free-text choice is last. The resident catalog route returns active rows only.
+Caller: warden or provost. Includes inactive rows. Named places are alphabetical, ignoring capitals. The free-text choice is last. The resident catalog route returns active rows only.
 
 **Responses**
 
@@ -6012,9 +6014,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 `create_destination`
 
-**Who.** provost. Bearer access token.
+**Who.** warden or provost. Bearer access token.
 
-Caller: provost. Only one active destination may have `source` `custom`.
+Caller: warden or provost. Only one active destination may have `source` `custom`.
 
 **Request.** Required.
 
@@ -6063,9 +6065,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 `update_destination`
 
-**Who.** provost. Bearer access token.
+**Who.** warden or provost. Bearer access token.
 
-Caller: provost. Deactivating a destination does not change the place already stored on an outing.
+Caller: warden or provost. Deactivating a destination does not change the place already stored on an outing.
 
 **Parameters**
 
@@ -6342,9 +6344,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 `export_register`
 
-**Who.** provost. Bearer access token.
+**Who.** warden or provost. Bearer access token.
 
-Caller: provost. One CSV file. UTF-8, comma separated, header row required.
+Caller: warden or provost. One CSV file. UTF-8, comma separated, header row required.
 Resident rows and guest rows share one header. Cells that do not apply
 to the row are empty.
 
@@ -6387,9 +6389,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 `list_sms`
 
-**Who.** provost. Bearer access token.
+**Who.** warden or provost. Bearer access token.
 
-Caller: provost. Newest first. Each row is a late notice or a return notice
+Caller: warden or provost. Newest first. Each row is a late notice or a return notice
 sent to the guardian phone. Optional `q` matches resident name, phone, or
 body. Optional `notice_type`, `status`, and hall-day `from`/`to`.
 
@@ -6437,9 +6439,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 `export_audit`
 
-**Who.** provost. Bearer access token.
+**Who.** warden or provost. Bearer access token.
 
-Caller: provost. One CSV file. UTF-8, comma separated, header row required.
+Caller: warden or provost. One CSV file. UTF-8, comma separated, header row required.
 Same filters as the audit list (`q`, `entity_type`, `entity_id`, hall-day
 `from` / `to`). Newest first. At most 10000 data rows. Detail is omitted.
 A data cell whose text starts with `=`, `+`, `-`, `@`, a tab, or a
@@ -6487,9 +6489,9 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 `list_audit`
 
-**Who.** provost. Bearer access token.
+**Who.** warden or provost. Bearer access token.
 
-Caller: provost. Newest first. Detail never contains a password, a refresh
+Caller: warden or provost. Newest first. Detail never contains a password, a refresh
 token, or a hall-pass token. Optional `q` matches summary, action, or
 actor name. Optional `entity_type` / `entity_id`. Optional hall-day
 `from` / `to`. The phone office screen shows the first page only; use

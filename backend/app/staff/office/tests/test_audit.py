@@ -130,11 +130,10 @@ def test_admin_audit(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
             "forbidden",
         )
         warden = sign_in(client, "warden.sara", role_credential("warden"))
-        assert_error(
-            client.get("/api/v1/admin/audit", headers={"Authorization": f"Bearer {warden}"}),
-            403,
-            "forbidden",
+        warden_list = client.get(
+            "/api/v1/admin/audit", headers={"Authorization": f"Bearer {warden}"}
         )
+        assert warden_list.status_code == 200
 
         # login as provost adds another auth.login
         provost = sign_in(client, "provost.halima", role_credential("provost"))
@@ -169,11 +168,10 @@ def test_admin_audit(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
         assert len(page.json()["items"]) == 1
 
         assert_error(client.get("/api/v1/admin/audit/export"), 401, "unauthenticated")
-        assert_error(
-            client.get("/api/v1/admin/audit/export", headers={"Authorization": f"Bearer {warden}"}),
-            403,
-            "forbidden",
+        warden_export = client.get(
+            "/api/v1/admin/audit/export", headers={"Authorization": f"Bearer {warden}"}
         )
+        assert warden_export.status_code == 200
         exported = client.get(
             "/api/v1/admin/audit/export?entity_type=settings&entity_id=hall",
             headers=headers,

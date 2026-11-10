@@ -133,15 +133,7 @@ def test_admin_password_reset(database_path: Path, monkeypatch: pytest.MonkeyPat
             "forbidden",
         )
         warden = sign_in(client, "warden.sara", role_credential("warden"))
-        assert_error(
-            client.post(
-                f"/api/v1/admin/users/{RESIDENT_ID}/password",
-                headers={"Authorization": f"Bearer {warden['access_token']}"},
-                json={"temporary_password": role_credential("reset")},
-            ),
-            403,
-            "forbidden",
-        )
+        warden_headers = {"Authorization": f"Bearer {warden['access_token']}"}
 
         aisha = sign_in(client, "24-GLLB-118", role_credential("resident"))
         old_refresh = aisha["refresh_token"]
@@ -177,7 +169,7 @@ def test_admin_password_reset(database_path: Path, monkeypatch: pytest.MonkeyPat
 
         reset = client.post(
             f"/api/v1/admin/users/{RESIDENT_ID}/password",
-            headers=headers,
+            headers=warden_headers,
             json={"temporary_password": role_credential("reset")},
         )
         assert reset.status_code == 204

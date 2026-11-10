@@ -133,10 +133,17 @@ def test_admin_settings(database_path: Path, monkeypatch: pytest.MonkeyPatch) ->
             "forbidden",
         )
         warden = sign_in(client, "warden.sara", role_credential("warden"))
+        warden_headers = {"Authorization": f"Bearer {warden}"}
         assert_error(
-            client.get(
+            client.get("/api/v1/admin/settings", headers=warden_headers),
+            403,
+            "forbidden",
+        )
+        assert_error(
+            client.patch(
                 "/api/v1/admin/settings",
-                headers={"Authorization": f"Bearer {warden}"},
+                headers=warden_headers,
+                json={"grace_minutes": 45},
             ),
             403,
             "forbidden",

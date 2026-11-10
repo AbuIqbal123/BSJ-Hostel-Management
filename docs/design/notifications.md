@@ -4,9 +4,9 @@ The resident inbox on the phone. Each row is one sentence from this table, then 
 
 `{name}` is a person's display name.
 
-- The provost decides a permission or a guest stay. A warden or the provost marks a guest paid.
+- A warden or the provost decides a permission or a guest stay. A warden or the provost marks a guest paid.
 - Gate staff record an exit, a return, a guest's arrival, or a guest's departure.
-- The provost reissues a hall pass or suspends the account.
+- A warden or the provost reissues a hall pass or suspends the account.
 
 The quieter line is the short place, then the leave and return. Home going and a guest stay use the dates. Late-night and an ordinary outing use the time, then the date. A guest line uses the guest's name instead of a place.
 

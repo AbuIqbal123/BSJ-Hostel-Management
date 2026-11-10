@@ -474,7 +474,7 @@ def test_permission_lifecycle(database_path: Path, monkeypatch: pytest.MonkeyPat
         assert_error(
             client.post(
                 f"/api/v1/permissions/{first_id}/decision",
-                headers=auth(warden),
+                headers=auth(gate),
                 json={"decision": "approved", "note": ""},
             ),
             403,
@@ -482,21 +482,22 @@ def test_permission_lifecycle(database_path: Path, monkeypatch: pytest.MonkeyPat
             "This account cannot do that.",
         )
 
-        provost = sign_in(client, "provost.halima", role_credential("provost"))
         approved = client.post(
             f"/api/v1/permissions/{first_id}/decision",
-            headers=auth(provost),
+            headers=auth(warden),
             json={"decision": "approved", "note": ""},
         )
         assert approved.status_code == 200
         assert without_id(approved.json()) == expected["approved"]
+        assert approved.json()["decided_by"] == "Sara Malik"
         assert outing_count_for(database_path, first_id) == 0
         approved_row = permission_row(database_path, first_id)
         assert approved_row["status"] == "approved"
-        assert approved_row["decided_by"] == PROVOST_ID
+        assert approved_row["decided_by"] == WARDEN_ID
         assert approved_row["decided_at"] == "2026-09-30T13:00:04Z"
         assert approved_row["decision_note"] is None
 
+        provost = sign_in(client, "provost.halima", role_credential("provost"))
         assert_error(
             client.post(
                 f"/api/v1/permissions/{first_id}/decision",
@@ -551,7 +552,7 @@ def test_permission_lifecycle(database_path: Path, monkeypatch: pytest.MonkeyPat
         assert ("permission.submitted", RESIDENT_ID, overlap_late_id) in actions
         assert ("permission.submitted", RESIDENT_ID, home_id) in actions
         assert ("permission.cancelled", RESIDENT_ID, overlap_late_id) in actions
-        assert ("permission.approved", PROVOST_ID, first_id) in actions
+        assert ("permission.approved", WARDEN_ID, first_id) in actions
         assert ("permission.cancelled", RESIDENT_ID, first_id) in actions
         assert ("permission.rejected", PROVOST_ID, home_id) in actions
         assert ("permission.approved", PROVOST_ID, OTHER_PERM) in actions

@@ -147,14 +147,11 @@ def test_admin_register_export(database_path: Path, monkeypatch: pytest.MonkeyPa
             "forbidden",
         )
         warden = sign_in(client, "warden.sara", role_credential("warden"))
-        assert_error(
-            client.get(
-                "/api/v1/admin/register/export",
-                headers={"Authorization": f"Bearer {warden}"},
-            ),
-            403,
-            "forbidden",
+        warden_export = client.get(
+            "/api/v1/admin/register/export",
+            headers={"Authorization": f"Bearer {warden}"},
         )
+        assert warden_export.status_code == 200
 
         provost = sign_in(client, "provost.halima", role_credential("provost"))
         headers = {"Authorization": f"Bearer {provost}"}
