@@ -60,37 +60,42 @@ def hash_refresh_secret(secret: str) -> str:
     return hashlib.sha256(secret.encode("utf-8")).hexdigest()
 
 
-def issue_access_token(user_id: str, issued_at: datetime) -> str:
+def issue_access_token(user_id: str, issued_at: datetime, token_version: int) -> str:
     expires = issued_at + timedelta(seconds=ACCESS_TOKEN_SECONDS)
     payload = {
         "sub": user_id,
         "typ": "access",
         "iat": int(issued_at.timestamp()),
         "exp": int(expires.timestamp()),
+        "ver": int(token_version),
     }
     return jwt.encode(payload, get_settings().app_secret_key, algorithm=_ALGORITHM)
 
 
-def access_subject(token: str) -> str:
+def access_subject(token: str) -> tuple[str, int]:
+    """Return the subject and token version from a valid access token."""
     try:
         payload = jwt.decode(
             token,
             get_settings().app_secret_key,
             algorithms=[_ALGORITHM],
-            options={"verify_exp": False, "require": ["exp", "sub"]},
+            options={"verify_exp": False, "require": ["exp", "sub", "iat", "ver"]},
         )
     except jwt.PyJWTError:
         raise ApiError(401, "unauthenticated", _SIGN_IN_AGAIN) from None
     subject = payload.get("sub")
     exp = payload.get("exp")
+    ver = payload.get("ver")
     if payload.get("typ") != "access" or not isinstance(subject, str) or not subject:
         raise ApiError(401, "unauthenticated", _SIGN_IN_AGAIN)
     if isinstance(exp, bool) or not isinstance(exp, (int, float)):
         raise ApiError(401, "unauthenticated", _SIGN_IN_AGAIN)
+    if isinstance(ver, bool) or not isinstance(ver, int):
+        raise ApiError(401, "unauthenticated", _SIGN_IN_AGAIN)
     expires_at = datetime.fromtimestamp(int(exp), tz=timezone.utc)
     if clock.utc_now() >= expires_at:
         raise ApiError(401, "unauthenticated", _SIGN_IN_AGAIN)
-    return subject
+    return subject, ver
 
 
 def bearer_token(authorization: str | None) -> str:

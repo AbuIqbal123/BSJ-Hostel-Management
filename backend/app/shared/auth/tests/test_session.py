@@ -411,7 +411,12 @@ def test_auth_session(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
             "unauthenticated",
             "Sign in again.",
         )
-        assert client.get("/api/v1/auth/me", headers=bearer(fourth["access_token"])).status_code == 200
+        assert_error(
+            client.get("/api/v1/auth/me", headers=bearer(fourth["access_token"])),
+            401,
+            "unauthenticated",
+            "Sign in again.",
+        )
         assert_error(
             client.post(
                 "/api/v1/auth/login",

@@ -20,7 +20,9 @@ import {
   hoursPatch,
   noticesPatch,
   canCreateStaffRole,
+  canEditStaff,
   canResetPassword,
+  canShowOfficePasswordReset,
   canSuspendAccounts,
   editsHallSettings,
   officeMessage,
@@ -390,10 +392,20 @@ describe("hall office display", () => {
     expect(canCreateStaffRole("warden", "provost")).toBe(false);
     expect(canCreateStaffRole("warden", "gate")).toBe(true);
     expect(canCreateStaffRole("warden", "warden")).toBe(true);
-    expect(canResetPassword("provost", "provost")).toBe(true);
+    expect(canResetPassword("provost", "provost")).toBe(false);
+    expect(canResetPassword("provost", "warden")).toBe(true);
+    expect(canResetPassword("provost", "resident")).toBe(true);
+    expect(canResetPassword("provost", "gate")).toBe(true);
     expect(canResetPassword("warden", "provost")).toBe(false);
-    expect(canResetPassword("warden", "resident")).toBe(true);
-    expect(canResetPassword("warden", "gate")).toBe(true);
+    expect(canResetPassword("warden", "warden")).toBe(false);
+    expect(canResetPassword("warden", "resident")).toBe(false);
+    expect(canResetPassword("warden", "gate")).toBe(false);
+    expect(canShowOfficePasswordReset("provost", "warden", "provost-1", "warden-1")).toBe(true);
+    expect(canShowOfficePasswordReset("provost", "warden", "provost-1", "provost-1")).toBe(false);
+    expect(canEditStaff("provost", "provost")).toBe(true);
+    expect(canEditStaff("warden", "provost")).toBe(false);
+    expect(canEditStaff("warden", "warden")).toBe(true);
+    expect(canEditStaff("warden", "gate")).toBe(true);
   });
 });
 

@@ -228,6 +228,7 @@ def test_admin_residents(database_path: Path, monkeypatch: pytest.MonkeyPatch) -
 
         still_login = sign_in(client, "26-BA-001", role_credential("resident-temp"))
         assert still_login["access_token"]
+        maryam_access = still_login["access_token"]
 
         suspended = client.patch(
             f"/api/v1/admin/residents/{maryam_id}",
@@ -250,6 +251,19 @@ def test_admin_residents(database_path: Path, monkeypatch: pytest.MonkeyPatch) -
         )
         assert reinstated.status_code == 200
         assert reinstated.json()["status"] == "active"
+        assert_error(
+            client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {maryam_access}"}),
+            401,
+            "unauthenticated",
+        )
+        maryam_after = sign_in(client, "26-BA-001", role_credential("resident-temp"))
+        assert (
+            client.get(
+                "/api/v1/auth/me",
+                headers={"Authorization": f"Bearer {maryam_after['access_token']}"},
+            ).status_code
+            == 200
+        )
 
         reissued = client.post(
             f"/api/v1/admin/residents/{maryam_id}/hall-pass/reissue",

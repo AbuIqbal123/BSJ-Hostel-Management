@@ -15,6 +15,7 @@ import { pageQuery } from "@/list-page";
 import {
   REISSUE_CONFIRM,
   RESET_CONFIRM,
+  canResetPassword,
   canSuspendAccounts,
   passwordBody,
   readCreatedResident,
@@ -64,7 +65,9 @@ export default function OfficeResident() {
   const colors = useHallColors();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { user, staffRequest } = useSession();
-  const showSuspend = canSuspendAccounts(user?.role ?? "");
+  const actorRole = user?.role ?? "";
+  const showSuspend = canSuspendAccounts(actorRole);
+  const showReset = canResetPassword(actorRole, "resident");
   const [account, setAccount] = useState<OfficeResident | null>(null);
   const [draft, setDraft] = useState<ResidentDraft>(BLANK);
   const [rooms, setRooms] = useState<OfficeRoom[]>([]);
@@ -361,14 +364,18 @@ export default function OfficeResident() {
             disabled={cue.held}
             onPress={reissue}
           />
-          <TextField label="New temporary password" value={reset} onChangeText={(value) => { setReset(value); setError(null); }} secureTextEntry maxLength={200} />
-          <HallButton
-            label="Reset password"
-            busy={cue.busy("reset")}
-            succeeded={cue.succeeded("reset")}
-            disabled={cue.held}
-            onPress={resetPassword}
-          />
+          {showReset ? (
+            <>
+              <TextField label="New temporary password" value={reset} onChangeText={(value) => { setReset(value); setError(null); }} secureTextEntry maxLength={200} />
+              <HallButton
+                label="Reset password"
+                busy={cue.busy("reset")}
+                succeeded={cue.succeeded("reset")}
+                disabled={cue.held}
+                onPress={resetPassword}
+              />
+            </>
+          ) : null}
         </View>
       ) : null}
       {pass ? (

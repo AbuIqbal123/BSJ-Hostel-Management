@@ -227,7 +227,9 @@
       "status",
       "created_at",
       "updated_at",
-      "last_login_at"
+      "last_login_at",
+      "password_changed_at",
+      "token_version"
     ]
   },
   "indexes": [

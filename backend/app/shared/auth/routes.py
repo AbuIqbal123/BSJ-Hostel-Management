@@ -112,6 +112,8 @@ class Account:
     full_name: str
     status: str
     password_hash: str
+    password_changed_at: str
+    token_version: int
     job_title: str | None
     enrolment_number: str | None
     course: str | None
@@ -139,6 +141,8 @@ def _account_from_row(row: sqlite3.Row) -> Account:
         full_name=row["full_name"],
         status=row["status"],
         password_hash=row["password_hash"],
+        password_changed_at=row["password_changed_at"],
+        token_version=int(row["token_version"]),
         job_title=row["job_title"],
         enrolment_number=row["enrolment_number"],
         course=row["course"],
@@ -158,6 +162,8 @@ def _load_account(connection: sqlite3.Connection, user_id: str) -> Account | Non
           users.full_name,
           users.status,
           users.password_hash,
+          users.password_changed_at,
+          users.token_version,
           staff.job_title,
           residents.enrolment_number,
           residents.course,
@@ -182,8 +188,11 @@ def current_user(
     connection: ConnectionDep,
     authorization: Annotated[str | None, Header()] = None,
 ) -> Account:
-    account = _load_account(connection, access_subject(bearer_token(authorization)))
+    subject, token_version = access_subject(bearer_token(authorization))
+    account = _load_account(connection, subject)
     if account is None or account.status != "active":
+        raise ApiError(401, "unauthenticated", _SIGN_IN_AGAIN)
+    if token_version != account.token_version:
         raise ApiError(401, "unauthenticated", _SIGN_IN_AGAIN)
     return account
 
@@ -213,7 +222,7 @@ def _start_session(connection: sqlite3.Connection, account: Account, now: dateti
         ),
     )
     return TokenResponse(
-        access_token=issue_access_token(account.id, now),
+        access_token=issue_access_token(account.id, now, account.token_version),
         token_type="bearer",
         expires_in=ACCESS_TOKEN_SECONDS,
         refresh_token=secret,
@@ -332,10 +341,11 @@ def change_password(
     connection.execute(
         """
         UPDATE users
-        SET password_hash = ?, updated_at = ?
+        SET password_hash = ?, updated_at = ?, password_changed_at = ?,
+            token_version = token_version + 1
         WHERE id = ?
         """,
-        (hash_password(body.new_password), stamp, account.id),
+        (hash_password(body.new_password), stamp, stamp, account.id),
     )
     revoke_live_sessions(connection, account.id, stamp)
     return Response(status_code=204)
@@ -407,14 +417,16 @@ def onboard_resident(
         connection.execute(
             """
             INSERT INTO users (
-              id, role, username, full_name, password_hash, status, created_at, updated_at
-            ) VALUES (?, 'resident', ?, ?, ?, 'active', ?, ?)
+              id, role, username, full_name, password_hash, status,
+              created_at, updated_at, password_changed_at
+            ) VALUES (?, 'resident', ?, ?, ?, 'active', ?, ?, ?)
             """,
             (
                 user_id,
                 enrolment,
                 full_name,
                 hash_password(body.password),
+                now_text,
                 now_text,
                 now_text,
             ),
