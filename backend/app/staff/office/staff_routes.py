@@ -152,8 +152,7 @@ def admin_update_staff(
         staff_values.append(changes["job_title"])
 
     if changes.get("status") == "suspended" and current.status != "suspended":
-        user_sets.append("password_changed_at = ?")
-        user_values.append(now_text)
+        user_sets.append("token_version = token_version + 1")
 
     if user_sets:
         user_sets.append("updated_at = ?")

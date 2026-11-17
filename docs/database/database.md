@@ -239,7 +239,8 @@ At most one active destination is the free-text choice.
 | username | Text | Yes | Provost for staff and office-created residents. Self-onboard uses the enrolment number. | Unique, ignoring capitals. |
 | full_name | Text | Yes | Provost on create, or the resident on self-onboard | The name people see. Fixed after create; the office cannot change it. |
 | password_hash | Protected value | Yes | System, from the password she chooses on self-onboard, or the temporary password the provost sets, using Argon2id | Never the password itself. |
-| password_changed_at | Instant | Yes | System, when the account is created, when the password changes or is reset, and when the account is suspended | An access token issued before this instant is refused. |
+| password_changed_at | Instant | Yes | System, when the account is created and when the password changes or is reset | When the password last changed. Not used to judge access tokens. |
+| token_version | Integer | Yes | System. Starts at 0. Increases by one when the password changes or is reset, and when the account is suspended | An access token whose `ver` claim does not match this value is refused. |
 | status | Choice | Yes | Self-onboard and office-created residents and staff start **active**. The provost may suspend or reinstate. | Active or suspended. |
 | created_at | Instant | Yes | System | When the account was created. |
 | updated_at | Instant | Yes | System | When the account last changed. |
@@ -309,7 +310,7 @@ The row is deleted when she signs out on that phone, or when Expo reports the to
 
 ### Signed-in session
 
-This record is what lets a phone stay signed in. The person signs in with a username and password. The password is not kept on the phone. The phone is given a short pass that lasts 15 minutes, and that short pass is not stored. An access token issued before `password_changed_at` is refused even while it has not expired. This record keeps a protected form of a longer session secret so the phone can get a new short pass without asking for the password again. The session lasts 30 days. It stops being usable when the person signs out, when a password is changed or reset, or when the account is suspended. Those two durations are part of the agreement in the API document.
+This record is what lets a phone stay signed in. The person signs in with a username and password. The password is not kept on the phone. The phone is given a short pass that lasts 15 minutes, and that short pass is not stored. The short pass carries the account's `token_version`; a reset, password change, or suspension raises that version so an older pass is refused even while it has not expired. This record keeps a protected form of a longer session secret so the phone can get a new short pass without asking for the password again. The session lasts 30 days. It stops being usable when the person signs out, when a password is changed or reset, or when the account is suspended. Those two durations are part of the agreement in the API document.
 
 | Detail | Kept as | Required | Where it comes from | Rule |
 |---|---|---|---|---|

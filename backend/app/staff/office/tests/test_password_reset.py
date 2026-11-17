@@ -229,7 +229,6 @@ def test_admin_password_reset(database_path: Path, monkeypatch: pytest.MonkeyPat
             "forbidden",
         )
 
-        frozen.advance()
         reset = client.post(
             f"/api/v1/admin/users/{RESIDENT_ID}/password",
             headers=headers,
@@ -255,6 +254,7 @@ def test_admin_password_reset(database_path: Path, monkeypatch: pytest.MonkeyPat
         )
         fresh = sign_in(client, "24-GLLB-118", role_credential("reset"))
         assert fresh["access_token"]
+        assert client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {fresh['access_token']}"}).status_code == 200
         staff_reset = client.post(
             f"/api/v1/admin/users/{WARDEN_ID}/password",
             headers=headers,

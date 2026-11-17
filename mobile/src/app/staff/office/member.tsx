@@ -14,7 +14,7 @@ import {
   RESET_CONFIRM,
   canCreateStaffRole,
   canEditStaff,
-  canResetPassword,
+  canShowOfficePasswordReset,
   canSuspendAccounts,
   passwordBody,
   readPage,
@@ -64,7 +64,10 @@ export default function OfficeMember() {
   const cue = useKeyedButtonFeedback<"save" | "reset">();
   const showSuspend = canSuspendAccounts(actorRole);
   const allowEdit = account === null || canEditStaff(actorRole, account.role);
-  const showReset = account !== null && canResetPassword(actorRole, account.role);
+  const showReset =
+    account !== null &&
+    user !== null &&
+    canShowOfficePasswordReset(actorRole, account.role, user.id, account.id);
   const roleOptions = (
     [
       { value: "gate" as const, label: "Gate" },

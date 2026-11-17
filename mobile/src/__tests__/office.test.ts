@@ -22,6 +22,7 @@ import {
   canCreateStaffRole,
   canEditStaff,
   canResetPassword,
+  canShowOfficePasswordReset,
   canSuspendAccounts,
   editsHallSettings,
   officeMessage,
@@ -399,6 +400,8 @@ describe("hall office display", () => {
     expect(canResetPassword("warden", "warden")).toBe(false);
     expect(canResetPassword("warden", "resident")).toBe(false);
     expect(canResetPassword("warden", "gate")).toBe(false);
+    expect(canShowOfficePasswordReset("provost", "warden", "provost-1", "warden-1")).toBe(true);
+    expect(canShowOfficePasswordReset("provost", "warden", "provost-1", "provost-1")).toBe(false);
     expect(canEditStaff("provost", "provost")).toBe(true);
     expect(canEditStaff("warden", "provost")).toBe(false);
     expect(canEditStaff("warden", "warden")).toBe(true);

@@ -49,7 +49,8 @@ def reset_password(
     connection.execute(
         """
         UPDATE users
-        SET password_hash = ?, updated_at = ?, password_changed_at = ?
+        SET password_hash = ?, updated_at = ?, password_changed_at = ?,
+            token_version = token_version + 1
         WHERE id = ?
         """,
         (hash_password(body.temporary_password), now_text, now_text, target_id),
