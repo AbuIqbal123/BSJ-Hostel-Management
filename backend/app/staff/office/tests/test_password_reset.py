@@ -165,6 +165,15 @@ def test_admin_password_reset(database_path: Path, monkeypatch: pytest.MonkeyPat
 
         assert_error(
             client.post(
+                f"/api/v1/admin/users/{RESIDENT_ID}/password",
+                headers=warden_headers,
+                json={"temporary_password": role_credential("reset")},
+            ),
+            403,
+            "forbidden",
+        )
+        assert_error(
+            client.post(
                 f"/api/v1/admin/users/{WARDEN_TWO_ID}/password",
                 headers=warden_headers,
                 json={"temporary_password": role_credential("reset")},
@@ -172,7 +181,6 @@ def test_admin_password_reset(database_path: Path, monkeypatch: pytest.MonkeyPat
             403,
             "forbidden",
         )
-
         assert_error(
             client.post(
                 f"/api/v1/admin/users/{PROVOST_ID}/password",
@@ -211,11 +219,20 @@ def test_admin_password_reset(database_path: Path, monkeypatch: pytest.MonkeyPat
             404,
             "not_found",
         )
+        assert_error(
+            client.post(
+                f"/api/v1/admin/users/{PROVOST_ID}/password",
+                headers=headers,
+                json={"temporary_password": role_credential("reset")},
+            ),
+            403,
+            "forbidden",
+        )
 
         frozen.advance()
         reset = client.post(
             f"/api/v1/admin/users/{RESIDENT_ID}/password",
-            headers=warden_headers,
+            headers=headers,
             json={"temporary_password": role_credential("reset")},
         )
         assert reset.status_code == 204
@@ -278,8 +295,10 @@ def test_admin_password_reset(database_path: Path, monkeypatch: pytest.MonkeyPat
         finally:
             connection.close()
         assert len(resets) >= 2
-        assert resets[0][0] == WARDEN_ID
+        assert resets[0][0] == PROVOST_ID
         assert resets[0][1] == RESIDENT_ID
+        assert resets[1][0] == PROVOST_ID
+        assert resets[1][1] == WARDEN_ID
         blob = " ".join(d for d in details if d)
         assert "reset-pass" not in blob
         assert role_credential("reset") not in blob

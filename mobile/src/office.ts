@@ -65,10 +65,10 @@ export function canCreateStaffRole(actorRole: string, targetRole: string): boole
 }
 
 export function canResetPassword(actorRole: string, targetRole: string): boolean {
-  if (actorRole === "provost") {
-    return true;
-  }
-  return actorRole === "warden" && (targetRole === "resident" || targetRole === "gate");
+  return (
+    actorRole === "provost" &&
+    (targetRole === "resident" || targetRole === "gate" || targetRole === "warden")
+  );
 }
 
 export function canEditStaff(actorRole: string, targetRole: string): boolean {

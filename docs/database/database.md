@@ -238,7 +238,7 @@ At most one active destination is the free-text choice.
 | role | Choice | Yes | Provost for staff and office-created residents. System sets resident on self-onboard. | One of resident, gate, warden, provost. What the person may do comes from this role. The table is under Who can do what. |
 | username | Text | Yes | Provost for staff and office-created residents. Self-onboard uses the enrolment number. | Unique, ignoring capitals. |
 | full_name | Text | Yes | Provost on create, or the resident on self-onboard | The name people see. Fixed after create; the office cannot change it. |
-| password_hash | Protected value | Yes | System, from the password she chooses on self-onboard, or the temporary password a warden or the provost sets, using Argon2id | Never the password itself. |
+| password_hash | Protected value | Yes | System, from the password she chooses on self-onboard, or the temporary password the provost sets, using Argon2id | Never the password itself. |
 | password_changed_at | Instant | Yes | System, when the account is created, when the password changes or is reset, and when the account is suspended | An access token issued before this instant is refused. |
 | status | Choice | Yes | Self-onboard and office-created residents and staff start **active**. The provost may suspend or reinstate. | Active or suspended. |
 | created_at | Instant | Yes | System | When the account was created. |
@@ -658,7 +658,7 @@ What a person may do comes from her or his role.
 
 Gate staff scan a hall pass and record a guest's arrival and departure. They do not approve a permission, they do not approve a guest stay, and they do not change residents, rooms, or settings. Their screens are the scan result, recent gate activity, and the guest lists.
 
-A warden or the provost sees the register and the late list, views waiting permission and guest-stay queues, and marks a guest paid. A warden or the provost approves or rejects a permission, and records the hall's yes or no on a guest stay. A resident who currently shares the host's room may also record a yes or no on that stay. A warden or the provost also creates and edits residents, creates gate and warden staff, rooms, blocks, and destinations, issues a new hall pass, resets a resident or gate password, exports the register, and reads guardian messages and the audit log. Only the provost can suspend or reinstate an account, create or reset a provost, reset a warden password, and change hall settings and notification templates. A warden cannot reset her own password on the office route, edit a provost, or reset another warden. A resident can delete her own account. A deleted account is left off the office resident list and off the register counts.
+A warden or the provost sees the register and the late list, views waiting permission and guest-stay queues, and marks a guest paid. A warden or the provost approves or rejects a permission, and records the hall's yes or no on a guest stay. A resident who currently shares the host's room may also record a yes or no on that stay. A warden or the provost also creates and edits residents, creates gate and warden staff, rooms, blocks, and destinations, issues a new hall pass, exports the register, and reads guardian messages and the audit log. Only the provost can suspend or reinstate an account, create a provost, reset a resident, gate, or warden password, and change hall settings and notification templates. A warden changes only her own password via change-password; she cannot office-reset anyone or edit a provost. A resident can delete her own account. A deleted account is left off the office resident list and off the register counts.
 
 | Action | Resident | Gate | Warden | Provost |
 |---|---|---|---|---|
@@ -672,8 +672,8 @@ A warden or the provost sees the register and the late list, views waiting permi
 | Create a provost, or edit a provost account | | | | Yes |
 | Suspend or reinstate any account | | | | Yes |
 | Hall settings and notification templates | | | | Yes |
-| Issue a new hall pass; reset a resident or gate password | | | Yes | Yes |
-| Reset a warden or provost password | | | | Yes |
+| Issue a new hall pass | | | Yes | Yes |
+| Reset a resident, gate, or warden password | | | | Yes |
 | Read guardian messages and the audit log | | | Yes | Yes |
 
 ## What the register counts

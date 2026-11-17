@@ -28,15 +28,12 @@ def can_act_on_target(actor_role: str, target_role: str) -> bool:
 
 
 def can_reset_password(actor_role: str, target_role: str) -> bool:
-    """Who may reset another account's password.
+    """Only the provost may office-reset another account's password.
 
-    The provost may reset anyone. A warden may reset residents and gate staff
-    only — not a provost and not another warden. Self-reset is refused on the
-    route, not here.
+    Targets are resident, gate, and warden. A warden changes only her own
+    password via change-password. Self-reset is refused on the route, not here.
     """
-    if actor_role == "provost":
-        return True
-    return actor_role == "warden" and target_role in {"resident", "gate"}
+    return actor_role == "provost" and target_role in {"resident", "gate", "warden"}
 
 
 def require_roles(allowed: frozenset[Role]):
