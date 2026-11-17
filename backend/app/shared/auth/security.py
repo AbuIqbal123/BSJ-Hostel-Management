@@ -71,26 +71,30 @@ def issue_access_token(user_id: str, issued_at: datetime) -> str:
     return jwt.encode(payload, get_settings().app_secret_key, algorithm=_ALGORITHM)
 
 
-def access_subject(token: str) -> str:
+def access_subject(token: str) -> tuple[str, int]:
+    """Return the subject and issued-at unix seconds from a valid access token."""
     try:
         payload = jwt.decode(
             token,
             get_settings().app_secret_key,
             algorithms=[_ALGORITHM],
-            options={"verify_exp": False, "require": ["exp", "sub"]},
+            options={"verify_exp": False, "require": ["exp", "sub", "iat"]},
         )
     except jwt.PyJWTError:
         raise ApiError(401, "unauthenticated", _SIGN_IN_AGAIN) from None
     subject = payload.get("sub")
     exp = payload.get("exp")
+    iat = payload.get("iat")
     if payload.get("typ") != "access" or not isinstance(subject, str) or not subject:
         raise ApiError(401, "unauthenticated", _SIGN_IN_AGAIN)
     if isinstance(exp, bool) or not isinstance(exp, (int, float)):
         raise ApiError(401, "unauthenticated", _SIGN_IN_AGAIN)
+    if isinstance(iat, bool) or not isinstance(iat, (int, float)):
+        raise ApiError(401, "unauthenticated", _SIGN_IN_AGAIN)
     expires_at = datetime.fromtimestamp(int(exp), tz=timezone.utc)
     if clock.utc_now() >= expires_at:
         raise ApiError(401, "unauthenticated", _SIGN_IN_AGAIN)
-    return subject
+    return subject, int(iat)
 
 
 def bearer_token(authorization: str | None) -> str:

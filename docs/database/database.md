@@ -238,7 +238,8 @@ At most one active destination is the free-text choice.
 | role | Choice | Yes | Provost for staff and office-created residents. System sets resident on self-onboard. | One of resident, gate, warden, provost. What the person may do comes from this role. The table is under Who can do what. |
 | username | Text | Yes | Provost for staff and office-created residents. Self-onboard uses the enrolment number. | Unique, ignoring capitals. |
 | full_name | Text | Yes | Provost on create, or the resident on self-onboard | The name people see. Fixed after create; the office cannot change it. |
-| password_hash | Protected value | Yes | System, from the password she chooses on self-onboard, or the temporary password the provost sets, using Argon2id | Never the password itself. |
+| password_hash | Protected value | Yes | System, from the password she chooses on self-onboard, or the temporary password a warden or the provost sets, using Argon2id | Never the password itself. |
+| password_changed_at | Instant | Yes | System, when the account is created, when the password changes or is reset, and when the account is suspended | An access token issued before this instant is refused. |
 | status | Choice | Yes | Self-onboard and office-created residents and staff start **active**. The provost may suspend or reinstate. | Active or suspended. |
 | created_at | Instant | Yes | System | When the account was created. |
 | updated_at | Instant | Yes | System | When the account last changed. |
@@ -263,12 +264,12 @@ The resident's own phone is separate from the guardian phone. Self-onboard and o
 | phone | Phone | Yes on self-onboard and office create. | Self-onboard, or provost | The resident's own number. Country code required. Not used for guardian late or return messages. The provost may correct or clear it later. |
 | guardian_name | Text | Yes | Self-onboard, or provost from the hall's record | The person the hall contacts about this resident. The provost may correct it later. |
 | guardian_phone | Phone | Yes | Self-onboard, or provost from that same record | Country code required. Late and return messages go to this number. The provost may correct it later. |
-| qr_token | Text | Yes when active. | System, when the account is created active (including self-onboard and office create), and again when the provost issues a new hall pass | The hall-pass code. Unique. |
+| qr_token | Text | Yes when active. | System, when the account is created active (including self-onboard and office create), and again when a warden or the provost issues a new hall pass | The hall-pass code. Unique. |
 | presence | Choice | Yes | System. Starts as inside. Changes when a gate scan records an exit or a return. | Inside or outside. This is presence in the hall, not sign-in. |
 | created_at | Instant | Yes | System | When the profile was created. |
 | updated_at | Instant | Yes | System | When it last changed. |
 
-The hall pass code stays the same from outing to outing. It changes only when the provost issues a new one. The resident phone returns that code on her hall pass only while the window of an outing she can use is open. The provost does that on the resident's record, for example after a lost phone or because someone else has seen the code. The provost does not type the new code. The system makes a new random code, puts it in place of the old one at that moment, and writes an audit log entry. The old code stops working immediately. The resident's phone shows the new code the next time it loads the pass.
+The hall pass code stays the same from outing to outing. It changes only when a warden or the provost issues a new one. The resident phone returns that code on her hall pass only while the window of an outing she can use is open. A warden or the provost does that on the resident's record, for example after a lost phone or because someone else has seen the code. They do not type the new code. The system makes a new random code, puts it in place of the old one at that moment, and writes an audit log entry. The old code stops working immediately. The resident's phone shows the new code the next time it loads the pass.
 
 ### Staff
 
@@ -308,7 +309,7 @@ The row is deleted when she signs out on that phone, or when Expo reports the to
 
 ### Signed-in session
 
-This record is what lets a phone stay signed in. The person signs in with a username and password. The password is not kept on the phone. The phone is given a short pass that lasts 15 minutes, and that short pass is not stored. This record keeps a protected form of a longer session secret so the phone can get a new short pass without asking for the password again. The session lasts 30 days. It stops being usable when the person signs out, when a password is changed or reset, or when the account is suspended. Those two durations are part of the agreement in the API document.
+This record is what lets a phone stay signed in. The person signs in with a username and password. The password is not kept on the phone. The phone is given a short pass that lasts 15 minutes, and that short pass is not stored. An access token issued before `password_changed_at` is refused even while it has not expired. This record keeps a protected form of a longer session secret so the phone can get a new short pass without asking for the password again. The session lasts 30 days. It stops being usable when the person signs out, when a password is changed or reset, or when the account is suspended. Those two durations are part of the agreement in the API document.
 
 | Detail | Kept as | Required | Where it comes from | Rule |
 |---|---|---|---|---|
@@ -657,7 +658,7 @@ What a person may do comes from her or his role.
 
 Gate staff scan a hall pass and record a guest's arrival and departure. They do not approve a permission, they do not approve a guest stay, and they do not change residents, rooms, or settings. Their screens are the scan result, recent gate activity, and the guest lists.
 
-A warden or the provost sees the register and the late list, views waiting permission and guest-stay queues, and marks a guest paid. A warden or the provost approves or rejects a permission, and records the hall's yes or no on a guest stay. A resident who currently shares the host's room may also record a yes or no on that stay. A warden or the provost also creates and edits residents, creates gate and warden staff, rooms, blocks, and destinations, issues a new hall pass, resets a non-provost password, exports the register, and reads guardian messages and the audit log. Only the provost can suspend or reinstate an account, create or reset a provost, and change hall settings and notification templates. A resident can delete her own account. A deleted account is left off the office resident list and off the register counts.
+A warden or the provost sees the register and the late list, views waiting permission and guest-stay queues, and marks a guest paid. A warden or the provost approves or rejects a permission, and records the hall's yes or no on a guest stay. A resident who currently shares the host's room may also record a yes or no on that stay. A warden or the provost also creates and edits residents, creates gate and warden staff, rooms, blocks, and destinations, issues a new hall pass, resets a resident or gate password, exports the register, and reads guardian messages and the audit log. Only the provost can suspend or reinstate an account, create or reset a provost, reset a warden password, and change hall settings and notification templates. A warden cannot reset her own password on the office route, edit a provost, or reset another warden. A resident can delete her own account. A deleted account is left off the office resident list and off the register counts.
 
 | Action | Resident | Gate | Warden | Provost |
 |---|---|---|---|---|
@@ -671,8 +672,8 @@ A warden or the provost sees the register and the late list, views waiting permi
 | Create a provost, or edit a provost account | | | | Yes |
 | Suspend or reinstate any account | | | | Yes |
 | Hall settings and notification templates | | | | Yes |
-| Issue a new hall pass; reset a resident, gate, or warden password | | | Yes | Yes |
-| Reset a provost password | | | | Yes |
+| Issue a new hall pass; reset a resident or gate password | | | Yes | Yes |
+| Reset a warden or provost password | | | | Yes |
 | Read guardian messages and the audit log | | | Yes | Yes |
 
 ## What the register counts

@@ -27,6 +27,18 @@ def can_act_on_target(actor_role: str, target_role: str) -> bool:
     return target_role != "provost"
 
 
+def can_reset_password(actor_role: str, target_role: str) -> bool:
+    """Who may reset another account's password.
+
+    The provost may reset anyone. A warden may reset residents and gate staff
+    only — not a provost and not another warden. Self-reset is refused on the
+    route, not here.
+    """
+    if actor_role == "provost":
+        return True
+    return actor_role == "warden" and target_role in {"resident", "gate"}
+
+
 def require_roles(allowed: frozenset[Role]):
     """The signed-in account must be one of `allowed`."""
     from app.shared.auth.routes import Account, AccountDep

@@ -186,8 +186,12 @@ def seed(reset_passwords: bool = False) -> SeedResult:
             if existing is not None:
                 if reset_passwords:
                     connection.execute(
-                        "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?",
-                        (hash_password(password_for(account)), created, existing["id"]),
+                        """
+                        UPDATE users
+                        SET password_hash = ?, updated_at = ?, password_changed_at = ?
+                        WHERE id = ?
+                        """,
+                        (hash_password(password_for(account)), created, created, existing["id"]),
                     )
                     result.reset.append(account.username)
                 else:
@@ -196,8 +200,9 @@ def seed(reset_passwords: bool = False) -> SeedResult:
             connection.execute(
                 """
                 INSERT INTO users (
-                  id, role, username, full_name, password_hash, status, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                  id, role, username, full_name, password_hash, status,
+                  created_at, updated_at, password_changed_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     account.id,
@@ -206,6 +211,7 @@ def seed(reset_passwords: bool = False) -> SeedResult:
                     account.full_name,
                     hash_password(password_for(account)),
                     account.status,
+                    created,
                     created,
                     created,
                 ),

@@ -13,6 +13,7 @@ import { pageQuery } from "@/list-page";
 import {
   RESET_CONFIRM,
   canCreateStaffRole,
+  canEditStaff,
   canResetPassword,
   canSuspendAccounts,
   passwordBody,
@@ -62,6 +63,7 @@ export default function OfficeMember() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const cue = useKeyedButtonFeedback<"save" | "reset">();
   const showSuspend = canSuspendAccounts(actorRole);
+  const allowEdit = account === null || canEditStaff(actorRole, account.role);
   const showReset = account !== null && canResetPassword(actorRole, account.role);
   const roleOptions = (
     [
@@ -190,13 +192,21 @@ export default function OfficeMember() {
 
   return (
     <OfficeFrame title={account?.fullName ?? "New staff"}>
-      <TextField label="Name" value={draft.fullName} onChangeText={fill("fullName")} autoCapitalize="sentences" maxLength={120} />
+      {allowEdit ? (
+        <TextField label="Name" value={draft.fullName} onChangeText={fill("fullName")} autoCapitalize="sentences" maxLength={120} />
+      ) : (
+        <Text style={[text.body, { color: colors.ink }]}>{draft.fullName}</Text>
+      )}
       {account ? (
         <Text style={[text.body, { color: colors.inkSoft }]}>{`${account.username} · ${roleLabel(account.role)}`}</Text>
       ) : (
         <TextField label="Username" value={draft.username} onChangeText={fill("username")} maxLength={80} />
       )}
-      <TextField label="Post" value={draft.jobTitle} onChangeText={fill("jobTitle")} autoCapitalize="sentences" maxLength={80} />
+      {allowEdit ? (
+        <TextField label="Post" value={draft.jobTitle} onChangeText={fill("jobTitle")} autoCapitalize="sentences" maxLength={80} />
+      ) : (
+        <Text style={[text.body, { color: colors.inkSoft }]}>{draft.jobTitle}</Text>
+      )}
       {account ? null : (
         <ChoiceLine
           label="Role"
@@ -238,13 +248,15 @@ export default function OfficeMember() {
           ) : null}
         </View>
       )}
-      <HallButton
-        label={account ? "Save staff" : "Add staff"}
-        busy={cue.busy("save")}
-        succeeded={cue.succeeded("save")}
-        disabled={cue.held}
-        onPress={() => void save()}
-      />
+      {allowEdit ? (
+        <HallButton
+          label={account ? "Save staff" : "Add staff"}
+          busy={cue.busy("save")}
+          succeeded={cue.succeeded("save")}
+          disabled={cue.held}
+          onPress={() => void save()}
+        />
+      ) : null}
       {showReset ? (
         <View style={styles.block}>
           <TextField

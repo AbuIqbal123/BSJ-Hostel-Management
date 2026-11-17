@@ -123,10 +123,19 @@ def _insert_provost(
         connection.execute(
             """
             INSERT INTO users (
-              id, role, username, full_name, password_hash, status, created_at, updated_at
-            ) VALUES (?, 'provost', ?, ?, ?, 'active', ?, ?)
+              id, role, username, full_name, password_hash, status,
+              created_at, updated_at, password_changed_at
+            ) VALUES (?, 'provost', ?, ?, ?, 'active', ?, ?, ?)
             """,
-            (user_id, cleaned_username, cleaned_name, hash_password(password), now_text, now_text),
+            (
+                user_id,
+                cleaned_username,
+                cleaned_name,
+                hash_password(password),
+                now_text,
+                now_text,
+                now_text,
+            ),
         )
         connection.execute(
             "INSERT INTO staff (user_id, job_title) VALUES (?, 'Provost')",

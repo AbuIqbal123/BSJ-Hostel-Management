@@ -62,8 +62,9 @@ def admin_create_staff(
         connection.execute(
             """
             INSERT INTO users (
-              id, role, username, full_name, password_hash, status, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?)
+              id, role, username, full_name, password_hash, status,
+              created_at, updated_at, password_changed_at
+            ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?)
             """,
             (
                 user_id,
@@ -71,6 +72,7 @@ def admin_create_staff(
                 username,
                 full_name,
                 hash_password(body.temporary_password),
+                now_text,
                 now_text,
                 now_text,
             ),
@@ -148,6 +150,10 @@ def admin_update_staff(
     if "job_title" in changes:
         staff_sets.append("job_title = ?")
         staff_values.append(changes["job_title"])
+
+    if changes.get("status") == "suspended" and current.status != "suspended":
+        user_sets.append("password_changed_at = ?")
+        user_values.append(now_text)
 
     if user_sets:
         user_sets.append("updated_at = ?")

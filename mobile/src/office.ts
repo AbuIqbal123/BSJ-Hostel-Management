@@ -68,6 +68,13 @@ export function canResetPassword(actorRole: string, targetRole: string): boolean
   if (actorRole === "provost") {
     return true;
   }
+  return actorRole === "warden" && (targetRole === "resident" || targetRole === "gate");
+}
+
+export function canEditStaff(actorRole: string, targetRole: string): boolean {
+  if (actorRole === "provost") {
+    return true;
+  }
   return actorRole === "warden" && targetRole !== "provost";
 }
 

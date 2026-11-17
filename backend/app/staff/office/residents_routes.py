@@ -84,14 +84,16 @@ def admin_create_resident(
         connection.execute(
             """
             INSERT INTO users (
-              id, role, username, full_name, password_hash, status, created_at, updated_at
-            ) VALUES (?, 'resident', ?, ?, ?, 'active', ?, ?)
+              id, role, username, full_name, password_hash, status,
+              created_at, updated_at, password_changed_at
+            ) VALUES (?, 'resident', ?, ?, ?, 'active', ?, ?, ?)
             """,
             (
                 user_id,
                 enrolment,
                 full_name,
                 hash_password(body.temporary_password),
+                now_text,
                 now_text,
                 now_text,
             ),
@@ -226,6 +228,10 @@ def admin_update_resident(
     if "phone" in changes:
         resident_sets.append("phone = ?")
         resident_values.append(changes["phone"])
+
+    if changes.get("status") == "suspended" and current.status != "suspended":
+        user_sets.append("password_changed_at = ?")
+        user_values.append(now_text)
 
     try:
         if user_sets:

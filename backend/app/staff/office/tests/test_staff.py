@@ -145,6 +145,24 @@ def test_admin_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
             403,
             "forbidden",
         )
+        assert_error(
+            client.patch(
+                f"/api/v1/admin/staff/{PROVOST_ID}",
+                headers=warden_headers,
+                json={"full_name": "Halima Begum"},
+            ),
+            403,
+            "forbidden",
+        )
+        assert_error(
+            client.patch(
+                f"/api/v1/admin/staff/{PROVOST_ID}",
+                headers=warden_headers,
+                json={"job_title": "Provost"},
+            ),
+            403,
+            "forbidden",
+        )
 
         warden_created = client.post(
             "/api/v1/admin/staff",

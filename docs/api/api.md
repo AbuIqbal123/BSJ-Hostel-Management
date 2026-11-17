@@ -138,15 +138,17 @@ The caller sends an access token as `Authorization: Bearer`, except on
 `GET /health`, `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, and
 `POST /api/v1/auth/onboard`.
 
-Access tokens last 15 minutes. Refresh tokens last 30 days. A password chosen
-on self-onboard, on change-password, or on a provost password reset is at
-least 10 characters and includes an uppercase letter, a lowercase letter, a
-number, and a symbol. Passwords are stored as Argon2id. Residents may
-self-onboard at `POST /api/v1/auth/onboard` (public on dev). On that form the
-resident phone and the guardian phone are Indian mobiles: `+91` followed by
-exactly 10 digits. The form selects the block and room and creates an active
-resident who can sign in immediately. The provost may still create residents
-and must create staff.
+Access tokens last 15 minutes. Refresh tokens last 30 days. An access token
+issued before the account's last password change or suspension is refused.
+A password chosen on self-onboard, on change-password, or on a warden or
+provost password reset is at least 10 characters and includes an uppercase
+letter, a lowercase letter, a number, and a symbol. Passwords are stored as
+Argon2id. Residents may self-onboard at `POST /api/v1/auth/onboard` (public
+on dev). On that form the resident phone and the guardian phone are Indian
+mobiles: `+91` followed by exactly 10 digits. The form selects the block and
+room and creates an active resident who can sign in immediately. A warden or
+the provost may still create residents. A warden or the provost creates staff;
+only the provost may create a provost.
 A resident username is the enrolment number.
 
 Stored state and lifecycles live in `docs/database/database.md`. This file does not
@@ -5593,11 +5595,15 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 **Who.** warden or provost. Bearer access token.
 
-Caller: warden or provost. Sets a temporary password and revokes that user's
-refresh tokens. Works for residents and staff. A warden cannot reset a
-provost. Every reset writes `user.password_reset` with the actor and target,
-never the password. The temporary password is at least 10 characters and
-includes an uppercase letter, a lowercase letter, a number, and a symbol.
+Caller: warden or provost. Sets a temporary password, stamps
+`password_changed_at`, and revokes that user's refresh tokens so old
+access tokens stop working. Works for residents and staff. A caller cannot
+reset her own password on this route (use change-password). A warden may
+reset a resident or gate account only — not a provost and not another
+warden. Only the provost may reset a warden. Every reset writes
+`user.password_reset` with the actor and target, never the password. The
+temporary password is at least 10 characters and includes an uppercase
+letter, a lowercase letter, a number, and a symbol.
 
 **Parameters**
 

@@ -112,6 +112,7 @@ class Account:
     full_name: str
     status: str
     password_hash: str
+    password_changed_at: str
     job_title: str | None
     enrolment_number: str | None
     course: str | None
@@ -139,6 +140,7 @@ def _account_from_row(row: sqlite3.Row) -> Account:
         full_name=row["full_name"],
         status=row["status"],
         password_hash=row["password_hash"],
+        password_changed_at=row["password_changed_at"],
         job_title=row["job_title"],
         enrolment_number=row["enrolment_number"],
         course=row["course"],
@@ -158,6 +160,7 @@ def _load_account(connection: sqlite3.Connection, user_id: str) -> Account | Non
           users.full_name,
           users.status,
           users.password_hash,
+          users.password_changed_at,
           staff.job_title,
           residents.enrolment_number,
           residents.course,
@@ -182,8 +185,12 @@ def current_user(
     connection: ConnectionDep,
     authorization: Annotated[str | None, Header()] = None,
 ) -> Account:
-    account = _load_account(connection, access_subject(bearer_token(authorization)))
+    subject, issued_at = access_subject(bearer_token(authorization))
+    account = _load_account(connection, subject)
     if account is None or account.status != "active":
+        raise ApiError(401, "unauthenticated", _SIGN_IN_AGAIN)
+    changed = int(clock.parse_instant(account.password_changed_at).timestamp())
+    if issued_at < changed:
         raise ApiError(401, "unauthenticated", _SIGN_IN_AGAIN)
     return account
 
@@ -332,10 +339,10 @@ def change_password(
     connection.execute(
         """
         UPDATE users
-        SET password_hash = ?, updated_at = ?
+        SET password_hash = ?, updated_at = ?, password_changed_at = ?
         WHERE id = ?
         """,
-        (hash_password(body.new_password), stamp, account.id),
+        (hash_password(body.new_password), stamp, stamp, account.id),
     )
     revoke_live_sessions(connection, account.id, stamp)
     return Response(status_code=204)
@@ -407,14 +414,16 @@ def onboard_resident(
         connection.execute(
             """
             INSERT INTO users (
-              id, role, username, full_name, password_hash, status, created_at, updated_at
-            ) VALUES (?, 'resident', ?, ?, ?, 'active', ?, ?)
+              id, role, username, full_name, password_hash, status,
+              created_at, updated_at, password_changed_at
+            ) VALUES (?, 'resident', ?, ?, ?, 'active', ?, ?, ?)
             """,
             (
                 user_id,
                 enrolment,
                 full_name,
                 hash_password(body.password),
+                now_text,
                 now_text,
                 now_text,
             ),

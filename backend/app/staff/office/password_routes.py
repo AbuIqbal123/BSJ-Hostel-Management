@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict
 from app.shared import clock
 from app.shared.audit import record_audit
 from app.shared.auth.password_rules import StrongPassword
-from app.shared.auth.roles import can_act_on_target
+from app.shared.auth.roles import can_reset_password
 from app.shared.auth.routes import ConnectionDep
 from app.shared.auth.security import hash_password
 from app.shared.errors import ApiError
@@ -18,6 +18,8 @@ from app.staff.office.records import revoke_live_sessions
 from app.staff.office.routes import OfficeDep
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Hall office"])
+
+_SELF_RESET = "Use change password for your own account."
 
 
 class PasswordResetRequest(BaseModel):
@@ -39,16 +41,18 @@ def reset_password(
     if row is None:
         raise ApiError(404, "not_found", "That record was not found.")
     target_id, target_role, target_name, target_username = row
-    if not can_act_on_target(account.role, target_role):
+    if target_id == account.id:
+        raise ApiError(403, "forbidden", _SELF_RESET)
+    if not can_reset_password(account.role, target_role):
         raise ApiError(403, "forbidden", "This account cannot do that.")
     now_text = clock.format_instant(clock.utc_now())
     connection.execute(
         """
         UPDATE users
-        SET password_hash = ?, updated_at = ?
+        SET password_hash = ?, updated_at = ?, password_changed_at = ?
         WHERE id = ?
         """,
-        (hash_password(body.temporary_password), now_text, target_id),
+        (hash_password(body.temporary_password), now_text, now_text, target_id),
     )
     revoke_live_sessions(connection, target_id, now_text)
     record_audit(

@@ -1,10 +1,10 @@
-"""Provost password reset for residents and staff."""
+"""Office password reset for residents and staff."""
 
 from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -15,6 +15,7 @@ from app.shared.testing_env import role_credential
 ARTIFACT = Path(__file__).resolve().parent / "artifacts" / "admin-password-reset.json"
 PROVOST_ID = "f66ab000-0000-4000-8000-000000000006"
 WARDEN_ID = "e55fa000-0000-4000-8000-000000000005"
+WARDEN_TWO_ID = "e55fa000-0000-4000-8000-000000000015"
 RESIDENT_ID = "b22de000-0000-4000-8000-000000000002"
 BLOCK_B = "d032aad6-a203-5ea0-ba9a-3a9257edbfc8"
 ROOM_ID = "d4400000-0000-4000-8000-000000000004"
@@ -23,8 +24,14 @@ NOW = datetime(2026, 9, 30, 12, 0, tzinfo=timezone.utc)
 
 
 class FrozenClock:
+    def __init__(self) -> None:
+        self.moment = NOW
+
     def utc_now(self) -> datetime:
-        return NOW
+        return self.moment
+
+    def advance(self, seconds: int = 1) -> None:
+        self.moment = self.moment + timedelta(seconds=seconds)
 
 
 def assert_error(response, status: int, code: str, field: str | None = None) -> None:
@@ -54,6 +61,14 @@ def issue_people(path: Path) -> None:
         people = (
             (PROVOST_ID, "provost", "provost.halima", "Halima Begum", role_credential("provost"), "Provost"),
             (WARDEN_ID, "warden", "warden.sara", "Sara Malik", role_credential("warden"), "Warden"),
+            (
+                WARDEN_TWO_ID,
+                "warden",
+                "warden.amina",
+                "Amina Rizvi",
+                role_credential("warden-two"),
+                "Warden",
+            ),
             (RESIDENT_ID, "resident", "24-GLLB-118", "Aisha Khan", role_credential("resident"), None),
         )
         for user_id, role, username, full_name, password, job in people:
@@ -110,7 +125,8 @@ def test_admin_password_reset(database_path: Path, monkeypatch: pytest.MonkeyPat
     from app.main import app
     from app.shared import clock
 
-    monkeypatch.setattr(clock, "utc_now", FrozenClock().utc_now)
+    frozen = FrozenClock()
+    monkeypatch.setattr(clock, "utc_now", frozen.utc_now)
     with TestClient(app) as client:
         issue_people(database_path)
 
@@ -136,7 +152,26 @@ def test_admin_password_reset(database_path: Path, monkeypatch: pytest.MonkeyPat
         warden_headers = {"Authorization": f"Bearer {warden['access_token']}"}
 
         aisha = sign_in(client, "24-GLLB-118", role_credential("resident"))
+        old_access = aisha["access_token"]
         old_refresh = aisha["refresh_token"]
+
+        self_reset = client.post(
+            f"/api/v1/admin/users/{WARDEN_ID}/password",
+            headers=warden_headers,
+            json={"temporary_password": role_credential("reset")},
+        )
+        assert_error(self_reset, 403, "forbidden")
+        assert self_reset.json()["error"]["message"] == expected["self_reset_message"]
+
+        assert_error(
+            client.post(
+                f"/api/v1/admin/users/{WARDEN_TWO_ID}/password",
+                headers=warden_headers,
+                json={"temporary_password": role_credential("reset")},
+            ),
+            403,
+            "forbidden",
+        )
 
         assert_error(
             client.post(
@@ -177,6 +212,7 @@ def test_admin_password_reset(database_path: Path, monkeypatch: pytest.MonkeyPat
             "not_found",
         )
 
+        frozen.advance()
         reset = client.post(
             f"/api/v1/admin/users/{RESIDENT_ID}/password",
             headers=warden_headers,
@@ -185,6 +221,11 @@ def test_admin_password_reset(database_path: Path, monkeypatch: pytest.MonkeyPat
         assert reset.status_code == 204
         assert reset.content == b""
 
+        assert_error(
+            client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {old_access}"}),
+            401,
+            "unauthenticated",
+        )
         assert_error(
             attempt_login(client, "24-GLLB-118", role_credential("resident")),
             401,
