@@ -268,11 +268,18 @@ def _forwarded_peer_allowed(peer: str | None) -> bool:
 
 
 def _request_header(scope: dict, name: bytes) -> str | None:
-    for header_name, value in scope.get("headers", []):
-        if header_name == name:
-            text = value.decode("latin-1").strip()
-            return text or None
-    return None
+    """Every line of a header joined with commas, as RFC 9110 reads repeats.
+
+    A proxy may add its own X-Forwarded-For line after one the caller sent, so
+    the last hop must come from the joined value, never the first line.
+    """
+    values = [
+        value.decode("latin-1").strip()
+        for header_name, value in scope.get("headers", [])
+        if header_name == name
+    ]
+    text = ", ".join(value for value in values if value)
+    return text or None
 
 
 class ForwardedClient:
@@ -292,7 +299,9 @@ class ForwardedClient:
             if os.environ.get("FLY_APP_NAME"):
                 fly_ip = _request_header(scope, b"fly-client-ip")
                 if fly_ip:
-                    scope = {**scope, "client": (fly_ip, 0)}
+                    last_fly_ip = fly_ip.rsplit(",", 1)[-1].strip()
+                    if last_fly_ip:
+                        scope = {**scope, "client": (last_fly_ip, 0)}
             elif os.environ.get("TRUST_FORWARDED_FOR") == "1":
                 peer = scope["client"][0] if scope.get("client") else None
                 if _forwarded_peer_allowed(peer):

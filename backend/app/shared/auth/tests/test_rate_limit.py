@@ -126,6 +126,43 @@ def test_untrusted_peer_cannot_spoof_forwarded_client(
     assert "203.0.113.100" not in login_limiter._hits
 
 
+def test_repeated_forwarded_lines_use_the_proxy_hop(
+    database_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A caller's own X-Forwarded-For line before the proxy's must not pick the bucket."""
+    monkeypatch.setattr(login_limiter, "limit", 2)
+    monkeypatch.delenv("FLY_APP_NAME", raising=False)
+    monkeypatch.setenv("TRUST_FORWARDED_FOR", "1")
+    monkeypatch.setenv("FORWARDED_ALLOW_IPS", "*")
+    from app.main import app
+
+    with TestClient(app) as client:
+        assert client.get("/health").json() == {"status": "ok"}
+        issue_gate(database_path)
+    proxy = TestClient(app, client=("10.0.0.1", 443))
+    for index in range(2):
+        refused = proxy.post(
+            "/api/v1/auth/login",
+            json=_login_body("gate.fatima", role_credential("wrong")),
+            headers=[
+                ("x-forwarded-for", f"198.51.100.{index}"),
+                ("x-forwarded-for", "203.0.113.7"),
+            ],
+        )
+        assert refused.status_code == 401
+    assert set(login_limiter._hits) == {"203.0.113.7"}
+    blocked = proxy.post(
+        "/api/v1/auth/login",
+        json=_login_body("gate.fatima", role_credential("wrong")),
+        headers=[
+            ("x-forwarded-for", "198.51.100.9"),
+            ("x-forwarded-for", "203.0.113.7"),
+        ],
+    )
+    assert_error(blocked, 429, "rate_limited", "Too many attempts. Try again shortly.")
+    assert "198.51.100.9" not in login_limiter._hits
+
+
 def _fly_rate_limit_app(monkeypatch: pytest.MonkeyPatch):
     """Load the app with FLY_APP_NAME set without switching the test DB to Turso.
 
@@ -219,6 +256,13 @@ def test_fly_ignores_spoofed_x_forwarded_for(
     assert_error(blocked, 429, "rate_limited", "Too many attempts. Try again shortly.")
     assert "203.0.113.99" not in login_limiter._hits
     assert "172.19.59.177" not in login_limiter._hits
+    repeated = proxy.post(
+        "/api/v1/auth/login",
+        json=_login_body("gate.fatima", role_credential("wrong")),
+        headers=[("fly-client-ip", "198.51.100.77"), ("fly-client-ip", "203.0.113.10")],
+    )
+    assert_error(repeated, 429, "rate_limited", "Too many attempts. Try again shortly.")
+    assert "198.51.100.77" not in login_limiter._hits
 
 
 def test_login_and_refresh_rate_limit(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
