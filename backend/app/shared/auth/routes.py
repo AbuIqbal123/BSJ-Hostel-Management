@@ -112,7 +112,6 @@ class Account:
     full_name: str
     status: str
     password_hash: str
-    password_changed_at: str
     token_version: int
     job_title: str | None
     enrolment_number: str | None
@@ -141,7 +140,6 @@ def _account_from_row(row: sqlite3.Row) -> Account:
         full_name=row["full_name"],
         status=row["status"],
         password_hash=row["password_hash"],
-        password_changed_at=row["password_changed_at"],
         token_version=int(row["token_version"]),
         job_title=row["job_title"],
         enrolment_number=row["enrolment_number"],
@@ -162,7 +160,6 @@ def _load_account(connection: sqlite3.Connection, user_id: str) -> Account | Non
           users.full_name,
           users.status,
           users.password_hash,
-          users.password_changed_at,
           users.token_version,
           staff.job_title,
           residents.enrolment_number,
