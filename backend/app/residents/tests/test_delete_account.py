@@ -74,6 +74,12 @@ def test_resident_deletes_her_account(database_path: Path) -> None:
         )
         assert deleted.status_code == 204
         assert deleted.content == b""
+        assert_error(
+            client.get("/api/v1/auth/me", headers=bearer(token)),
+            401,
+            "unauthenticated",
+            "Sign in again.",
+        )
         again = client.post(
             "/api/v1/auth/login",
             json=_login_body("24-GLLB-118", role_credential("resident")),

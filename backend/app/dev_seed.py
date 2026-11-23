@@ -24,8 +24,7 @@ import string
 from dataclasses import dataclass
 
 from app.shared import clock
-from app.shared.auth.accounts import insert_user
-from app.shared.auth.security import hash_password
+from app.shared.auth.accounts import insert_user, set_password
 from app.shared.config import get_settings, is_hosted
 from app.shared.db import create_connection
 from app.shared.migrate import migrate
@@ -186,13 +185,11 @@ def seed(reset_passwords: bool = False) -> SeedResult:
             ).fetchone()
             if existing is not None:
                 if reset_passwords:
-                    connection.execute(
-                        """
-                        UPDATE users
-                        SET password_hash = ?, updated_at = ?, password_changed_at = ?
-                        WHERE id = ?
-                        """,
-                        (hash_password(password_for(account)), created, created, existing["id"]),
+                    set_password(
+                        connection,
+                        existing["id"],
+                        password_for(account),
+                        created,
                     )
                     result.reset.append(account.username)
                 else:
