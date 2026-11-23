@@ -17,6 +17,7 @@ from app.shared.config import get_settings
 from app.shared.audit import record_audit
 from app.shared.db import INTEGRITY_ERRORS, get_connection
 from app.shared.errors import ApiError
+from app.shared.auth.accounts import revoke_live_sessions, set_password
 from app.shared.auth.roles import RESIDENT, Role
 from app.shared.auth.rate_limit import (
     client_key,
@@ -26,7 +27,7 @@ from app.shared.auth.rate_limit import (
     username_key,
     username_login_limiter,
 )
-from app.staff.office.records import new_hall_pass_token, revoke_live_sessions, room_has_capacity
+from app.staff.office.records import new_hall_pass_token, room_has_capacity
 from app.shared.auth.password_rules import IndianMobile, StrongPassword
 from app.shared.auth.security import (
     ACCESS_TOKEN_SECONDS,
@@ -338,16 +339,7 @@ def change_password(
     if not password_matches(account.password_hash, body.current_password):
         raise ApiError(401, "unauthenticated", "The current password is wrong.")
     stamp = clock.format_instant(clock.utc_now())
-    connection.execute(
-        """
-        UPDATE users
-        SET password_hash = ?, updated_at = ?, password_changed_at = ?,
-            token_version = token_version + 1
-        WHERE id = ?
-        """,
-        (hash_password(body.new_password), stamp, stamp, account.id),
-    )
-    revoke_live_sessions(connection, account.id, stamp)
+    set_password(connection, account.id, body.new_password, stamp)
     return Response(status_code=204)
 
 

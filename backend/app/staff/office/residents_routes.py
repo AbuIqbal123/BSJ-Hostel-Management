@@ -11,6 +11,7 @@ from fastapi import APIRouter, Query
 from app.shared.page import PageDep
 from app.shared import clock
 from app.shared.audit import record_audit
+from app.shared.auth.accounts import end_access
 from app.shared.auth.roles import can_suspend
 from app.shared.auth.routes import ConnectionDep
 from app.shared.auth.security import hash_password
@@ -26,7 +27,6 @@ from app.staff.office.records import (
     list_resident_accounts,
     load_resident_account,
     new_hall_pass_token,
-    revoke_live_sessions,
     room_exists,
     room_has_capacity,
     room_is_active,
@@ -229,9 +229,6 @@ def admin_update_resident(
         resident_sets.append("phone = ?")
         resident_values.append(changes["phone"])
 
-    if changes.get("status") == "suspended" and current.status != "suspended":
-        user_sets.append("token_version = token_version + 1")
-
     try:
         if user_sets:
             user_sets.append("updated_at = ?")
@@ -255,7 +252,7 @@ def admin_update_resident(
 
     new_status = changes.get("status")
     if new_status == "suspended" and current.status != "suspended":
-        revoke_live_sessions(connection, resident_id, now_text)
+        end_access(connection, resident_id, now_text)
         action = "resident.suspended"
         summary = f"{account.full_name} suspended resident {current.full_name}."
     elif new_status == "active" and current.status == "suspended":

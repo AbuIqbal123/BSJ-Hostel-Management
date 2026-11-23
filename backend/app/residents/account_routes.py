@@ -12,10 +12,11 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.residents.home.routes import ResidentDep
 from app.shared import clock
 from app.shared.audit import record_audit
+from app.shared.auth.accounts import revoke_live_sessions
 from app.shared.auth.routes import ConnectionDep
 from app.shared.auth.security import hash_password, password_matches
 from app.shared.errors import ApiError
-from app.staff.office.records import FORMER_ROOM_ID, new_hall_pass_token, revoke_live_sessions
+from app.staff.office.records import FORMER_ROOM_ID, new_hall_pass_token
 
 router = APIRouter(prefix="/api/v1", tags=["Resident"])
 
