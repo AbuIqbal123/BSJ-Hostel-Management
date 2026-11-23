@@ -11,9 +11,9 @@ from fastapi import APIRouter, Query
 from app.shared.page import PageDep
 from app.shared import clock
 from app.shared.audit import record_audit
+from app.shared.auth.accounts import end_access, insert_user
 from app.shared.auth.roles import can_suspend
 from app.shared.auth.routes import ConnectionDep
-from app.shared.auth.security import hash_password
 from app.shared.db import INTEGRITY_ERRORS
 from app.shared.errors import ApiError
 from app.staff.office.records import (
@@ -26,7 +26,6 @@ from app.staff.office.records import (
     list_resident_accounts,
     load_resident_account,
     new_hall_pass_token,
-    revoke_live_sessions,
     room_exists,
     room_has_capacity,
     room_is_active,
@@ -81,22 +80,14 @@ def admin_create_resident(
     qr_payload = new_hall_pass_token()
     now_text = clock.format_instant(clock.utc_now())
     try:
-        connection.execute(
-            """
-            INSERT INTO users (
-              id, role, username, full_name, password_hash, status,
-              created_at, updated_at, password_changed_at
-            ) VALUES (?, 'resident', ?, ?, ?, 'active', ?, ?, ?)
-            """,
-            (
-                user_id,
-                enrolment,
-                full_name,
-                hash_password(body.temporary_password),
-                now_text,
-                now_text,
-                now_text,
-            ),
+        insert_user(
+            connection,
+            user_id=user_id,
+            role="resident",
+            username=enrolment,
+            full_name=full_name,
+            password=body.temporary_password,
+            when=now_text,
         )
         connection.execute(
             """
@@ -229,9 +220,6 @@ def admin_update_resident(
         resident_sets.append("phone = ?")
         resident_values.append(changes["phone"])
 
-    if changes.get("status") == "suspended" and current.status != "suspended":
-        user_sets.append("token_version = token_version + 1")
-
     try:
         if user_sets:
             user_sets.append("updated_at = ?")
@@ -255,7 +243,7 @@ def admin_update_resident(
 
     new_status = changes.get("status")
     if new_status == "suspended" and current.status != "suspended":
-        revoke_live_sessions(connection, resident_id, now_text)
+        end_access(connection, resident_id, now_text)
         action = "resident.suspended"
         summary = f"{account.full_name} suspended resident {current.full_name}."
     elif new_status == "active" and current.status == "suspended":

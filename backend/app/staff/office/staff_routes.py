@@ -11,9 +11,9 @@ from fastapi import APIRouter, Query
 from app.shared.page import PageDep
 from app.shared import clock
 from app.shared.audit import record_audit
+from app.shared.auth.accounts import end_access, insert_user
 from app.shared.auth.roles import can_act_on_target, can_suspend
 from app.shared.auth.routes import ConnectionDep
-from app.shared.auth.security import hash_password
 from app.shared.db import INTEGRITY_ERRORS
 from app.shared.errors import ApiError
 from app.staff.office.records import (
@@ -23,7 +23,6 @@ from app.staff.office.records import (
     StaffUpdate,
     list_staff_accounts,
     load_staff_account,
-    revoke_live_sessions,
 )
 from app.staff.office.routes import OfficeDep
 
@@ -59,23 +58,14 @@ def admin_create_staff(
     user_id = str(uuid.uuid4())
     now_text = clock.format_instant(clock.utc_now())
     try:
-        connection.execute(
-            """
-            INSERT INTO users (
-              id, role, username, full_name, password_hash, status,
-              created_at, updated_at, password_changed_at
-            ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?)
-            """,
-            (
-                user_id,
-                body.role,
-                username,
-                full_name,
-                hash_password(body.temporary_password),
-                now_text,
-                now_text,
-                now_text,
-            ),
+        insert_user(
+            connection,
+            user_id=user_id,
+            role=body.role,
+            username=username,
+            full_name=full_name,
+            password=body.temporary_password,
+            when=now_text,
         )
         connection.execute(
             "INSERT INTO staff (user_id, job_title) VALUES (?, ?)",
@@ -151,9 +141,6 @@ def admin_update_staff(
         staff_sets.append("job_title = ?")
         staff_values.append(changes["job_title"])
 
-    if changes.get("status") == "suspended" and current.status != "suspended":
-        user_sets.append("token_version = token_version + 1")
-
     if user_sets:
         user_sets.append("updated_at = ?")
         user_values.append(now_text)
@@ -168,7 +155,7 @@ def admin_update_staff(
         )
 
     if changes.get("status") == "suspended" and current.status != "suspended":
-        revoke_live_sessions(connection, user_id, now_text)
+        end_access(connection, user_id, now_text)
 
     detail = json.dumps(
         {

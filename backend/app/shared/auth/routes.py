@@ -17,6 +17,7 @@ from app.shared.config import get_settings
 from app.shared.audit import record_audit
 from app.shared.db import INTEGRITY_ERRORS, get_connection
 from app.shared.errors import ApiError
+from app.shared.auth.accounts import insert_user, revoke_live_sessions, set_password
 from app.shared.auth.roles import RESIDENT, Role
 from app.shared.auth.rate_limit import (
     client_key,
@@ -26,7 +27,7 @@ from app.shared.auth.rate_limit import (
     username_key,
     username_login_limiter,
 )
-from app.staff.office.records import new_hall_pass_token, revoke_live_sessions, room_has_capacity
+from app.staff.office.records import new_hall_pass_token, room_has_capacity
 from app.shared.auth.password_rules import IndianMobile, StrongPassword
 from app.shared.auth.security import (
     ACCESS_TOKEN_SECONDS,
@@ -34,7 +35,6 @@ from app.shared.auth.security import (
     access_subject,
     bearer_token,
     consume_unknown_password,
-    hash_password,
     hash_refresh_secret,
     issue_access_token,
     password_matches,
@@ -112,7 +112,6 @@ class Account:
     full_name: str
     status: str
     password_hash: str
-    password_changed_at: str
     token_version: int
     job_title: str | None
     enrolment_number: str | None
@@ -141,7 +140,6 @@ def _account_from_row(row: sqlite3.Row) -> Account:
         full_name=row["full_name"],
         status=row["status"],
         password_hash=row["password_hash"],
-        password_changed_at=row["password_changed_at"],
         token_version=int(row["token_version"]),
         job_title=row["job_title"],
         enrolment_number=row["enrolment_number"],
@@ -162,7 +160,6 @@ def _load_account(connection: sqlite3.Connection, user_id: str) -> Account | Non
           users.full_name,
           users.status,
           users.password_hash,
-          users.password_changed_at,
           users.token_version,
           staff.job_title,
           residents.enrolment_number,
@@ -338,16 +335,7 @@ def change_password(
     if not password_matches(account.password_hash, body.current_password):
         raise ApiError(401, "unauthenticated", "The current password is wrong.")
     stamp = clock.format_instant(clock.utc_now())
-    connection.execute(
-        """
-        UPDATE users
-        SET password_hash = ?, updated_at = ?, password_changed_at = ?,
-            token_version = token_version + 1
-        WHERE id = ?
-        """,
-        (hash_password(body.new_password), stamp, stamp, account.id),
-    )
-    revoke_live_sessions(connection, account.id, stamp)
+    set_password(connection, account.id, body.new_password, stamp)
     return Response(status_code=204)
 
 
@@ -414,22 +402,14 @@ def onboard_resident(
     user_id = str(uuid.uuid4())
     now_text = clock.format_instant(clock.utc_now())
     try:
-        connection.execute(
-            """
-            INSERT INTO users (
-              id, role, username, full_name, password_hash, status,
-              created_at, updated_at, password_changed_at
-            ) VALUES (?, 'resident', ?, ?, ?, 'active', ?, ?, ?)
-            """,
-            (
-                user_id,
-                enrolment,
-                full_name,
-                hash_password(body.password),
-                now_text,
-                now_text,
-                now_text,
-            ),
+        insert_user(
+            connection,
+            user_id=user_id,
+            role="resident",
+            username=enrolment,
+            full_name=full_name,
+            password=body.password,
+            when=now_text,
         )
         connection.execute(
             """

@@ -591,19 +591,6 @@ def new_hall_pass_token() -> str:
     return f"bsj:v1:{secrets.token_urlsafe(32)}"
 
 
-def revoke_live_sessions(
-    connection: sqlite3.Connection, user_id: str, when: str
-) -> None:
-    connection.execute(
-        """
-        UPDATE sessions
-        SET revoked_at = ?
-        WHERE user_id = ? AND revoked_at IS NULL
-        """,
-        (when, user_id),
-    )
-
-
 def room_exists(connection: sqlite3.Connection, room_id: str) -> bool:
     row = connection.execute(
         "SELECT 1 FROM rooms WHERE id = ?",
