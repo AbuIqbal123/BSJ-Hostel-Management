@@ -17,7 +17,7 @@ from app.shared.config import get_settings
 from app.shared.audit import record_audit
 from app.shared.db import INTEGRITY_ERRORS, get_connection
 from app.shared.errors import ApiError
-from app.shared.auth.accounts import revoke_live_sessions, set_password
+from app.shared.auth.accounts import insert_user, revoke_live_sessions, set_password
 from app.shared.auth.roles import RESIDENT, Role
 from app.shared.auth.rate_limit import (
     client_key,
@@ -35,7 +35,6 @@ from app.shared.auth.security import (
     access_subject,
     bearer_token,
     consume_unknown_password,
-    hash_password,
     hash_refresh_secret,
     issue_access_token,
     password_matches,
@@ -406,22 +405,14 @@ def onboard_resident(
     user_id = str(uuid.uuid4())
     now_text = clock.format_instant(clock.utc_now())
     try:
-        connection.execute(
-            """
-            INSERT INTO users (
-              id, role, username, full_name, password_hash, status,
-              created_at, updated_at, password_changed_at
-            ) VALUES (?, 'resident', ?, ?, ?, 'active', ?, ?, ?)
-            """,
-            (
-                user_id,
-                enrolment,
-                full_name,
-                hash_password(body.password),
-                now_text,
-                now_text,
-                now_text,
-            ),
+        insert_user(
+            connection,
+            user_id=user_id,
+            role="resident",
+            username=enrolment,
+            full_name=full_name,
+            password=body.password,
+            when=now_text,
         )
         connection.execute(
             """

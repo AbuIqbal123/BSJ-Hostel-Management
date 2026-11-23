@@ -12,6 +12,29 @@ import sqlite3
 from app.shared.auth.security import hash_password
 
 
+def insert_user(
+    connection: sqlite3.Connection,
+    *,
+    user_id: str,
+    role: str,
+    username: str,
+    full_name: str,
+    password: str,
+    when: str,
+    status: str = "active",
+) -> None:
+    """Insert the users row for a new account, with its password hashed."""
+    connection.execute(
+        """
+        INSERT INTO users (
+          id, role, username, full_name, password_hash, status,
+          created_at, updated_at, password_changed_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (user_id, role, username, full_name, hash_password(password), status, when, when, when),
+    )
+
+
 def revoke_live_sessions(
     connection: sqlite3.Connection, user_id: str, when: str
 ) -> None:
