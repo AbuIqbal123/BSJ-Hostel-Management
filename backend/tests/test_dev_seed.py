@@ -231,9 +231,22 @@ def test_dev_seed_reset_passwords_replaces_existing(
     import app.dev_seed as dev_seed
 
     first = dev_seed.seed()
-    again = dev_seed.seed(reset_passwords=True)
-    assert again.created == [] and sorted(again.reset) == sorted(first.created)
     with TestClient(app) as client:
+        before = client.post(
+            "/api/v1/auth/login",
+            json=_login_body("gate.fatima", first.generated["gate.fatima"]),
+        )
+        assert before.status_code == 200
+        old_token = before.json()["access_token"]
+        again = dev_seed.seed(reset_passwords=True)
+        assert again.created == [] and sorted(again.reset) == sorted(first.created)
+        assert_error(
+            client.get(
+                "/api/v1/auth/me",
+                headers={"Authorization": f"Bearer {old_token}"},
+            ),
+            "Sign in again.",
+        )
         old = client.post(
             "/api/v1/auth/login",
             json=_login_body("gate.fatima", first.generated["gate.fatima"]),
