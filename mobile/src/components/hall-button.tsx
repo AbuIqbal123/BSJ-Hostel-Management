@@ -28,7 +28,7 @@ type HallButtonProps = {
   succeeded?: boolean;
   /** Filled forest is the default. A screen keeps one primary. */
   kind?: HallButtonKind;
-  /** Gate scan uses gold on the night shell. */
+  /** Gold only on the gate shell. A paper result card stays forest. */
   tone?: "hall" | "gate";
   style?: StyleProp<ViewStyle>;
 };
@@ -195,6 +195,7 @@ const styles = StyleSheet.create({
   },
   quiet: {
     alignSelf: "flex-start",
+    minHeight: 44,
     paddingVertical: 8,
   },
   busy: {

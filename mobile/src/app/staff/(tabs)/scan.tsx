@@ -223,7 +223,7 @@ function ResultCard({ result, onNext }: { result: ScanResult | null; onNext: () 
             {result?.timeliness ? <Fact label="Status" value={result.timeliness} danger={result.late} /> : null}
           </View>
         ) : null}
-        <HallButton tone="gate" label="Scan next" disabled={!result} onPress={onNext} />
+        <HallButton label="Scan next" disabled={!result} onPress={onNext} />
       </View>
     </Reanimated.View>
   );
