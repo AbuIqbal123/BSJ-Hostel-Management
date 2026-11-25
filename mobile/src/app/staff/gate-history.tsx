@@ -1,10 +1,10 @@
 import { useCallback, useMemo, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useNavigation } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
-import { BackMark } from "@/components/back-mark";
+import { BackButton } from "@/components/back-button";
 import { DenseRow } from "@/components/dense-row";
 import { FilterChip } from "@/components/filter-chip";
 import { FilterChipRow } from "@/components/filter-chip-row";
@@ -151,9 +151,7 @@ export default function GateHistoryScreen() {
         }
       }}
     >
-      <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={back} style={styles.back}>
-        <BackMark color={colors.inkSoft} />
-      </Pressable>
+      <BackButton onPress={back} />
       <Text style={[text.hallName, styles.title, { color: colors.ink }]}>Gate history</Text>
       <Text style={[text.body, { color: colors.inkSoft }]}>Everyone recorded at the gate, newest first</Text>
       <SearchField value={query} placeholder="Name or room" onChange={setQuery} />
@@ -210,7 +208,7 @@ export default function GateHistoryScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { flexGrow: 1, paddingHorizontal: 28, gap: 16 },
-  back: { flexDirection: "row", alignItems: "center", gap: 2, alignSelf: "flex-start", marginLeft: -6 },
+
   title: { textAlign: "left" },
   list: { marginTop: 4 },
 });

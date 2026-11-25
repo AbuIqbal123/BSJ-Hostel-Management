@@ -9,7 +9,7 @@ import { SecureQr } from "@/components/secure-qr";
 import { formatWhen, formatWhenParts } from "@/format-when";
 import { useSession, type DestinationItem, type HallPass } from "@/session";
 import { useDark } from "@/theme/appearance";
-import { useHallColors } from "@/theme/colors";
+import { light, useHallColors } from "@/theme/colors";
 import { EASE_OUT } from "@/theme/motion";
 import { text } from "@/theme/text";
 
@@ -115,7 +115,7 @@ function PassCode({ value, size }: { value: string; size: number }) {
         {
           width: frame,
           height: frame,
-          shadowColor: dark ? "#000000" : colors.ink,
+          shadowColor: colors.shadow,
           shadowOpacity: dark ? 0.45 : 0.14,
         },
         shellStyle,
@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
   code: {
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: light.surface,
     borderRadius: 22,
     borderCurve: "continuous",
     shadowOffset: { width: 0, height: 6 },

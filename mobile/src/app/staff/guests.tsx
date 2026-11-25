@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigation } from "expo-router";
-import { Modal, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
+import { Modal, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
-import { BackMark } from "@/components/back-mark";
+import { BackButton } from "@/components/back-button";
 import { DenseRow } from "@/components/dense-row";
+import { FilterMark } from "@/components/filter-chip";
+import { FilterChipRow } from "@/components/filter-chip-row";
 import { HallButton } from "@/components/hall-button";
+import { SearchField } from "@/components/search-field";
 import { EmptyState, ListError } from "@/components/list-state";
 import { PagedList } from "@/components/paged-list";
 import { useButtonFeedback } from "@/button-feedback";
@@ -118,14 +121,7 @@ export default function GateGuestsScreen() {
   return (
     <View style={[styles.screen, { backgroundColor: colors.paper, paddingTop: insets.top + 28 }]}>
       <View style={styles.pad}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          onPress={() => goBackOr(navigation, "/staff")}
-          style={styles.back}
-        >
-          <BackMark color={colors.inkSoft} />
-        </Pressable>
+        <BackButton onPress={() => goBackOr(navigation, "/staff")} />
         <Text style={[text.hallName, styles.title, { color: colors.ink }]}>Guests</Text>
         {counts ? <Text style={[text.body, { color: colors.inkSoft }]}>{counts}</Text> : null}
         {notice ? (
@@ -133,36 +129,11 @@ export default function GateGuestsScreen() {
             {notice}
           </Text>
         ) : null}
-        <View style={[styles.segment, { backgroundColor: colors.line }]}>
-          {(
-            [
-              ["expected", "Expected"],
-              ["in_hall", "In the hall"],
-            ] as const
-          ).map(([value, label]) => {
-            const on = bucket === value;
-            return (
-              <Pressable
-                key={value}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: on }}
-                onPress={() => setBucket(value)}
-                style={[styles.segmentItem, on && { backgroundColor: colors.surface }]}
-              >
-                <Text style={[text.label, { color: on ? colors.ink : colors.inkSoft }]}>{label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Guest, host, or room"
-          placeholderTextColor={colors.inkFaint}
-          autoCapitalize="none"
-          autoCorrect={false}
-          style={[text.field, styles.search, { backgroundColor: colors.surface, borderColor: colors.line, color: colors.ink }]}
-        />
+        <FilterChipRow accessibilityRole="tablist">
+          <FilterMark label="Expected" on={bucket === "expected"} onPress={() => setBucket("expected")} />
+          <FilterMark label="In the hall" on={bucket === "in_hall"} onPress={() => setBucket("in_hall")} />
+        </FilterChipRow>
+        <SearchField value={query} placeholder="Guest, host, or room" onChange={setQuery} />
         {list.error && rows.length > 0 ? <ListError message={list.error} onRetry={list.refresh} /> : null}
       </View>
       <PagedList
@@ -202,7 +173,7 @@ export default function GateGuestsScreen() {
       />
       {open ? (
         <Modal transparent animationType="slide" onRequestClose={() => setOpen(null)}>
-          <Pressable accessibilityLabel="Close" style={styles.scrim} onPress={() => setOpen(null)} />
+          <Pressable accessibilityLabel="Close" style={[styles.scrim, { backgroundColor: colors.scrim }]} onPress={() => setOpen(null)} />
           <View style={[styles.sheet, { backgroundColor: colors.paper, paddingBottom: insets.bottom + 20 }]}>
             <Text style={[text.hallName, styles.title, { color: colors.ink }]}>{open.guestName}</Text>
             <Text style={[text.body, { color: colors.inkSoft }]}>{`${open.hostName}, ${open.hostRoom}`}</Text>
@@ -229,25 +200,15 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   list: { flex: 1 },
   pad: { paddingHorizontal: 28, gap: 16, paddingBottom: 8 },
-  back: { alignSelf: "flex-start", minHeight: 44, justifyContent: "center", marginLeft: -6 },
+
   title: { textAlign: "left" },
-  segment: { flexDirection: "row", borderRadius: 10, borderCurve: "continuous", padding: 2 },
-  segmentItem: {
-    flex: 1,
-    minHeight: 36,
-    borderRadius: 8,
-    borderCurve: "continuous",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  search: { height: 48, borderWidth: 1, borderRadius: 12, borderCurve: "continuous", paddingHorizontal: 14 },
-  scrim: { flex: 1, backgroundColor: "rgba(20, 38, 31, 0.32)" },
+  scrim: { flex: 1 },
   sheet: {
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     borderCurve: "continuous",
     paddingHorizontal: 28,
-    paddingTop: 22,
-    gap: 14,
+    paddingTop: 24,
+    gap: 13,
   },
 });

@@ -20,7 +20,7 @@ export function StatusPill({ status, label }: { status: PermissionStatus; label?
 const styles = StyleSheet.create({
   status: {
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 12,
     borderCurve: "continuous",
     paddingHorizontal: 8,
     paddingVertical: 2,

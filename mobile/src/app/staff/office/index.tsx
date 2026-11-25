@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { router } from "expo-router";
-import { Pressable, StyleSheet, Text } from "react-native";
+import { View } from "react-native";
 
 import { HallButton } from "@/components/hall-button";
+import { PlainRow, RowHairline } from "@/components/plain-row";
 import { OfficeError, OfficeFrame, replyError } from "@/components/office-frame";
 import { useButtonFeedback } from "@/button-feedback";
 import { hallNow } from "@/format-when";
@@ -11,8 +12,6 @@ import { editsHallSettings, registerCsv, registerExportFileName } from "@/office
 import { hallDay } from "@/outing-when";
 import { shareLocalFile, writeCacheText } from "@/share-file";
 import { useSession } from "@/session";
-import { useHallColors } from "@/theme/colors";
-import { text } from "@/theme/text";
 
 type OfficeHref =
   | "/staff/office/settings"
@@ -45,7 +44,6 @@ const LINKS: { href: OfficeHref; label: string; detail: string; feature?: "guard
 ];
 
 export default function OfficeHome() {
-  const colors = useHallColors();
   const { user, staffText } = useSession();
   const [error, setError] = useState<string | null>(null);
   const exportCue = useButtonFeedback();
@@ -98,17 +96,16 @@ export default function OfficeHome() {
 
   return (
     <OfficeFrame title="Office settings">
-      {links.map((link) => (
-        <Pressable
-          key={link.href}
-          accessibilityRole="button"
-          accessibilityLabel={`${link.label}. ${link.detail}`}
-          onPress={() => router.push(link.href)}
-          style={({ pressed }) => [styles.link, { borderColor: colors.line }, pressed && styles.pressed]}
-        >
-          <Text style={[text.button, { color: colors.ink }]}>{link.label}</Text>
-          <Text style={[text.error, { color: colors.inkSoft }]}>{link.detail}</Text>
-        </Pressable>
+      {links.map((link, index) => (
+        <View key={link.href}>
+          {index > 0 ? <RowHairline /> : null}
+          <PlainRow
+            title={link.label}
+            parts={[link.detail]}
+            onPress={() => router.push(link.href)}
+            label={`${link.label}. ${link.detail}`}
+          />
+        </View>
       ))}
       <HallButton
         label="Export register"
@@ -120,8 +117,3 @@ export default function OfficeHome() {
     </OfficeFrame>
   );
 }
-
-const styles = StyleSheet.create({
-  link: { gap: 4, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
-  pressed: { opacity: 0.6 },
-});

@@ -358,6 +358,7 @@ export default function OfficeResident() {
       {account ? (
         <View style={styles.password}>
           <HallButton
+            kind="secondary"
             label="Reissue hall pass"
             busy={cue.busy("reissue")}
             succeeded={cue.succeeded("reissue")}
@@ -368,6 +369,7 @@ export default function OfficeResident() {
             <>
               <TextField label="New temporary password" value={reset} onChangeText={(value) => { setReset(value); setError(null); }} secureTextEntry maxLength={200} />
               <HallButton
+                kind="danger"
                 label="Reset password"
                 busy={cue.busy("reset")}
                 succeeded={cue.succeeded("reset")}
@@ -394,5 +396,5 @@ export default function OfficeResident() {
 
 const styles = StyleSheet.create({
   password: { gap: 12 },
-  pass: { gap: 6 },
+  pass: { gap: 8 },
 });

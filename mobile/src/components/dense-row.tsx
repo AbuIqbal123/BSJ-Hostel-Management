@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
   shell: {
     borderLeftWidth: 1,
     borderRightWidth: 1,
-    paddingHorizontal: 14,
+    paddingHorizontal: 13,
   },
   first: {
     borderTopWidth: 1,

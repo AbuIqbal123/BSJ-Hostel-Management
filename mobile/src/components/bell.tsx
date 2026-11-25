@@ -19,7 +19,7 @@ export function Bell({ count, href }: { count: number; href: Href }) {
       <Feather name="bell" size={16} color={colors.paper} />
       {count > 0 ? (
         <View style={[styles.badge, { backgroundColor: colors.forest, borderColor: colors.paper }]}>
-          <Text numberOfLines={1} style={[styles.count, { color: "#FFFFFF" }]}>
+          <Text numberOfLines={1} style={[styles.count, { color: colors.onForest }]}>
             {label}
           </Text>
         </View>
@@ -29,18 +29,18 @@ export function Bell({ count, href }: { count: number; href: Href }) {
 }
 
 const styles = StyleSheet.create({
-  bell: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  bell: { width: 32, height: 32, borderRadius: 999, alignItems: "center", justifyContent: "center" },
   badge: {
     position: "absolute",
-    top: -6,
+    top: -8,
     right: -8,
     minWidth: 20,
     height: 20,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 2,
     paddingHorizontal: 4,
     alignItems: "center",
     justifyContent: "center",
   },
-  count: { fontFamily: "SourceSans3_600SemiBold", fontSize: 11, lineHeight: 14, fontVariant: ["tabular-nums"] },
+  count: { fontFamily: "SourceSans3_600SemiBold", fontSize: 12, lineHeight: 14, fontVariant: ["tabular-nums"] },
 });

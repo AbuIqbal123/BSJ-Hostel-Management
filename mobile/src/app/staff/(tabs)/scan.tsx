@@ -3,7 +3,7 @@ import { CameraView, useCameraPermissions, type BarcodeScanningResult } from "ex
 import * as Haptics from "expo-haptics";
 import { useFocusEffect } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Linking, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { Linking, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import Reanimated, {
   Easing,
   ReduceMotion,
@@ -15,10 +15,11 @@ import Reanimated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HallButton } from "@/components/hall-button";
+import { TextField } from "@/components/text-field";
 import { ignore } from "@/safe";
 import { useSession } from "@/session";
 import { readScan, scanRefusal, type ScanResult } from "@/staff";
-import { useHallColors } from "@/theme/colors";
+import { gate, light, useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
 const SAME_CODE_MS = 1500;
@@ -27,8 +28,6 @@ const RESULT_HOLD_MS = 30_000;
 const TICK_MS = 180;
 /** First frame is already a visible check. The settle runs from here to full size. */
 const TICK_FROM = 0.45;
-const DIM = "rgba(20, 38, 31, 0.45)";
-const LIGHT = "#F2F4F0";
 
 function buzz(ok: boolean) {
   const type = ok ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error;
@@ -224,38 +223,27 @@ function ResultCard({ result, onNext }: { result: ScanResult | null; onNext: () 
             {result?.timeliness ? <Fact label="Status" value={result.timeliness} danger={result.late} /> : null}
           </View>
         ) : null}
-        <HallButton label="Scan next" disabled={!result} onPress={onNext} />
+        <HallButton tone="gate" label="Scan next" disabled={!result} onPress={onNext} />
       </View>
     </Reanimated.View>
   );
 }
 
 function ManualEntry({ onSubmit, busy }: { onSubmit: (code: string) => void; busy: boolean }) {
-  const colors = useHallColors();
   const [code, setCode] = useState("");
   const ready = code.trim().length > 0 && !busy;
   return (
     <View style={styles.manual}>
-      <TextInput
+      <TextField
         testID="scan-code"
+        label="Hall pass code"
         value={code}
         onChangeText={setCode}
-        placeholder="Hall pass code"
-        placeholderTextColor={colors.inkFaint}
         autoCapitalize="none"
-        autoCorrect={false}
         returnKeyType="go"
         onSubmitEditing={() => ready && onSubmit(code.trim())}
-        style={[
-          styles.input,
-          {
-            color: colors.ink,
-            borderColor: colors.line,
-            backgroundColor: colors.surface,
-          },
-        ]}
       />
-      <HallButton label="Record" disabled={!ready} onPress={() => onSubmit(code.trim())} />
+      <HallButton kind="secondary" label="Record" disabled={!ready} onPress={() => onSubmit(code.trim())} />
     </View>
   );
 }
@@ -281,9 +269,9 @@ function NoCamera(props: {
       </Text>
       {props.denied ? (
         props.canAsk ? (
-          <HallButton label="Allow camera" onPress={props.onAsk} />
+          <HallButton kind="secondary" label="Allow camera" onPress={props.onAsk} />
         ) : (
-          <HallButton label="Open settings" onPress={() => void Linking.openSettings()} />
+          <HallButton kind="secondary" label="Open settings" onPress={() => void Linking.openSettings()} />
         )
       ) : null}
       <ManualEntry onSubmit={props.onSubmit} busy={props.busy} />
@@ -294,7 +282,6 @@ function NoCamera(props: {
 type Card = { id: number; result: ScanResult | null } | null;
 
 export default function ScanScreen() {
-  const colors = useHallColors();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { staffRequest } = useSession();
@@ -379,7 +366,7 @@ export default function ScanScreen() {
         <Viewfinder
           size={size}
           seatResult={card !== null}
-          color={card ? colors.forest : LIGHT}
+          color={card ? gate.gold : gate.ink}
           camera={
             <CameraView
               style={StyleSheet.absoluteFill}
@@ -406,10 +393,10 @@ export default function ScanScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  dark: { backgroundColor: "#000000" },
+  dark: { backgroundColor: gate.bg },
   ask: { justifyContent: "center", paddingHorizontal: 28, gap: 16 },
   center: { textAlign: "center" },
-  dim: { backgroundColor: DIM },
+  dim: { backgroundColor: gate.scrim },
   /** Clips the live preview to the same soft bend as the corner brackets. */
   frame: { borderRadius: BEND, borderCurve: "continuous", overflow: "hidden" },
   finderRow: { flexDirection: "row" },
@@ -432,7 +419,7 @@ const styles = StyleSheet.create({
     fontFamily: "SourceSans3_400Regular",
     fontSize: 15,
     lineHeight: 20,
-    color: LIGHT,
+    color: gate.ink,
     opacity: 0.85,
   },
   result: { alignSelf: "stretch" },
@@ -441,10 +428,10 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     borderCurve: "continuous",
     paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 18,
-    gap: 14,
-    shadowColor: "#14261F",
+    paddingTop: 20,
+    paddingBottom: 20,
+    gap: 13,
+    shadowColor: light.shadow,
     shadowOpacity: 0.18,
     shadowOffset: { width: 0, height: 8 },
     shadowRadius: 20,
@@ -453,23 +440,23 @@ const styles = StyleSheet.create({
   who: { gap: 2 },
   name: { fontFamily: "SourceSans3_600SemiBold", fontSize: 17, lineHeight: 22 },
   secondary: { fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20 },
-  facts: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 10, gap: 6 },
+  facts: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 12, gap: 8 },
   fact: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 12 },
   factLabel: { fontFamily: "SourceSans3_600SemiBold", fontSize: 13, lineHeight: 18 },
   factValue: { fontFamily: "IBMPlexMono_500Medium", fontSize: 13, lineHeight: 18, flexShrink: 1, textAlign: "right" },
-  wordRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  wordRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   dismiss: {
     width: 36,
     height: 36,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: -6,
+    marginRight: -8,
   },
   dismissIdle: { opacity: 0.35 },
   pressed: { opacity: 0.6 },
   word: {
     fontFamily: "SourceSerif4_600SemiBold",
-    fontSize: 30,
+    fontSize: 28,
     lineHeight: 36,
   },
   reason: {
@@ -479,12 +466,4 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   manual: { alignSelf: "stretch", gap: 12, marginTop: 8 },
-  input: {
-    minHeight: 48,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    fontFamily: "IBMPlexMono_500Medium",
-    fontSize: 15,
-  },
 });

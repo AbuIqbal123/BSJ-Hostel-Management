@@ -13,7 +13,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
-import { BackMark } from "@/components/back-mark";
+import { BackButton } from "@/components/back-button";
 import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
@@ -261,14 +261,7 @@ export default function PlanScreen() {
       showsVerticalScrollIndicator={false}
     >
       <Pressable style={styles.dismiss} onPress={dismissOpenChoice}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Back"
-        onPress={backHome}
-        style={styles.back}
-      >
-        <BackMark color={colors.inkSoft} />
-      </Pressable>
+      <BackButton onPress={backHome} />
       {loadError ? (
         <Text accessibilityLiveRegion="polite"
           selectable
@@ -353,18 +346,14 @@ export default function PlanScreen() {
                 }, 50);
               }}
             />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Cancel outing"
-              accessibilityState={{ disabled: cue.held, busy: cue.busy("cancel") }}
+            <HallButton
+              kind="danger"
+              label={cue.busy("cancel") ? "Cancelling" : "Cancel outing"}
+              busy={cue.busy("cancel")}
+              succeeded={cue.succeeded("cancel")}
               disabled={cue.held}
               onPress={cancel}
-              style={({ pressed }) => ({ opacity: cue.held ? 0.5 : pressed ? 0.6 : 1 })}
-            >
-              <Text style={[text.button, { color: colors.danger }]}>
-                {cue.busy("cancel") ? "Cancelling" : cue.succeeded("cancel") ? "Cancelled" : "Cancel outing"}
-              </Text>
-            </Pressable>
+            />
             {error ? (
               <Text accessibilityLiveRegion="polite"
                 selectable
@@ -393,7 +382,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   dismiss: { flexGrow: 1, gap: 16 },
-  back: { alignSelf: "flex-start", minHeight: 44, flexDirection: "row", alignItems: "center", gap: 2, marginLeft: -6 },
+
   block: { gap: 28 },
   fields: { gap: 16 },
   action: { gap: 16 },

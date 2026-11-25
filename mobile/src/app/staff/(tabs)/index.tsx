@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import { router, useFocusEffect } from "expo-router";
-import { Feather } from "@expo/vector-icons";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -9,7 +8,7 @@ import { onHallRefresh } from "@/hall-refresh";
 import { DenseRow } from "@/components/dense-row";
 import { HallButton } from "@/components/hall-button";
 import { PagedList } from "@/components/paged-list";
-import { RowHairline } from "@/components/plain-row";
+import { PlainRow, RowHairline } from "@/components/plain-row";
 import { SectionHead } from "@/components/section-head";
 import { setBadge } from "@/push";
 import { useListPage } from "@/use-list-page";
@@ -146,41 +145,21 @@ export default function StaffHomeScreen() {
         <HallButton label="Scan a hall pass" onPress={() => router.push("/staff/scan")} />
       )}
       <View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Guests. Expected and in the hall"
+        <PlainRow
+          title="Guests"
+          parts={["Expected and in the hall"]}
           onPress={() => router.push("/staff/guests")}
-          style={({ pressed }) => [styles.link, pressed && styles.pressed]}
-        >
-          <View style={styles.linkCopy}>
-            <Text numberOfLines={1} style={[styles.linkTitle, { color: colors.ink }]}>
-              Guests
-            </Text>
-            <Text numberOfLines={1} style={[styles.linkDetail, { color: colors.inkSoft }]}>
-              Expected and in the hall
-            </Text>
-          </View>
-          <Feather name="chevron-right" size={18} color={colors.inkFaint} />
-        </Pressable>
+          label="Guests. Expected and in the hall"
+        />
         {register ? (
           <>
             <RowHairline />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Guest payments. Mark a stay paid and keep a receipt"
+            <PlainRow
+              title="Guest payments"
+              parts={["Mark a stay paid and keep a receipt"]}
               onPress={() => router.push("/staff/payments")}
-              style={({ pressed }) => [styles.link, pressed && styles.pressed]}
-            >
-              <View style={styles.linkCopy}>
-                <Text numberOfLines={1} style={[styles.linkTitle, { color: colors.ink }]}>
-                  Guest payments
-                </Text>
-                <Text numberOfLines={1} style={[styles.linkDetail, { color: colors.inkSoft }]}>
-                  Mark a stay paid and keep a receipt
-                </Text>
-              </View>
-              <Feather name="chevron-right" size={18} color={colors.inkFaint} />
-            </Pressable>
+              label="Guest payments. Mark a stay paid and keep a receipt"
+            />
           </>
         ) : null}
       </View>
@@ -230,21 +209,11 @@ const styles = StyleSheet.create({
     borderCurve: "continuous",
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 14,
+    paddingBottom: 13,
   },
   count: { fontFamily: "SourceSerif4_600SemiBold", fontSize: 34, lineHeight: 42, letterSpacing: -0.6 },
   label: { fontFamily: "SourceSans3_600SemiBold", fontSize: 15, lineHeight: 20, marginTop: 2 },
   note: { fontFamily: "SourceSans3_400Regular", fontSize: 13, lineHeight: 18 },
-  link: {
-    minHeight: 68,
-    paddingVertical: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  linkCopy: { flex: 1, minWidth: 0, gap: 2 },
-  linkTitle: { fontFamily: "SourceSans3_600SemiBold", fontSize: 17, lineHeight: 22 },
-  linkDetail: { fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20 },
   section: { marginTop: 4 },
   pressed: { opacity: 0.6 },
 });

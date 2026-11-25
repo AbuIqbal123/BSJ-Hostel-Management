@@ -13,7 +13,7 @@ import { Alert, InteractionManager, Platform, Pressable, ScrollView, StyleSheet,
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
-import { BackMark } from "@/components/back-mark";
+import { BackButton } from "@/components/back-button";
 import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { HallButton } from "@/components/hall-button";
 import { StatusPill } from "@/components/status-pill";
@@ -270,9 +270,7 @@ function GuestForm({ existing }: { existing?: GuestStay }) {
       contentContainerStyle={[styles.content, frame]}
       keyboardShouldPersistTaps="handled"
     >
-      <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={back} style={styles.back}>
-        <BackMark color={colors.inkSoft} />
-      </Pressable>
+      <BackButton onPress={back} />
       <Text style={[text.hallName, styles.title, { color: colors.ink }]}>Guest stay</Text>
       {existing ? <DecisionSummary stay={existing} /> : null}
       <Pressable style={styles.block} onPress={dismissOpenChoice}>
@@ -364,27 +362,29 @@ function GuestForm({ existing }: { existing?: GuestStay }) {
         />
       </View>
       {existing ? (
-        <Pressable accessibilityRole="button" onPress={() => {
-          Alert.alert("Cancel guest stay", undefined, [
-            { text: "Back", style: "cancel" },
-            {
-              text: "Cancel guest stay",
-              style: "destructive",
-              onPress: () => {
-                void (async () => {
-                  const failure = await cancelGuestStay(existing.id);
-                  if (!failure) {
-                    back();
-                    return;
-                  }
-                  setError(failure.message);
-                })();
+        <HallButton
+          kind="danger"
+          label="Cancel guest stay"
+          onPress={() => {
+            Alert.alert("Cancel guest stay", undefined, [
+              { text: "Back", style: "cancel" },
+              {
+                text: "Cancel guest stay",
+                style: "destructive",
+                onPress: () => {
+                  void (async () => {
+                    const failure = await cancelGuestStay(existing.id);
+                    if (!failure) {
+                      back();
+                      return;
+                    }
+                    setError(failure.message);
+                  })();
+                },
               },
-            },
-          ]);
-        }} style={styles.cancel}>
-          <Text style={[text.button, { color: colors.danger }]}>Cancel guest stay</Text>
-        </Pressable>
+            ]);
+          }}
+        />
       ) : null}
       {error ? (
         <Text accessibilityLiveRegion="polite" selectable style={[text.error, { color: colors.danger }]}>
@@ -458,9 +458,7 @@ function RoommateDecide({ card, onDone }: { card: GuestStayCard; onDone: () => v
         { paddingTop: insets.top + 28, paddingBottom: insets.bottom + 28 },
       ]}
     >
-      <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={back} style={styles.back}>
-        <BackMark color={colors.inkSoft} />
-      </Pressable>
+      <BackButton onPress={back} />
       <View style={styles.block}>
         <View style={styles.headingRow}>
           <Text style={[text.hallName, styles.title, styles.titleFlex, { color: colors.ink }]}>{card.guestName}</Text>
@@ -477,19 +475,9 @@ function RoommateDecide({ card, onDone }: { card: GuestStayCard; onDone: () => v
               onPress={() => void choose("approved")}
             />
           </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Decline"
-            accessibilityState={{ disabled: cue.held }}
-            disabled={cue.held}
-            onPress={decline}
-            style={({ pressed }) => [
-              styles.ghost,
-              { borderColor: colors.line, backgroundColor: colors.surface, opacity: cue.held || pressed ? 0.6 : 1 },
-            ]}
-          >
-            <Text style={[text.button, { color: colors.ink }]}>Decline</Text>
-          </Pressable>
+          <View style={styles.decideHalf}>
+            <HallButton kind="danger" label="Decline" disabled={cue.held} onPress={decline} />
+          </View>
         </View>
       </View>
       {error ? (
@@ -632,9 +620,7 @@ function GuestDetail({ id, preferDecide }: { id: string; preferDecide: boolean }
         { paddingTop: insets.top + 28, paddingBottom: insets.bottom + 28 },
       ]}
     >
-      <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={back} style={styles.back}>
-        <BackMark color={colors.inkSoft} />
-      </Pressable>
+      <BackButton onPress={back} />
       {stay ? (
         <View style={styles.block}>
           <Text style={[text.hallName, styles.title, { color: colors.ink }]}>{stay.guestName}</Text>
@@ -650,9 +636,7 @@ function GuestDetail({ id, preferDecide }: { id: string; preferDecide: boolean }
             <Text style={[text.body, { color: colors.inkSoft }]}>{stay.decisionNote}</Text>
           ) : null}
           {open ? (
-            <Pressable accessibilityRole="button" onPress={cancel} style={styles.cancel}>
-              <Text style={[text.button, { color: colors.danger }]}>Cancel guest stay</Text>
-            </Pressable>
+            <HallButton kind="danger" label="Cancel guest stay" onPress={cancel} />
           ) : null}
         </View>
       ) : null}
@@ -682,7 +666,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     gap: 28,
   },
-  back: { alignSelf: "flex-start", minHeight: 44, flexDirection: "row", alignItems: "center", gap: 2, marginLeft: -6 },
+
   title: { textAlign: "left" },
   titleFlex: { flex: 1 },
   headingRow: {
@@ -697,22 +681,13 @@ const styles = StyleSheet.create({
   factValue: { flex: 1 },
   decide: { flexDirection: "row", gap: 12 },
   decideHalf: { flex: 1 },
-  ghost: {
-    flex: 1,
-    minHeight: 50,
-    borderRadius: 12,
-    borderCurve: "continuous",
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   dateField: { gap: 8 },
   datePress: { minHeight: 44, justifyContent: "center" },
   chip: {
     alignSelf: "flex-start",
-    borderRadius: 8,
+    borderRadius: 12,
     minHeight: 34,
-    paddingHorizontal: 11,
+    paddingHorizontal: 12,
     justifyContent: "center",
     overflow: "hidden",
   },
@@ -744,10 +719,9 @@ const styles = StyleSheet.create({
   sentMark: {
     width: 64,
     height: 64,
-    borderRadius: 32,
+    borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
   },
   sentLine: { textAlign: "center" },
-  cancel: { alignSelf: "flex-start", minHeight: 44, justifyContent: "center" },
 });

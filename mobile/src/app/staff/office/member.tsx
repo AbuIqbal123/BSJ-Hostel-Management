@@ -273,6 +273,7 @@ export default function OfficeMember() {
             maxLength={200}
           />
           <HallButton
+            kind="danger"
             label="Reset password"
             busy={cue.busy("reset")}
             succeeded={cue.succeeded("reset")}

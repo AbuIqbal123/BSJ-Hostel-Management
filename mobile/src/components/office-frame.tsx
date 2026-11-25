@@ -4,7 +4,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "r
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
-import { BackMark } from "@/components/back-mark";
+import { BackButton } from "@/components/back-button";
 import { officeMessage, runsOffice } from "@/office";
 import { useSession, type StaffReply } from "@/session";
 import { useHallColors } from "@/theme/colors";
@@ -79,14 +79,7 @@ export function OfficeFrame({
           : undefined
       }
     >
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Back"
-        onPress={() => goBackOr(navigation, "/staff")}
-        style={styles.back}
-      >
-        <BackMark color={colors.inkSoft} />
-      </Pressable>
+      <BackButton onPress={() => goBackOr(navigation, "/staff")} />
       <Text style={[text.hallName, styles.title, { color: colors.ink }]}>{title}</Text>
       {children}
     </ScrollView>
@@ -153,7 +146,7 @@ export function ChoiceLine({
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { flexGrow: 1, paddingHorizontal: 28, gap: 20 },
-  back: { alignSelf: "flex-start" },
+
   title: { textAlign: "left" },
   choice: { gap: 8 },
   options: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
@@ -163,6 +156,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     borderCurve: "continuous",
-    paddingHorizontal: 14,
+    paddingHorizontal: 13,
   },
 });

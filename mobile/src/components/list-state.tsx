@@ -1,5 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
+import { HallButton } from "@/components/hall-button";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
@@ -11,9 +12,7 @@ export function ListError({ message, onRetry }: { message: string; onRetry: () =
       <Text accessibilityLiveRegion="polite" style={[text.body, { color: colors.danger }]}>
         {message}
       </Text>
-      <Pressable accessibilityRole="button" accessibilityLabel="Retry" onPress={onRetry} hitSlop={12}>
-        <Text style={[text.button, { color: colors.forest }]}>Retry</Text>
-      </Pressable>
+      <HallButton kind="text" label="Retry" onPress={onRetry} />
     </View>
   );
 }
@@ -26,9 +25,7 @@ export function RetryRow({ message, onRetry }: { message: string; onRetry: () =>
       <Text accessibilityLiveRegion="polite" style={[text.body, { color: colors.inkSoft }]}>
         {message}
       </Text>
-      <Pressable accessibilityRole="button" accessibilityLabel="Retry" onPress={onRetry} hitSlop={12}>
-        <Text style={[text.button, { color: colors.forest }]}>Retry</Text>
-      </Pressable>
+      <HallButton kind="text" label="Retry" onPress={onRetry} />
     </View>
   );
 }
@@ -47,9 +44,7 @@ export function EmptyState({
     <View style={styles.block}>
       <Text style={[text.body, { color: colors.inkSoft }]}>{message}</Text>
       {actionLabel && onAction ? (
-        <Pressable accessibilityRole="button" accessibilityLabel={actionLabel} onPress={onAction} hitSlop={12}>
-          <Text style={[text.button, { color: colors.forest }]}>{actionLabel}</Text>
-        </Pressable>
+        <HallButton kind="text" label={actionLabel} onPress={onAction} />
       ) : null}
     </View>
   );
