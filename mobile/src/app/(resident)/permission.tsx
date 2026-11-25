@@ -13,7 +13,7 @@ import { Alert, InteractionManager, Platform, Pressable, ScrollView, StyleSheet,
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
-import { BackMark } from "@/components/back-mark";
+import { BackButton } from "@/components/back-button";
 import { HallButton } from "@/components/hall-button";
 import { StatusPill } from "@/components/status-pill";
 import { TextField } from "@/components/text-field";
@@ -126,20 +126,6 @@ function usePermissionBack() {
     leaving.current = true;
     goBackOr(navigation, "/permissions");
   }, [navigation]);
-}
-
-function BackButton({ onPress }: { onPress: () => void }) {
-  const colors = useHallColors();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Back"
-      onPress={onPress}
-      style={styles.back}
-    >
-      <BackMark color={colors.inkSoft} />
-    </Pressable>
-  );
 }
 
 function PermissionForm({
@@ -459,9 +445,9 @@ function PermissionForm({
           />
         </View>
         {existing ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Cancel permission"
+          <HallButton
+            kind="danger"
+            label="Cancel permission"
             onPress={() => {
               Alert.alert("Cancel permission", undefined, [
                 { text: "Back", style: "cancel" },
@@ -488,10 +474,7 @@ function PermissionForm({
                 },
               ]);
             }}
-            style={styles.cancel}
-          >
-            <Text style={[text.button, { color: colors.danger }]}>Cancel permission</Text>
-          </Pressable>
+          />
         ) : null}
         {error ? (
           <Text accessibilityLiveRegion="polite" selectable style={[text.error, { color: colors.danger }]}>
@@ -690,14 +673,7 @@ function PermissionDetail({ id }: { id: string }) {
             </Text>
           ) : null}
           {canCancel ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Cancel permission"
-              onPress={askCancel}
-              style={styles.cancel}
-            >
-              <Text style={[text.button, { color: colors.danger }]}>Cancel permission</Text>
-            </Pressable>
+            <HallButton kind="danger" label="Cancel permission" onPress={askCancel} />
           ) : null}
           {error ? (
             <Text accessibilityLiveRegion="polite" selectable style={[text.error, { color: colors.danger }]}>
@@ -738,7 +714,6 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   title: { textAlign: "left" },
-  back: { alignSelf: "flex-start", minHeight: 44, flexDirection: "row", alignItems: "center", gap: 2, marginLeft: -6 },
   fields: { gap: 16 },
   submit: { marginTop: 8 },
   sent: {
@@ -755,7 +730,7 @@ const styles = StyleSheet.create({
   sentMark: {
     width: 64,
     height: 64,
-    borderRadius: 32,
+    borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -774,9 +749,9 @@ const styles = StyleSheet.create({
   datePress: { minHeight: 44, justifyContent: "center" },
   chip: {
     alignSelf: "flex-start",
-    borderRadius: 8,
+    borderRadius: 12,
     minHeight: 34,
-    paddingHorizontal: 11,
+    paddingHorizontal: 12,
     justifyContent: "center",
     overflow: "hidden",
   },
@@ -793,5 +768,4 @@ const styles = StyleSheet.create({
     left: 0,
     opacity: 0.02,
   },
-  cancel: { alignSelf: "flex-start", minHeight: 44, justifyContent: "center" },
 });

@@ -1,10 +1,13 @@
 import { useCallback, useRef, useState } from "react";
 import { router, useFocusEffect, useNavigation } from "expo-router";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
-import { BackMark } from "@/components/back-mark";
+import { BackButton } from "@/components/back-button";
+import { FilterMark } from "@/components/filter-chip";
+import { FilterChipRow } from "@/components/filter-chip-row";
+import { HallButton } from "@/components/hall-button";
 import { PagedList } from "@/components/paged-list";
 import { DayRange, type DayRangeValue } from "@/components/day-range";
 import { PlainRow, RowHairline } from "@/components/plain-row";
@@ -172,36 +175,14 @@ export default function HistoryScreen() {
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={list.refresh} tintColor={colors.inkFaint} />}
     >
-      <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={back} style={styles.back}>
-        <BackMark color={colors.inkSoft} />
-      </Pressable>
+      <BackButton onPress={back} />
       <Text style={[text.hallName, styles.title, { color: colors.ink }]}>History</Text>
       <View style={styles.controls}>
-      <ScrollView
-        horizontal
-        accessibilityRole="tablist"
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterScroll}
-        contentContainerStyle={styles.filters}
-      >
-        {KIND_FILTERS.map((item) => {
-          const selected = kind === item.id;
-          return (
-            <Pressable
-              key={item.id}
-              accessibilityRole="tab"
-              accessibilityState={{ selected }}
-              onPress={() => setKind(item.id)}
-              style={({ pressed }) => [styles.filter, pressed && styles.pressed]}
-            >
-              <Text style={[text.button, { color: selected ? colors.forest : colors.inkSoft }]}>
-                {item.label}
-              </Text>
-              <View style={[styles.filterMark, { backgroundColor: selected ? colors.forest : "transparent" }]} />
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+      <FilterChipRow accessibilityRole="tablist">
+        {KIND_FILTERS.map((item) => (
+          <FilterMark key={item.id} label={item.label} on={kind === item.id} onPress={() => setKind(item.id)} />
+        ))}
+      </FilterChipRow>
       <DayRange value={range} onChange={setRange} />
       </View>
       <View style={styles.list}>
@@ -216,15 +197,7 @@ export default function HistoryScreen() {
         empty={<Text style={[styles.emptyLine, { color: colors.inkFaint }]}>No history</Text>}
         footer={
           list.hasMore && !list.showPageSkeleton ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Show older"
-              onPress={() => list.loadNext()}
-              hitSlop={12}
-              style={styles.older}
-            >
-              <Text style={[text.button, { color: colors.forest }]}>Show older</Text>
-            </Pressable>
+            <HallButton kind="text" label="Show older" onPress={() => list.loadNext()} />
           ) : null
         }
       >
@@ -247,23 +220,12 @@ const styles = StyleSheet.create({
     gap: 28,
   },
   list: { marginTop: -4 },
-  back: { alignSelf: "flex-start", minHeight: 44, flexDirection: "row", alignItems: "center", gap: 2, marginLeft: -6 },
+
   title: { textAlign: "left" },
   controls: { gap: 12 },
-  filterScroll: { flexGrow: 0 },
-  filters: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: 18,
-    paddingRight: 8,
-  },
-  filter: { minHeight: 44, justifyContent: "flex-end", gap: 8 },
-  filterMark: { height: 2, borderRadius: 1 },
   emptyLine: {
     fontFamily: "SourceSans3_400Regular",
     fontSize: 17,
     lineHeight: 22,
   },
-  older: { alignSelf: "center", minHeight: 44, justifyContent: "center" },
-  pressed: { opacity: 0.6 },
 });

@@ -34,9 +34,9 @@ export function QrMark({ color }: { color: ColorValue }) {
   return (
     <View style={styles.mark}>
       <View style={[styles.markFrame, { borderColor: color, borderWidth: stroke }]} />
-      {finder({ top: 3, left: 3 })}
-      {finder({ top: 3, right: 3 })}
-      {finder({ bottom: 3, left: 3 })}
+      {finder({ top: 3 /* hall-content */, left: 3 /* hall-content */ })}
+      {finder({ top: 3 /* hall-content */, right: 3 /* hall-content */ })}
+      {finder({ bottom: 3 /* hall-content */, left: 3 /* hall-content */ })}
     </View>
   );
 }
@@ -133,11 +133,12 @@ const styles = StyleSheet.create({
   mark: { width: 24, height: 24 },
   markFrame: {
     position: "absolute",
-    top: 1,
-    left: 1,
-    right: 1,
-    bottom: 1,
-    borderRadius: 2,
+    // QR glyph insets. Not screen spacing.
+    top: 1 /* hall-content */,
+    left: 1 /* hall-content */,
+    right: 1 /* hall-content */,
+    bottom: 1 /* hall-content */,
+    borderRadius: 2 /* hall-content */,
   },
   finder: {
     position: "absolute",
@@ -146,9 +147,9 @@ const styles = StyleSheet.create({
   },
   finderInner: {
     position: "absolute",
-    top: 1.5,
-    left: 1.5,
-    right: 1.5,
-    bottom: 1.5,
+    top: 1.5 /* hall-content */,
+    left: 1.5 /* hall-content */,
+    right: 1.5 /* hall-content */,
+    bottom: 1.5 /* hall-content */,
   },
 });

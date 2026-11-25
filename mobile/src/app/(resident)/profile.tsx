@@ -1,10 +1,11 @@
 import { useCallback, useState } from "react";
 import { useFocusEffect, useNavigation } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
-import { BackMark } from "@/components/back-mark";
+import { BackButton } from "@/components/back-button";
+import { HallButton } from "@/components/hall-button";
 import { type ResidentHome, useSession } from "@/session";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
@@ -81,9 +82,7 @@ export default function ProfileScreen() {
         { paddingTop: insets.top + 28, paddingBottom: insets.bottom + 28 },
       ]}
     >
-      <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={back} style={styles.back}>
-        <BackMark color={colors.inkSoft} />
-      </Pressable>
+      <BackButton onPress={back} />
       <Text style={[text.hallName, styles.title, { color: colors.ink }]}>Profile</Text>
       {failed ? (
         <Text accessibilityLiveRegion="polite" style={[text.body, { color: colors.inkSoft }]}>
@@ -114,9 +113,7 @@ export default function ProfileScreen() {
         <Text style={[text.body, { color: colors.inkSoft }]}>Loading your profile</Text>
       )}
       {failed ? (
-        <Pressable accessibilityRole="button" onPress={() => setAttempt((value) => value + 1)}>
-          <Text style={[text.button, { color: colors.ink }]}>Try again</Text>
-        </Pressable>
+        <HallButton kind="text" label="Try again" onPress={() => setAttempt((value) => value + 1)} />
       ) : null}
     </ScrollView>
   );
@@ -129,7 +126,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     gap: 28,
   },
-  back: { alignSelf: "flex-start", minHeight: 44, flexDirection: "row", alignItems: "center", gap: 2, marginLeft: -6 },
+
   title: { textAlign: "left" },
   lines: { gap: 16 },
   line: { gap: 2 },
@@ -146,11 +143,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderCurve: "continuous",
     padding: 16,
-    gap: 6,
+    gap: 8,
   },
   count: {
     fontFamily: "SourceSerif4_600SemiBold",
-    fontSize: 32,
+    fontSize: 34,
     letterSpacing: -0.4,
     fontVariant: ["tabular-nums"],
   },

@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
   },
   mark: {
     alignItems: "center",
-    gap: 22,
+    gap: 24,
     paddingHorizontal: 28,
   },
   word: { textAlign: "center" },

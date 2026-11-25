@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocalSearchParams, useNavigation } from "expo-router";
-import { Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { RefreshControl, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
-import { BackMark } from "@/components/back-mark";
+import { BackButton } from "@/components/back-button";
 import { DayRange, type DayRangeValue } from "@/components/day-range";
 import { DenseRow } from "@/components/dense-row";
-import { FilterChip } from "@/components/filter-chip";
+import { FilterChip, FilterMark } from "@/components/filter-chip";
 import { FilterChipRow } from "@/components/filter-chip-row";
 import { PagedList } from "@/components/paged-list";
 import { SearchField } from "@/components/search-field";
@@ -204,34 +204,15 @@ export default function OutNowScreen() {
 
   const header = (
     <View style={styles.header}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Back"
-        onPress={() => goBackOr(navigation, "/staff")}
-        style={styles.back}
-      >
-        <BackMark color={colors.inkSoft} />
-      </Pressable>
+      <BackButton onPress={() => goBackOr(navigation, "/staff")} />
       <Text style={[text.hallName, styles.title, { color: colors.ink }]}>Out now</Text>
-      <View style={[styles.segment, { backgroundColor: colors.line }]}>
+      <FilterChipRow accessibilityRole="tablist">
         {TABS.map((item) => {
-          const on = tab === item.value;
           const n = count(item.value);
-          return (
-            <Pressable
-              key={item.value}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: on }}
-              onPress={() => setTab(item.value)}
-              style={[styles.segmentItem, on && { backgroundColor: colors.surface }]}
-            >
-              <Text numberOfLines={1} style={[text.label, { color: on ? colors.ink : colors.inkSoft }]}>
-                {n === null ? item.label : `${item.label} ${n}`}
-              </Text>
-            </Pressable>
-          );
+          const label = n === null ? item.label : `${item.label} ${n}`;
+          return <FilterMark key={item.value} label={label} on={tab === item.value} onPress={() => setTab(item.value)} />;
         })}
-      </View>
+      </FilterChipRow>
       {tab === "late" ? (
         <>
           <FilterChipRow>
@@ -328,20 +309,10 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { flexGrow: 1, paddingHorizontal: 28 },
   header: { gap: 16, paddingBottom: 8 },
-  back: { alignSelf: "flex-start", minHeight: 44, flexDirection: "row", alignItems: "center", gap: 2, marginLeft: -6 },
+
   title: { textAlign: "left" },
-  segment: { flexDirection: "row", borderRadius: 10, borderCurve: "continuous", padding: 2 },
-  segmentItem: {
-    flex: 1,
-    minHeight: 36,
-    borderRadius: 8,
-    borderCurve: "continuous",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 6,
-  },
   divider: { width: 1, height: 20, marginHorizontal: 4 },
-  empty: { alignItems: "center", gap: 8, paddingTop: 96 },
-  place: { fontFamily: "SourceSerif4_600SemiBold", fontSize: 20, letterSpacing: -0.2 },
+  empty: { alignItems: "center", gap: 8, paddingTop: 48 },
+  place: { fontFamily: "SourceSerif4_600SemiBold", fontSize: 22, letterSpacing: -0.2 },
   center: { textAlign: "center" },
 });

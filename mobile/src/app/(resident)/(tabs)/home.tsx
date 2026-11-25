@@ -475,15 +475,15 @@ const styles = StyleSheet.create({
   planNote: { textAlign: "center" },
   upcoming: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    paddingTop: 22,
-    gap: 14,
+    paddingTop: 24,
+    gap: 13,
   },
   list: { gap: 12 },
   outing: {
     borderWidth: 1,
     borderRadius: 12,
     borderCurve: "continuous",
-    paddingHorizontal: 14,
+    paddingHorizontal: 13,
     paddingVertical: 12,
   },
   rowLines: { gap: 4 },

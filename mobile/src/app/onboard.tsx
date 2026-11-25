@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Feather } from "@expo/vector-icons";
 import { router, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,6 +15,7 @@ import {
   type LayoutChangeEvent,
 } from "react-native";
 
+import { BackButton } from "@/components/back-button";
 import { ChoiceField, dismissOpenChoice } from "@/components/choice-field";
 import { HallButton } from "@/components/hall-button";
 import { TextField } from "@/components/text-field";
@@ -807,15 +807,11 @@ export default function OnboardScreen() {
       keyboardDismissMode="interactive"
       showsVerticalScrollIndicator={false}
     >
-      <Pressable
-        accessibilityRole="button"
+      <BackButton
+        label={step === 0 ? "Sign in" : "Back"}
         accessibilityLabel={step === 0 ? "Back to sign in" : "Back"}
         onPress={leave}
-        style={styles.back}
-      >
-        <Feather name="chevron-left" size={22} color={colors.ink} />
-        <Text style={[text.button, { color: colors.ink }]}>{step === 0 ? "Sign in" : "Back"}</Text>
-      </Pressable>
+      />
       <Pressable style={styles.dismiss} onPress={dismissOpenChoice}>
       <View style={styles.progress}>
         <View style={styles.track}>
@@ -906,14 +902,6 @@ export default function OnboardScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   dismiss: { flexGrow: 1 },
-  back: {
-    alignSelf: "flex-start",
-    minHeight: 44,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 2,
-    marginLeft: -6,
-  },
   content: {
     flexGrow: 1,
     paddingHorizontal: 28,
@@ -931,7 +919,7 @@ const styles = StyleSheet.create({
   segment: {
     flex: 1,
     height: 4,
-    borderRadius: 2,
+    borderRadius: 0,
   },
   hits: {
     ...StyleSheet.absoluteFill,
@@ -947,10 +935,10 @@ const styles = StyleSheet.create({
   dial: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingLeft: 14,
+    gap: 8,
+    paddingLeft: 13,
   },
-  flag: { fontSize: 18 },
+  flag: { fontSize: 17 },
 
   errorSlot: {
     position: "absolute",
