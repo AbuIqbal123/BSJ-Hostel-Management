@@ -1,9 +1,9 @@
 import { useLocalSearchParams, useNavigation } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
-import { BackMark } from "@/components/back-mark";
+import { BackButton } from "@/components/back-button";
 import { formatClockDay } from "@/format-when";
 import { paramText } from "@/route-param";
 import { useHallColors } from "@/theme/colors";
@@ -42,14 +42,7 @@ export default function OutingRecordScreen() {
         { paddingTop: insets.top + 28, paddingBottom: insets.bottom + 28 },
       ]}
     >
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Back"
-        onPress={() => goBackOr(navigation, "/history")}
-        style={styles.back}
-      >
-        <BackMark color={colors.inkSoft} />
-      </Pressable>
+      <BackButton onPress={() => goBackOr(navigation, "/history")} />
       <Text style={[text.hallName, styles.title, { color: colors.ink }]}>
         {place.length > 0 ? place : "Outing"}
       </Text>
@@ -73,7 +66,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     gap: 16,
   },
-  back: { alignSelf: "flex-start", minHeight: 44, flexDirection: "row", alignItems: "center", gap: 2, marginLeft: -6 },
+
   title: { textAlign: "left" },
   fact: { paddingVertical: 12, gap: 4, borderBottomWidth: StyleSheet.hairlineWidth },
 });

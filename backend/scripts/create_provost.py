@@ -31,8 +31,8 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 from app.shared import clock  # noqa: E402
+from app.shared.auth.accounts import insert_user  # noqa: E402
 from app.shared.auth.password_rules import PASSWORD_CLASS_PATTERN, PASSWORD_CLASSES_MESSAGE  # noqa: E402
-from app.shared.auth.security import hash_password  # noqa: E402
 from app.shared.config import is_hosted  # noqa: E402
 from app.shared.db import INTEGRITY_ERRORS, create_connection  # noqa: E402
 from app.shared.migrate import migrate  # noqa: E402
@@ -120,13 +120,14 @@ def _insert_provost(
         ):
             raise ValueError(PASSWORD_CLASSES_MESSAGE)
         user_id = str(uuid.uuid4())
-        connection.execute(
-            """
-            INSERT INTO users (
-              id, role, username, full_name, password_hash, status, created_at, updated_at
-            ) VALUES (?, 'provost', ?, ?, ?, 'active', ?, ?)
-            """,
-            (user_id, cleaned_username, cleaned_name, hash_password(password), now_text, now_text),
+        insert_user(
+            connection,
+            user_id=user_id,
+            role="provost",
+            username=cleaned_username,
+            full_name=cleaned_name,
+            password=password,
+            when=now_text,
         )
         connection.execute(
             "INSERT INTO staff (user_id, job_title) VALUES (?, 'Provost')",

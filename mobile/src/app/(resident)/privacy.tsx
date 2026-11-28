@@ -1,9 +1,9 @@
 import { useNavigation } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
-import { BackMark } from "@/components/back-mark";
+import { BackButton } from "@/components/back-button";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
@@ -21,14 +21,7 @@ export default function PrivacyScreen() {
         { paddingTop: insets.top + 28, paddingBottom: insets.bottom + 40 },
       ]}
     >
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Back"
-        onPress={back}
-        style={styles.back}
-      >
-        <BackMark color={colors.inkSoft} />
-      </Pressable>
+      <BackButton onPress={back} />
       <View style={styles.heading}>
         <Text style={[text.hallName, styles.title, { color: colors.ink }]}>Privacy policy</Text>
         <Text style={[text.body, { color: colors.inkSoft }]}>3 October 2026</Text>
@@ -76,14 +69,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     gap: 28,
   },
-  back: {
-    alignSelf: "flex-start",
-    minHeight: 44,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 2,
-    marginLeft: -6,
-  },
+
   heading: { gap: 8 },
   title: { textAlign: "left" },
   section: { gap: 12 },

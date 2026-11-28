@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
 import { onHallRefresh } from "@/hall-refresh";
-import { BackMark } from "@/components/back-mark";
+import { BackButton } from "@/components/back-button";
 import { EmptyState } from "@/components/list-state";
 import { PagedList } from "@/components/paged-list";
 import { DayRange, type DayRangeValue } from "@/components/day-range";
@@ -191,14 +191,7 @@ export function NoticeList({ base, role, back, staff }: { base: string; role: Ha
 
   const header = (
     <View style={styles.header}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Back"
-        onPress={() => goBackOr(navigation, back)}
-        style={styles.back}
-      >
-        <BackMark color={colors.inkSoft} />
-      </Pressable>
+      <BackButton onPress={() => goBackOr(navigation, back)} />
       <View style={styles.titleRow}>
         <Text numberOfLines={1} style={[text.hallName, styles.heading, { color: colors.ink }]}>
           Notifications
@@ -263,14 +256,14 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { flexGrow: 1, paddingHorizontal: 28 },
   header: { gap: 16, paddingBottom: 20 },
-  back: { alignSelf: "flex-start", minHeight: 44, flexDirection: "row", alignItems: "center", gap: 2, marginLeft: -6 },
+
   titleRow: { flexDirection: "row", alignItems: "center", gap: 16 },
   heading: { flex: 1, textAlign: "left" },
   card: {
     borderWidth: 1,
     borderRadius: 12,
     borderCurve: "continuous",
-    paddingHorizontal: 14,
+    paddingHorizontal: 13,
     paddingVertical: 12,
     gap: 4,
     alignItems: "stretch",

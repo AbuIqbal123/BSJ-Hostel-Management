@@ -9,7 +9,7 @@ export function FilterChip({ label, on, onPress }: { label: string; on: boolean;
       accessibilityRole="button"
       accessibilityState={{ selected: on }}
       onPress={onPress}
-      hitSlop={{ top: 6, bottom: 6 }}
+      hitSlop={{ top: 8, bottom: 8 }}
       style={[
         styles.chip,
         on
@@ -32,7 +32,7 @@ export function FilterMark({ label, on, onPress }: { label: string; on: boolean;
       accessibilityRole="tab"
       accessibilityState={{ selected: on }}
       onPress={onPress}
-      hitSlop={{ top: 6, bottom: 6 }}
+      hitSlop={{ top: 8, bottom: 8 }}
       style={styles.markHit}
     >
       <Text numberOfLines={1} style={[styles.markLabel, { color: on ? colors.forest : colors.inkSoft }]}>
@@ -50,14 +50,14 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     minHeight: 32,
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 12,
     borderCurve: "continuous",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     justifyContent: "center",
   },
   label: { fontFamily: "SourceSans3_600SemiBold", fontSize: 15, lineHeight: 20 },
-  markHit: { minHeight: 32, justifyContent: "flex-end", gap: 6, alignSelf: "flex-start" },
+  markHit: { minHeight: 32, justifyContent: "flex-end", gap: 8, alignSelf: "flex-start" },
   markLabel: { fontFamily: "SourceSans3_600SemiBold", fontSize: 15, lineHeight: 20 },
-  mark: { height: 2, borderRadius: 1 },
+  mark: { height: 2, borderRadius: 0 },
 });

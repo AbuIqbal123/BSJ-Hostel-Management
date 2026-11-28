@@ -1,10 +1,13 @@
 import { useCallback, useRef, useState } from "react";
-import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { FilterMark } from "@/components/filter-chip";
+import { FilterChipRow } from "@/components/filter-chip-row";
+import { HallButton } from "@/components/hall-button";
 import { EmptyState, ListError, RetryRow } from "@/components/list-state";
+import { SettingsRow } from "@/components/settings-row";
 import { SkeletonRows } from "@/components/skeleton";
 import { PagedList } from "@/components/paged-list";
 import { PlainRow, RowHairline } from "@/components/plain-row";
@@ -216,63 +219,18 @@ export default function PermissionsScreen() {
       }}
     >
       <Text style={[text.hallName, styles.title, { color: colors.ink }]}>Permissions</Text>
-      <View style={styles.rows}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Request late-night"
-          onPress={() => openForm("late_night")}
-          style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-        >
-          <Text numberOfLines={1} style={[styles.rowLabel, { color: colors.ink }]}>
-            Request late-night
-          </Text>
-          <Feather name="chevron-right" size={18} color={colors.inkFaint} />
-        </Pressable>
+      <View>
+        <SettingsRow label="Request late-night" color={colors.ink} chevron onPress={() => openForm("late_night")} />
         <RowHairline />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Request home going"
-          onPress={() => openForm("home_going")}
-          style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-        >
-          <Text numberOfLines={1} style={[styles.rowLabel, { color: colors.ink }]}>
-            Request home going
-          </Text>
-          <Feather name="chevron-right" size={18} color={colors.inkFaint} />
-        </Pressable>
+        <SettingsRow label="Request home going" color={colors.ink} chevron onPress={() => openForm("home_going")} />
         <RowHairline />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Request guest stay"
-          onPress={() => router.push("/guest")}
-          style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-        >
-          <Text numberOfLines={1} style={[styles.rowLabel, { color: colors.ink }]}>
-            Request guest stay
-          </Text>
-          <Feather name="chevron-right" size={18} color={colors.inkFaint} />
-        </Pressable>
+        <SettingsRow label="Request guest stay" color={colors.ink} chevron onPress={() => router.push("/guest")} />
       </View>
-      <View accessibilityRole="tablist" style={styles.tabs}>
-        {REQUEST_TABS.map((item) => {
-          const selected = tab === item.id;
-          return (
-            <Pressable
-              key={item.id}
-              accessibilityRole="tab"
-              accessibilityState={{ selected }}
-              accessibilityLabel={item.label}
-              onPress={() => setTab(item.id)}
-              style={({ pressed }) => [styles.tab, pressed && styles.pressed]}
-            >
-              <Text style={[text.button, styles.tabLabel, { color: selected ? colors.forest : colors.inkSoft }]}>
-                {item.label}
-              </Text>
-              <View style={[styles.tabMark, { backgroundColor: selected ? colors.forest : "transparent" }]} />
-            </Pressable>
-          );
-        })}
-      </View>
+      <FilterChipRow accessibilityRole="tablist">
+        {REQUEST_TABS.map((item) => (
+          <FilterMark key={item.id} label={item.label} on={tab === item.id} onPress={() => setTab(item.id)} />
+        ))}
+      </FilterChipRow>
       <PagedList
         rows={visible}
         error={active.error}
@@ -343,15 +301,7 @@ export default function PermissionsScreen() {
                 error: older.error,
                 pageError: older.pageError,
               }) ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Show older"
-                  onPress={showOlder}
-                  hitSlop={12}
-                  style={styles.older}
-                >
-                  <Text style={[text.button, { color: colors.forest }]}>Show older</Text>
-                </Pressable>
+                <HallButton kind="text" label="Show older" onPress={showOlder} />
               ) : null}
             </>
           ) : null
@@ -383,21 +333,5 @@ const styles = StyleSheet.create({
     gap: 28,
   },
   title: { textAlign: "left" },
-  rows: {},
-  tabs: { flexDirection: "row", gap: 16 },
-  tab: { flex: 1, minHeight: 44, justifyContent: "flex-end", gap: 8 },
-  tabLabel: { textAlign: "center" },
-  tabMark: { height: 2, borderRadius: 1 },
-  row: {
-    minHeight: 48,
-    paddingVertical: 13,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  rowLabel: { flex: 1, fontFamily: "SourceSans3_600SemiBold", fontSize: 17, lineHeight: 22 },
   requests: { marginTop: -4 },
-  pressed: { opacity: 0.6 },
-  older: { alignSelf: "center", minHeight: 44, justifyContent: "center" },
 });

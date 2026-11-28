@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { RefreshControl, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { FilterMark } from "@/components/filter-chip";
+import { HallButton } from "@/components/hall-button";
 import { FilterChipRow } from "@/components/filter-chip-row";
 import { SearchField } from "@/components/search-field";
 import { SectionHead } from "@/components/section-head";
@@ -324,26 +325,10 @@ export default function RequestsScreen() {
           {decidedNote}
         </Text>
       ) : null}
-      <View style={styles.segment}>
-        {(["permissions", "guests"] as const).map((value) => {
-          const on = tab === value;
-          const label = value === "permissions" ? "Permissions" : "Guest stays";
-          return (
-            <Pressable
-              key={value}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: on }}
-              onPress={() => setTab(value)}
-              style={styles.segmentItem}
-            >
-              <Text numberOfLines={1} style={[text.label, { color: on ? colors.forest : colors.inkSoft }]}>
-                {label}
-              </Text>
-              <View style={[styles.segmentMark, { backgroundColor: on ? colors.forest : "transparent" }]} />
-            </Pressable>
-          );
-        })}
-      </View>
+      <FilterChipRow accessibilityRole="tablist">
+        <FilterMark label="Permissions" on={tab === "permissions"} onPress={() => setTab("permissions")} />
+        <FilterMark label="Guest stays" on={tab === "guests"} onPress={() => setTab("guests")} />
+      </FilterChipRow>
       <SearchField
         value={query}
         placeholder={tab === "permissions" ? "Name or room" : "Guest, host or room"}
@@ -430,17 +415,15 @@ export default function RequestsScreen() {
           onClose={() => setOpen(null)}
           extra={
             open.tab === "guests" ? (
-              <Pressable
-                accessibilityRole="button"
+              <HallButton
+                kind="text"
+                label="Payment"
                 onPress={() => {
                   const stayId = open.row.id;
                   setOpen(null);
                   router.push({ pathname: "/staff/payments", params: { id: stayId } });
                 }}
-                style={styles.textButton}
-              >
-                <Text style={[text.button, { color: colors.forest }]}>Payment</Text>
-              </Pressable>
+              />
             ) : null
           }
         />
@@ -454,10 +437,7 @@ const styles = StyleSheet.create({
   content: { flexGrow: 1, paddingHorizontal: 28 },
   header: { gap: 16, paddingBottom: 8 },
   title: { textAlign: "left" },
-  segment: { flexDirection: "row", minHeight: 40 },
-  segmentItem: { flex: 1, minHeight: 40, alignItems: "center", justifyContent: "flex-end", gap: 6 },
-  segmentMark: { alignSelf: "stretch", height: 2, borderRadius: 1 },
-  chips: { gap: 18, alignItems: "flex-end" },
+  chips: { gap: 20, alignItems: "flex-end" },
   divider: { width: StyleSheet.hairlineWidth, height: 20, marginHorizontal: 4 },
   emptyLine: {
     marginTop: 16,
@@ -465,5 +445,4 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 22,
   },
-  textButton: { minHeight: 44, justifyContent: "center" },
 });

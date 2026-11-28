@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import Animated, {
   Easing,
   ReduceMotion,
@@ -10,11 +10,13 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-import { useHallColors } from "@/theme/colors";
+import { gate, useHallColors, type HallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
 /** Same settle as the gate Leave tick. */
 const TICK_MS = 180;
+
+export type HallButtonKind = "primary" | "secondary" | "text" | "danger";
 
 type HallButtonProps = {
   label: string;
@@ -24,7 +26,66 @@ type HallButtonProps = {
   busy?: boolean;
   /** Brief success mark in place of the label. Presses stay ignored. */
   succeeded?: boolean;
+  /** Filled forest is the default. A screen keeps one primary. */
+  kind?: HallButtonKind;
+  /** Gold only on the gate shell. A paper result card stays forest. */
+  tone?: "hall" | "gate";
+  style?: StyleProp<ViewStyle>;
 };
+
+type Paint = {
+  backgroundColor: string;
+  borderColor: string;
+  borderWidth: number;
+  labelColor: string;
+  pressedOpacity: number;
+};
+
+function paint(kind: HallButtonKind, tone: "hall" | "gate", colors: HallColors): Paint {
+  if (tone === "gate" && kind === "primary") {
+    return {
+      backgroundColor: gate.gold,
+      borderColor: gate.gold,
+      borderWidth: 0,
+      labelColor: gate.bg,
+      pressedOpacity: 0.88,
+    };
+  }
+  if (kind === "primary") {
+    return {
+      backgroundColor: colors.forest,
+      borderColor: colors.forest,
+      borderWidth: 0,
+      labelColor: colors.onForest,
+      pressedOpacity: 1,
+    };
+  }
+  if (kind === "secondary") {
+    return {
+      backgroundColor: colors.surface,
+      borderColor: colors.lineStrong,
+      borderWidth: 1,
+      labelColor: colors.ink,
+      pressedOpacity: 1,
+    };
+  }
+  if (kind === "danger") {
+    return {
+      backgroundColor: colors.surface,
+      borderColor: colors.danger,
+      borderWidth: 1,
+      labelColor: colors.danger,
+      pressedOpacity: 1,
+    };
+  }
+  return {
+    backgroundColor: "transparent",
+    borderColor: "transparent",
+    borderWidth: 0,
+    labelColor: colors.forest,
+    pressedOpacity: 0.6,
+  };
+}
 
 function SuccessMark({ color }: { color: string }) {
   const reduced = useReducedMotion();
@@ -58,14 +119,24 @@ export function HallButton({
   disabled = false,
   busy = false,
   succeeded = false,
+  kind = "primary",
+  tone = "hall",
+  style,
 }: HallButtonProps) {
   const colors = useHallColors();
   const held = disabled || busy || succeeded;
-  const labelStyle = useMemo(() => [text.button, { color: colors.onForest }], [colors]);
-  const ripple = useMemo(
-    () => (Platform.OS === "android" ? { color: colors.forestDeep } : undefined),
-    [colors],
-  );
+  const face = useMemo(() => paint(kind, tone, colors), [colors, kind, tone]);
+  const labelStyle = useMemo(() => [text.button, { color: face.labelColor }], [face.labelColor]);
+  const ripple = useMemo(() => {
+    if (Platform.OS !== "android") {
+      return undefined;
+    }
+    if (tone === "gate") {
+      return { color: gate.gold };
+    }
+    return { color: kind === "danger" ? colors.danger : colors.forestDeep };
+  }, [colors, kind, tone]);
+  const filled = kind !== "text";
 
   return (
     <Pressable
@@ -78,18 +149,29 @@ export function HallButton({
       android_ripple={ripple}
       style={({ pressed }) => [
         styles.button,
+        filled ? styles.filled : styles.quiet,
         {
-          backgroundColor: pressed ? colors.forestDeep : colors.forest,
-          opacity: disabled || busy ? 0.6 : 1,
-          transform: [{ scale: pressed && !held ? 0.98 : 1 }],
+          backgroundColor:
+            pressed && kind === "primary" && tone === "hall"
+              ? colors.forestDeep
+              : pressed && kind === "secondary"
+                ? colors.paper2
+                : pressed && kind === "danger"
+                  ? colors.dangerBg
+                  : face.backgroundColor,
+          borderColor: face.borderColor,
+          borderWidth: face.borderWidth,
+          opacity: disabled || busy ? 0.6 : pressed ? face.pressedOpacity : 1,
+          transform: [{ scale: pressed && !held && filled ? 0.98 : 1 }],
         },
+        style,
       ]}
     >
       {succeeded ? (
-        <SuccessMark color={colors.onForest} />
+        <SuccessMark color={face.labelColor} />
       ) : busy ? (
         <View style={styles.busy}>
-          <ActivityIndicator color={colors.onForest} />
+          <ActivityIndicator color={face.labelColor} />
           <Text style={labelStyle}>{label}</Text>
         </View>
       ) : (
@@ -102,14 +184,23 @@ export function HallButton({
 const styles = StyleSheet.create({
   button: {
     alignItems: "center",
-    borderRadius: 12,
+    justifyContent: "center",
     borderCurve: "continuous",
     overflow: "hidden",
-    paddingVertical: 14,
+  },
+  filled: {
+    alignSelf: "stretch",
+    borderRadius: 16,
+    paddingVertical: 16,
+  },
+  quiet: {
+    alignSelf: "flex-start",
+    minHeight: 44,
+    paddingVertical: 8,
   },
   busy: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
   },
 });

@@ -126,16 +126,16 @@ export function DayRange({ value, onChange }: { value: DayRangeValue; onChange: 
 }
 
 const styles = StyleSheet.create({
-  range: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 10 },
+  range: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 12 },
   bound: { flexDirection: "row", alignItems: "center", gap: 4 },
   datePress: { minHeight: 44, justifyContent: "center" },
   clear: { minWidth: 28, minHeight: 44, alignItems: "center", justifyContent: "center" },
-  clearMark: { fontSize: 18, lineHeight: 22 },
+  clearMark: { fontSize: 17, lineHeight: 22 },
   chip: {
     alignSelf: "flex-start",
-    borderRadius: 8,
+    borderRadius: 12,
     minHeight: 34,
-    paddingHorizontal: 11,
+    paddingHorizontal: 12,
     justifyContent: "center",
     overflow: "hidden",
   },

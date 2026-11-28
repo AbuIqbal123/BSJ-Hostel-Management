@@ -1,5 +1,7 @@
 import tseslint from "typescript-eslint";
 
+import hall from "./eslint/design-tokens.mjs";
+
 /** A catch that drops the failure. Allowed only in src/safe.ts. */
 const silentCatch = [
   {
@@ -61,6 +63,39 @@ export default [
     rules: {
       "no-empty": "warn",
       "no-restricted-syntax": "off",
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/theme/**"],
+    plugins: { hall },
+    rules: {
+      "hall/no-raw-color": "error",
+      "hall/token-scale": "error",
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/components/**", "src/theme/**", "src/app/sign-in.tsx"],
+    plugins: { hall },
+    rules: {
+      "hall/no-raw-text-input": "error",
+    },
+  },
+  {
+    files: ["src/app/**/*.tsx"],
+    ignores: ["src/app/sign-in.tsx"],
+    plugins: { hall },
+    rules: {
+      "hall/one-primary": "error",
+    },
+  },
+  {
+    // The request form and the pending-stay decision never mount together.
+    files: ["src/app/(resident)/guest.tsx"],
+    plugins: { hall },
+    rules: {
+      "hall/one-primary": ["error", { max: 2 }],
     },
   },
 ];

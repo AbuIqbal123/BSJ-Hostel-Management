@@ -4,6 +4,7 @@ import { requireNativeView, requireOptionalNativeModule } from "expo";
 import QRCode from "react-native-qrcode-svg";
 
 import { qrCells } from "@/qr-cells";
+import { light } from "@/theme/colors";
 
 const QUIET = 16;
 
@@ -23,7 +24,7 @@ export function SecureQr({ value, size }: { value: string; size: number }) {
   const cells = useMemo(() => qrCells(value), [value]);
   if (!NativeSecureQr || !cells) {
     return (
-      <QRCode value={value} size={size} color="#000000" backgroundColor="#FFFFFF" quietZone={QUIET} />
+      <QRCode value={value} size={size} color={light.ink} backgroundColor={light.surface} quietZone={QUIET} />
     );
   }
   return (
@@ -33,7 +34,7 @@ export function SecureQr({ value, size }: { value: string; size: number }) {
       count={cells.count}
       quiet={QUIET}
       size={size}
-      style={{ width: size, height: size, backgroundColor: "#FFFFFF" }}
+      style={{ width: size, height: size, backgroundColor: light.surface }}
     />
   );
 }

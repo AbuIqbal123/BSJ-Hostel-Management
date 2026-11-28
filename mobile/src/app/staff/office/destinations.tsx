@@ -130,6 +130,7 @@ export default function OfficeDestinations() {
             />
             {offerFreeText ? (
               <HallButton
+                kind="secondary"
                 label="Add free-text place"
                 busy={cue.busy("custom")}
                 succeeded={cue.succeeded("custom")}
@@ -180,6 +181,7 @@ export default function OfficeDestinations() {
                   onChange={(value) => setStatus(value === "inactive" ? "inactive" : "active")}
                 />
                 <HallButton
+                  kind="secondary"
                   label="Save place"
                   busy={cue.busy("save")}
                   succeeded={cue.succeeded("save")}

@@ -254,6 +254,7 @@ export default function OfficeBlock() {
           />
           <TextField label="Door number" value={number} onChangeText={setNumber} maxLength={12} />
           <HallButton
+            kind="secondary"
             label="Add room"
             busy={cue.busy("add")}
             succeeded={cue.succeeded("add")}
@@ -307,6 +308,7 @@ export default function OfficeBlock() {
                     onChange={(value) => setRoomStatus(value === "inactive" ? "inactive" : "active")}
                   />
                   <HallButton
+                    kind="secondary"
                     label="Save room"
                     busy={cue.busy("room")}
                     succeeded={cue.succeeded("room")}

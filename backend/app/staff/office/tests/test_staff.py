@@ -145,6 +145,24 @@ def test_admin_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
             403,
             "forbidden",
         )
+        assert_error(
+            client.patch(
+                f"/api/v1/admin/staff/{PROVOST_ID}",
+                headers=warden_headers,
+                json={"full_name": "Halima Begum"},
+            ),
+            403,
+            "forbidden",
+        )
+        assert_error(
+            client.patch(
+                f"/api/v1/admin/staff/{PROVOST_ID}",
+                headers=warden_headers,
+                json={"job_title": "Provost"},
+            ),
+            403,
+            "forbidden",
+        )
 
         warden_created = client.post(
             "/api/v1/admin/staff",
@@ -197,6 +215,8 @@ def test_admin_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
         assert "password" not in json.dumps(body).lower()
         staff_id = body["id"]
 
+        sara_before_suspend = sign_in(client, "warden.sara", role_credential("warden"))
+        sara_access = sara_before_suspend["access_token"]
         warden_suspended = client.patch(
             f"/api/v1/admin/staff/{WARDEN_ID}",
             headers=headers,
@@ -211,6 +231,19 @@ def test_admin_staff(database_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
         )
         assert reinstated_warden.status_code == 200
         assert reinstated_warden.json()["status"] == "active"
+        assert_error(
+            client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {sara_access}"}),
+            401,
+            "unauthenticated",
+        )
+        sara_after = sign_in(client, "warden.sara", role_credential("warden"))
+        assert (
+            client.get(
+                "/api/v1/auth/me",
+                headers={"Authorization": f"Bearer {sara_after['access_token']}"},
+            ).status_code
+            == 200
+        )
 
         dup = client.post(
             "/api/v1/admin/staff",

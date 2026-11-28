@@ -1,8 +1,9 @@
 import { useState, type ReactNode } from "react";
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HallButton } from "@/components/hall-button";
+import { TextField } from "@/components/text-field";
 import { useHallColors } from "@/theme/colors";
 import { text } from "@/theme/text";
 
@@ -43,64 +44,45 @@ export function ReviewSheet({
   if (onDecide && rejecting) {
     actions = (
       <>
-        <TextInput
+        <TextField
+          label="Why it is rejected"
           value={note}
           onChangeText={setNote}
-          placeholder="Why it is rejected"
-          placeholderTextColor={colors.inkFaint}
           autoFocus
           maxLength={500}
-          style={[text.field, styles.note, { backgroundColor: colors.surface, borderColor: colors.forest, color: colors.ink }]}
+          autoCapitalize="sentences"
         />
         <View style={styles.buttons}>
-          <Pressable accessibilityRole="button" onPress={() => setRejecting(false)} style={styles.button}>
-            <Text style={[text.button, { color: colors.inkSoft }]}>Cancel</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ disabled: busy, busy }}
+          <HallButton kind="text" label="Cancel" onPress={() => setRejecting(false)} style={styles.grow} />
+          <HallButton
+            kind="danger"
+            label="Reject"
+            busy={busy}
             disabled={busy}
             onPress={() => onDecide?.("rejected", note.trim())}
-            style={({ pressed }) => [styles.button, { backgroundColor: colors.danger, opacity: busy || pressed ? 0.7 : 1 }]}
-          >
-            {busy ? (
-              <ActivityIndicator color={colors.onForest} />
-            ) : (
-              <Text style={[text.button, { color: colors.onForest }]}>Reject</Text>
-            )}
-          </Pressable>
+            style={styles.grow}
+          />
         </View>
       </>
     );
   } else if (onDecide) {
     actions = (
       <View style={styles.buttons}>
-        <View style={styles.half}>
-          <HallButton
-            label="Approve"
-            busy={busy}
-            succeeded={succeeded}
-            onPress={() => onDecide("approved", "")}
-          />
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => setRejecting(true)}
-          style={({ pressed }) => [
-            styles.button,
-            { borderColor: colors.danger, borderWidth: 1, backgroundColor: colors.surface },
-            pressed && styles.pressed,
-          ]}
-        >
-          <Text style={[text.button, { color: colors.danger }]}>Reject</Text>
-        </Pressable>
+        <HallButton
+          label="Approve"
+          busy={busy}
+          succeeded={succeeded}
+          onPress={() => onDecide("approved", "")}
+          style={styles.grow}
+        />
+        <HallButton kind="danger" label="Reject" onPress={() => setRejecting(true)} style={styles.grow} />
       </View>
     );
   }
 
   return (
     <Modal transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable accessibilityLabel="Close" style={styles.scrim} onPress={onClose} />
+      <Pressable accessibilityLabel="Close" style={[styles.scrim, { backgroundColor: colors.scrim }]} onPress={onClose} />
       <View style={[styles.sheet, { backgroundColor: colors.paper, paddingBottom: insets.bottom + 20 }]}>
         <View style={[styles.grab, { backgroundColor: colors.line }]} />
         <View style={styles.top}>
@@ -133,34 +115,24 @@ export function ReviewSheet({
 }
 
 const styles = StyleSheet.create({
-  scrim: { flex: 1, backgroundColor: "rgba(20, 38, 31, 0.32)" },
+  scrim: { flex: 1 },
   sheet: {
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     borderCurve: "continuous",
     paddingHorizontal: 28,
     paddingTop: 8,
-    gap: 14,
+    gap: 13,
   },
-  grab: { alignSelf: "center", width: 36, height: 5, borderRadius: 3, marginBottom: 6 },
+  grab: { alignSelf: "center", width: 36, height: 5, borderRadius: 999, marginBottom: 8 },
   top: { flexDirection: "row", alignItems: "center", gap: 12 },
   subtitle: { fontFamily: "SourceSans3_400Regular", fontSize: 15, lineHeight: 20, marginTop: -8 },
   title: { flex: 1, textAlign: "left" },
-  pill: { borderWidth: 1, borderRadius: 8, borderCurve: "continuous", paddingHorizontal: 8, paddingVertical: 2 },
+  pill: { borderWidth: 1, borderRadius: 12, borderCurve: "continuous", paddingHorizontal: 8, paddingVertical: 2 },
   pillText: { fontFamily: "SourceSans3_600SemiBold", fontSize: 13, lineHeight: 18 },
-  card: { borderWidth: 1, borderRadius: 12, borderCurve: "continuous", paddingHorizontal: 14, paddingVertical: 12, gap: 10 },
+  card: { borderWidth: 1, borderRadius: 12, borderCurve: "continuous", paddingHorizontal: 13, paddingVertical: 12, gap: 12 },
   fact: { gap: 2 },
   factLabel: { fontFamily: "SourceSans3_600SemiBold", fontSize: 13, lineHeight: 18 },
-  note: { height: 52, borderWidth: 1, borderRadius: 12, borderCurve: "continuous", paddingHorizontal: 14 },
-  buttons: { flexDirection: "row", gap: 12 },
-  half: { flex: 1 },
-  button: {
-    flex: 1,
-    minHeight: 50,
-    borderRadius: 12,
-    borderCurve: "continuous",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  pressed: { opacity: 0.6 },
+  buttons: { flexDirection: "row", gap: 12, alignItems: "center" },
+  grow: { flex: 1, alignSelf: "stretch" },
 });

@@ -54,6 +54,10 @@ type TextFieldProps = {
   multiline?: boolean;
   /** When false, the field shows its value but does not accept edits. */
   editable?: boolean;
+  /** Shown inside the field when it differs from the label. */
+  placeholder?: string;
+  autoFocus?: boolean;
+  testID?: string;
 };
 
 export const TextField = memo(function TextField({
@@ -76,6 +80,9 @@ export const TextField = memo(function TextField({
   prefix,
   multiline = false,
   editable = true,
+  placeholder,
+  autoFocus = false,
+  testID,
 }: TextFieldProps) {
   const colors = useHallColors();
   const [focused, setFocused] = useState(false);
@@ -152,8 +159,10 @@ export const TextField = memo(function TextField({
           maxLength={maxLength}
           multiline={multiline}
           textAlignVertical={multiline ? "top" : "auto"}
-          placeholder={label}
+          placeholder={placeholder ?? label}
           placeholderTextColor={colors.inkFaint}
+          autoFocus={autoFocus}
+          testID={testID}
           selectionColor={colors.forest}
           cursorColor={colors.forest}
           accessibilityLabel={label}
@@ -192,12 +201,12 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   inputPad: {
-    paddingHorizontal: 14,
+    paddingHorizontal: 13,
   },
   inputFill: {
     flex: 1,
     minWidth: 0,
     paddingLeft: 8,
-    paddingRight: 14,
+    paddingRight: 13,
   },
 });

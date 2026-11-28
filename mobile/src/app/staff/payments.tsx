@@ -2,23 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
-import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Image, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { goBackOr } from "@/back";
-import { BackMark } from "@/components/back-mark";
+import { BackButton } from "@/components/back-button";
 import { DenseRow } from "@/components/dense-row";
 import { HallButton } from "@/components/hall-button";
+import { SearchField } from "@/components/search-field";
+import { TextField } from "@/components/text-field";
 import { EmptyState, ListError, RetryRow } from "@/components/list-state";
 import { PagedList } from "@/components/paged-list";
 import { SkeletonRows } from "@/components/skeleton";
@@ -69,14 +61,7 @@ function PaymentsFrame({
   return (
     <View style={[styles.screen, { backgroundColor: colors.paper, paddingTop: insets.top + 28 }]}>
       <View style={styles.pad}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          onPress={() => goBackOr(navigation, "/staff")}
-          style={styles.back}
-        >
-          <BackMark color={colors.inkSoft} />
-        </Pressable>
+        <BackButton onPress={() => goBackOr(navigation, "/staff")} />
         <Text style={[text.hallName, styles.title, { color: colors.ink }]}>{title}</Text>
         {afterTitle}
       </View>
@@ -114,19 +99,7 @@ function PaymentList() {
       title="Guest payments"
       afterTitle={
         <>
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Guest, host, or room"
-            placeholderTextColor={colors.inkFaint}
-            autoCapitalize="none"
-            autoCorrect={false}
-            style={[
-              text.field,
-              styles.search,
-              { backgroundColor: colors.surface, borderColor: colors.line, color: colors.ink },
-            ]}
-          />
+          <SearchField value={query} placeholder="Guest, host, or room" onChange={setQuery} />
           {list.error && rows.length > 0 ? <ListError message={list.error} onRetry={list.refresh} /> : null}
         </>
       }
@@ -395,14 +368,7 @@ function PaymentDetail({ id }: { id: string }) {
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="interactive"
     >
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Back"
-        onPress={() => goBackOr(navigation, "/staff/payments")}
-        style={styles.back}
-      >
-        <BackMark color={colors.inkSoft} />
-      </Pressable>
+      <BackButton onPress={() => goBackOr(navigation, "/staff/payments")} />
       {showStaySkeleton ? <SkeletonRows count={3} kind="card" /> : null}
       {loaded && !stay && loadError ? <ListError message={loadError} onRetry={() => void load()} /> : null}
       {stay ? (
@@ -416,13 +382,13 @@ function PaymentDetail({ id }: { id: string }) {
             <Text style={[text.body, { color: colors.ink }]}>{locked === CLOSED_STAY ? CLOSED_STAY : PAYMENT_LOCKED}</Text>
           ) : (
             <>
-              <TextInput
+              <TextField
+                label="Note"
+                placeholder="Note, such as who took the payment"
                 value={note}
                 onChangeText={setNote}
-                placeholder="Note, such as who took the payment"
-                placeholderTextColor={colors.inkFaint}
                 maxLength={500}
-                style={[text.field, styles.note, { backgroundColor: colors.surface, borderColor: colors.line, color: colors.ink }]}
+                autoCapitalize="sentences"
               />
               <HallButton
                 label="Mark paid"
@@ -431,13 +397,13 @@ function PaymentDetail({ id }: { id: string }) {
                 disabled={busy}
                 onPress={() => void savePayment("paid")}
               />
-              <Pressable accessibilityRole="button" disabled={busy} onPress={() => void savePayment("unpaid")} style={styles.textButton}>
-                {cue.busy("unpaid") ? (
-                  <ActivityIndicator color={colors.ink} />
-                ) : (
-                  <Text style={[text.button, { color: colors.ink }]}>Mark unpaid</Text>
-                )}
-              </Pressable>
+              <HallButton
+                kind="text"
+                label="Mark unpaid"
+                busy={cue.busy("unpaid")}
+                disabled={busy}
+                onPress={() => void savePayment("unpaid")}
+              />
               {stay.evidenceName ? (
                 <Text style={[text.body, { color: colors.inkSoft }]}>Marking unpaid removes the receipt</Text>
               ) : null}
@@ -475,17 +441,12 @@ function PaymentDetail({ id }: { id: string }) {
           ) : null}
           {locked ? null : (
             <>
-              <Pressable accessibilityRole="button" disabled={busy} onPress={() => void takePhoto()} style={styles.textButton}>
-                <Text style={[text.button, { color: colors.forest }]}>Take a photo</Text>
-              </Pressable>
-              <Pressable accessibilityRole="button" disabled={busy} onPress={() => void choosePhoto()} style={styles.textButton}>
-                <Text style={[text.button, { color: colors.forest }]}>Choose a photo</Text>
-              </Pressable>
-              <Pressable accessibilityRole="button" disabled={busy} onPress={() => void choosePdf()} style={styles.textButton}>
-                <Text style={[text.button, { color: colors.forest }]}>Choose a PDF</Text>
-              </Pressable>
+              <HallButton kind="text" label="Take a photo" disabled={busy} onPress={() => void takePhoto()} />
+              <HallButton kind="text" label="Choose a photo" disabled={busy} onPress={() => void choosePhoto()} />
+              <HallButton kind="text" label="Choose a PDF" disabled={busy} onPress={() => void choosePdf()} />
               {draft ? (
                 <HallButton
+                  kind="secondary"
                   label="Upload receipt"
                   busy={cue.busy("upload")}
                   succeeded={cue.succeeded("upload")}
@@ -494,13 +455,13 @@ function PaymentDetail({ id }: { id: string }) {
                 />
               ) : null}
               {stay.evidenceName ? (
-                <Pressable accessibilityRole="button" disabled={busy} onPress={() => void removeEvidence()} style={styles.textButton}>
-                  {cue.busy("remove") ? (
-                    <ActivityIndicator color={colors.danger} />
-                  ) : (
-                    <Text style={[text.button, { color: colors.danger }]}>Remove receipt</Text>
-                  )}
-                </Pressable>
+                <HallButton
+                  kind="danger"
+                  label="Remove receipt"
+                  busy={cue.busy("remove")}
+                  disabled={busy}
+                  onPress={() => void removeEvidence()}
+                />
               ) : null}
             </>
           )}
@@ -539,11 +500,8 @@ const styles = StyleSheet.create({
   list: { flex: 1 },
   pad: { paddingHorizontal: 28, gap: 16 },
   detail: { flexGrow: 1, paddingHorizontal: 28, gap: 16 },
-  back: { alignSelf: "flex-start", minHeight: 44, justifyContent: "center", marginLeft: -6 },
+
   title: { textAlign: "left" },
-  search: { height: 48, borderWidth: 1, borderRadius: 12, borderCurve: "continuous", paddingHorizontal: 14 },
-  note: { minHeight: 52, borderWidth: 1, borderRadius: 12, borderCurve: "continuous", paddingHorizontal: 14 },
-  textButton: { minHeight: 44, justifyContent: "center" },
   preview: { width: "100%", height: 220, borderRadius: 12, borderCurve: "continuous" },
   denied: { alignItems: "center", justifyContent: "center", padding: 28 },
 });

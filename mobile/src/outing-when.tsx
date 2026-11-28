@@ -438,9 +438,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   chip: {
-    borderRadius: 8,
+    borderRadius: 12,
     minHeight: 34,
-    paddingHorizontal: 11,
+    paddingHorizontal: 12,
     justifyContent: "center",
     overflow: "hidden",
   },

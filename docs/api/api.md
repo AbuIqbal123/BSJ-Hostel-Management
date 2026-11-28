@@ -138,15 +138,18 @@ The caller sends an access token as `Authorization: Bearer`, except on
 `GET /health`, `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, and
 `POST /api/v1/auth/onboard`.
 
-Access tokens last 15 minutes. Refresh tokens last 30 days. A password chosen
-on self-onboard, on change-password, or on a provost password reset is at
-least 10 characters and includes an uppercase letter, a lowercase letter, a
-number, and a symbol. Passwords are stored as Argon2id. Residents may
-self-onboard at `POST /api/v1/auth/onboard` (public on dev). On that form the
-resident phone and the guardian phone are Indian mobiles: `+91` followed by
-exactly 10 digits. The form selects the block and room and creates an active
-resident who can sign in immediately. The provost may still create residents
-and must create staff.
+Access tokens last 15 minutes. Refresh tokens last 30 days. An access token
+whose `ver` claim does not match the account's `token_version` is refused
+(raised on password change, password reset, and suspension).
+A password chosen on self-onboard, on change-password, or on a provost
+password reset is at least 10 characters and includes an uppercase letter, a
+lowercase letter, a number, and a symbol. Passwords are stored as Argon2id.
+Residents may self-onboard at `POST /api/v1/auth/onboard` (public on dev). On
+that form the resident phone and the guardian phone are Indian mobiles: `+91`
+followed by exactly 10 digits. The form selects the block and room and
+creates an active resident who can sign in immediately. A warden or the
+provost may still create residents. A warden or the provost creates staff;
+only the provost may create a provost.
 A resident username is the enrolment number.
 
 Stored state and lifecycles live in `docs/database/database.md`. This file does not
@@ -5085,7 +5088,7 @@ Warden or provost for residents, staff, rooms, destinations, export, SMS log, an
 | GET | `/api/v1/admin/staff` | [List staff accounts](#get-api-v1-admin-staff) | warden or provost |
 | POST | `/api/v1/admin/staff` | [Create a staff account](#post-api-v1-admin-staff) | warden or provost |
 | PATCH | `/api/v1/admin/staff/{user_id}` | [Update a staff account](#patch-api-v1-admin-staff-user_id) | warden or provost |
-| POST | `/api/v1/admin/users/{user_id}/password` | [Reset a password](#post-api-v1-admin-users-user_id-password) | warden or provost |
+| POST | `/api/v1/admin/users/{user_id}/password` | [Reset a password](#post-api-v1-admin-users-user_id-password) | provost |
 | GET | `/api/v1/admin/blocks` | [List blocks](#get-api-v1-admin-blocks) | warden or provost |
 | POST | `/api/v1/admin/blocks` | [Create a block](#post-api-v1-admin-blocks) | warden or provost |
 | PATCH | `/api/v1/admin/blocks/{block_id}` | [Update a block](#patch-api-v1-admin-blocks-block_id) | warden or provost |
@@ -5591,13 +5594,18 @@ Body: [ErrorResponse](#schema-errorresponse).
 
 `reset_password`
 
-**Who.** warden or provost. Bearer access token.
+**Who.** provost. Bearer access token.
 
-Caller: warden or provost. Sets a temporary password and revokes that user's
-refresh tokens. Works for residents and staff. A warden cannot reset a
-provost. Every reset writes `user.password_reset` with the actor and target,
-never the password. The temporary password is at least 10 characters and
-includes an uppercase letter, a lowercase letter, a number, and a symbol.
+Caller: provost. Sets a temporary password, stamps `password_changed_at`,
+raises `token_version`, and revokes that user's refresh tokens so old
+access tokens stop working.
+Resets a resident, gate, or warden account. A caller cannot reset her own
+password on this route (use change-password). A warden cannot reset anyone
+on this route; she changes only her own password via change-password. A
+provost cannot reset another provost here. Every reset writes
+`user.password_reset` with the actor and target, never the password. The
+temporary password is at least 10 characters and includes an uppercase
+letter, a lowercase letter, a number, and a symbol.
 
 **Parameters**
 
